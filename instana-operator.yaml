@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: instana-operator
+spec:
+  selector:
+    matchLabels:
+      app: instana-operator
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: instana-operator
+    spec:
+      containers:
+      - image: fstab/instana-operator
+        name: instana-operator
+        ports:
+        - containerPort: 8080
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: instana-operator
+spec:
+  selector:
+    app: instana-operator
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
