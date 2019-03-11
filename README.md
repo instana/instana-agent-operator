@@ -4,7 +4,11 @@ Instana Operator
 Status
 ------
 
-Runs an HTTP server on port 8080. The server provides an ASCII table with the current environment variables (useful to check which container is serving the request).
+This is the initial commit. `instana-operator` can be deployed on Kubernetes and runs a small HTTP server on port 8080 showing the status of the leader election.
+
+The next step is to replace the current leader election sidecar with the operator.
+
+Should we support more than one `instana-operator` instance? If there are multiple `instana-operator` Pods running, they need to elect an `instana-operator` leader among themselves. The `instana-operator` leader determines which Intana agent will be the agent leader. A first implementation of leader election among `instana-operator` instances can be found in `LeaderElector.java`.
 
 Build
 -----
@@ -26,6 +30,8 @@ mvn package docker:build
 
 Deploy
 ------
+
+Assumes that the Docker image `instana/instana-operator:latest` is available in the local repository on all Kubernetes nodes (see `imagePullPolicy: Never` in `instana-operator.yaml`).
 
 ```
 kubectl apply -f instana-operator.yaml
