@@ -37,8 +37,28 @@ Assumes that the Docker image `instana/instana-operator:latest` is available in 
 kubectl apply -f instana-operator.yaml
 ```
 
-Test
-----
+Manualy Testing the Leader Election
+-----------------------------------
+
+The best way to test the leader election is to deploy individual Pods instead of a Deployment. That way, you can shut down single Pods without having Kubernetes restarting them.
+
+* Create the `ServiceAccount`, `ClusterRole`, and `ClusterRoleBinding` as defined in `instana-operator.yaml`, but not the `Deployment` and `Service`.
+* Start three Pods as follows:
+  ```
+  kubectl run --generator=run-pod/v1 instana-operator-1 --image=instana/instana-operator --image-pull-policy=Never --env="POD_NAME=instana-operator-1" --serviceaccount=instana-operator
+  kubectl run --generator=run-pod/v1 instana-operator-2 --image=instana/instana-operator --image-pull-policy=Never --env="POD_NAME=instana-operator-2" --serviceaccount=instana-operator
+  kubectl run --generator=run-pod/v1 instana-operator-3 --image=instana/instana-operator --image-pull-policy=Never --env="POD_NAME=instana-operator-3" --serviceaccount=instana-operator
+  ```
+* Leader election uses a `ConfigMap` as lock with the current leader as owner reference. Check that as follows:
+  ```
+  kubectl get configmaps instana-operator-leader-lock -o yaml
+  ```
+* If you delete a pod (example: `kubectl delete pod instana-operator-1`), the `ConfigMap` will be deleted and a new Pod should succeed to create the `ConfigMap` and become leader after max 10 seconds.
+* When the last pod is deleted, the `ConfigMap` should be gone as well.
+
+
+HTTP Interface for Debugging
+----------------------------
 
 1.  Get the service's [Cluster IP](https://kubernetes.io/docs/concepts/services-networking/service/):
     ```bash

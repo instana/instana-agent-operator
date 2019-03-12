@@ -1,6 +1,8 @@
 package com.instana.operator;
 
 import com.sun.net.httpserver.HttpServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -10,6 +12,7 @@ import java.util.Map;
 
 public class Main {
 
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private static volatile String leaderElectionStatus = "I am not the leader.";
     private static volatile String stackTrace = "";
 
@@ -31,9 +34,10 @@ public class Main {
         new Thread(() -> {
             try {
                 LeaderElector leaderElector = LeaderElector.init();
-                leaderElector.becomeLeader();
+                leaderElector.waitUntilBecomingLeader();
                 leaderElectionStatus = "I am the leader.";
             } catch (Exception e) {
+                logger.info("Unexpected Exception in leader election loop: " + e.getMessage(), e);
                 stackTrace = stackTraceToString(e);
             }
         }).start();
