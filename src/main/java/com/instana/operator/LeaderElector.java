@@ -4,18 +4,15 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+
+import static com.instana.operator.KubernetesUtil.findNamespace;
 
 // Java implementation of https://github.com/operator-framework/operator-sdk/blob/master/pkg/leader/leader.go
 // If more than one instana-operator Pod is running, this is used to define which of these will be the leader.
@@ -27,12 +24,7 @@ class LeaderElector {
     private final String lockName = "instana-operator-leader-lock";
     private final int pollIntervalSeconds = 10;
 
-    static LeaderElector init() {
-        KubernetesClient client = new DefaultKubernetesClient();
-        return new LeaderElector(client);
-    }
-
-    private LeaderElector(KubernetesClient client) {
+    LeaderElector(KubernetesClient client) {
         this.client = client;
     }
 
@@ -73,7 +65,7 @@ class LeaderElector {
     }
 
     private OwnerReference findMyOwnerRef() throws InitializationException {
-        String operatorNamespace = findOperatorNamespace();
+        String operatorNamespace = findNamespace();
         String podName = System.getenv("POD_NAME");
         if (podName == null) {
             throw new InitializationException("POD_NAME environment variable not set. Make sure to configure downward API in the deployment descriptor.");
@@ -92,15 +84,6 @@ class LeaderElector {
             return ownerReference;
         } catch (KubernetesClientException e) {
             throw new InitializationException(errMsg + ": " + e.getMessage(), e);
-        }
-    }
-
-    private String findOperatorNamespace() throws InitializationException {
-        try {
-            byte[] bytes = Files.readAllBytes(Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/namespace"));
-            return new String(bytes, StandardCharsets.UTF_8).trim();
-        } catch (IOException e) {
-            throw new InitializationException("Namespace not found. This container seems to be running outside of a Kubernetes cluster.");
         }
     }
 }

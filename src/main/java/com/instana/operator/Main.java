@@ -1,6 +1,8 @@
 package com.instana.operator;
 
 import com.sun.net.httpserver.HttpServer;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +20,38 @@ public class Main {
 
     // Postpone HTTP framework decision, use com.sun.net.httpserver for now (requires OpenJDK or Oracle JDK).
     public static void main(String[] args) throws Exception {
-        runLeaderElectionPollingThread();
+        KubernetesClient client = new DefaultKubernetesClient();
+        runLeaderElectionPollingThread(client);
+        runAgentScanner(client);
+        runHttpServer();
+    }
+
+    private static void runLeaderElectionPollingThread(KubernetesClient client) {
+        new Thread(() -> {
+            try {
+                LeaderElector leaderElector = new LeaderElector(client);
+                leaderElector.waitUntilBecomingLeader();
+                leaderElectionStatus = "I am the leader.";
+            } catch (Exception e) {
+                logger.info("Unexpected Exception in leader election loop: " + e.getMessage(), e);
+                stackTrace = stackTraceToString(e);
+            }
+        }).start();
+    }
+
+    private static void runAgentScanner(KubernetesClient client) {
+        new Thread(() -> {
+            try {
+                InstanaAgentScanner agentScanner = new InstanaAgentScanner(client);
+                agentScanner.run();
+            } catch (Exception e) {
+                logger.info("Unexpected Exception in agent scanner loop: " + e.getMessage(), e);
+                stackTrace = stackTraceToString(e);
+            }
+        }).start();
+    }
+
+    private static void runHttpServer() throws Exception {
         HttpServer httpServer = HttpServer.create(new InetSocketAddress(8080), 10);
         httpServer.createContext("/", httpExchange -> {
             byte[] respBody = getMessage().getBytes("UTF-8");
@@ -28,19 +61,6 @@ public class Main {
             httpExchange.getResponseBody().close();
         });
         httpServer.start();
-    }
-
-    private static void runLeaderElectionPollingThread() {
-        new Thread(() -> {
-            try {
-                LeaderElector leaderElector = LeaderElector.init();
-                leaderElector.waitUntilBecomingLeader();
-                leaderElectionStatus = "I am the leader.";
-            } catch (Exception e) {
-                logger.info("Unexpected Exception in leader election loop: " + e.getMessage(), e);
-                stackTrace = stackTraceToString(e);
-            }
-        }).start();
     }
 
     private static String getMessage() {

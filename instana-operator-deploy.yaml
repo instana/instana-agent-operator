@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: instana-operator
+  namespace: instana-agent
+spec:
+  selector:
+    matchLabels:
+      app: instana-operator
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: instana-operator
+    spec:
+      serviceAccountName: instana-operator
+      containers:
+      - image: instana/instana-operator
+        name: instana-operator
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
