@@ -12,19 +12,19 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import static com.instana.operator.KubernetesUtil.findNamespace;
-
 // Java implementation of https://github.com/operator-framework/operator-sdk/blob/master/pkg/leader/leader.go
 // If more than one instana-operator Pod is running, this is used to define which of these will be the leader.
-class LeaderElector {
+class OperatorLeaderElector {
 
-    private final Logger logger = LoggerFactory.getLogger(LeaderElector.class);
+    private final Logger logger = LoggerFactory.getLogger(OperatorLeaderElector.class);
 
     private final KubernetesClient client;
+    private final String namespace;
     private final String lockName = "instana-operator-leader-lock";
-    private final int pollIntervalSeconds = 10;
+    private final int pollIntervalSeconds = 10; // TODO: Short interval is good for development but should be adjusted for production.
 
-    LeaderElector(KubernetesClient client) {
+    OperatorLeaderElector(KubernetesClient client, String namespace) {
+        this.namespace = namespace;
         this.client = client;
     }
 
@@ -65,14 +65,13 @@ class LeaderElector {
     }
 
     private OwnerReference findMyOwnerRef() throws InitializationException {
-        String operatorNamespace = findNamespace();
         String podName = System.getenv("POD_NAME");
         if (podName == null) {
             throw new InitializationException("POD_NAME environment variable not set. Make sure to configure downward API in the deployment descriptor.");
         }
-        String errMsg = "Failed to find Pod '" + podName + "' in namespace '" + operatorNamespace + "'";
+        String errMsg = "Failed to find Pod '" + podName + "' in namespace '" + namespace + "'";
         try {
-            Pod myself = client.pods().inNamespace(operatorNamespace).withName(podName).get();
+            Pod myself = client.pods().inNamespace(namespace).withName(podName).get();
             if (myself == null) {
                 throw new InitializationException(errMsg + ".");
             }
