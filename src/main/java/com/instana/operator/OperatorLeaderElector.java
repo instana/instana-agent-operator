@@ -28,6 +28,9 @@ class OperatorLeaderElector {
         this.client = client;
     }
 
+    // TODO: If the Java application is restarted within a running operator Pod (e.g. the update script updated the
+    // Java application without restarting the Pod), there might be an existing ConfigMap with the current Pod as Owner.
+    // Detect this and assume this Pod is the leader if that happens.
     void waitUntilBecomingLeader() throws InitializationException {
         boolean firstTry = true;
         ConfigMap configMap = createConfigMap();
