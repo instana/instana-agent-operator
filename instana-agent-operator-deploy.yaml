@@ -1,0 +1,89 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: electedleaders.agent.instana.io
+  namespace: instana-agent
+spec:
+  group: agent.instana.io
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+  scope: Namespaced
+  names:
+    plural: electedleaders
+    singular: electedleader
+    kind: ElectedLeader
+    shortNames:
+    - el
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+  namespace: instana-agent
+data:
+  configuration.yaml: |
+    com.instana.plugin.generic.hardware:
+      enabled: true
+      availability-zone: 'my-k8s-cluster'
+  org.ops4j.pax.url.mvn.cfg: |
+    org.ops4j.pax.url.mvn.certificateCheck=true
+    org.ops4j.pax.url.mvn.socket.keepAlive=true
+    org.ops4j.pax.url.mvn.settings=file:${karaf.etc}/mvn-settings.xml
+    org.ops4j.pax.url.mvn.useFallbackRepositories=false
+    org.ops4j.pax.url.mvn.defaultRepositories=file:/root/.m2/repository@id=m2repo@snapshots,file:${karaf.home}/${karaf.default.repository}@id=system.repository@snapshots
+    org.ops4j.pax.url.mvn.repositories=https://artifact-public.instana.io/artifactory/features-internal@id=features@noreleases@snapshots@snapshotsUpdate=always,https://artifact-public.instana.io/artifactory/shared@id=shared@snapshots@snapshotsUpdate=always
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config
+  namespace: instana-agent
+data:
+  zone.name: my-k8s-cluster
+  agent.key: _PUT_YOUR_AGENT_KEY_HERE_
+  agent.endpoint: saas-us-west-2.instana.io
+  agent.endpoint.port: "444"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: instana-agent-operator
+  namespace: instana-agent
+spec:
+  selector:
+    matchLabels:
+      app: instana-agent-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: instana-agent-operator
+    spec:
+      serviceAccountName: instana-agent-operator
+      # TODO: Set hostNetwork true so we can open the debugging port 5004 below
+      hostNetwork: true
+      containers:
+      - image: instana/instana-agent-operator
+        name: instana-agent-operator
+        # TODO: IfNotPresent is good for testing, because you can test
+        # images from your local repository.
+        # However it should be changed to Always for production.
+        imagePullPolicy: Never
+        env:
+        - name: KARAF_OPTS
+          value: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5004"
+        ports:
+        - containerPort: 8080
+        - containerPort: 5004
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
