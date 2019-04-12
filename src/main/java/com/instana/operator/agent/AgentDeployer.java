@@ -15,6 +15,7 @@ import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
+import com.instana.operator.service.InstanaConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ public class AgentDeployer {
   @Inject
   ScheduledExecutorService executorService;
   @Inject
-  InstanaConfig instanaConfig;
+  InstanaConfigService instanaConfigService;
   @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
@@ -58,6 +59,8 @@ public class AgentDeployer {
     if (!ev.isLeader()) {
       return;
     }
+
+    InstanaConfig instanaConfig = instanaConfigService.getConfig();
 
     String namespace = namespaceService.getNamespace();
     NamespacedKubernetesClient client = clientService.getKubernetesClient();

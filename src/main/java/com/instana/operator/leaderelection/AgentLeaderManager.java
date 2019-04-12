@@ -1,34 +1,27 @@
 package com.instana.operator.leaderelection;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.instana.operator.GlobalErrorEvent;
+import com.instana.operator.agent.AgentConfigRestClient;
+import com.instana.operator.customresource.ElectedLeaderSpec;
+import com.instana.operator.service.*;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.quarkus.runtime.ShutdownEvent;
+import io.reactivex.disposables.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Event;
+import javax.enterprise.event.Observes;
+import javax.inject.Inject;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.instana.operator.GlobalErrorEvent;
-import com.instana.operator.agent.AgentConfigRestClient;
-import com.instana.operator.config.InstanaConfig;
-import com.instana.operator.customresource.ElectedLeaderSpec;
-import com.instana.operator.service.ElectedLeaderClientService;
-import com.instana.operator.service.KubernetesResourceService;
-import com.instana.operator.service.OperatorNamespaceService;
-import com.instana.operator.service.ResourceCache;
-
-import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkus.runtime.ShutdownEvent;
-import io.reactivex.disposables.Disposable;
 
 @ApplicationScoped
 public class AgentLeaderManager {
@@ -48,7 +41,7 @@ public class AgentLeaderManager {
   @Inject
   OperatorNamespaceService namespaceService;
   @Inject
-  InstanaConfig instanaConfig;
+  InstanaConfigService instanaConfigService;
   @Inject
   AgentConfigRestClient agentConfigRestClient;
   @Inject
@@ -60,7 +53,7 @@ public class AgentLeaderManager {
       .map(Pod::getMetadata)
       .flatMap(m -> Optional.ofNullable(m.getOwnerReferences()))
       .map(refs -> refs.stream().anyMatch(ownerRef ->
-          "DaemonSet".equals(ownerRef.getKind()) && instanaConfig.getDaemonSetName().equals(ownerRef.getName())))
+          "DaemonSet".equals(ownerRef.getKind()) && instanaConfigService.getConfig().getDaemonSetName().equals(ownerRef.getName())))
       .orElse(false);
 
   private final Predicate<Pod> isRunning = pod -> Optional.ofNullable(pod)

@@ -26,7 +26,7 @@ public class InstanaOperator {
   }
 
   void onStartup(@Observes StartupEvent _ev) {
-    LOGGER.debug("Starting InstanaOperator...");
+    LOGGER.debug("Starting the Instana Agent Operator...");
     RxJavaPlugins.setErrorHandler(t -> onError(new GlobalErrorEvent(t)));
   }
 
@@ -34,5 +34,4 @@ public class InstanaOperator {
     LOGGER.error(ev.getCause().getMessage(), ev.getCause());
     System.exit(1);
   }
-
 }

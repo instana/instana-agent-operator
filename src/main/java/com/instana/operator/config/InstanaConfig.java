@@ -2,75 +2,38 @@ package com.instana.operator.config;
 
 import java.util.Map;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.instana.operator.GlobalErrorEvent;
-import com.instana.operator.service.OperatorNamespaceService;
-
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import io.quarkus.runtime.StartupEvent;
-
-@ApplicationScoped
 public class InstanaConfig {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(InstanaConfig.class);
+  private final String clusterRoleName;
+  private final String clusterRoleBindingName;
+  private final String serviceAccountName;
+  private final String secretName;
+  private final String configMapName;
+  private final String daemonSetName;
 
-  private static final String INSTANA_AGENT_CONFIG_NAME = "config";
+  private final boolean rbacCreate;
 
-  @Inject
-  NamespacedKubernetesClient kubernetesClient;
-  @Inject
-  OperatorNamespaceService namespaceService;
-  @Inject
-  Event<GlobalErrorEvent> globalErrorEvent;
+  private final String zoneName;
+  private final String agentKey;
+  private final String agentImageName;
+  private final String agentImageTag;
+  private final String endpoint;
+  private final String endpointPort;
 
-  private String clusterRoleName;
-  private String clusterRoleBindingName;
-  private String serviceAccountName;
-  private String secretName;
-  private String configMapName;
-  private String daemonSetName;
+  private final double agentCpuReq;
+  private final double agentCpuLimit;
+  private final int agentMemReq;
+  private final int agentMemLimit;
 
-  private boolean rbacCreate;
+  private final String agentProxyHost;
+  private final String agentProxyPort;
+  private final String agentProxyProtocol;
+  private final String agentProxyUser;
+  private final String agentProxyPasswd;
+  private final String agentProxyUseDNS;
+  private final String agentHttpListen;
 
-  private String zoneName;
-  private String agentKey;
-  private String agentImageName;
-  private String agentImageTag;
-  private String endpoint;
-  private String endpointPort;
-
-  private double agentCpuReq;
-  private double agentCpuLimit;
-  private int agentMemReq;
-  private int agentMemLimit;
-
-  private String agentProxyHost;
-  private String agentProxyPort;
-  private String agentProxyProtocol;
-  private String agentProxyUser;
-  private String agentProxyPasswd;
-  private String agentProxyUseDNS;
-  private String agentHttpListen;
-
-  void onStartup(@Observes StartupEvent _ev) {
-    ConfigMap operatorConfigMap = kubernetesClient.configMaps()
-        .inNamespace(namespaceService.getNamespace())
-        .withName(INSTANA_AGENT_CONFIG_NAME)
-        .get();
-    if (null == operatorConfigMap) {
-      globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-          "Operator ConfigMap named " + INSTANA_AGENT_CONFIG_NAME + " not found in namespace "
-              + namespaceService.getNamespace())));
-    }
-    Map<String, String> data = operatorConfigMap.getData();
+  public InstanaConfig(Map<String, String> data) {
 
     // Whether to create the RBAC resources or not, as the user may want to manage themselves.
     rbacCreate = Boolean.valueOf(data.getOrDefault("agent.rbac.create", "true"));
@@ -85,19 +48,15 @@ public class InstanaConfig {
     // Zone name is required to identify this cluster on the infra map.
     zoneName = data.getOrDefault("zone.name", System.getenv("INSTANA_ZONE"));
     if (null == zoneName) {
-      LOGGER.error("'zone.name' is required to be set but was not set in the ConfigMap "
+      throw new IllegalArgumentException("'zone.name' is required to be set but was not set in the ConfigMap "
           + "nor was the INSTANA_ZONE environment variable present in the Operator's environment.");
-      // Force a restart of the container if config is missing in order to pick up the change on restart.
-      System.exit(1);
     }
 
     // Agent key is required or the agent won't start.
     agentKey = data.getOrDefault("agent.key", System.getenv("INSTANA_AGENT_KEY"));
     if (null == agentKey) {
-      LOGGER.error("'agent.key' is required to be set but was not set in the ConfigMap "
+      throw new IllegalArgumentException("'agent.key' is required to be set but was not set in the ConfigMap "
           + "nor was the INSTANA_AGENT_KEY environment variable present in the Operator's environment.");
-      // Force a restart of the container if config is missing in order to pick up the change on restart.
-      System.exit(1);
     }
 
     agentImageName = data.getOrDefault("agent.image", "instana/agent");
