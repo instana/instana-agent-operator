@@ -132,12 +132,14 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
   }
 
   @Override
-  public void dispose() {
+  public synchronized void dispose() {
     if (null != interval) {
       interval.dispose();
+      interval = null;
     }
     if (null != watch) {
       watch.close();
+      watch = null;
     }
     onDispose.accept(this);
   }
