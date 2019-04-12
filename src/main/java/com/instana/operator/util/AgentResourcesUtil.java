@@ -13,11 +13,13 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.QuantityBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -165,9 +167,11 @@ public abstract class AgentResourcesUtil {
                                                Secret secret,
                                                ConfigMap configMap,
                                                OwnerReference ownerReference,
+                                               String downloadKey,
                                                String zone,
                                                String endpoint,
                                                String endpointPort,
+                                               String mode,
                                                double cpuReq,
                                                int memoryReq,
                                                double cpuLimit,
@@ -186,9 +190,14 @@ public abstract class AgentResourcesUtil {
     env.add(createEnvVar("INSTANA_ZONE", zone));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT", endpoint));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", endpointPort));
+    env.add(createEnvVar("INSTANA_AGENT_MODE", mode));
     env.add(createEnvVarFromSecret("INSTANA_AGENT_KEY", secret.getMetadata().getName()));
     env.add(createEnvVar("JAVA_OPTS", String.format("-Xmx%dM -XX:+ExitOnOutOfMemoryError", memoryReq / 3)));
     env.add(createEnvVarFromFieldRef("INSTANA_AGENT_POD_NAME", "metadata.name"));
+
+    if (!isBlank(downloadKey)) {
+      env.add(createEnvVar("INSTANA_DOWNLOAD_KEY", downloadKey));
+    }
 
     if (!isBlank(proxyHost)) {
       env.add(createEnvVar("INSTANA_AGENT_PROXY_HOST", proxyHost));
@@ -213,8 +222,11 @@ public abstract class AgentResourcesUtil {
       env.add(createEnvVar("INSTANA_AGENT_HTTP_LISTEN", httpListen));
     }
 
-    // TODO: Remove the following in prod
-    env.add(createEnvVar("KARAF_OPTS", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"));
+    System.getenv().entrySet().stream()
+        .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
+        .forEach(e -> {
+          env.add(createEnvVar(e.getKey().substring(14), e.getValue()));
+        });
 
     List<VolumeMount> mounts = new ArrayList<>();
     mounts.add(createVolumeMount("dev", "/dev"));
@@ -278,6 +290,17 @@ public abstract class AgentResourcesUtil {
             .withRequests(requests)
             .withLimits(limits)
             .endResources()
+            .withLivenessProbe(new ProbeBuilder()
+                .withNewHttpGet()
+                .withNewPort(42699)
+                .withPath("/status")
+                .endHttpGet()
+                .withInitialDelaySeconds(75)
+                .withPeriodSeconds(5)
+                .build())
+            .withPorts(new ContainerPortBuilder()
+                .withContainerPort(42699)
+                .build())
             .build())
         .withVolumes(vols)
         .endSpec()

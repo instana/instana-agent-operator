@@ -23,7 +23,7 @@ import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 
-class ResourceHelperIT {
+class AgentResourcesUtilIT {
 
   YAMLMapper mapper;
   DefaultKubernetesClient client;
@@ -88,9 +88,11 @@ class ResourceHelperIT {
         s,
         m,
         null,
+        null,
         "resource-helper-test",
         "test.instana.io",
         "444",
+        "APM",
         0.5,
         512,
         1.0,

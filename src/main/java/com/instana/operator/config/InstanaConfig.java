@@ -15,10 +15,12 @@ public class InstanaConfig {
 
   private final String zoneName;
   private final String agentKey;
+  private final String agentDownloadKey;
   private final String agentImageName;
   private final String agentImageTag;
   private final String endpoint;
   private final String endpointPort;
+  private final String agentMode;
 
   private final double agentCpuReq;
   private final double agentCpuLimit;
@@ -34,7 +36,6 @@ public class InstanaConfig {
   private final String agentHttpListen;
 
   public InstanaConfig(Map<String, String> data) {
-
     // Whether to create the RBAC resources or not, as the user may want to manage themselves.
     rbacCreate = Boolean.valueOf(data.getOrDefault("agent.rbac.create", "true"));
     // Names of the various Agent-related resources.
@@ -58,12 +59,15 @@ public class InstanaConfig {
       throw new IllegalArgumentException("'agent.key' is required to be set but was not set in the ConfigMap "
           + "nor was the INSTANA_AGENT_KEY environment variable present in the Operator's environment.");
     }
+    agentDownloadKey = data.get("agent.downloadKey");
 
     agentImageName = data.getOrDefault("agent.image", "instana/agent");
     agentImageTag = data.getOrDefault("agent.imageTag", "latest");
 
     endpoint = data.getOrDefault("agent.endpoint", "saas-us-west-2.instana.io");
     endpointPort = data.getOrDefault("agent.endpoint.port", "443");
+
+    agentMode = data.getOrDefault("agent.mode", "APM");
 
     agentCpuReq = Float.parseFloat(data.getOrDefault("agent.cpuReq", "0.5"));
     agentCpuLimit = Float.parseFloat(data.getOrDefault("agent.cpuLimit", "1.5"));
@@ -115,6 +119,10 @@ public class InstanaConfig {
     return agentKey;
   }
 
+  public String getAgentDownloadKey() {
+    return agentDownloadKey;
+  }
+
   public String getAgentImageName() {
     return agentImageName;
   }
@@ -129,6 +137,10 @@ public class InstanaConfig {
 
   public String getEndpointPort() {
     return endpointPort;
+  }
+
+  public String getAgentMode() {
+    return agentMode;
   }
 
   public double getAgentCpuReq() {
