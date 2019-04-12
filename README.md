@@ -9,16 +9,7 @@ This is work in progress. Much of the instana-agent configuration is still hard-
 Build
 -----
 
-Requires OpenJDK.
-
-**Option 1:** Build the Docker image manually:
-
-```sh
-mvn package
-docker build -t instana/instana-agent-operator .
-```
-
-**Option 2:** Build using the [Docker maven plugin](https://dmp.fabric8.io/):
+Build the `instana/instana-agent-operator` Docker image using the [Docker maven plugin](https://dmp.fabric8.io/):
 
 ```sh
 mvn package docker:build
