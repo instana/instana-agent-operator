@@ -92,17 +92,22 @@ public class AgentLeaderManager {
           }
         })
         .subscribe(changeEvent -> {
-          if (null == changeEvent.getNextValue()) {
-            // DELETE
+          if (changeEvent.isDeleted()) {
             if (leaderName.compareAndSet(changeEvent.getName(), null)) {
               LOGGER.debug("DELETED Pod {} was the leader. Removed it and will nominate a new one.",
                   changeEvent.getName());
             }
-          } else if (null == changeEvent.getPreviousValue() && isRunning.test(changeEvent.getNextValue())) {
-            // ADDED
+          } else if (changeEvent.isAdded() && isRunning.test(changeEvent.getNextValue())) {
+            // TODO: Can we remove this?
+            // The custom resource is only there if another operator instance had created it and
+            // this operator instance became leader after that. However, in that case we get initial ADDED
+            // events for all agents in random order, and the algorithm below only works if the first ADDED event
+            // happens to be for the current leader (otherwise we nominate the first agent where we get the ADDED event).
+            // I think it would be easier if maybeNominateLeader() was checking the custom resource before choosing
+            // the leader randomly, then we just call maybeNominateLeader() in all other places.
             LOGGER.debug("ADDED running Pod {}", changeEvent.getName());
             boolean isPodLeader = electedLeaderClientService.loadElectedLeader()
-                .map(el -> Objects.equals(changeEvent.getNextValue().getMetadata().getName(), el.getLeaderName()))
+                .map(el -> changeEvent.getName().equals(el.getLeaderName()))
                 .orElse(false);
             if (isPodLeader) {
               LOGGER.debug("Pod {} is the leader, so setting it.", changeEvent.getName());
@@ -112,6 +117,7 @@ public class AgentLeaderManager {
               return;
             }
           } else if (null == leaderName.get()) {
+            // TODO: This is also called if the event is ADDED and the pos it not running.
             LOGGER.debug("MODIFIED Pod {} and no leader nominated.", changeEvent.getName());
             // MODIFIED
           }

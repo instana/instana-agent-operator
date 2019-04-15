@@ -39,9 +39,9 @@ public class OperatorNamespaceService {
   synchronized String getOperatorPodName() {
     if (null == name && null == (name = System.getenv(POD_NAME))) {
       globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-          "POD_NAME not available in the environment. "
-              + "Please ensure the downward API for POD_NAME is set using the provided YAML.")));
-      return null; // NPE
+          POD_NAME + " not available in the environment. "
+              + "Please ensure the downward API for " + POD_NAME + " is set using the provided YAML.")));
+      return null; // This line will never be executed, because the error event handler will call System.exit();
     }
     return name;
   }
@@ -65,9 +65,9 @@ public class OperatorNamespaceService {
     String ns = System.getenv(POD_NAMESPACE);
     if (null == ns) {
       globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-          "POD_NAME not available in the environment. "
-              + "Please ensure the downward API for POD_NAME is set using the provided YAML.")));
-      return null; // NPE
+          POD_NAMESPACE + " not available in the environment. "
+              + "Please ensure the downward API for " + POD_NAMESPACE + " is set using the provided YAML.")));
+      return null; // This line will never be executed, because the error event handler will call System.exit();
     }
     return Single.just(ns);
   }
@@ -85,6 +85,5 @@ public class OperatorNamespaceService {
       return Maybe.error(e);
     }
   }
-
 }
 

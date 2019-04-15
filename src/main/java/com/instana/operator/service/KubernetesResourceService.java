@@ -109,7 +109,7 @@ public class KubernetesResourceService {
     } catch (Throwable t) {
       LOGGER.debug(t.getMessage(), t);
       errorEvent.fire(new GlobalErrorEvent(t));
-      return null;
+      return null; // This line will never be executed, because the error event handler will call System.exit();
     }
 
     ResourceCache<T> rc = new ResourceCache<>(wld, errorEvent, leasedCaches::remove);

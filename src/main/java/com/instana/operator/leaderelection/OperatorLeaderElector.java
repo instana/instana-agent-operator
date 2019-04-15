@@ -48,7 +48,7 @@ public class OperatorLeaderElector {
 
   void onStartup(@Observes StartupEvent _ev) {
     defaultConfigMaps = clientService.createResourceCache(client ->
-        client.configMaps().inNamespace("default"));
+        client.configMaps().inNamespace("default")); // TODO: Use the operator namespace here?
 
     ownerReferenceService.getOperatorPodOwnerReference()
         .thenAccept(ownerRef -> {
@@ -56,12 +56,12 @@ public class OperatorLeaderElector {
               .filter(changeEvent -> INSTANA_AGENT_OPERATOR_LEADER_LOCK.equals(changeEvent.getName()))
               .subscribe(changeEvent -> {
                 boolean areWeLeader;
-                if (null == changeEvent.getPreviousValue() || null != changeEvent.getNextValue()) {
-                  // ADDED | MODIFIED
+                if (changeEvent.isAdded() || changeEvent.isModified()) {
                   areWeLeader = changeEvent.getNextValue().getMetadata().getOwnerReferences().stream()
                       .anyMatch(ref -> ref.getUid().equals(ownerRef.getUid()));
-                } else {
-                  // DELETED
+                } else { // DELETED
+                  // TODO: This will result in two leader election events being fired, which results in multiple Kubernetes events, multiple watches, etc.
+                  // TODO: We should store our current leader state in a global variable and fire the event only if it changed.
                   areWeLeader = maybeBecomeLeader(ownerRef);
                 }
 
@@ -69,6 +69,7 @@ public class OperatorLeaderElector {
               });
 
           if (maybeBecomeLeader(ownerRef)) {
+            // TODO: Same as above, multiple fireLeaderElectionEvent() calls triggered.
             fireLeaderElectionEvent(true, ownerRef);
           }
         });

@@ -50,8 +50,7 @@ public class OperatorOwnerReferenceService {
         .filter(changeEvent -> namespaceService.getOperatorPodName().equals(changeEvent.getName()))
         .doOnError(t -> globalErrorEvent.fire(new GlobalErrorEvent(t)))
         .subscribe(changeEvent -> {
-          if (null == changeEvent.getNextValue()) {
-            // DELETED
+          if (changeEvent.isDeleted()) {
             return;
           }
 
@@ -64,13 +63,8 @@ public class OperatorOwnerReferenceService {
               .build());
 
           OwnerReference ref = findReplicaSetOwnerReference(changeEvent.getNextValue())
-              .flatMap(rsor -> {
-                ReplicaSet rs = clientService.getKubernetesClient().apps().replicaSets()
-                    .inNamespace(namespaceService.getNamespace())
-                    .withName(rsor.getName())
-                    .get();
-                return findDeploymentOwnerReference(rs);
-              })
+              .flatMap(this::findReplicaSet)
+              .flatMap(this::findDeploymentOwnerReference)
               .orElseThrow(() -> new IllegalStateException("Could not find Operator Pod OwnerReference!"));
           operatorDeploymentOwnerReference.complete(ref);
         });
@@ -93,6 +87,14 @@ public class OperatorOwnerReferenceService {
     return rs.getMetadata().getOwnerReferences().stream()
         .filter((ref -> "Deployment".equals(ref.getKind())))
         .findFirst();
+  }
+
+  private Optional<ReplicaSet> findReplicaSet(OwnerReference ownerRef) {
+    return Optional.ofNullable(clientService.getKubernetesClient().apps().replicaSets()
+        .inNamespace(namespaceService.getNamespace())
+        .withName(ownerRef.getName())
+        .get());
+
   }
 
 }

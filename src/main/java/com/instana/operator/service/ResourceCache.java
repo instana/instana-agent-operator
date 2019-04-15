@@ -1,10 +1,6 @@
 package com.instana.operator.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -62,14 +58,17 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
 
           if (null == resourceList || resourceList.getItems().isEmpty()) {
             entries.clear();
+            return;
           }
 
           Map<String, T> newResources = resourceList.getItems().stream()
+              .filter(r -> r.getMetadata() != null)
+              .filter(r -> r.getMetadata().getName() != null)
               .collect(Collectors.toMap(r -> r.getMetadata().getName(), r -> r));
 
           newResources.forEach((name, newVal) -> {
             T oldVal = entries.put(name, newVal);
-            if (oldVal != newVal) {
+            if (oldVal != newVal) { // TODO: Use equals()? Compare generation? Compare ResourceVersion?
               publisher.onNext(new ChangeEvent<>(name, oldVal, newVal));
             }
           });
@@ -78,11 +77,13 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
             if (newResources.containsKey(name)) {
               return false;
             }
-            publisher.onNext(new ChangeEvent<>(name, entries.remove(name), null));
+            publisher.onNext(new ChangeEvent<>(name, entries.get(name), null));
             return true;
           });
 
           List<T> resources = new ArrayList<>(entries.values());
+          // TODO: entries.values() is not sorted, sure you want to get the resourceVersion of the last item returned by entries.values()?
+          // TODO: How do resourceVersion and generation relate to each other?
           String resourceVersion = resources.size() > 0
               ? resources.get(resources.size() - 1).getMetadata().getResourceVersion()
               : null;
@@ -106,7 +107,7 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
                 break;
               case DELETED:
                 if (null != (oldVal = entries.remove(resource.getMetadata().getName()))) {
-                  change = new ChangeEvent<>(resource.getMetadata().getName(), resource, null);
+                  change = new ChangeEvent<>(resource.getMetadata().getName(), oldVal, null);
                 }
                 break;
               case ERROR:
@@ -158,6 +159,7 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
   }
 
   public List<T> toList() {
+    // TODO: Multi threading: Might be inconsistent when called while the refresh poll loop is updating entries.
     return new ArrayList<>(entries.values());
   }
 
@@ -183,6 +185,17 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
     public T getNextValue() {
       return nextValue;
     }
-  }
 
+    public boolean isAdded() {
+      return previousValue == null && nextValue != null;
+    }
+
+    public boolean isModified() {
+      return previousValue != null && nextValue != null;
+    }
+
+    public boolean isDeleted() {
+      return previousValue != null && nextValue == null;
+    }
+  }
 }

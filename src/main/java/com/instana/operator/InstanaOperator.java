@@ -30,6 +30,8 @@ public class InstanaOperator {
     RxJavaPlugins.setErrorHandler(t -> onError(new GlobalErrorEvent(t)));
   }
 
+  // This is a synchronous event handler, i.e. calls to globalErrorEvent.fire()
+  // will never return but trigger System.exit() immediately.
   void onError(@Observes GlobalErrorEvent ev) {
     LOGGER.error(ev.getCause().getMessage(), ev.getCause());
     System.exit(1);

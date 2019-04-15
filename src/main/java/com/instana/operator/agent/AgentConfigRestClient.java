@@ -28,7 +28,7 @@ public class AgentConfigRestClient {
   public Maybe<Void> updateAgentLeaderStatus(String agentIp, int agentPort, boolean isLeader) {
     Throwable error = null;
     for (int i = 0; i < RETRY_COUNT; i++) {
-      LockSupport.parkNanos(TimeUnit.SECONDS.toNanos((RETRY_DELAY_SECONDS * i)));
+      LockSupport.parkNanos(TimeUnit.SECONDS.toNanos((RETRY_DELAY_SECONDS)));
       LOGGER.debug("Try {} updating agent config...", i + 1);
       RequestBody body = RequestBody.create(YAML, "com.instana.plugin.kubernetes.leader: " + isLeader);
       Request request = new Request.Builder()
@@ -37,13 +37,12 @@ public class AgentConfigRestClient {
           .build();
       try {
         client.newCall(request).execute().close();
-        return Maybe.fromCallable(() -> null);
+        return Maybe.empty();
       } catch (Throwable t) {
         error = t;
       }
     }
 
-    return null != error ? Maybe.error(error) : Maybe.empty();
+    return Maybe.error(error); // error cannot be null here.
   }
-
 }
