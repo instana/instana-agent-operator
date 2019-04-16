@@ -102,6 +102,7 @@ public class KubernetesResourceService {
   }
 
   public <T extends HasMetadata, L extends KubernetesResourceList<T>> ResourceCache<T> createResourceCache(
+      String name,
       Function<NamespacedKubernetesClient, WatchListDeletable<T, L, ?, Watch, Watcher<T>>> fn) {
     WatchListDeletable<T, L, ?, Watch, Watcher<T>> wld;
     try {
@@ -112,7 +113,7 @@ public class KubernetesResourceService {
       return null; // This line will never be executed, because the error event handler will call System.exit();
     }
 
-    ResourceCache<T> rc = new ResourceCache<>(wld, errorEvent, leasedCaches::remove);
+    ResourceCache<T> rc = new ResourceCache<>(name, wld, errorEvent, leasedCaches::remove);
     leasedCaches.add(rc);
     return rc;
   }

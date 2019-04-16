@@ -1,12 +1,21 @@
 package com.instana.operator.service;
 
-import java.util.*;
+import static java.util.Collections.emptyList;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import javax.enterprise.event.Event;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.instana.operator.GlobalErrorEvent;
 
@@ -17,119 +26,31 @@ import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
 import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.Observer;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.schedulers.Schedulers;
-import io.reactivex.subjects.PublishSubject;
 
 public class ResourceCache<T extends HasMetadata> implements Disposable {
 
-  private final Map<String, T> entries = new ConcurrentHashMap<>();
-  private final PublishSubject<ChangeEvent<T>> publisher = PublishSubject.create();
+  private final ConcurrentHashMap<String, T> entries = new ConcurrentHashMap<>(16, 0.9f, 1);
 
+  private final Logger logger;
+  private final WatchListDeletable<T, ? extends KubernetesResourceList<T>, ?, Watch, Watcher<T>> watchList;
+  private final Event<GlobalErrorEvent> errorEvent;
   private final Consumer<ResourceCache<T>> onDispose;
 
   private Disposable interval;
 
   private volatile Watch watch;
 
-  public ResourceCache(WatchListDeletable<T, ? extends KubernetesResourceList<T>, ?, Watch, Watcher<T>> watchList,
+  public ResourceCache(String name,
+                       WatchListDeletable<T, ? extends KubernetesResourceList<T>, ?, Watch, Watcher<T>> watchList,
                        Event<GlobalErrorEvent> errorEvent,
                        Consumer<ResourceCache<T>> onDispose) {
+    this.logger = LoggerFactory.getLogger(ResourceCache.class.getName() + "." + name);
+    this.watchList = watchList;
+    this.errorEvent = errorEvent;
     this.onDispose = onDispose;
-
-    this.interval = Observable.interval(0, 5, TimeUnit.MINUTES)
-        .subscribe(now -> {
-          if (null != watch) {
-            synchronized (ResourceCache.this) {
-              if (null != watch) {
-                watch.close();
-                watch = null;
-              }
-            }
-          }
-
-          KubernetesResourceList<T> resourceList;
-          try {
-            resourceList = watchList.list();
-          } catch (KubernetesClientException e) {
-            errorEvent.fire(new GlobalErrorEvent(e.getCause()));
-            return;
-          }
-
-          if (null == resourceList || resourceList.getItems().isEmpty()) {
-            entries.clear();
-            return;
-          }
-
-          Map<String, T> newResources = resourceList.getItems().stream()
-              .filter(r -> r.getMetadata() != null)
-              .filter(r -> r.getMetadata().getName() != null)
-              .collect(Collectors.toMap(r -> r.getMetadata().getName(), r -> r));
-
-          newResources.forEach((name, newVal) -> {
-            T oldVal = entries.put(name, newVal);
-            if (oldVal != newVal) { // TODO: Use equals()? Compare generation? Compare ResourceVersion?
-              publisher.onNext(new ChangeEvent<>(name, oldVal, newVal));
-            }
-          });
-
-          entries.keySet().removeIf(name -> {
-            if (newResources.containsKey(name)) {
-              return false;
-            }
-            publisher.onNext(new ChangeEvent<>(name, entries.get(name), null));
-            return true;
-          });
-
-          List<T> resources = new ArrayList<>(entries.values());
-          // TODO: entries.values() is not sorted, sure you want to get the resourceVersion of the last item returned by entries.values()?
-          // TODO: How do resourceVersion and generation relate to each other?
-          String resourceVersion = resources.size() > 0
-              ? resources.get(resources.size() - 1).getMetadata().getResourceVersion()
-              : null;
-
-          watch = watchList.withResourceVersion(resourceVersion).watch(new Watcher<T>() {
-            @Override
-            public void eventReceived(Action action, T resource) {
-              ChangeEvent<T> change = null;
-              switch (action) {
-              case ADDED:
-                change = new ChangeEvent<>(resource.getMetadata().getName(), null, resource);
-              case MODIFIED:
-                T oldVal = entries.put(resource.getMetadata().getName(), resource);
-                if (null != oldVal) {
-                  String oldValVers = oldVal.getMetadata().getResourceVersion();
-                  String newValVers = resource.getMetadata().getResourceVersion();
-                  if (!Objects.equals(oldValVers, newValVers)) {
-                    change = new ChangeEvent<>(resource.getMetadata().getName(), oldVal, resource);
-                  }
-                }
-                break;
-              case DELETED:
-                if (null != (oldVal = entries.remove(resource.getMetadata().getName()))) {
-                  change = new ChangeEvent<>(resource.getMetadata().getName(), oldVal, null);
-                }
-                break;
-              case ERROR:
-                errorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-                    "Resource " + resource.getMetadata().getName() + " encountered an error.")));
-                break;
-              }
-
-              if (null != change) {
-                publisher.onNext(change);
-              }
-            }
-
-            @Override
-            public void onClose(KubernetesClientException cause) {
-              if (null != cause) {
-                publisher.onError(cause.getCause());
-              }
-              publisher.onComplete();
-            }
-          });
-        });
   }
 
   @Override
@@ -155,12 +76,139 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
   }
 
   public Observable<ChangeEvent<T>> observe() {
-    return publisher.observeOn(Schedulers.io());
+    return Observable.defer(() -> new ObservableSource<ChangeEvent<T>>() {
+      @Override
+      public void subscribe(Observer<? super ChangeEvent<T>> observer) {
+        logger.debug("subscribe()");
+        interval = Observable.interval(0, 5, TimeUnit.MINUTES)
+            .subscribe(now -> {
+              if (null != watch) {
+                synchronized (ResourceCache.this) {
+                  if (null != watch) {
+                    logger.debug("Closing the existing watch. Will re-open after list().");
+                    watch.close();
+                    watch = null;
+                  }
+                }
+              }
+
+              KubernetesResourceList<T> krl;
+              try {
+                krl = watchList.list();
+              } catch (KubernetesClientException e) {
+                errorEvent.fire(new GlobalErrorEvent(e.getCause()));
+                return;
+              }
+
+              List<T> resourceList;
+              if (null == krl) {
+                resourceList = emptyList();
+              } else {
+                resourceList = krl.getItems();
+              }
+              logger.debug("Found {} resources. Now reconciling the cache...", resourceList.size());
+
+              Map<String, T> incomingResources = resourceList.stream()
+                  .filter(r -> r.getMetadata() != null)
+                  .filter(r -> r.getMetadata().getName() != null)
+                  .collect(Collectors.toMap(r -> r.getMetadata().getName(), r -> r));
+
+              synchronized (entries) {
+                incomingResources.forEach((name, newVal) -> {
+                  T oldVal = entries.put(name, newVal);
+                  ChangeEvent<T> changeEvent = null;
+                  if (null == oldVal
+                      || !oldVal.getMetadata().getResourceVersion().equals(newVal.getMetadata().getResourceVersion())) {
+                    logger.debug("Publishing {} {} ChangeEvent {}",
+                        (null == oldVal ? "added" : "modified"),
+                        newVal.getKind(),
+                        name);
+                    changeEvent = new ChangeEvent<>(name, oldVal, newVal);
+                  }
+                  if (null != changeEvent) {
+                    observer.onNext(changeEvent);
+                  }
+                });
+
+                entries.keySet().removeIf(name -> {
+                  if (incomingResources.containsKey(name)) {
+                    return false;
+                  }
+                  observer.onNext(new ChangeEvent<>(name, entries.get(name), null));
+                  return true;
+                });
+              }
+
+              List<T> reconciledResources = toList();
+              reconciledResources.sort((r1, r2) -> {
+                String r1v = r1.getMetadata().getResourceVersion();
+                String r2v = r2.getMetadata().getResourceVersion();
+                if (null == r1v) {
+                  return -1;
+                }
+                if (null == r2v) {
+                  return 1;
+                }
+                return r1v.compareTo(r2v);
+              });
+              String resourceVersion = reconciledResources.size() > 0
+                  ? reconciledResources.get(reconciledResources.size() - 1).getMetadata().getResourceVersion()
+                  : null;
+
+              logger.debug("Watching from resourceVersion {}", resourceVersion);
+              watch = watchList.withResourceVersion(resourceVersion).watch(new Watcher<T>() {
+                @Override
+                public void eventReceived(Action action, T resource) {
+                  ChangeEvent<T> change = null;
+                  switch (action) {
+                  case ADDED:
+                    change = new ChangeEvent<>(resource.getMetadata().getName(), null, resource);
+                  case MODIFIED:
+                    T oldVal = entries.put(resource.getMetadata().getName(), resource);
+                    if (null != oldVal) {
+                      String oldValVers = oldVal.getMetadata().getResourceVersion();
+                      String newValVers = resource.getMetadata().getResourceVersion();
+                      if (!Objects.equals(oldValVers, newValVers)) {
+                        change = new ChangeEvent<>(resource.getMetadata().getName(), oldVal, resource);
+                      }
+                    }
+                    break;
+                  case DELETED:
+                    if (null != (oldVal = entries.remove(resource.getMetadata().getName()))) {
+                      change = new ChangeEvent<>(resource.getMetadata().getName(), oldVal, null);
+                    }
+                    break;
+                  case ERROR:
+                    errorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
+                        "Resource " + resource.getMetadata().getName() + " encountered an error.")));
+                    break;
+                  }
+
+                  if (null != change) {
+                    observer.onNext(change);
+                  }
+                }
+
+                @Override
+                public void onClose(KubernetesClientException cause) {
+                  if (null != cause) {
+                    logger.debug("Handling error: {}", cause.getCause());
+                    observer.onError(cause.getCause());
+                  }
+                  observer.onComplete();
+                }
+              });
+            });
+
+        observer.onSubscribe(ResourceCache.this);
+      }
+    });
   }
 
   public List<T> toList() {
-    // TODO: Multi threading: Might be inconsistent when called while the refresh poll loop is updating entries.
-    return new ArrayList<>(entries.values());
+    synchronized (entries) {
+      return new ArrayList<>(entries.values());
+    }
   }
 
   public class ChangeEvent<T> {
@@ -198,4 +246,5 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
       return previousValue != null && nextValue == null;
     }
   }
+
 }

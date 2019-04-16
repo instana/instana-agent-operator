@@ -43,7 +43,7 @@ public class OperatorOwnerReferenceService {
   }
 
   void onStartup(@Observes StartupEvent _ev) {
-    ResourceCache<Pod> allPods = clientService.createResourceCache(client -> client.pods()
+    ResourceCache<Pod> allPods = clientService.createResourceCache("operatorPodSelf", client -> client.pods()
         .inNamespace(namespaceService.getNamespace()));
 
     allPods.observe()

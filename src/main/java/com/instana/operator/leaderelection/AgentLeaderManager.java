@@ -1,27 +1,34 @@
 package com.instana.operator.leaderelection;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Event;
+import javax.enterprise.event.Observes;
+import javax.enterprise.event.ObservesAsync;
+import javax.inject.Inject;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.agent.AgentConfigRestClient;
 import com.instana.operator.customresource.ElectedLeaderSpec;
-import com.instana.operator.service.*;
+import com.instana.operator.service.ElectedLeaderClientService;
+import com.instana.operator.service.InstanaConfigService;
+import com.instana.operator.service.KubernetesResourceService;
+import com.instana.operator.service.OperatorNamespaceService;
+import com.instana.operator.service.ResourceCache;
+
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkus.runtime.ShutdownEvent;
 import io.reactivex.disposables.Disposable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
 
 @ApplicationScoped
 public class AgentLeaderManager {
@@ -53,7 +60,8 @@ public class AgentLeaderManager {
       .map(Pod::getMetadata)
       .flatMap(m -> Optional.ofNullable(m.getOwnerReferences()))
       .map(refs -> refs.stream().anyMatch(ownerRef ->
-          "DaemonSet".equals(ownerRef.getKind()) && instanaConfigService.getConfig().getDaemonSetName().equals(ownerRef.getName())))
+          "DaemonSet".equals(ownerRef.getKind()) && instanaConfigService.getConfig().getDaemonSetName()
+              .equals(ownerRef.getName())))
       .orElse(false);
 
   private final Predicate<Pod> isRunning = pod -> Optional.ofNullable(pod)
@@ -68,7 +76,7 @@ public class AgentLeaderManager {
   private ResourceCache<Pod> agentPods;
   private Disposable watch;
 
-  void onLeaderElection(@Observes LeaderElectionEvent ev) {
+  void onLeaderElection(@ObservesAsync LeaderElectionEvent ev) {
     if (!ev.isLeader()) {
       LOGGER.debug("Not the leader, so not doing anything.");
       if (null != watch) {
@@ -77,7 +85,7 @@ public class AgentLeaderManager {
       return;
     }
 
-    agentPods = clientService.createResourceCache(client ->
+    agentPods = clientService.createResourceCache("agents", client ->
         client.pods()
             .inNamespace(namespaceService.getNamespace())
             .withLabel("agent.instana.io/role", "agent"));
@@ -88,38 +96,18 @@ public class AgentLeaderManager {
             LOGGER.debug("Ignoring Pod {}, which doesn't belong to the agent DaemonSet.", changeEvent.getName());
             return false;
           } else {
-            return isRunning.test(changeEvent.getNextValue());
+            boolean b = isRunning.test(changeEvent.getNextValue());
+            if (!b) {
+              LOGGER.debug("Ignoring non-running Pod {}", changeEvent.getName());
+            }
+            return b;
           }
         })
         .subscribe(changeEvent -> {
-          if (changeEvent.isDeleted()) {
-            if (leaderName.compareAndSet(changeEvent.getName(), null)) {
-              LOGGER.debug("DELETED Pod {} was the leader. Removed it and will nominate a new one.",
-                  changeEvent.getName());
-            }
-          } else if (changeEvent.isAdded() && isRunning.test(changeEvent.getNextValue())) {
-            // TODO: Can we remove this?
-            // The custom resource is only there if another operator instance had created it and
-            // this operator instance became leader after that. However, in that case we get initial ADDED
-            // events for all agents in random order, and the algorithm below only works if the first ADDED event
-            // happens to be for the current leader (otherwise we nominate the first agent where we get the ADDED event).
-            // I think it would be easier if maybeNominateLeader() was checking the custom resource before choosing
-            // the leader randomly, then we just call maybeNominateLeader() in all other places.
-            LOGGER.debug("ADDED running Pod {}", changeEvent.getName());
-            boolean isPodLeader = electedLeaderClientService.loadElectedLeader()
-                .map(el -> changeEvent.getName().equals(el.getLeaderName()))
-                .orElse(false);
-            if (isPodLeader) {
-              LOGGER.debug("Pod {} is the leader, so setting it.", changeEvent.getName());
-              // This is the leader so short-circuit the nomination process.
-              leaderName.set(changeEvent.getName());
-              fireAgentLeaderElectedEvent(changeEvent.getNextValue());
-              return;
-            }
-          } else if (null == leaderName.get()) {
-            // TODO: This is also called if the event is ADDED and the pos it not running.
-            LOGGER.debug("MODIFIED Pod {} and no leader nominated.", changeEvent.getName());
-            // MODIFIED
+          if (changeEvent.isDeleted()
+              && leaderName.compareAndSet(changeEvent.getName(), null)) {
+            LOGGER.debug("DELETED Pod {} was the leader. Removed it and will nominate a new one.",
+                changeEvent.getName());
           }
 
           maybeNominateLeader();
@@ -143,8 +131,24 @@ public class AgentLeaderManager {
       return;
     }
 
-    // Get current agent Pods as list, choose one, try to make it the leader.
+    // Maybe set current leader based on pre-elected leader (we're taking over for a failed Operator).
+    LOGGER.debug("Checking whether a previously-elected leader was referenced...");
+    electedLeaderClientService.loadElectedLeader()
+        .map(ElectedLeaderSpec::getLeaderName)
+        .flatMap(l -> agentPods.get(l))
+        .filter(isRunning::test)
+        .ifPresent(p -> {
+          LOGGER.debug("Found previously-elected leader: {}", p.getMetadata().getName());
+          leaderName.set(p.getMetadata().getName());
+        });
+    if (null != leaderName.get()) {
+      LOGGER.debug("Leader already elected.");
+      return;
+    }
+
+    // Get current agent Pods as list.
     List<Pod> podsAsList = agentPods.toList();
+    LOGGER.debug("Choosing a random leader from {} possibilities", podsAsList.size());
     Pod nominatedLeader = null;
     for (int tries = 0; tries < 3; tries++) {
       // Choose a leader at random.

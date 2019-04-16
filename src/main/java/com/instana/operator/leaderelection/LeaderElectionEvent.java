@@ -12,4 +12,11 @@ public class LeaderElectionEvent {
     return leader;
   }
 
+  @Override
+  public String toString() {
+    return "LeaderElectionEvent{" +
+        "leader=" + leader +
+        '}';
+  }
+
 }

@@ -114,11 +114,13 @@ public class ElectedLeaderClientService {
   public Optional<ElectedLeaderSpec> loadElectedLeader() {
     ElectedLeaderList list = getClient().list();
     if (list == null) {
+      LOGGER.debug("ElectedLeader CustomResource was not present.");
       return Optional.empty();
     }
     return list.getItems().stream()
         .filter(el -> el.getMetadata() != null && CR_NAME.equals(el.getMetadata().getName()))
         .map(ElectedLeader::getSpec)
+        .peek(s -> LOGGER.debug("ElectedLeader CustomResource was found {}", s))
         .findAny();
   }
 

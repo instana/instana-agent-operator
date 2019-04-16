@@ -93,6 +93,7 @@ class KubernetesResourceServiceIT {
   @Test
   void mustCachePodsInNamespace() throws InterruptedException {
     ResourceCache<Pod> pods = kubernetesResourceService.createResourceCache(
+        "test",
         client -> client.pods().inNamespace("test"));
 
     CountDownLatch latch = new CountDownLatch(1);
@@ -108,6 +109,7 @@ class KubernetesResourceServiceIT {
   @Test
   void mustCacheConfigMap() throws InterruptedException {
     ResourceCache<ConfigMap> configMaps = kubernetesResourceService.createResourceCache(
+        "test",
         client -> client.configMaps().inNamespace("test"));
 
     CountDownLatch latch = new CountDownLatch(1);

@@ -1,5 +1,9 @@
 package com.instana.operator.leaderelection;
 
+import static javax.enterprise.event.NotificationOptions.ofExecutor;
+
+import java.util.concurrent.ScheduledExecutorService;
+
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
@@ -40,38 +44,34 @@ public class OperatorLeaderElector {
   @Inject
   Event<LeaderElectionEvent> leaderElectionEvent;
   @Inject
+  ScheduledExecutorService executorService;
+  @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
   private Disposable watchDisposable;
 
   private ResourceCache<ConfigMap> defaultConfigMaps;
 
+  private volatile boolean areWeLeader = false;
+
   void onStartup(@Observes StartupEvent _ev) {
-    defaultConfigMaps = clientService.createResourceCache(client ->
-        client.configMaps().inNamespace("default")); // TODO: Use the operator namespace here?
+    defaultConfigMaps = clientService.createResourceCache(namespaceService.getNamespace() + "-configMaps", client ->
+        client.configMaps().inNamespace(namespaceService.getNamespace()));
 
     ownerReferenceService.getOperatorPodOwnerReference()
         .thenAccept(ownerRef -> {
           watchDisposable = defaultConfigMaps.observe()
               .filter(changeEvent -> INSTANA_AGENT_OPERATOR_LEADER_LOCK.equals(changeEvent.getName()))
+              .filter(ResourceCache.ChangeEvent::isDeleted)
               .subscribe(changeEvent -> {
-                boolean areWeLeader;
-                if (changeEvent.isAdded() || changeEvent.isModified()) {
-                  areWeLeader = changeEvent.getNextValue().getMetadata().getOwnerReferences().stream()
-                      .anyMatch(ref -> ref.getUid().equals(ownerRef.getUid()));
-                } else { // DELETED
-                  // TODO: This will result in two leader election events being fired, which results in multiple Kubernetes events, multiple watches, etc.
-                  // TODO: We should store our current leader state in a global variable and fire the event only if it changed.
-                  areWeLeader = maybeBecomeLeader(ownerRef);
+                if (maybeBecomeLeader(ownerRef) && !areWeLeader) {
+                  areWeLeader = true;
+                  fireLeaderElectionEvent(areWeLeader, ownerRef);
                 }
-
-                fireLeaderElectionEvent(areWeLeader, ownerRef);
               });
 
-          if (maybeBecomeLeader(ownerRef)) {
-            // TODO: Same as above, multiple fireLeaderElectionEvent() calls triggered.
-            fireLeaderElectionEvent(true, ownerRef);
-          }
+          areWeLeader = maybeBecomeLeader(ownerRef);
+          fireLeaderElectionEvent(areWeLeader, ownerRef);
         });
   }
 
@@ -82,8 +82,10 @@ public class OperatorLeaderElector {
   }
 
   private void fireLeaderElectionEvent(boolean areWeLeader, OwnerReference ownerRef) {
-    LOGGER.debug("Has {} become leader? {}", ownerRef.getName(), areWeLeader);
-    leaderElectionEvent.fire(new LeaderElectionEvent(areWeLeader));
+    leaderElectionEvent.fireAsync(new LeaderElectionEvent(areWeLeader), ofExecutor(executorService))
+        .thenAccept(ev -> {
+          LOGGER.debug("Notified that we {} the leader", (ev.isLeader() ? "are" : "are not"));
+        });
 
     clientService.sendEvent(
         "operator-leader-elected",
@@ -95,7 +97,6 @@ public class OperatorLeaderElector {
         namespaceService.getNamespace(),
         ownerRef.getName(),
         ownerRef.getUid());
-
   }
 
   private boolean maybeBecomeLeader(OwnerReference ownerReference) {

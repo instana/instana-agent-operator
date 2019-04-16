@@ -14,7 +14,7 @@
   <properties>
     <okhttp3.version>3.12.0</okhttp3.version>
     <fabric8.version>4.1.3</fabric8.version>
-    <quarkus.version>0.13.1</quarkus.version>
+    <quarkus.version>0.13.2</quarkus.version>
 
     <surefire.version>2.22.0</surefire.version>
 

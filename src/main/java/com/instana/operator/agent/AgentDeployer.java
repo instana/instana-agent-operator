@@ -12,16 +12,16 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
+import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
-import com.instana.operator.service.InstanaConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.config.InstanaConfig;
 import com.instana.operator.leaderelection.LeaderElectionEvent;
+import com.instana.operator.service.InstanaConfigService;
 import com.instana.operator.service.KubernetesResourceService;
 import com.instana.operator.service.OperatorNamespaceService;
 import com.instana.operator.service.OperatorOwnerReferenceService;
@@ -55,8 +55,9 @@ public class AgentDeployer {
   @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
-  void onLeaderElection(@Observes LeaderElectionEvent ev) {
+  void onLeaderElection(@ObservesAsync LeaderElectionEvent ev) {
     if (!ev.isLeader()) {
+      LOGGER.debug("Not the leader, so not doing anything.");
       return;
     }
 
