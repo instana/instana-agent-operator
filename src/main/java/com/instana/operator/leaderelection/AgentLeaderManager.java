@@ -146,6 +146,8 @@ public class AgentLeaderManager {
       if (running) {
         LOGGER.debug("Running leader {} has already been nominated. Skipping.", leaderName.get());
         return;
+      } else {
+        leaderName.set(null);
       }
     }
 
@@ -160,8 +162,16 @@ public class AgentLeaderManager {
           leaderName.set(p.getMetadata().getName());
         });
     if (null != leaderName.get()) {
-      LOGGER.debug("Leader already elected.");
-      //return;
+      // TODO: de-duplicate with ^^^
+      boolean running = agentPods.get(leaderName.get())
+          .map(isRunning::test)
+          .orElse(false);
+      if (running) {
+        LOGGER.debug("Leader already elected {}.", leaderName.get());
+        return;
+      } else {
+        leaderName.set(null);
+      }
     }
 
     // Get current agent Pods as list.

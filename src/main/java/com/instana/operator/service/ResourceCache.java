@@ -79,7 +79,7 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
     return Observable.defer(() -> new ObservableSource<ChangeEvent<T>>() {
       @Override
       public void subscribe(Observer<? super ChangeEvent<T>> observer) {
-        logger.debug("subscribe()");
+        // TODO: resubscribe to re-watch while re-list continues forever unless cancelled.
         interval = Observable.interval(0, 1, TimeUnit.MINUTES)
             .subscribe(now -> {
               KubernetesResourceList<T> krl;
@@ -96,9 +96,9 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
               } else {
                 resourceList = krl.getItems();
               }
-              logger.debug("Found {} {}. Now reconciling the cache...",
-                  resourceList.size(),
-                  krl.getClass().getSimpleName());
+              logger.debug("Found {}[{}]. Now reconciling the cache...",
+                  krl.getClass().getSimpleName(),
+                  resourceList.size());
 
               Map<String, T> incomingResources = resourceList.stream()
                   .filter(r -> r.getMetadata() != null)
@@ -106,6 +106,14 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
                   .collect(Collectors.toMap(r -> r.getMetadata().getName(), r -> r));
 
               synchronized (entries) {
+                entries.keySet().removeIf(name -> {
+                  if (incomingResources.containsKey(name)) {
+                    return false;
+                  }
+                  observer.onNext(new ChangeEvent<>(name, entries.get(name), null));
+                  return true;
+                });
+
                 incomingResources.forEach((name, newVal) -> {
                   T oldVal = entries.put(name, newVal);
                   ChangeEvent<T> changeEvent = null;
@@ -120,14 +128,6 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
                   if (null != changeEvent) {
                     observer.onNext(changeEvent);
                   }
-                });
-
-                entries.keySet().removeIf(name -> {
-                  if (incomingResources.containsKey(name)) {
-                    return false;
-                  }
-                  observer.onNext(new ChangeEvent<>(name, entries.get(name), null));
-                  return true;
                 });
               }
 
