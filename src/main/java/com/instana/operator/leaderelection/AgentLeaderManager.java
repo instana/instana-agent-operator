@@ -9,7 +9,6 @@ import java.util.function.Predicate;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
-import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
@@ -76,7 +75,7 @@ public class AgentLeaderManager {
   private ResourceCache<Pod> agentPods;
   private Disposable watch;
 
-  void onLeaderElection(@ObservesAsync LeaderElectionEvent ev) {
+  void onLeaderElection(@Observes LeaderElectionEvent ev) {
     if (!ev.isLeader()) {
       LOGGER.debug("Not the leader, so not doing anything.");
       if (null != watch) {
@@ -91,23 +90,29 @@ public class AgentLeaderManager {
             .withLabel("agent.instana.io/role", "agent"));
 
     watch = agentPods.observe()
-        .filter(changeEvent -> {
-          if (!belongsToInstanaAgentDaemonSet.test(changeEvent.getNextValue())) {
-            LOGGER.debug("Ignoring Pod {}, which doesn't belong to the agent DaemonSet.", changeEvent.getName());
-            return false;
-          } else {
-            boolean b = isRunning.test(changeEvent.getNextValue());
-            if (!b) {
-              LOGGER.debug("Ignoring non-running Pod {}", changeEvent.getName());
-            }
-            return b;
-          }
-        })
         .subscribe(changeEvent -> {
-          if (changeEvent.isDeleted()
-              && leaderName.compareAndSet(changeEvent.getName(), null)) {
-            LOGGER.debug("DELETED Pod {} was the leader. Removed it and will nominate a new one.",
-                changeEvent.getName());
+          boolean running = isRunning.test(changeEvent.getNextValue());
+          if (!running
+              && changeEvent.getName().equals(leaderName.get())) {
+            if (maybeStopBecomingLeader(changeEvent.getName())) {
+              maybeNominateLeader();
+            }
+            return;
+          }
+
+          if (!belongsToInstanaAgentDaemonSet.test(changeEvent.getNextValue())
+              && changeEvent.getName().equals(leaderName.get())) {
+            if (maybeStopBecomingLeader(changeEvent.getName())) {
+              maybeNominateLeader();
+            }
+            return;
+          }
+
+          if (changeEvent.isDeleted()) {
+            if (maybeStopBecomingLeader(changeEvent.getName())) {
+              maybeNominateLeader();
+            }
+            return;
           }
 
           maybeNominateLeader();
@@ -124,11 +129,24 @@ public class AgentLeaderManager {
     return p.getMetadata().getName().equals(leaderName.get());
   }
 
+  private boolean maybeStopBecomingLeader(String name) {
+    boolean wasLeader = leaderName.compareAndSet(name, null);
+    if (wasLeader) {
+      LOGGER.debug("Pod {} was previously leader. Removed.", name);
+    }
+    return wasLeader;
+  }
+
   private void maybeNominateLeader() {
-    // Leader has already been selected.
+    // Leader has already been selected. Maybe.
     if (null != leaderName.get()) {
-      LOGGER.debug("Leader {} has already been nominated. Skipping.", leaderName.get());
-      return;
+      boolean running = agentPods.get(leaderName.get())
+          .map(isRunning::test)
+          .orElse(false);
+      if (running) {
+        LOGGER.debug("Running leader {} has already been nominated. Skipping.", leaderName.get());
+        return;
+      }
     }
 
     // Maybe set current leader based on pre-elected leader (we're taking over for a failed Operator).
@@ -143,7 +161,7 @@ public class AgentLeaderManager {
         });
     if (null != leaderName.get()) {
       LOGGER.debug("Leader already elected.");
-      return;
+      //return;
     }
 
     // Get current agent Pods as list.
@@ -162,8 +180,7 @@ public class AgentLeaderManager {
     }
 
     if (null == nominatedLeader) {
-      globalErrorEvent
-          .fire(new GlobalErrorEvent(new IllegalStateException("Couldn't find a running Pod to nominate as leader")));
+      LOGGER.error("Couldn't find a running Pod to nominate as leader");
       return;
     }
 

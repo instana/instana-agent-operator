@@ -12,7 +12,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
-import javax.enterprise.event.ObservesAsync;
+import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
@@ -55,7 +55,7 @@ public class AgentDeployer {
   @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
-  void onLeaderElection(@ObservesAsync LeaderElectionEvent ev) {
+  void onLeaderElection(@Observes LeaderElectionEvent ev) {
     if (!ev.isLeader()) {
       LOGGER.debug("Not the leader, so not doing anything.");
       return;

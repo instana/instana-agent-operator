@@ -80,18 +80,8 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
       @Override
       public void subscribe(Observer<? super ChangeEvent<T>> observer) {
         logger.debug("subscribe()");
-        interval = Observable.interval(0, 5, TimeUnit.MINUTES)
+        interval = Observable.interval(0, 1, TimeUnit.MINUTES)
             .subscribe(now -> {
-              if (null != watch) {
-                synchronized (ResourceCache.this) {
-                  if (null != watch) {
-                    logger.debug("Closing the existing watch. Will re-open after list().");
-                    watch.close();
-                    watch = null;
-                  }
-                }
-              }
-
               KubernetesResourceList<T> krl;
               try {
                 krl = watchList.list();
@@ -106,7 +96,9 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
               } else {
                 resourceList = krl.getItems();
               }
-              logger.debug("Found {} resources. Now reconciling the cache...", resourceList.size());
+              logger.debug("Found {} {}. Now reconciling the cache...",
+                  resourceList.size(),
+                  krl.getClass().getSimpleName());
 
               Map<String, T> incomingResources = resourceList.stream()
                   .filter(r -> r.getMetadata() != null)
@@ -139,24 +131,10 @@ public class ResourceCache<T extends HasMetadata> implements Disposable {
                 });
               }
 
-              List<T> reconciledResources = toList();
-              reconciledResources.sort((r1, r2) -> {
-                String r1v = r1.getMetadata().getResourceVersion();
-                String r2v = r2.getMetadata().getResourceVersion();
-                if (null == r1v) {
-                  return -1;
-                }
-                if (null == r2v) {
-                  return 1;
-                }
-                return r1v.compareTo(r2v);
-              });
-              String resourceVersion = reconciledResources.size() > 0
-                  ? reconciledResources.get(reconciledResources.size() - 1).getMetadata().getResourceVersion()
-                  : null;
-
-              logger.debug("Watching from resourceVersion {}", resourceVersion);
-              watch = watchList.withResourceVersion(resourceVersion).watch(new Watcher<T>() {
+              if (null != watch) {
+                return;
+              }
+              watch = watchList.watch(new Watcher<T>() {
                 @Override
                 public void eventReceived(Action action, T resource) {
                   ChangeEvent<T> change = null;

@@ -1,7 +1,5 @@
 package com.instana.operator.leaderelection;
 
-import static javax.enterprise.event.NotificationOptions.ofExecutor;
-
 import java.util.concurrent.ScheduledExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -82,10 +80,7 @@ public class OperatorLeaderElector {
   }
 
   private void fireLeaderElectionEvent(boolean areWeLeader, OwnerReference ownerRef) {
-    leaderElectionEvent.fireAsync(new LeaderElectionEvent(areWeLeader), ofExecutor(executorService))
-        .thenAccept(ev -> {
-          LOGGER.debug("Notified that we {} the leader", (ev.isLeader() ? "are" : "are not"));
-        });
+    leaderElectionEvent.fire(new LeaderElectionEvent(areWeLeader));
 
     clientService.sendEvent(
         "operator-leader-elected",
