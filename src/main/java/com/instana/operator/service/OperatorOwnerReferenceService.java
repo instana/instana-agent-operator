@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.quarkus.runtime.StartupEvent;
+import io.reactivex.disposables.Disposable;
 
 @ApplicationScoped
 public class OperatorOwnerReferenceService {
@@ -43,18 +44,14 @@ public class OperatorOwnerReferenceService {
   }
 
   void onStartup(@Observes StartupEvent _ev) {
-    ResourceCache<Pod> allPods = clientService.createResourceCache("operatorPodSelf", client -> client.pods()
+    ResourceCache<Pod> allPods = clientService.createResourceCache("ownerRef", client -> client.pods()
         .inNamespace(namespaceService.getNamespace()));
 
-    allPods.observe()
+    Disposable watch = allPods.observe()
         .filter(changeEvent -> namespaceService.getOperatorPodName().equals(changeEvent.getName()))
+        .filter(changeEvent -> !changeEvent.isDeleted())
         .doOnError(t -> globalErrorEvent.fire(new GlobalErrorEvent(t)))
         .subscribe(changeEvent -> {
-          if (changeEvent.isDeleted()) {
-            return;
-          }
-
-          // ADDED | MODIFIED
           operatorPodOwnerReference.complete(new OwnerReferenceBuilder()
               .withApiVersion("v1")
               .withKind("Pod")
@@ -72,7 +69,7 @@ public class OperatorOwnerReferenceService {
     operatorPodOwnerReference.whenComplete((pr, t1) -> {
       operatorDeploymentOwnerReference.whenComplete((dr, t2) -> {
         LOGGER.debug("Disposing of the OwnerReference watches...");
-        allPods.dispose();
+        watch.dispose();
       });
     });
   }

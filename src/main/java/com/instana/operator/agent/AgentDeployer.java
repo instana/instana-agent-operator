@@ -8,11 +8,10 @@ import static com.instana.operator.util.AgentResourcesUtil.createServiceAccount;
 
 import java.nio.charset.Charset;
 import java.util.Base64;
-import java.util.concurrent.ScheduledExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
+import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
@@ -20,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.config.InstanaConfig;
-import com.instana.operator.leaderelection.LeaderElectionEvent;
+import com.instana.operator.leaderelection.ElectedLeaderEvent;
 import com.instana.operator.service.InstanaConfigService;
 import com.instana.operator.service.KubernetesResourceService;
 import com.instana.operator.service.OperatorNamespaceService;
@@ -49,18 +48,11 @@ public class AgentDeployer {
   @Inject
   OperatorOwnerReferenceService ownerReferenceService;
   @Inject
-  ScheduledExecutorService executorService;
-  @Inject
   InstanaConfigService instanaConfigService;
   @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
-  void onLeaderElection(@Observes LeaderElectionEvent ev) {
-    if (!ev.isLeader()) {
-      LOGGER.debug("Not the leader, so not doing anything.");
-      return;
-    }
-
+  void onLeaderElection(@ObservesAsync ElectedLeaderEvent ev) {
     InstanaConfig instanaConfig = instanaConfigService.getConfig();
 
     String namespace = namespaceService.getNamespace();
@@ -68,7 +60,7 @@ public class AgentDeployer {
 
     LOGGER.debug("Finding the operator deployment as owner reference...");
     ownerReferenceService.getOperatorDeploymentAsOwnerReference()
-        .thenAcceptAsync(ownerRef -> {
+        .thenAccept(ownerRef -> {
 
           ServiceAccount serviceAccount = createServiceAccount(
               namespace, instanaConfig.getServiceAccountName(), ownerRef);
@@ -127,7 +119,7 @@ public class AgentDeployer {
           maybeCreateResource(daemonSet, client.apps().daemonSets());
 
           LOGGER.debug("Successfully deployed the Instana agent.");
-        }, executorService);
+        });
   }
 
   @SuppressWarnings("unchecked")

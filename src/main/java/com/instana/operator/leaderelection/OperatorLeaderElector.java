@@ -1,5 +1,7 @@
 package com.instana.operator.leaderelection;
 
+import static javax.enterprise.event.NotificationOptions.ofExecutor;
+
 import java.util.concurrent.ScheduledExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -40,7 +42,9 @@ public class OperatorLeaderElector {
   @Inject
   OperatorOwnerReferenceService ownerReferenceService;
   @Inject
-  Event<LeaderElectionEvent> leaderElectionEvent;
+  Event<ElectedLeaderEvent> electedLeaderEvent;
+  @Inject
+  Event<ImpeachedLeaderEvent> impeachedLeaderEvent;
   @Inject
   ScheduledExecutorService executorService;
   @Inject
@@ -62,7 +66,7 @@ public class OperatorLeaderElector {
               .filter(changeEvent -> INSTANA_AGENT_OPERATOR_LEADER_LOCK.equals(changeEvent.getName()))
               .filter(ResourceCache.ChangeEvent::isDeleted)
               .subscribe(changeEvent -> {
-                if (maybeBecomeLeader(ownerRef) && !areWeLeader) {
+                if (!areWeLeader && maybeBecomeLeader(ownerRef)) {
                   areWeLeader = true;
                   fireLeaderElectionEvent(areWeLeader, ownerRef);
                 }
@@ -73,6 +77,10 @@ public class OperatorLeaderElector {
         });
   }
 
+  public boolean isThisPodLeader() {
+    return areWeLeader;
+  }
+
   void onShutdown(@Observes ShutdownEvent _ev) {
     if (null != watchDisposable && !watchDisposable.isDisposed()) {
       watchDisposable.dispose();
@@ -80,7 +88,11 @@ public class OperatorLeaderElector {
   }
 
   private void fireLeaderElectionEvent(boolean areWeLeader, OwnerReference ownerRef) {
-    leaderElectionEvent.fire(new LeaderElectionEvent(areWeLeader));
+    if (areWeLeader) {
+      electedLeaderEvent.fireAsync(new ElectedLeaderEvent(), ofExecutor(executorService));
+    } else if (this.areWeLeader) {
+      impeachedLeaderEvent.fireAsync(new ImpeachedLeaderEvent(), ofExecutor(executorService));
+    }
 
     clientService.sendEvent(
         "operator-leader-elected",

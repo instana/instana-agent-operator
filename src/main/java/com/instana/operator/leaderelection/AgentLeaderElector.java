@@ -1,14 +1,13 @@
 package com.instana.operator.leaderelection;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
+import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
@@ -30,9 +29,9 @@ import io.quarkus.runtime.ShutdownEvent;
 import io.reactivex.disposables.Disposable;
 
 @ApplicationScoped
-public class AgentLeaderManager {
+public class AgentLeaderElector {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentLeaderManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AgentLeaderElector.class);
 
   // This is not typically configurable, so don't need to expose it to configuration here either.
   private static final int AGENT_PORT = 42699;
@@ -55,14 +54,6 @@ public class AgentLeaderManager {
   @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
-  private final Predicate<Pod> belongsToInstanaAgentDaemonSet = pod -> Optional.ofNullable(pod)
-      .map(Pod::getMetadata)
-      .flatMap(m -> Optional.ofNullable(m.getOwnerReferences()))
-      .map(refs -> refs.stream().anyMatch(ownerRef ->
-          "DaemonSet".equals(ownerRef.getKind()) && instanaConfigService.getConfig().getDaemonSetName()
-              .equals(ownerRef.getName())))
-      .orElse(false);
-
   private final Predicate<Pod> isRunning = pod -> Optional.ofNullable(pod)
       .map(Pod::getStatus)
       .filter(st -> !"Pending".equals(st.getPhase()))
@@ -75,48 +66,41 @@ public class AgentLeaderManager {
   private ResourceCache<Pod> agentPods;
   private Disposable watch;
 
-  void onLeaderElection(@Observes LeaderElectionEvent ev) {
-    if (!ev.isLeader()) {
-      LOGGER.debug("Not the leader, so not doing anything.");
-      if (null != watch) {
-        watch.dispose();
-      }
-      return;
-    }
-
+  void onElectedLeader(@ObservesAsync ElectedLeaderEvent ev) {
     agentPods = clientService.createResourceCache("agents", client ->
         client.pods()
             .inNamespace(namespaceService.getNamespace())
             .withLabel("agent.instana.io/role", "agent"));
 
     watch = agentPods.observe()
-        .subscribe(changeEvent -> {
-          boolean running = isRunning.test(changeEvent.getNextValue());
-          if (!running
-              && changeEvent.getName().equals(leaderName.get())) {
-            if (maybeStopBecomingLeader(changeEvent.getName())) {
-              maybeNominateLeader();
-            }
-            return;
+        .groupBy(changeEvent -> isLeader(changeEvent.getNextValue()))
+        .subscribe(events -> {
+          if (events.getKey()) {
+            // These events pertain to the leader.
+            events
+                .filter(changeEvent -> changeEvent.isDeleted() || !isRunning.test(changeEvent.getNextValue()))
+                .subscribe(changeEvent -> {
+                  // Elected leader no longer running. Nominate a new one.
+                  LOGGER.debug("Elected leader was {} but no longer running. Setting to null.", changeEvent.getName());
+                  leaderName.set(null);
+                  maybeNominateLeader();
+                });
+          } else {
+            // These events might affect leadership.
+            events
+                .subscribe(changeEvent -> {
+                  if (changeEvent.isAdded() || changeEvent.isModified()) {
+                    maybeNominateLeader();
+                  }
+                });
           }
+        }, ex -> LOGGER.error("Encountered an error in the AgentLeaderElector watch: " + ex.getMessage(), ex));
+  }
 
-          if (!belongsToInstanaAgentDaemonSet.test(changeEvent.getNextValue())
-              && changeEvent.getName().equals(leaderName.get())) {
-            if (maybeStopBecomingLeader(changeEvent.getName())) {
-              maybeNominateLeader();
-            }
-            return;
-          }
-
-          if (changeEvent.isDeleted()) {
-            if (maybeStopBecomingLeader(changeEvent.getName())) {
-              maybeNominateLeader();
-            }
-            return;
-          }
-
-          maybeNominateLeader();
-        }, ex -> LOGGER.error("Encountered an error in the AgentLeaderManager watch: " + ex.getMessage(), ex));
+  void onImpeachedLeader(@ObservesAsync ImpeachedLeaderEvent _ev) {
+    if (null != watch) {
+      watch.dispose();
+    }
   }
 
   void onShutdown(@Observes ShutdownEvent _ev) {
@@ -126,31 +110,18 @@ public class AgentLeaderManager {
   }
 
   private boolean isLeader(Pod p) {
-    return p.getMetadata().getName().equals(leaderName.get());
+    return null != p && p.getMetadata().getName().equals(leaderName.get());
   }
 
-  private boolean maybeStopBecomingLeader(String name) {
-    boolean wasLeader = leaderName.compareAndSet(name, null);
-    if (wasLeader) {
-      LOGGER.debug("Pod {} was previously leader. Removed.", name);
-    }
-    return wasLeader;
+  private boolean isLeaderRunning() {
+    return agentPods.get(leaderName.get()).map(isRunning::test).orElse(false);
   }
 
   private void maybeNominateLeader() {
-    // Leader has already been selected. Maybe.
-    if (null != leaderName.get()) {
-      boolean running = agentPods.get(leaderName.get())
-          .map(isRunning::test)
-          .orElse(false);
-      if (running) {
-        LOGGER.debug("Running leader {} has already been nominated. Skipping.", leaderName.get());
-        return;
-      } else {
-        leaderName.set(null);
-      }
+    if (null != leaderName.get() && isLeaderRunning()) {
+      LOGGER.debug("Trying to nominate leader but leader already elected and still running.");
+      return;
     }
-
     // Maybe set current leader based on pre-elected leader (we're taking over for a failed Operator).
     LOGGER.debug("Checking whether a previously-elected leader was referenced...");
     electedLeaderClientService.loadElectedLeader()
@@ -161,48 +132,30 @@ public class AgentLeaderManager {
           LOGGER.debug("Found previously-elected leader: {}", p.getMetadata().getName());
           leaderName.set(p.getMetadata().getName());
         });
-    if (null != leaderName.get()) {
-      // TODO: de-duplicate with ^^^
-      boolean running = agentPods.get(leaderName.get())
-          .map(isRunning::test)
-          .orElse(false);
-      if (running) {
-        LOGGER.debug("Leader already elected {}.", leaderName.get());
-        return;
-      } else {
-        leaderName.set(null);
-      }
+    if (null != leaderName.get() && isLeaderRunning()) {
+      LOGGER.debug("Trying to nominate leader but leader already loaded from custom resource and still running.");
+      return;
     }
 
     // Get current agent Pods as list.
-    List<Pod> podsAsList = agentPods.toList();
-    LOGGER.debug("Choosing a random leader from {} possibilities", podsAsList.size());
-    Pod nominatedLeader = null;
-    for (int tries = 0; tries < 3; tries++) {
-      // Choose a leader at random.
-      int leaderIdx = ThreadLocalRandom.current().nextInt(0, podsAsList.size());
-      nominatedLeader = podsAsList.get(leaderIdx);
-      if (isRunning.test(nominatedLeader)) {
-        break;
-      } else {
-        nominatedLeader = null;
-      }
-    }
-
-    if (null == nominatedLeader) {
-      LOGGER.error("Couldn't find a running Pod to nominate as leader");
+    LOGGER.debug("Choosing first running Pod...");
+    Optional<Pod> nominee = agentPods.toList().stream()
+        .filter(isRunning)
+        .findFirst();
+    if (!nominee.isPresent()) {
+      LOGGER.warn("Couldn't find a running Pod to nominate as leader.");
       return;
     }
 
-    if (!leaderName.compareAndSet(null, nominatedLeader.getMetadata().getName())) {
+    if (!leaderName.compareAndSet(null, nominee.get().getMetadata().getName())) {
       LOGGER.warn("Tried to elect Pod {} as leader, but {} was already elected.",
-          nominatedLeader.getMetadata().getName(),
+          nominee.get().getMetadata().getName(),
           leaderName.get());
       return;
-    } else {
-      LOGGER.debug("Firing agent leader config update...");
-      fireAgentLeaderElectedEvent(nominatedLeader);
     }
+
+    LOGGER.debug("Firing agent leader config update...");
+    fireAgentLeaderElectedEvent(nominee.get());
 
     // Update the CRD for the current leader.
     LOGGER.debug("Updating ElectedLeader with leader name.");

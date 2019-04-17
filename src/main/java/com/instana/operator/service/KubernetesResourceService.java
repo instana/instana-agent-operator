@@ -4,11 +4,9 @@ import static com.instana.operator.util.ConfigUtils.createClientConfig;
 import static com.instana.operator.util.DateTimeUtils.nowUTC;
 import static com.instana.operator.util.OkHttpClientUtils.createHttpClient;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -49,7 +47,6 @@ public class KubernetesResourceService {
 
   private final Map<String, AtomicInteger> countsByType = new ConcurrentHashMap<>();
   private final Map<String, String> firstTimestampByType = new ConcurrentHashMap<>();
-  private final List<ResourceCache<?>> leasedCaches = new CopyOnWriteArrayList<>();
 
   public KubernetesResourceService() throws Exception {
     Config config = createClientConfig();
@@ -85,6 +82,7 @@ public class KubernetesResourceService {
         .withLastTimestamp(nowUTC())
         .withReason(reason)
         .withMessage(message)
+        .withType("Normal")
         .withInvolvedObject(new ObjectReferenceBuilder()
             .withApiVersion(ownerApiVersion)
             .withKind(ownerKind)
@@ -113,15 +111,10 @@ public class KubernetesResourceService {
       return null; // This line will never be executed, because the error event handler will call System.exit();
     }
 
-    ResourceCache<T> rc = new ResourceCache<>(name, wld, errorEvent, leasedCaches::remove);
-    leasedCaches.add(rc);
-    return rc;
+    return new ResourceCache<>(name, wld, errorEvent);
   }
 
   void onShutdown(@Observes ShutdownEvent ev) {
-    for (ResourceCache<?> rc : leasedCaches) {
-      rc.dispose();
-    }
     kubernetesClient.close();
   }
 

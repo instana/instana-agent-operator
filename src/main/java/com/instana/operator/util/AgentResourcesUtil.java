@@ -192,8 +192,10 @@ public abstract class AgentResourcesUtil {
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", endpointPort));
     env.add(createEnvVar("INSTANA_AGENT_MODE", mode));
     env.add(createEnvVarFromSecret("INSTANA_AGENT_KEY", secret.getMetadata().getName()));
-    env.add(createEnvVar("JAVA_OPTS", String.format("-Xmx%dM -XX:+ExitOnOutOfMemoryError", memoryReq / 3)));
+    env.add(createEnvVar("JAVA_OPTS",
+        "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=2 -XX:+ExitOnOutOfMemoryError"));
     env.add(createEnvVarFromFieldRef("INSTANA_AGENT_POD_NAME", "metadata.name"));
+    env.add(createEnvVarFromFieldRef("INSTANA_AGENT_POD_IP", "status.podIP"));
 
     if (!isBlank(downloadKey)) {
       env.add(createEnvVar("INSTANA_DOWNLOAD_KEY", downloadKey));
@@ -225,7 +227,7 @@ public abstract class AgentResourcesUtil {
     System.getenv().entrySet().stream()
         .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
         .forEach(e -> {
-          env.add(createEnvVar(e.getKey().substring(14), e.getValue()));
+          env.add(createEnvVar(e.getKey().replaceAll("INSTANA_AGENT_", ""), e.getValue()));
         });
 
     List<VolumeMount> mounts = new ArrayList<>();
@@ -256,7 +258,6 @@ public abstract class AgentResourcesUtil {
 
     Map<String, String> labels = new HashMap<>();
     labels.put("agent.instana.io/role", "agent");
-    labels.put("app", name);
 
     return new DaemonSetBuilder()
         .withNewMetadata()
@@ -292,14 +293,16 @@ public abstract class AgentResourcesUtil {
             .endResources()
             .withLivenessProbe(new ProbeBuilder()
                 .withNewHttpGet()
-                .withNewPort(42699)
+                .withNewPort("agent")
                 .withPath("/status")
                 .endHttpGet()
                 .withInitialDelaySeconds(75)
                 .withPeriodSeconds(5)
                 .build())
             .withPorts(new ContainerPortBuilder()
+                .withName("agent")
                 .withContainerPort(42699)
+                .withHostPort(42699)
                 .build())
             .build())
         .withVolumes(vols)
