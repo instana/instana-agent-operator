@@ -10,6 +10,7 @@ import javax.enterprise.event.Observes;
 import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
+import com.instana.operator.kubernetes.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,9 +69,7 @@ public class AgentLeaderElector {
 
   void onElectedLeader(@ObservesAsync ElectedLeaderEvent ev) {
     agentPods = clientService.createResourceCache("agents", client ->
-        client.pods()
-            .inNamespace(namespaceService.getNamespace())
-            .withLabel("agent.instana.io/role", "agent"));
+        client.watch(namespaceService.getNamespace(), new Label("agent.instana.io/role", "agent"), Pod.class));
 
     watch = agentPods.observe()
         .groupBy(changeEvent -> isLeader(changeEvent.getNextValue()))

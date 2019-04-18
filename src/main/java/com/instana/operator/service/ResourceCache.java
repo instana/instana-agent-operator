@@ -1,49 +1,40 @@
 package com.instana.operator.service;
 
-import static java.util.Collections.emptyList;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-
-import javax.enterprise.event.Event;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.instana.operator.GlobalErrorEvent;
-
+import com.instana.operator.kubernetes.Closeable;
+import com.instana.operator.kubernetes.Watchable;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
-import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.enterprise.event.Event;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
 
 public class ResourceCache<T extends HasMetadata> {
 
   private final ConcurrentHashMap<String, T> entries = new ConcurrentHashMap<>(16, 0.9f, 1);
 
   private final Logger logger;
-  private final WatchListDeletable<T, ? extends KubernetesResourceList<T>, ?, Watch, Watcher<T>> watchList;
+  private final Watchable watchList;
   private final Event<GlobalErrorEvent> errorEvent;
 
-  public ResourceCache(String name,
-                       WatchListDeletable<T, ? extends KubernetesResourceList<T>, ?, Watch, Watcher<T>> watchList,
-                       Event<GlobalErrorEvent> errorEvent) {
+  public ResourceCache(String name, Watchable watchable, Event<GlobalErrorEvent> errorEvent) {
     this.logger = LoggerFactory.getLogger(ResourceCache.class.getName() + "." + name);
-    this.watchList = watchList;
+    this.watchList = watchable;
     this.errorEvent = errorEvent;
   }
 
@@ -55,17 +46,17 @@ public class ResourceCache<T extends HasMetadata> {
     return Observable.defer(() -> new ObservableSource<ChangeEvent<T>>() {
       @Override
       public void subscribe(Observer<? super ChangeEvent<T>> observer) {
-        AtomicReference<Watch> watch = new AtomicReference<>();
+        AtomicReference<Closeable> watch = new AtomicReference<>();
         Disposable watchInterval = Observable.interval(0, 1, TimeUnit.MINUTES)
             .doOnDispose(() -> {
-              Watch w = watch.getAndSet(null);
+              Closeable w = watch.getAndSet(null);
               if (null != w) {
                 logger.debug("Closing old watch");
                 w.close();
               }
             })
             .subscribe(now -> {
-              Watch w = watch.get();
+              Closeable w = watch.get();
               if (null != w) {
                 logger.debug("Closing previous watch");
                 w.close();

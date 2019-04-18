@@ -16,6 +16,10 @@ import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import com.instana.operator.config.InstanaConfig;
+import com.instana.operator.kubernetes.Client;
+import com.instana.operator.kubernetes.Watchable;
+import com.instana.operator.kubernetes.impl.ClientImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,19 +47,19 @@ public class KubernetesResourceService {
   @Inject
   javax.enterprise.event.Event<GlobalErrorEvent> errorEvent;
 
-  private final NamespacedKubernetesClient kubernetesClient;
+  private final Client kubernetesClient;
 
   private final Map<String, AtomicInteger> countsByType = new ConcurrentHashMap<>();
   private final Map<String, String> firstTimestampByType = new ConcurrentHashMap<>();
 
   public KubernetesResourceService() throws Exception {
     Config config = createClientConfig();
-    this.kubernetesClient = new DefaultKubernetesClient(createHttpClient(config), config);
+    this.kubernetesClient = new ClientImpl(new DefaultKubernetesClient(createHttpClient(config), config));
   }
 
   @Produces
   @Singleton
-  public NamespacedKubernetesClient getKubernetesClient() {
+  public Client getKubernetesClient() {
     return kubernetesClient;
   }
 
@@ -92,7 +96,7 @@ public class KubernetesResourceService {
             .build());
 
     try {
-      return Optional.ofNullable(kubernetesClient.events().create(eb.build()));
+      return Optional.ofNullable(kubernetesClient.create(ownerNamespace, eb.build()));
     } catch (KubernetesClientException e) {
       LOGGER.error("Could not create {} event: {}", eventName, e.getMessage(), e);
       return Optional.empty();
@@ -101,17 +105,17 @@ public class KubernetesResourceService {
 
   public <T extends HasMetadata, L extends KubernetesResourceList<T>> ResourceCache<T> createResourceCache(
       String name,
-      Function<NamespacedKubernetesClient, WatchListDeletable<T, L, ?, Watch, Watcher<T>>> fn) {
-    WatchListDeletable<T, L, ?, Watch, Watcher<T>> wld;
+      Function<Client, Watchable> fn) {
+    Watchable watchable;
     try {
-      wld = fn.apply(kubernetesClient);
+      watchable = fn.apply(kubernetesClient);
     } catch (Throwable t) {
       LOGGER.debug(t.getMessage(), t);
       errorEvent.fire(new GlobalErrorEvent(t));
       return null; // This line will never be executed, because the error event handler will call System.exit();
     }
 
-    return new ResourceCache<>(name, wld, errorEvent);
+    return new ResourceCache<>(name, watchable, errorEvent);
   }
 
   void onShutdown(@Observes ShutdownEvent ev) {

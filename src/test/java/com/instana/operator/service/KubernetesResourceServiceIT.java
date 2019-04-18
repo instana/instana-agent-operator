@@ -1,7 +1,16 @@
 package com.instana.operator.service;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.Config;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.quarkus.test.junit.QuarkusTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import javax.inject.Inject;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -10,34 +19,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
-import javax.inject.Inject;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ContainerBuilder;
-import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkus.test.junit.QuarkusTest;
+import static com.instana.operator.util.ConfigUtils.createClientConfig;
+import static com.instana.operator.util.OkHttpClientUtils.createHttpClient;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 @QuarkusTest
 class KubernetesResourceServiceIT {
-
-  static final Logger LOGGER = LoggerFactory.getLogger(KubernetesResourceServiceIT.class);
 
   @Inject
   KubernetesResourceService kubernetesResourceService;
   Pod testPod;
   ConfigMap testConfigMap;
 
+  DefaultKubernetesClient client;
+
   @BeforeEach
-  void namespaceSetup() {
-    Namespace ns = kubernetesResourceService.getKubernetesClient().namespaces().withName("test").get();
+  void namespaceSetup() throws Exception {
+    Config config = createClientConfig();
+    client = new DefaultKubernetesClient(createHttpClient(config), config);
+    Namespace ns = client.namespaces().withName("test").get();
     if (null == ns) {
-      kubernetesResourceService.getKubernetesClient().namespaces()
+      client.namespaces()
           .createNew()
           .withNewMetadata()
           .withName("test")
@@ -45,16 +47,16 @@ class KubernetesResourceServiceIT {
           .done();
     }
 
-    Supplier<List<Pod>> testPods = () -> kubernetesResourceService.getKubernetesClient().pods()
+    Supplier<List<Pod>> testPods = () -> client.pods()
         .inNamespace("test")
         .list()
         .getItems();
 
-    testPods.get().forEach(p -> kubernetesResourceService.getKubernetesClient().pods()
+    testPods.get().forEach(p -> client.pods()
         .inNamespace("test")
         .withName(p.getMetadata().getName())
         .delete());
-    kubernetesResourceService.getKubernetesClient().configMaps()
+    client.configMaps()
         .inNamespace("test")
         .withName("test")
         .delete();
@@ -67,7 +69,7 @@ class KubernetesResourceServiceIT {
       }
     } while (podCnt > 0);
 
-    this.testPod = kubernetesResourceService.getKubernetesClient().pods().createNew()
+    this.testPod = client.pods().createNew()
         .withNewMetadata()
         .withNamespace("test")
         .withGenerateName("test-")
@@ -81,7 +83,7 @@ class KubernetesResourceServiceIT {
         .endSpec()
         .done();
 
-    this.testConfigMap = kubernetesResourceService.getKubernetesClient().configMaps().createNew()
+    this.testConfigMap = client.configMaps().createNew()
         .withNewMetadata()
         .withNamespace("test")
         .withName("test")
@@ -94,7 +96,7 @@ class KubernetesResourceServiceIT {
   void mustCachePodsInNamespace() throws InterruptedException {
     ResourceCache<Pod> pods = kubernetesResourceService.createResourceCache(
         "test",
-        client -> client.pods().inNamespace("test"));
+        client -> client.watch("test", Pod.class));
 
     CountDownLatch latch = new CountDownLatch(1);
     pods.observe().subscribe(tup -> latch.countDown());
@@ -110,7 +112,7 @@ class KubernetesResourceServiceIT {
   void mustCacheConfigMap() throws InterruptedException {
     ResourceCache<ConfigMap> configMaps = kubernetesResourceService.createResourceCache(
         "test",
-        client -> client.configMaps().inNamespace("test"));
+        client -> client.watch("test", ConfigMap.class));
 
     CountDownLatch latch = new CountDownLatch(1);
     configMaps.observe()

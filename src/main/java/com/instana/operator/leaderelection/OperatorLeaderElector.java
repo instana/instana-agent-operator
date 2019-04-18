@@ -1,23 +1,10 @@
 package com.instana.operator.leaderelection;
 
-import static javax.enterprise.event.NotificationOptions.ofExecutor;
-
-import java.util.concurrent.ScheduledExecutorService;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.service.KubernetesResourceService;
 import com.instana.operator.service.OperatorNamespaceService;
 import com.instana.operator.service.OperatorOwnerReferenceService;
 import com.instana.operator.service.ResourceCache;
-
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
@@ -25,6 +12,16 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.reactivex.disposables.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Event;
+import javax.enterprise.event.Observes;
+import javax.inject.Inject;
+import java.util.concurrent.ScheduledExecutorService;
+
+import static javax.enterprise.event.NotificationOptions.ofExecutor;
 
 // Java implementation of https://github.com/operator-framework/operator-sdk/blob/master/pkg/leader/leader.go
 // If more than one instana-agent-operator Pod is running, this is used to define which of these will be the leader.
@@ -58,7 +55,7 @@ public class OperatorLeaderElector {
 
   void onStartup(@Observes StartupEvent _ev) {
     defaultConfigMaps = clientService.createResourceCache(namespaceService.getNamespace() + "-configMaps", client ->
-        client.configMaps().inNamespace(namespaceService.getNamespace()));
+        client.watch(namespaceService.getNamespace(), ConfigMap.class));
 
     ownerReferenceService.getOperatorPodOwnerReference()
         .thenAccept(ownerRef -> {
@@ -116,7 +113,7 @@ public class OperatorLeaderElector {
 
     try {
       LOGGER.debug("Trying to create ConfigMap leader lock...");
-      clientService.getKubernetesClient().configMaps().create(cm);
+      clientService.getKubernetesClient().create(namespaceService.getNamespace(), cm);
       LOGGER.debug("Successfully created ConfigMap leader lock.");
       return true;
     } catch (KubernetesClientException e) {

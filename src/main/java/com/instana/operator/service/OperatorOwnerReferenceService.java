@@ -44,8 +44,7 @@ public class OperatorOwnerReferenceService {
   }
 
   void onStartup(@Observes StartupEvent _ev) {
-    ResourceCache<Pod> allPods = clientService.createResourceCache("ownerRef", client -> client.pods()
-        .inNamespace(namespaceService.getNamespace()));
+    ResourceCache<Pod> allPods = clientService.createResourceCache("ownerRef", client -> client.watch(namespaceService.getNamespace(), Pod.class));
 
     Disposable watch = allPods.observe()
         .filter(changeEvent -> namespaceService.getOperatorPodName().equals(changeEvent.getName()))
@@ -87,11 +86,7 @@ public class OperatorOwnerReferenceService {
   }
 
   private Optional<ReplicaSet> findReplicaSet(OwnerReference ownerRef) {
-    return Optional.ofNullable(clientService.getKubernetesClient().apps().replicaSets()
-        .inNamespace(namespaceService.getNamespace())
-        .withName(ownerRef.getName())
-        .get());
-
+    return Optional.ofNullable(clientService.getKubernetesClient().get(namespaceService.getNamespace(), ownerRef.getName(), ReplicaSet.class));
   }
 
 }

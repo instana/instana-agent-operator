@@ -14,6 +14,7 @@ import javax.enterprise.event.Event;
 import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
+import com.instana.operator.kubernetes.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +57,7 @@ public class AgentDeployer {
     InstanaConfig instanaConfig = instanaConfigService.getConfig();
 
     String namespace = namespaceService.getNamespace();
-    NamespacedKubernetesClient client = clientService.getKubernetesClient();
+    Client client = clientService.getKubernetesClient();
 
     LOGGER.debug("Finding the operator deployment as owner reference...");
     ownerReferenceService.getOperatorDeploymentAsOwnerReference()
@@ -64,26 +65,24 @@ public class AgentDeployer {
 
           ServiceAccount serviceAccount = createServiceAccount(
               namespace, instanaConfig.getServiceAccountName(), ownerRef);
-          maybeCreateResource(serviceAccount, client.serviceAccounts());
+          maybeCreateResource(serviceAccount);
 
           if (instanaConfig.isRbacCreate()) {
             ClusterRole clusterRole = createAgentClusterRole(
                 instanaConfig.getClusterRoleName(), ownerRef);
-            maybeCreateResource(clusterRole, client.rbac().clusterRoles());
+            maybeCreateResource(clusterRole);
 
             ClusterRoleBinding clusterRoleBinding = createAgentClusterRoleBinding(
                 namespace, instanaConfig.getClusterRoleBindingName(), serviceAccount, clusterRole, ownerRef);
-            maybeCreateResource(clusterRoleBinding, client.rbac().clusterRoleBindings());
+            maybeCreateResource(clusterRoleBinding);
           }
 
           Secret secret = createAgentKeySecret(
               namespace, instanaConfig.getSecretName(), base64(instanaConfig.getAgentKey()), ownerRef);
-          maybeCreateResource(secret, client.secrets());
+          maybeCreateResource(secret);
 
-          ConfigMap agentConfigMap = clientService.getKubernetesClient().configMaps()
-              .inNamespace(namespaceService.getNamespace())
-              .withName(instanaConfig.getConfigMapName())
-              .get();
+          ConfigMap agentConfigMap = clientService.getKubernetesClient()
+              .get(namespaceService.getNamespace(), instanaConfig.getConfigMapName(), ConfigMap.class);
           if (null == agentConfigMap) {
             globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
                 "Agent ConfigMap named " + instanaConfig.getConfigMapName() + " not found in namespace "
@@ -116,20 +115,20 @@ public class AgentDeployer {
               instanaConfig.getAgentProxyPasswd(),
               instanaConfig.getAgentProxyUseDNS(),
               instanaConfig.getAgentHttpListen());
-          maybeCreateResource(daemonSet, client.apps().daemonSets());
+          maybeCreateResource(daemonSet);
 
           LOGGER.debug("Successfully deployed the Instana agent.");
         });
   }
 
   @SuppressWarnings("unchecked")
-  private <T extends HasMetadata> void maybeCreateResource(T resource, MixedOperation<T, ?, ?, ?> op) {
+  private <T extends HasMetadata> void maybeCreateResource(T resource) {
     LOGGER.debug("Creating {} at {}/{}...",
         resource.getKind(),
         namespaceService.getNamespace(),
         resource.getMetadata().getName());
     try {
-      op.inNamespace(namespaceService.getNamespace()).create(resource);
+      clientService.getKubernetesClient().create(namespaceService.getNamespace(), resource);
     } catch (KubernetesClientException e) {
       if (e.getCode() != 409) {
         globalErrorEvent.fire(new GlobalErrorEvent(e.getCause()));

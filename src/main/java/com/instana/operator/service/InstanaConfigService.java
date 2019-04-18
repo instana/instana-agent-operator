@@ -2,8 +2,8 @@ package com.instana.operator.service;
 
 import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.config.InstanaConfig;
+import com.instana.operator.kubernetes.Client;
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.quarkus.runtime.StartupEvent;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -18,7 +18,7 @@ public class InstanaConfigService {
   private static final String INSTANA_AGENT_CONFIG_NAME = "config";
 
   @Inject
-  NamespacedKubernetesClient kubernetesClient;
+  Client kubernetesClient;
   @Inject
   OperatorNamespaceService namespaceService;
   @Inject
@@ -27,10 +27,7 @@ public class InstanaConfigService {
   private final CompletableFuture<InstanaConfig> config = new CompletableFuture<>();
 
   void onStartup(@Observes StartupEvent _ev) {
-    ConfigMap operatorConfigMap = kubernetesClient.configMaps()
-        .inNamespace(namespaceService.getNamespace())
-        .withName(INSTANA_AGENT_CONFIG_NAME)
-        .get();
+    ConfigMap operatorConfigMap = kubernetesClient.get(namespaceService.getNamespace(), INSTANA_AGENT_CONFIG_NAME, ConfigMap.class);
     if (null == operatorConfigMap) {
       globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
           "Operator ConfigMap named " + INSTANA_AGENT_CONFIG_NAME + " not found in namespace "
