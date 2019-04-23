@@ -60,7 +60,7 @@ public class ElectedLeaderClientService {
 
   private static final String CRD_GROUP = "agent.instana.io";
   private static final String CRD_NAME = "electedleaders." + CRD_GROUP;
-  private static final String CRD_VERSION = "v1beta1";
+  private static final String CRD_VERSION = "v1alpha1";
   private static final String CRD_KIND = ElectedLeader.class.getSimpleName();
   private static final String CR_NAME = "elected-leader";
 
