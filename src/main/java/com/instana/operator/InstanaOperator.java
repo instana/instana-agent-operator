@@ -34,6 +34,7 @@ public class InstanaOperator {
   // will never return but trigger System.exit() immediately.
   void onError(@Observes GlobalErrorEvent ev) {
     LOGGER.error(ev.getCause().getMessage(), ev.getCause());
-    System.exit(1);
+    Runtime.getRuntime().halt(1);
   }
+
 }
