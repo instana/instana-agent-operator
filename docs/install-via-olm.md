@@ -42,7 +42,7 @@ Apply with `kubectl apply -f operator-group.yaml`
 
 ### agent-config config map
 
-Create a file `agent-config.yaml` with the following content:
+Create a file `agent-config.yaml` with the following content, or copy the file from the [deploy/](../deploy/) directory:
 
 ```yaml
 apiVersion: v1
@@ -60,7 +60,7 @@ Apply with `kubectl apply -f agent-config.yaml`.
 
 ### config config map
 
-Create a file `config.yaml` with the following content:
+Create a file `config.yaml` with the following content, or copy the file from the [deploy/](../deploy/) directory:
 
 ```yaml
 apiVersion: v1
@@ -77,7 +77,6 @@ data:
 
 * Replace `my-k8s-cluster` with the with the cluster name that should be displayed in Instana
 * Replace `_PUT_YOUR_AGENT_KEY_HERE_` with your Instana agent key
-* Replace `local` with the agent namespace (for example, `instana-agent`).
 
 Apply with `kubectl apply -f config.yaml`.
 

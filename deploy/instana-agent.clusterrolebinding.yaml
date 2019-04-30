@@ -1,0 +1,13 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: instana-agent-operator
+  namespace: instana-agent
+subjects:
+- kind: ServiceAccount
+  name: instana-agent-operator
+  namespace: instana-agent
+roleRef:
+  kind: ClusterRole
+  name: instana-agent-operator
+  apiGroup: rbac.authorization.k8s.io

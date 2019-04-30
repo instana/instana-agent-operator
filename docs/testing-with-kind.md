@@ -1,7 +1,7 @@
-Testing with Kind
------------------
+Testing the Instana Agent Operator with Kind
+============================================
 
-One of the main features of the `instana-agent-operator` is to do leader election. In order to test this, we need a Kubernetes cluster where we can _destroy nodes_, so that we can observe if a new leader is elected in that case.
+One of the main features of the `instana-agent-operator` is to do leader election. In order to test this manually, we need a Kubernetes cluster where we can _destroy nodes_, so that we can observe if a new leader is elected in that case.
 
 This page describes how to set up a local Kubernetes cluster with [Kind](https://kind.sigs.k8s.io/) and test the `instana-agent-operator` in that cluster.
 
@@ -61,7 +61,6 @@ Use the files `instana-agent-operator-rbac.yaml` and `instana-agent-operator-dep
 kubectl apply -f instana-agent-operator-rbac.yaml
 kubectl apply -f instana-agent-operator-deploy.yaml
 ```
-
 
 ### Expected result
 

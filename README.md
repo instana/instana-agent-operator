@@ -1,38 +1,15 @@
-Instana Operator
-================
+Instana Agent Operator
+======================
 
-Status
-------
+This is an experimental alpha version of the upcoming Kubernetes Operator for the [Instana APM Agent](https://www.instana.com).
 
-This is work in progress. Much of the instana-agent configuration is still hard-coded.
+There are two ways to install the operator:
 
-Build
------
+* [docs/install-via-olm.md](docs/install-via-olm.md) describes how to install the operator using the Operator Lifecycle Manager (OLM).
+* [docs/install-manually.md](docs/install-manually.md) describes how to install the operator by creating the required resources manually.
 
-Build the `instana/instana-agent-operator` Docker image using the [Docker maven plugin](https://dmp.fabric8.io/):
+Additional documentation for developers:
 
-```sh
-mvn package docker:build
-```
-
-Deploy
-------
-
-Assumes that the Docker image `instana/instana-agent-operator:latest` is available in the local repository on all Kubernetes nodes.
-
-```
-kubectl apply -f instana-agent-operator-rbac.yaml
-kubectl apply -f instana-agent-operator-deploy.yaml
-```
-
-Undeploy
---------
-
-```
-kubectl delete namespaces instana-agent
-```
-
-Test
-----
-
-See [TESTING.md](TESTING.md)
+* [docs/build.md](docs/build.md) describes how to build the Docker image from source code.
+* [docs/testing-with-kind.md](docs/testing-with-kind.md) shows how to test the operator in a local Kind cluster.
+* [docs/run-operator-registry-locally.md](docs/run-operator-registry-locally.md) describes how to set up a local Operator Lifecycle Manager and Registry to test the OLM deployment locally.
