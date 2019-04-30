@@ -7,7 +7,8 @@ This page describes how to set up a local Kubernetes cluster with [Kind](https:/
 
 Kind (**K**ubernetes **in** **D**ocker) will set up a local cluster where all nodes and the master run in Docker containers.
 
-### Set up a local Kubernetes Cluster with Kind
+Set up a local Kubernetes Cluster with Kind
+-------------------------------------------
 
 Create `kind-config.yaml` with the following content (replace `/home` with `/Users` on macOS):
 
@@ -39,7 +40,8 @@ kubectl get nodes
 
 You should see a cluster with one control-pane and two worker nodes up and running.
 
-### Deploy the Instana Operator
+Prepare the Docker Images
+-------------------------
 
 In the `instana-agent-operator` project, build the `instana/instana-agent-operator` Docker image and push it to the local Kind cluster:
 
@@ -55,14 +57,13 @@ docker pull instana/agent
 kind load docker-image instana/agent
 ```
 
-Use the files `instana-agent-operator-rbac.yaml` and `instana-agent-operator-deploy.yaml` to install the operator:
+Install the Operator
+--------------------
 
-```sh
-kubectl apply -f instana-agent-operator-rbac.yaml
-kubectl apply -f instana-agent-operator-deploy.yaml
-```
+Follow the steps described in [install-manually.md](install-manually.md)
 
-### Expected result
+Expected result
+---------------
 
 ```sh
 kubectl -n instana-agent get pods
@@ -70,7 +71,8 @@ kubectl -n instana-agent get pods
 
 should show two instances of the `instana-agent-operator` (see the number of `replicas` configured in `instana-agent-operator-deploy.yaml`), and two instances of `instana-agent` (one on each node in the cluster).
 
-### Clean up
+Clean up
+--------
 
 ```sh
 kind delete cluster
