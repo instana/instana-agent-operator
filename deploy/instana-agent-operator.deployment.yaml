@@ -14,21 +14,12 @@ spec:
         app: instana-agent-operator
     spec:
       serviceAccountName: instana-agent-operator
-      # TODO: Set hostNetwork true so we can open the debugging port 5004 below
-      hostNetwork: true
       containers:
       - image: instana/instana-agent-operator
         name: instana-agent-operator
-        # TODO: IfNotPresent is good for testing, because you can test
-        # images from your local repository.
-        # However it should be changed to Always for production.
-        imagePullPolicy: Never
-        env:
-        - name: KARAF_OPTS
-          value: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5004"
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
-        - containerPort: 5004
         env:
         - name: POD_NAMESPACE
           valueFrom:

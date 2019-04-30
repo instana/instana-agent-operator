@@ -4,8 +4,9 @@ metadata:
   name: instana-agent-operator
   namespace: instana-agent
 rules:
-  # TODO: These are more rights than needed. Need to strip this down and should add
-  # a comment on each one why it is needed.
+  # TODO: This is an experimental alpha version. We didn't clean up the permissions yet,
+  # so these are probably more rights than needed for running the operator.
+  # This will be cleaned up before promoting the operator to beta.
 - apiGroups: ["", "apps", "extensions", "rbac.authorization.k8s.io"] # "" indicates the core API group
   resources:
   - pods
