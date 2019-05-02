@@ -156,6 +156,81 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>native</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-maven-plugin</artifactId>
+            <version>${quarkus.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>native-image</goal>
+                </goals>
+                <configuration>
+                  <enableHttpUrlHandler>true</enableHttpUrlHandler>
+                  <enableJni>true</enableJni>
+                  <reportErrorsAtRuntime>true</reportErrorsAtRuntime>
+                  <enableVMInspection>true</enableVMInspection>
+
+                  <additionalBuildArgs>
+                    <additionalBuildArg>--allow-incomplete-classpath</additionalBuildArg>
+                    <additionalBuildArg>--report-unsupported-elements-at-runtime</additionalBuildArg>
+                  </additionalBuildArgs>
+
+                  <!-- Enables building the native image via Docker instead of directly on the host -->
+                  <dockerBuild>true</dockerBuild>
+
+                  <!--<debugSymbols>false</debugSymbols>-->
+                  <!--<enableHttpsUrlHandler>false</enableHttpsUrlHandler>-->
+                  <!--<enableAllSecurityServices>false</enableAllSecurityServices>-->
+                  <!--<enableRetainedHeapReporting>false</enableRetainedHeapReporting>-->
+                  <!--<enableIsolates>false</enableIsolates>-->
+                  <!--<enableCodeSizeReporting>false</enableCodeSizeReporting>-->
+                  <!--<graalvmHome>${env.GRAALVM_HOME}</graalvmHome>-->
+                  <!--<enableServer>false</enableServer>-->
+                  <!--<autoServiceLoaderRegistration>false</autoServiceLoaderRegistration>-->
+                  <!--<dumpProxies>false</dumpProxies>-->
+                  <!--<nativeImageXmx>${native-image.xmx}</nativeImageXmx>-->
+                  <!--<containerRuntime>${native-image.container-runtime}</containerRuntime>-->
+                  <!--<containerRuntimeOptions>${native-image.container-runtime-options}</containerRuntimeOptions>-->
+                  <!--<fullStackTraces>true</fullStackTraces>-->
+                  <!--<enableFallbackImages>false</enableFallbackImages>-->
+
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>build</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <images>
+                    <image>
+                      <name>instana/instana-agent-operator</name>
+                      <build>
+                        <dockerFile>${project.basedir}/Dockerfile.native</dockerFile>
+                      </build>
+                    </image>
+                  </images>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <build>
     <resources>
       <resource>

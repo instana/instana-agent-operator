@@ -8,8 +8,11 @@ LABEL name="instana-agent-operator" \
       summary="Experimental alpha version of the upcoming Kubernetes Operator for the Instana APM Agent" \
       description="This operator will deploy a daemon set to run the Instana APM Agent on each cluster node."
 
-RUN yum install -y java-11-openjdk-devel
 COPY licenses /licenses
-COPY ${project.build.directory}/${project.artifactId}-${project.version}-runner.jar ./instana-agent-operator.jar
+
+WORKDIR /work/
+COPY target/*-runner /work/instana-agent-operator
+RUN chmod 775 /work
+
 EXPOSE 8080
-CMD ["java", "-jar", "instana-agent-operator.jar"]
+CMD ["./instana-agent-operator"]
