@@ -172,6 +172,8 @@
                 </goals>
                 <configuration>
                   <enableHttpUrlHandler>true</enableHttpUrlHandler>
+                  <enableHttpsUrlHandler>true</enableHttpsUrlHandler>
+                  <enableAllSecurityServices>true</enableAllSecurityServices>
                   <enableJni>true</enableJni>
                   <reportErrorsAtRuntime>true</reportErrorsAtRuntime>
                   <enableVMInspection>true</enableVMInspection>
@@ -185,8 +187,6 @@
                   <dockerBuild>true</dockerBuild>
 
                   <!--<debugSymbols>false</debugSymbols>-->
-                  <!--<enableHttpsUrlHandler>false</enableHttpsUrlHandler>-->
-                  <!--<enableAllSecurityServices>false</enableAllSecurityServices>-->
                   <!--<enableRetainedHeapReporting>false</enableRetainedHeapReporting>-->
                   <!--<enableIsolates>false</enableIsolates>-->
                   <!--<enableCodeSizeReporting>false</enableCodeSizeReporting>-->
