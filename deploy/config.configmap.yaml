@@ -4,7 +4,7 @@ metadata:
   name: config
   namespace: instana-agent
 data:
-  zone.name: my-k8s-cluster
-  agent.key: _PUT_YOUR_AGENT_KEY_HERE_
-  agent.endpoint: saas-us-west-2.instana.io
-  agent.endpoint.port: "444"
+  agent.key: {{ put your Instana agent key here }}
+  agent.endpoint: {{ the monitoring ingress endpoint }}
+  agent.endpoint.port: {{ the monitoring ingress endpoint port, wrapped in quotes }}
+  zone.name: {{ (optional) name of the zone of the host }}
