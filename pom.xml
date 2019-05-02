@@ -218,7 +218,8 @@
                     <image>
                       <name>instana/instana-agent-operator</name>
                       <build>
-                        <dockerFile>${project.basedir}/Dockerfile.native</dockerFile>
+                        <dockerFile>${project.basedir}/src/main/docker/Dockerfile.native</dockerFile>
+                        <contextDir>${project.basedir}</contextDir>
                       </build>
                     </image>
                   </images>

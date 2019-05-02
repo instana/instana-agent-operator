@@ -12,6 +12,7 @@ COPY licenses /licenses
 
 WORKDIR /work/
 COPY target/*-runner /work/instana-agent-operator
+COPY src/main/docker/lib/libsunec.so /work/libsunec.so
 RUN chmod 775 /work
 
 EXPOSE 8080
