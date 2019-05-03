@@ -1,18 +1,16 @@
 package com.instana.operator;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import io.quarkus.runtime.StartupEvent;
+import io.reactivex.plugins.RxJavaPlugins;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.enterprise.inject.Produces;
 import javax.inject.Singleton;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.quarkus.runtime.StartupEvent;
-import io.reactivex.plugins.RxJavaPlugins;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 @ApplicationScoped
 public class InstanaOperator {
@@ -33,8 +31,7 @@ public class InstanaOperator {
   // This is a synchronous event handler, i.e. calls to globalErrorEvent.fire()
   // will never return but trigger System.exit() immediately.
   void onError(@Observes GlobalErrorEvent ev) {
-    LOGGER.error(ev.getCause().getMessage(), ev.getCause());
+    LOGGER.error(ev.getMessage(), ev.getCause());
     Runtime.getRuntime().halt(1);
   }
-
 }

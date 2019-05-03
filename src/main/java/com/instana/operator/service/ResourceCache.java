@@ -85,8 +85,7 @@ public class ResourceCache<T extends HasMetadata> {
                     }
                     break;
                   case ERROR:
-                    errorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-                        "Resource " + resource.getMetadata().getName() + " encountered an error.")));
+                    errorEvent.fire(new GlobalErrorEvent("Resource " + resource.getMetadata().getName() + " encountered an error."));
                     break;
                   }
 
@@ -112,7 +111,7 @@ public class ResourceCache<T extends HasMetadata> {
               try {
                 krl = watchList.list();
               } catch (KubernetesClientException e) {
-                errorEvent.fire(new GlobalErrorEvent(e.getCause()));
+                errorEvent.fire(new GlobalErrorEvent(e));
                 return;
               }
 

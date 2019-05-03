@@ -1,18 +1,16 @@
 package com.instana.operator.agent;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
-
-import javax.enterprise.context.ApplicationScoped;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.reactivex.Maybe;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.enterprise.context.ApplicationScoped;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 @ApplicationScoped
 public class AgentConfigRestClient {
@@ -20,7 +18,7 @@ public class AgentConfigRestClient {
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentConfigRestClient.class);
   private static final MediaType YAML = MediaType.get("text/yaml");
 
-  private static final int RETRY_COUNT = 3;
+  private static final int RETRY_COUNT = 6;
   private static final int RETRY_DELAY_SECONDS = 30;
 
   private OkHttpClient client = new OkHttpClient();

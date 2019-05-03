@@ -119,7 +119,13 @@ public class OperatorLeaderElector {
     } catch (KubernetesClientException e) {
       // For status codes, see https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#http-status-codes
       if (e.getCode() != 409) {
-        globalErrorEvent.fire(new GlobalErrorEvent(e.getCause()));
+        if (e.getCause() instanceof java.io.InterruptedIOException) {
+          LOGGER.error("Thread interrupted while creating config map " + INSTANA_AGENT_OPERATOR_LEADER_LOCK + " in namespace " + namespaceService.getNamespace() + ".");
+        } else {
+          globalErrorEvent.fire(new GlobalErrorEvent("Received unexpected error code " + e.getCode()
+              + " from the Kubernetes API server while creating config map " + INSTANA_AGENT_OPERATOR_LEADER_LOCK
+              + " in namespace " + namespaceService.getNamespace() + ".", e));
+        }
       }
     }
 

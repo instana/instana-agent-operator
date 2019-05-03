@@ -30,8 +30,11 @@ rules:
   - customresourcedefinitions
   verbs:
   - list
-- apiGroups: ["agent.instana.io"]
+- apiGroups: ["instana.io"]
   resources:
-  - electedleaders
+  - agents
   verbs:
-  - '*'
+  - watch
+  - list
+  - get
+  - update

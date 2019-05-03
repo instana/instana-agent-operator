@@ -1,27 +1,16 @@
 package com.instana.operator.util;
 
-import static com.instana.operator.util.ConfigUtils.createClientConfig;
-import static com.instana.operator.util.OkHttpClientUtils.createHttpClient;
-import static org.hamcrest.MatcherAssert.assertThat;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.client.Config;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
-import io.fabric8.kubernetes.api.model.apps.DaemonSet;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.client.Config;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import static com.instana.operator.util.ConfigUtils.createClientConfig;
+import static com.instana.operator.util.OkHttpClientUtils.createHttpClient;
 
 class AgentResourcesUtilIT {
 
@@ -50,6 +39,7 @@ class AgentResourcesUtilIT {
   void cleanUp() {
     //client.namespaces().delete(agentNS);
   }
+    /*
 
   @Test
   void canCreateDaemonSet() throws JsonProcessingException, InterruptedException {
@@ -115,5 +105,5 @@ class AgentResourcesUtilIT {
     //      Thread.sleep(5000);
     //    }
   }
-
+*/
 }

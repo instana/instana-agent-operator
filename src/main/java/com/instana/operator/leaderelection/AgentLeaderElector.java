@@ -1,33 +1,26 @@
 package com.instana.operator.leaderelection;
 
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.enterprise.event.Observes;
-import javax.enterprise.event.ObservesAsync;
-import javax.inject.Inject;
-
-import com.instana.operator.kubernetes.Label;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.agent.AgentConfigRestClient;
-import com.instana.operator.customresource.ElectedLeaderSpec;
-import com.instana.operator.service.ElectedLeaderClientService;
-import com.instana.operator.service.InstanaConfigService;
+import com.instana.operator.kubernetes.Label;
+import com.instana.operator.service.CustomResourceService;
 import com.instana.operator.service.KubernetesResourceService;
 import com.instana.operator.service.OperatorNamespaceService;
 import com.instana.operator.service.ResourceCache;
-
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkus.runtime.ShutdownEvent;
 import io.reactivex.disposables.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Observes;
+import javax.enterprise.event.ObservesAsync;
+import javax.inject.Inject;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 @ApplicationScoped
 public class AgentLeaderElector {
@@ -47,13 +40,9 @@ public class AgentLeaderElector {
   @Inject
   OperatorNamespaceService namespaceService;
   @Inject
-  InstanaConfigService instanaConfigService;
-  @Inject
   AgentConfigRestClient agentConfigRestClient;
   @Inject
-  ElectedLeaderClientService electedLeaderClientService;
-  @Inject
-  Event<GlobalErrorEvent> globalErrorEvent;
+  CustomResourceService customResourceService;
 
   private final Predicate<Pod> isRunning = pod -> Optional.ofNullable(pod)
       .map(Pod::getStatus)
@@ -123,8 +112,7 @@ public class AgentLeaderElector {
     }
     // Maybe set current leader based on pre-elected leader (we're taking over for a failed Operator).
     LOGGER.debug("Checking whether a previously-elected leader was referenced...");
-    electedLeaderClientService.loadElectedLeader()
-        .map(ElectedLeaderSpec::getLeaderName)
+    customResourceService.loadElectedLeaderName()
         .flatMap(l -> agentPods.get(l))
         .filter(isRunning::test)
         .ifPresent(p -> {
@@ -154,11 +142,11 @@ public class AgentLeaderElector {
     }
 
     LOGGER.debug("Firing agent leader config update...");
-    fireAgentLeaderElectedEvent(nominee.get());
+    fireAgentLeaderElectedEvent(nominee.get()); // TODO: This throws an exception if we cannot call the agent's REST interface.
 
     // Update the CRD for the current leader.
     LOGGER.debug("Updating ElectedLeader with leader name.");
-    electedLeaderClientService.upsertElectedLeader(new ElectedLeaderSpec(leaderName.get()));
+    customResourceService.storeElectedLeaderName(leaderName.get());
   }
 
   private void fireAgentLeaderElectedEvent(Pod leader) {

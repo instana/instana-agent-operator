@@ -46,10 +46,10 @@ mkdir ./manifests/instana-agent
 cd ./manifests/instana-agent
 curl -OL $PR_BRANCH/instana-agent.package.yaml
 
-mkdir ./0.0.1
-cd ./0.0.1
-curl -OL $PR_BRANCH/electedleader.crd.yaml
-curl -OL $PR_BRANCH/instana-agent.v0.0.1.clusterserviceversion.yaml
+mkdir ./0.0.2
+cd ./0.0.2
+curl -OL $PR_BRANCH/instana-agent.crd.yaml
+curl -OL $PR_BRANCH/instana-agent.v0.0.2.clusterserviceversion.yaml
 
 cd ../../../
 ```
@@ -91,5 +91,4 @@ Make sure that you execute the steps in [install-via-olm.md](install-via-olm.md)
 
 * `instana-agent` namespace
 * `instana-agent` operator group
-* `agent-config` config map
-* `config` config map
+* `instana-agent` custom resoure
