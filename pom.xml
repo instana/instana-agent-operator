@@ -22,12 +22,12 @@
     <!-- Dependency Versions -->
     <quarkus.version>0.14.0</quarkus.version>
 
-    <okhttp3.version>3.12.0</okhttp3.version>
-    <fabric8.version>4.1.3</fabric8.version>
+    <okhttp3.version>3.14.1</okhttp3.version>
+    <fabric8.version>4.2.2</fabric8.version>
     <commons-lang3.version>3.5</commons-lang3.version>
     <rxjava.version>2.2.7</rxjava.version>
     <logback-classic.version>1.2.3</logback-classic.version>
-    <okio.version>1.14.0</okio.version>
+    <okio.version>2.2.2</okio.version>
     <kubernetes-api.version>3.0.12</kubernetes-api.version>
     <zjsonpatch.version>0.3.0</zjsonpatch.version>
 
@@ -275,7 +275,12 @@
       </plugin>
 
       <plugin>
-        <!-- plugin that helps finding other plugin updates, run "mvn versions:display-plugin-updates" -->
+        <!--
+         plugin that helps finding other plugin updates,
+          run "mvn versions:display-dependency-updates"
+         and
+          run "mvn versions:display-plugin-updates"
+        -->
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>versions-maven-plugin</artifactId>
         <version>${versions-maven-plugin.version}</version>
