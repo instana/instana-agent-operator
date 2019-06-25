@@ -20,10 +20,10 @@
     <enforcer-maven-version>3.5.3</enforcer-maven-version>
 
     <!-- Dependency Versions -->
-    <quarkus.version>0.14.0</quarkus.version>
+    <quarkus.version>0.17.0</quarkus.version>
 
     <okhttp3.version>3.14.1</okhttp3.version>
-    <fabric8.version>4.2.2</fabric8.version>
+    <fabric8.version>4.3.0</fabric8.version>
     <commons-lang3.version>3.5</commons-lang3.version>
     <rxjava.version>2.2.7</rxjava.version>
     <logback-classic.version>1.2.3</logback-classic.version>
