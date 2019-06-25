@@ -1,45 +1,15 @@
 package com.instana.operator.util;
 
-import static java.util.Arrays.asList;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.ContainerBuilder;
-import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.OwnerReference;
-import io.fabric8.kubernetes.api.model.ProbeBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.QuantityBuilder;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
-import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeBuilder;
-import io.fabric8.kubernetes.api.model.VolumeMount;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import com.instana.operator.customresource.InstanaAgentConfigFiles;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetBuilder;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBuilder;
-import io.fabric8.kubernetes.api.model.rbac.PolicyRule;
-import io.fabric8.kubernetes.api.model.rbac.PolicyRuleBuilder;
-import io.fabric8.kubernetes.api.model.rbac.SubjectBuilder;
+import io.fabric8.kubernetes.api.model.rbac.*;
+
+import java.util.*;
+
+import static java.util.Arrays.asList;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public abstract class AgentResourcesUtil {
 
@@ -60,18 +30,11 @@ public abstract class AgentResourcesUtil {
 
   public static ConfigMap createConfigurationConfigMap(String namespace,
                                                        String name,
+                                                       InstanaAgentConfigFiles contents,
                                                        OwnerReference ownerReference) {
 
     Map<String, String> data = new HashMap<>();
-    data.put("configuration.yaml", "|\n");
-    data.put("org.ops4j.pax.url.mvn.cfg", "|\n" +
-        "org.ops4j.pax.url.mvn.certificateCheck=true\n" +
-        "org.ops4j.pax.url.mvn.socket.keepAlive=true\n" +
-        "org.ops4j.pax.url.mvn.settings=file:${karaf.etc}/mvn-settings.xml\n" +
-        "org.ops4j.pax.url.mvn.useFallbackRepositories=false\n" +
-        "org.ops4j.pax.url.mvn.defaultRepositories=file:/root/.m2/repository@id=m2repo@snapshots,file:${karaf.home}/${karaf.default.repository}@id=system.repository@snapshots\n"
-        +
-        "org.ops4j.pax.url.mvn.repositories=https://artifact-public.instana.io/artifactory/features-public@id=features@noreleases@snapshots@snapshotsUpdate=always,https://artifact-public.instana.io/artifactory/shared@id=shared@snapshots@snapshotsUpdate=always\n");
+    data.put("configuration.yaml", contents.getConfigurationYaml());
 
     return new ConfigMapBuilder()
         .withNewMetadata()
@@ -170,7 +133,7 @@ public abstract class AgentResourcesUtil {
                                                String downloadKey,
                                                String zone,
                                                String endpoint,
-                                               String endpointPort,
+                                               int endpointPort,
                                                String mode,
                                                double cpuReq,
                                                int memoryReq,
@@ -179,17 +142,17 @@ public abstract class AgentResourcesUtil {
                                                String imageName,
                                                String imageTag,
                                                String proxyHost,
-                                               String proxyPort,
+                                               Integer proxyPort,
                                                String proxyProtocol,
                                                String proxyUser,
                                                String proxyPasswd,
-                                               String proxyUseDNS,
+                                               Boolean proxyUseDNS,
                                                String httpListen) {
     List<EnvVar> env = new ArrayList<>();
     env.add(createEnvVar("INSTANA_OPERATOR_MANAGED", "true"));
     env.add(createEnvVar("INSTANA_ZONE", zone));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT", endpoint));
-    env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", endpointPort));
+    env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", ""+endpointPort));
     env.add(createEnvVar("INSTANA_AGENT_MODE", mode));
     env.add(createEnvVarFromSecret("INSTANA_AGENT_KEY", secret.getMetadata().getName()));
     env.add(createEnvVar("JAVA_OPTS",
@@ -204,8 +167,8 @@ public abstract class AgentResourcesUtil {
     if (!isBlank(proxyHost)) {
       env.add(createEnvVar("INSTANA_AGENT_PROXY_HOST", proxyHost));
     }
-    if (!isBlank(proxyPort)) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PORT", proxyPort));
+    if (proxyPort != null) {
+      env.add(createEnvVar("INSTANA_AGENT_PROXY_PORT", "" + proxyPort));
     }
     if (!isBlank(proxyProtocol)) {
       env.add(createEnvVar("INSTANA_AGENT_PROXY_PROTOCOL", proxyProtocol));
@@ -216,8 +179,8 @@ public abstract class AgentResourcesUtil {
     if (!isBlank(proxyPasswd)) {
       env.add(createEnvVar("INSTANA_AGENT_PROXY_PASSWORD", proxyPasswd));
     }
-    if (!isBlank(proxyUseDNS)) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_USE_DNS", proxyUseDNS));
+    if (proxyUseDNS != null && proxyUseDNS) {
+      env.add(createEnvVar("INSTANA_AGENT_PROXY_USE_DNS", "" + proxyUseDNS));
     }
 
     if (!isBlank(httpListen)) {

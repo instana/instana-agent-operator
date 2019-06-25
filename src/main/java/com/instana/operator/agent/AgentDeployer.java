@@ -1,41 +1,30 @@
 package com.instana.operator.agent;
 
-import static com.instana.operator.util.AgentResourcesUtil.createAgentClusterRole;
-import static com.instana.operator.util.AgentResourcesUtil.createAgentClusterRoleBinding;
-import static com.instana.operator.util.AgentResourcesUtil.createAgentDaemonSet;
-import static com.instana.operator.util.AgentResourcesUtil.createAgentKeySecret;
-import static com.instana.operator.util.AgentResourcesUtil.createServiceAccount;
-
-import java.nio.charset.Charset;
-import java.util.Base64;
+import com.instana.operator.GlobalErrorEvent;
+import com.instana.operator.customresource.InstanaAgentSpec;
+import com.instana.operator.service.AgentConfigFoundEvent;
+import com.instana.operator.service.KubernetesResourceService;
+import com.instana.operator.service.OperatorNamespaceService;
+import com.instana.operator.service.OperatorOwnerReferenceService;
+import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.apps.DaemonSet;
+import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
+import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
+import java.nio.charset.Charset;
+import java.util.Base64;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import com.instana.operator.kubernetes.Client;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.instana.operator.GlobalErrorEvent;
-import com.instana.operator.config.InstanaConfig;
-import com.instana.operator.leaderelection.ElectedLeaderEvent;
-import com.instana.operator.service.InstanaConfigService;
-import com.instana.operator.service.KubernetesResourceService;
-import com.instana.operator.service.OperatorNamespaceService;
-import com.instana.operator.service.OperatorOwnerReferenceService;
-
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
-import io.fabric8.kubernetes.api.model.apps.DaemonSet;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import static com.instana.operator.util.AgentResourcesUtil.*;
 
 @ApplicationScoped
 public class AgentDeployer {
@@ -49,76 +38,69 @@ public class AgentDeployer {
   @Inject
   OperatorOwnerReferenceService ownerReferenceService;
   @Inject
-  InstanaConfigService instanaConfigService;
-  @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
 
-  void onLeaderElection(@ObservesAsync ElectedLeaderEvent ev) {
-    InstanaConfig instanaConfig = instanaConfigService.getConfig();
+  void onAgentConfigFound(@ObservesAsync AgentConfigFoundEvent ev) {
 
     String namespace = namespaceService.getNamespace();
-    Client client = clientService.getKubernetesClient();
+    InstanaAgentSpec config = ev.getConfig().getSpec();
 
     LOGGER.debug("Finding the operator deployment as owner reference...");
-    ownerReferenceService.getOperatorDeploymentAsOwnerReference()
-        .thenAccept(ownerRef -> {
+    OwnerReference ownerRef = null;
+    try {
+      ownerRef = ownerReferenceService.getOperatorDeploymentAsOwnerReference().get(30, TimeUnit.SECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      globalErrorEvent.fire(new GlobalErrorEvent("Timeout while getting operator deployment as owner reference", e));
+    }
 
-          ServiceAccount serviceAccount = createServiceAccount(
-              namespace, instanaConfig.getServiceAccountName(), ownerRef);
-          maybeCreateResource(serviceAccount);
+    ServiceAccount serviceAccount = createServiceAccount(
+        namespace, config.getAgentServiceAccountName(), ownerRef);
+    maybeCreateResource(serviceAccount);
 
-          if (instanaConfig.isRbacCreate()) {
-            ClusterRole clusterRole = createAgentClusterRole(
-                instanaConfig.getClusterRoleName(), ownerRef);
-            maybeCreateResource(clusterRole);
+    if (config.isAgentRbacCreate()) {
+      ClusterRole clusterRole = createAgentClusterRole(
+          config.getAgentClusterRoleName(), ownerRef);
+      maybeCreateResource(clusterRole);
 
-            ClusterRoleBinding clusterRoleBinding = createAgentClusterRoleBinding(
-                namespace, instanaConfig.getClusterRoleBindingName(), serviceAccount, clusterRole, ownerRef);
-            maybeCreateResource(clusterRoleBinding);
-          }
+      ClusterRoleBinding clusterRoleBinding = createAgentClusterRoleBinding(
+          namespace, config.getAgentClusterRoleBindingName(), serviceAccount, clusterRole, ownerRef);
+      maybeCreateResource(clusterRoleBinding);
+    }
 
-          Secret secret = createAgentKeySecret(
-              namespace, instanaConfig.getSecretName(), base64(instanaConfig.getAgentKey()), ownerRef);
-          maybeCreateResource(secret);
+    Secret secret = createAgentKeySecret(
+        namespace, config.getAgentSecretName(), base64(config.getAgentKey()), ownerRef);
+    maybeCreateResource(secret);
 
-          ConfigMap agentConfigMap = clientService.getKubernetesClient()
-              .get(namespaceService.getNamespace(), instanaConfig.getConfigMapName(), ConfigMap.class);
-          if (null == agentConfigMap) {
-            globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-                "Agent ConfigMap named " + instanaConfig.getConfigMapName() + " not found in namespace "
-                    + namespaceService.getNamespace())));
-            return;
-          }
+    ConfigMap agentConfigMap = createConfigurationConfigMap(namespace, config.getAgentConfigMapName(),
+        config.getConfigFiles(), ownerRef);
+    maybeCreateResource(agentConfigMap);
 
-          DaemonSet daemonSet = createAgentDaemonSet(
-              namespace,
-              instanaConfig.getDaemonSetName(),
-              serviceAccount,
-              secret,
-              agentConfigMap,
-              ownerRef,
-              instanaConfig.getAgentDownloadKey(),
-              instanaConfig.getZoneName(),
-              instanaConfig.getEndpoint(),
-              instanaConfig.getEndpointPort(),
-              instanaConfig.getAgentMode(),
-              instanaConfig.getAgentCpuReq(),
-              instanaConfig.getAgentMemReq(),
-              instanaConfig.getAgentCpuLimit(),
-              instanaConfig.getAgentMemLimit(),
-              instanaConfig.getAgentImageName(),
-              instanaConfig.getAgentImageTag(),
-              instanaConfig.getAgentProxyHost(),
-              instanaConfig.getAgentProxyPort(),
-              instanaConfig.getAgentProxyProtocol(),
-              instanaConfig.getAgentProxyUser(),
-              instanaConfig.getAgentProxyPasswd(),
-              instanaConfig.getAgentProxyUseDNS(),
-              instanaConfig.getAgentHttpListen());
-          maybeCreateResource(daemonSet);
-
-          LOGGER.debug("Successfully deployed the Instana agent.");
-        });
+    DaemonSet daemonSet = createAgentDaemonSet(
+        namespace,
+        config.getAgentDaemonSetName(),
+        serviceAccount,
+        secret,
+        agentConfigMap,
+        ownerRef,
+        config.getAgentDownloadKey(),
+        config.getAgentZoneName(),
+        config.getAgentEndpointHost(),
+        config.getAgentEndpointPort(),
+        config.getAgentMode(),
+        config.getAgentCpuReq(),
+        config.getAgentMemReq(),
+        config.getAgentCpuLimit(),
+        config.getAgentMemLimit(),
+        config.getAgentImageName(),
+        config.getAgentImageTag(),
+        config.getAgentProxyHost(),
+        config.getAgentProxyPort(),
+        config.getAgentProxyProtocol(),
+        config.getAgentProxyUser(),
+        config.getAgentProxyPassword(),
+        config.isAgentProxyUseDNS(),
+        config.getAgentHttpListen());
+    maybeCreateResource(daemonSet);
   }
 
   @SuppressWarnings("unchecked")
@@ -130,8 +112,17 @@ public class AgentDeployer {
     try {
       clientService.getKubernetesClient().create(namespaceService.getNamespace(), resource);
     } catch (KubernetesClientException e) {
+
       if (e.getCode() != 409) {
-        globalErrorEvent.fire(new GlobalErrorEvent(e.getCause()));
+        if (e.getCause() instanceof java.io.InterruptedIOException) {
+          LOGGER.error(
+              "Thread interrupted while creating " + resource.getKind() + "/" + resource.getMetadata().getName()
+                  + " in namespace " + namespaceService.getNamespace());
+        } else {
+          globalErrorEvent.fire(new GlobalErrorEvent(
+              "Kubernetes API server responded HTTP code " + e.getCode() + " while creating " + resource.getClass()
+                  .getSimpleName(), e.getCause()));
+        }
       } else {
         LOGGER.info("{} {}/{} already exists.",
             resource.getKind(),

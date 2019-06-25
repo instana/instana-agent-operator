@@ -1,0 +1,8 @@
+agent.zone.name: my-k8s-cluster
+agent.key: _PUT_YOUR_AGENT_KEY_HERE_
+agent.endpoint.host: saas-us-west-2.instana.io
+agent.endpoint.port: 443
+config.files:
+    configuration.yaml: |
+      # You can leave this empty, or use this to configure your instana agent.
+      # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/

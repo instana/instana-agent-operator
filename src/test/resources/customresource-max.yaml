@@ -1,0 +1,30 @@
+agent.zone.name: my-k8s-cluster
+agent.key: _PUT_YOUR_AGENT_KEY_HERE_
+agent.endpoint.host: saas-us-west-2.instana.io
+agent.endpoint.port: 443
+agent.clusterRoleName: test-cluster-role
+agent.clusterRoleBindingName: test-cluster-role-binding
+agent.serviceAccountName: test-service-account
+agent.secretName: test-secret
+agent.daemonSetName: test-daemon-set
+agent.configMapName: test-config-map
+agent.rbac.create: false
+agent.image: instana/test-image
+agent.image.tag: 1.2.3
+agent.mode: NONE
+agent.cpuReq: 0.7
+agent.cpuLimit: 1.8
+agent.memReq: 513
+agent.memLimit: 518
+agent.downloadKey: test-download-key
+agent.proxy.host: proxy.instana.io
+agent.proxy.port: 8443
+agent.proxy.protocol: https
+agent.proxy.user: proxy-user
+agent.proxy.password: proxy-password
+agent.proxy.use.dns: true
+agent.http.listen: 127.0.0.1
+config.files:
+    configuration.yaml: |
+      # You can leave this empty, or use this to configure your instana agent.
+      # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/

@@ -1,19 +1,17 @@
 package com.instana.operator.service;
 
+import com.instana.operator.GlobalErrorEvent;
+import io.reactivex.Maybe;
+import io.reactivex.Single;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Event;
+import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.inject.Inject;
-
-import com.instana.operator.GlobalErrorEvent;
-
-import io.reactivex.Maybe;
-import io.reactivex.Single;
 
 /**
  * Service that is responsible for looking up and providing the namespace the Operator
@@ -38,9 +36,8 @@ public class OperatorNamespaceService {
    */
   synchronized String getOperatorPodName() {
     if (null == name && null == (name = System.getenv(POD_NAME))) {
-      globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-          POD_NAME + " not available in the environment. "
-              + "Please ensure the downward API for " + POD_NAME + " is set using the provided YAML.")));
+      globalErrorEvent.fire(new GlobalErrorEvent( POD_NAME + " not available in the environment. "
+              + "Please ensure the downward API for " + POD_NAME + " is set using the provided YAML."));
       return null; // This line will never be executed, because the error event handler will call System.exit();
     }
     return name;
@@ -64,9 +61,8 @@ public class OperatorNamespaceService {
   private Single<String> findNamespaceWithEnvironmentVariable() {
     String ns = System.getenv(POD_NAMESPACE);
     if (null == ns) {
-      globalErrorEvent.fire(new GlobalErrorEvent(new IllegalStateException(
-          POD_NAMESPACE + " not available in the environment. "
-              + "Please ensure the downward API for " + POD_NAMESPACE + " is set using the provided YAML.")));
+      globalErrorEvent.fire(new GlobalErrorEvent(POD_NAMESPACE + " not available in the environment. "
+              + "Please ensure the downward API for " + POD_NAMESPACE + " is set using the provided YAML."));
       return null; // This line will never be executed, because the error event handler will call System.exit();
     }
     return Single.just(ns);

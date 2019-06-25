@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: agent-config
-  namespace: instana-agent
-data:
-  configuration.yaml: |
-    # You can leave this empty, or use this to configure your instana agent.
-    # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/
