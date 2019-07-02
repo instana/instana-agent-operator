@@ -1,46 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>com.instana</groupId>
   <artifactId>instana-agent-operator</artifactId>
   <version>1.0.0-SNAPSHOT</version>
-  <packaging>jar</packaging>
 
   <name>instana-agent-operator</name>
   <description>Kubernetes Operator for the Instana Agent</description>
 
   <properties>
-    <!-- Project properties -->
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    <surefire-plugin.version>2.22.0</surefire-plugin.version>
+    <quarkus.version>0.18.0</quarkus.version>
+    <!-- quarkus.version>999-SNAPSHOT</quarkus.version -->
     <maven.compiler.source>1.8</maven.compiler.source>
-    <enforcer-maven-version>3.5.3</enforcer-maven-version>
-
-    <!-- Dependency Versions -->
-    <quarkus.version>0.17.0</quarkus.version>
-
-    <okhttp3.version>3.14.1</okhttp3.version>
-    <fabric8.version>4.3.0</fabric8.version>
-    <commons-lang3.version>3.5</commons-lang3.version>
-    <rxjava.version>2.2.7</rxjava.version>
-    <logback-classic.version>1.2.3</logback-classic.version>
-    <okio.version>2.2.2</okio.version>
-    <kubernetes-api.version>3.0.12</kubernetes-api.version>
-    <zjsonpatch.version>0.3.0</zjsonpatch.version>
-
-    <!-- Test Dependency Versions -->
-    <hamcrest-all.version>1.3</hamcrest-all.version>
-    <rest-assured.version>3.3.0</rest-assured.version>
-
-    <!-- Plugin Versions -->
-    <surefire.version>3.0.0-M3</surefire.version>
-    <docker-maven-plugin.version>0.30.0</docker-maven-plugin.version>
-    <versions-maven-plugin.version>2.7</versions-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
-
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
 
   <dependencyManagement>
@@ -54,111 +30,67 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
   <dependencies>
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-      <version>${commons-lang3.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.reactivex.rxjava2</groupId>
-      <artifactId>rxjava</artifactId>
-      <version>${rxjava.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-      <version>${logback-classic.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.squareup.okhttp3</groupId>
-      <artifactId>logging-interceptor</artifactId>
-      <version>${okhttp3.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.squareup.okhttp3</groupId>
-      <artifactId>okhttp</artifactId>
-      <version>${okhttp3.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.squareup.okio</groupId>
-      <artifactId>okio</artifactId>
-      <version>${okio.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.fabric8</groupId>
-      <artifactId>kubernetes-client</artifactId>
-      <version>${fabric8.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.fabric8</groupId>
-      <artifactId>kubernetes-model</artifactId>
-      <version>${fabric8.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.fabric8</groupId>
-      <artifactId>kubernetes-api</artifactId>
-      <version>${kubernetes-api.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.fabric8</groupId>
-      <artifactId>zjsonpatch</artifactId>
-      <version>${zjsonpatch.version}</version>
-    </dependency>
-
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-resteasy</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.jboss.slf4j</groupId>
-          <artifactId>slf4j-jboss-logging</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-arc</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.jboss.logging</groupId>
-          <artifactId>jboss-logging</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>quarkus-kubernetes-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-reactive-streams-operators</artifactId>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-health</artifactId>
     </dependency>
-
-    <!-- Test Dependencies -->
-
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
-      <version>${rest-assured.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
-      <version>${hamcrest-all.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
-
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <version>${quarkus.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire-plugin.version}</version>
+        <configuration>
+          <systemProperties>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemProperties>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
   <profiles>
     <profile>
       <id>native</id>
+      <activation>
+        <property>
+          <name>native</name>
+        </property>
+      </activation>
       <build>
         <plugins>
           <plugin>
@@ -172,57 +104,24 @@
                 </goals>
                 <configuration>
                   <enableHttpUrlHandler>true</enableHttpUrlHandler>
-                  <enableHttpsUrlHandler>true</enableHttpsUrlHandler>
-                  <enableAllSecurityServices>true</enableAllSecurityServices>
-                  <enableJni>true</enableJni>
-                  <reportErrorsAtRuntime>true</reportErrorsAtRuntime>
-                  <enableVMInspection>true</enableVMInspection>
-
-                  <additionalBuildArgs>
-                    <additionalBuildArg>--allow-incomplete-classpath</additionalBuildArg>
-                    <additionalBuildArg>--report-unsupported-elements-at-runtime</additionalBuildArg>
-                  </additionalBuildArgs>
-
-                  <!-- Enables building the native image via Docker instead of directly on the host -->
-                  <dockerBuild>true</dockerBuild>
-
-                  <!--<debugSymbols>false</debugSymbols>-->
-                  <!--<enableRetainedHeapReporting>false</enableRetainedHeapReporting>-->
-                  <!--<enableIsolates>false</enableIsolates>-->
-                  <!--<enableCodeSizeReporting>false</enableCodeSizeReporting>-->
-                  <!--<graalvmHome>${env.GRAALVM_HOME}</graalvmHome>-->
-                  <!--<enableServer>false</enableServer>-->
-                  <!--<autoServiceLoaderRegistration>false</autoServiceLoaderRegistration>-->
-                  <!--<dumpProxies>false</dumpProxies>-->
-                  <!--<nativeImageXmx>${native-image.xmx}</nativeImageXmx>-->
-                  <!--<containerRuntime>${native-image.container-runtime}</containerRuntime>-->
-                  <!--<containerRuntimeOptions>${native-image.container-runtime-options}</containerRuntimeOptions>-->
-                  <!--<fullStackTraces>true</fullStackTraces>-->
-                  <!--<enableFallbackImages>false</enableFallbackImages>-->
-
+                  <additionalBuildArgs>-H:IncludeResources=application.properties</additionalBuildArgs>
                 </configuration>
               </execution>
             </executions>
           </plugin>
           <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>${surefire-plugin.version}</version>
             <executions>
               <execution>
                 <goals>
-                  <goal>build</goal>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
                 </goals>
-                <phase>package</phase>
                 <configuration>
-                  <images>
-                    <image>
-                      <name>instana/instana-agent-operator</name>
-                      <build>
-                        <dockerFile>${project.basedir}/src/main/docker/Dockerfile.native</dockerFile>
-                        <contextDir>${project.basedir}</contextDir>
-                      </build>
-                    </image>
-                  </images>
+                  <systemProperties>
+                    <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
+                  </systemProperties>
                 </configuration>
               </execution>
             </executions>
@@ -231,99 +130,4 @@
       </build>
     </profile>
   </profiles>
-
-  <build>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-    </resources>
-
-    <plugins>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${surefire.version}</version>
-        <configuration>
-          <systemProperties>
-            <java.util.logging.provider>slf4j</java.util.logging.provider>
-          </systemProperties>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>io.quarkus</groupId>
-        <artifactId>quarkus-maven-plugin</artifactId>
-        <version>${quarkus.version}</version>
-        <configuration>
-          <uberJar>true</uberJar>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>build</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>io.fabric8</groupId>
-        <artifactId>docker-maven-plugin</artifactId>
-        <version>${docker-maven-plugin.version}</version>
-        <extensions>true</extensions>
-      </plugin>
-
-      <plugin>
-        <!--
-         plugin that helps finding other plugin updates,
-          run "mvn versions:display-dependency-updates"
-         and
-          run "mvn versions:display-plugin-updates"
-        -->
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>versions-maven-plugin</artifactId>
-        <version>${versions-maven-plugin.version}</version>
-        <configuration>
-          <generateBackupPoms>false</generateBackupPoms>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven-enforcer-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>enforce-maven</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <requireMavenVersion>
-                  <version>${enforcer-maven-version}</version>
-                </requireMavenVersion>
-              </rules>
-            </configuration>
-          </execution>
-          <execution>
-            <id>enforce-java</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <requireJavaVersion>
-                  <version>(,1.8.1]</version>
-                </requireJavaVersion>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-    </plugins>
-  </build>
-
 </project>
