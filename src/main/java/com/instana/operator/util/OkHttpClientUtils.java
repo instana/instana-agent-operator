@@ -1,33 +1,27 @@
 package com.instana.operator.util;
 
-import static okhttp3.ConnectionSpec.CLEARTEXT;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-
-import java.net.Proxy;
-import java.security.GeneralSecurityException;
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.internal.SSLUtils;
 import io.fabric8.kubernetes.client.utils.BackwardsCompatibilityInterceptor;
 import io.fabric8.kubernetes.client.utils.ImpersonatorInterceptor;
 import io.fabric8.kubernetes.client.utils.Utils;
-import okhttp3.ConnectionSpec;
-import okhttp3.Credentials;
-import okhttp3.Dispatcher;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
+import okhttp3.*;
 import okhttp3.logging.HttpLoggingInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.Proxy;
+import java.security.GeneralSecurityException;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+
+import static com.instana.operator.util.StringUtils.isEmpty;
+import static okhttp3.ConnectionSpec.CLEARTEXT;
 
 public abstract class OkHttpClientUtils {
 

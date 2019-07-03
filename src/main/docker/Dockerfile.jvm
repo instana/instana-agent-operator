@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi7/ubi:latest
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 MAINTAINER Instana, support@instana.com
 
 LABEL name="instana-agent-operator" \
@@ -8,10 +8,9 @@ LABEL name="instana-agent-operator" \
       summary="Experimental alpha version of the upcoming Kubernetes Operator for the Instana APM Agent" \
       description="This operator will deploy a daemon set to run the Instana APM Agent on each cluster node."
 
-# TODO: Build a stripped-down image with quarkus.
-
-RUN yum install -y java-11-openjdk-devel
+RUN microdnf install --nodocs java-11-openjdk-headless && microdnf clean all
 COPY licenses /licenses
-COPY ${project.build.directory}/${project.artifactId}-${project.version}-runner.jar ./instana-agent-operator.jar
-EXPOSE 8080
-CMD ["java", "-jar", "instana-agent-operator.jar"]
+ENV JAVA_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+COPY target/lib/* /deployments/lib/
+COPY target/*-runner.jar /deployments/app.jar
+ENTRYPOINT [ "java", "-jar", "/deployments/app.jar" ]

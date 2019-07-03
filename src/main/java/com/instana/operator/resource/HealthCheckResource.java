@@ -1,7 +1,5 @@
 package com.instana.operator.resource;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
@@ -11,6 +9,8 @@ import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 
 import com.instana.operator.service.KubernetesResourceService;
+
+import static com.instana.operator.util.StringUtils.isBlank;
 
 @Health
 @ApplicationScoped

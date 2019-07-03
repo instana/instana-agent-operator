@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
 @JsonDeserialize(
     using = JsonDeserializer.None.class
 )
 @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+@RegisterForReflection
 public class InstanaAgentSpec {
 
   static final String DEFAULT_AGENT_CLUSTER_ROLE_NAME = "instana-agent";

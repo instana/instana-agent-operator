@@ -8,8 +8,8 @@ import io.fabric8.kubernetes.api.model.rbac.*;
 
 import java.util.*;
 
+import static com.instana.operator.util.StringUtils.isBlank;
 import static java.util.Arrays.asList;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public abstract class AgentResourcesUtil {
 
