@@ -2,11 +2,17 @@ package com.instana.operator.agent;
 
 import com.instana.operator.GlobalErrorEvent;
 import com.instana.operator.customresource.InstanaAgentSpec;
+import com.instana.operator.customresource.InstanaAgentStatus;
 import com.instana.operator.service.AgentConfigFoundEvent;
+import com.instana.operator.service.CustomResourceService;
 import com.instana.operator.service.KubernetesResourceService;
 import com.instana.operator.service.OperatorNamespaceService;
 import com.instana.operator.service.OperatorOwnerReferenceService;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
@@ -24,7 +30,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.instana.operator.util.AgentResourcesUtil.*;
+import static com.instana.operator.util.AgentResourcesUtil.createAgentClusterRole;
+import static com.instana.operator.util.AgentResourcesUtil.createAgentClusterRoleBinding;
+import static com.instana.operator.util.AgentResourcesUtil.createAgentDaemonSet;
+import static com.instana.operator.util.AgentResourcesUtil.createAgentKeySecret;
+import static com.instana.operator.util.AgentResourcesUtil.createConfigurationConfigMap;
+import static com.instana.operator.util.AgentResourcesUtil.createServiceAccount;
 
 @ApplicationScoped
 public class AgentDeployer {
@@ -39,6 +50,8 @@ public class AgentDeployer {
   OperatorOwnerReferenceService ownerReferenceService;
   @Inject
   Event<GlobalErrorEvent> globalErrorEvent;
+  @Inject
+  private CustomResourceService agentConfigService;
 
   void onAgentConfigFound(@ObservesAsync AgentConfigFoundEvent ev) {
 
@@ -101,6 +114,11 @@ public class AgentDeployer {
         config.isAgentProxyUseDNS(),
         config.getAgentHttpListen());
     maybeCreateResource(daemonSet);
+
+    InstanaAgentStatus status = new InstanaAgentStatus();
+    status.setAgentDeployed(true);
+    ev.getConfig().setStatus(status);
+    agentConfigService.updateStatus(ev.getConfig());
   }
 
   @SuppressWarnings("unchecked")

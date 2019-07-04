@@ -71,4 +71,8 @@ public class CustomResourceService {
       return Optional.empty();
     }
   }
+
+  public void updateStatus(InstanaAgent config) {
+    clientService.getKubernetesClient().createOrUpdate(config);
+  }
 }
