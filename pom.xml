@@ -58,6 +58,15 @@
     </dependency>
   </dependencies>
   <build>
+    <resources>
+        <resource>
+            <filtering>true</filtering>
+            <directory>src/main/resources</directory>
+            <includes>
+                <include>application.properties</include>
+            </includes>
+        </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>io.quarkus</groupId>
