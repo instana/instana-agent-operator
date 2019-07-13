@@ -51,6 +51,11 @@ cd ./0.0.2
 curl -OL $PR_BRANCH/instana-agent.crd.yaml
 curl -OL $PR_BRANCH/instana-agent.v0.0.2.clusterserviceversion.yaml
 
+mkdir ./0.0.3
+cd ./0.0.3
+curl -OL $PR_BRANCH/instana-agent.crd.yaml
+curl -OL $PR_BRANCH/instana-agent.v0.0.3.clusterserviceversion.yaml
+
 cd ../../../
 ```
 
