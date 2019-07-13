@@ -1,6 +1,6 @@
 package com.instana.operator.cache;
 
-import com.instana.operator.service.FatalErrorHandler;
+import com.instana.operator.FatalErrorHandler;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import org.slf4j.Logger;
@@ -27,6 +27,8 @@ public class CacheService {
   private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
     Thread thread = Executors.defaultThreadFactory().newThread(runnable);
     thread.setDaemon(true);
+    thread.setName("k8s-handler");
+    // For a warning on the uncaught Exception handler, see comment on ExecutorProducer.
     thread.setUncaughtExceptionHandler((t, e) -> {
       LOGGER.error(e.getMessage(), e);
       fatalErrorHandler.systemExit(-1);

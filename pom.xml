@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.instana</groupId>
   <artifactId>instana-agent-operator</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>0.0.4-SNAPSHOT</version>
 
   <name>instana-agent-operator</name>
   <description>Kubernetes Operator for the Instana Agent</description>
@@ -12,7 +12,7 @@
   <properties>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <surefire-plugin.version>2.22.0</surefire-plugin.version>
-    <quarkus.version>0.18.0</quarkus.version>
+    <quarkus.version>0.19.1</quarkus.version>
     <maven.compiler.source>1.8</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.target>1.8</maven.compiler.target>
@@ -66,6 +66,13 @@
                 <include>application.properties</include>
             </includes>
         </resource>
+      <resource>
+        <filtering>false</filtering>
+        <directory>src/main/resources</directory>
+        <includes>
+          <include>*.yaml</include>
+        </includes>
+      </resource>
     </resources>
     <plugins>
       <plugin>
@@ -113,6 +120,13 @@
                 <configuration>
                   <enableHttpUrlHandler>true</enableHttpUrlHandler>
                   <additionalBuildArgs>-H:IncludeResources=application.properties</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=instana-agent.clusterrole.yaml</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=instana-agent.clusterrolebinding.yaml</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=instana-agent.configmap.yaml</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=instana-agent.daemonset.yaml</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=instana-agent.secret.yaml</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=instana-agent.serviceaccount.yaml</additionalBuildArgs>
+                  <additionalBuildArgs>-H:IncludeResources=event.yaml</additionalBuildArgs>
                 </configuration>
               </execution>
             </executions>

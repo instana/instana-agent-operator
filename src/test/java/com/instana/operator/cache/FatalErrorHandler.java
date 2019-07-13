@@ -1,6 +1,6 @@
 package com.instana.operator.cache;
 
-public class FatalErrorHandler extends com.instana.operator.service.FatalErrorHandler {
+public class FatalErrorHandler extends com.instana.operator.FatalErrorHandler {
 
   private boolean systemExitCalled = false;
 

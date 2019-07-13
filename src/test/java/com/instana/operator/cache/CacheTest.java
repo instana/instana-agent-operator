@@ -119,9 +119,10 @@ class CacheTest {
             numberEventsReceived.incrementAndGet();
           }
       );
+      Thread.sleep(100); // receive first event
+      watch.dispose();
       simulator.simulatePodModified("test", 2);
       simulator.simulatePodModified("test", 3);
-      watch.dispose();
       Assertions.assertTrue(simulator.isWatchCloseCalled());
       Assertions.assertEquals(1, numberEventsReceived.get()); // only initial ADDED event.
     }

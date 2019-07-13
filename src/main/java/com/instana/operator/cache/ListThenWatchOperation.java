@@ -1,6 +1,6 @@
 package com.instana.operator.cache;
 
-import com.instana.operator.service.FatalErrorHandler;
+import com.instana.operator.FatalErrorHandler;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClientException;

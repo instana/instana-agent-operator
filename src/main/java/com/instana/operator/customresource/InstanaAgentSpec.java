@@ -3,8 +3,12 @@ package com.instana.operator.customresource;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+
+import java.io.IOException;
 
 @JsonDeserialize(
     using = JsonDeserializer.None.class
@@ -302,5 +306,29 @@ public class InstanaAgentSpec {
 
   public void setAgentHttpListen(String agentHttpListen) {
     this.agentHttpListen = agentHttpListen;
+  }
+
+  // We call equals() to check if the Spec was updated.
+  // We serialize to YAML and compare the Strings, because this works even if somebody
+  // adds a field and forgets to update the equals method.
+  // Moreover, this ignores fields that are ignored by YAML serialization which is what we want.
+  @Override
+  public boolean equals(Object o) {
+    try {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      InstanaAgentSpec that = (InstanaAgentSpec) o;
+      ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+      String thisString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this);
+      String thatString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(that);
+      return thisString.equals(thatString);
+    } catch (IOException e) {
+      // I don't see how this can happen.
+      throw new RuntimeException(e);
+    }
   }
 }

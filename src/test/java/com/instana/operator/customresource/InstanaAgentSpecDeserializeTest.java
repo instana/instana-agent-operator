@@ -7,7 +7,22 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static com.instana.operator.customresource.InstanaAgentSpec.*;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CLUSTER_ROLE_BINDING_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CLUSTER_ROLE_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CONFIG_MAP_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_LIMIT;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_REQ;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_DAEMON_SET_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_HTTP_LISTEN;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_IMAGE_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_IMAGE_TAG;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_LIMIT;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_REQ;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MODE;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_RBAC_CREATE;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SECRET_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SERVICE_ACCOUNT_NAME;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNull.nullValue;
@@ -89,6 +104,17 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentProxyUser(), equalTo("proxy-user"));
     assertThat(spec.getAgentProxyPassword(), equalTo("proxy-password"));
     assertThat(spec.isAgentProxyUseDNS(), equalTo(true));
+  }
+
+  @Test
+  void testEquals() throws Exception {
+    String yaml = FileUtil.readFromClasspath("/customresource-min.yaml");
+    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    InstanaAgentSpec spec1 = mapper.readValue(yaml, InstanaAgentSpec.class);
+    InstanaAgentSpec spec2 = mapper.readValue(yaml, InstanaAgentSpec.class);
+    assertThat(spec1, equalTo(spec2));
+    spec2.setAgentCpuReq(0.33);
+    assertThat(spec1, not(equalTo(spec2)));
   }
 
   String yamlToJson(String yaml) throws IOException {

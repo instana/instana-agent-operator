@@ -1,0 +1,17 @@
+kind: Event
+apiVersion: v1
+count: 1
+firstTimestamp: placeholder
+lastTimestamp: placeholder
+metadata:
+  generateName: instana-agent-operator-
+  namespace: placeholder
+involvedObject:
+  apiVersion: placeholder
+  kind: placeholder
+  namespace: placeholder
+  name: placeholder
+  uid: placeholder
+reason: placeholder
+message: placeholder
+type: Normal
