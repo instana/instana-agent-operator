@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KubernetesSimulator extends ListerWatcher<Pod, PodList> implements AutoCloseable {
 
@@ -26,6 +27,7 @@ public class KubernetesSimulator extends ListerWatcher<Pod, PodList> implements 
   private final Map<String, Pod> pods = new HashMap<>(); // uid -> Pod
   private final ExecutorService watcherThread = Executors.newSingleThreadExecutor();
   private volatile Watcher<Pod> watcher;
+  private final AtomicBoolean watchCloseCalled = new AtomicBoolean(false);
 
   void simulatePodAdded(String uid, String name, int resourceVersion) {
     Pod pod = makePod(name, resourceVersion, uid);
@@ -60,6 +62,10 @@ public class KubernetesSimulator extends ListerWatcher<Pod, PodList> implements 
     }
   }
 
+  boolean isWatchCloseCalled() {
+    return watchCloseCalled.get();
+  }
+
   @Override
   public KubernetesResourceList<Pod> list() {
     return new KubernetesResourceList<Pod>() {
@@ -79,6 +85,7 @@ public class KubernetesSimulator extends ListerWatcher<Pod, PodList> implements 
   public Watch watch(Watcher<Pod> watcher) {
     this.watcher = watcher;
     return () -> {
+      watchCloseCalled.set(true);
     };
   }
 

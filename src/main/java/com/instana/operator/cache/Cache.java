@@ -8,9 +8,11 @@ import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -45,7 +47,8 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
         BiConsumer<Watcher.Action, String> onEventCallback = (action, uid) -> observer.onNext(new CacheEvent(action, uid));
         Consumer<Exception> onErrorCallback = observer::onError;
         try {
-          ListThenWatchOperation.run(executor, map, op, fatalErrorHandler, onEventCallback, onErrorCallback);
+          Watch watch = ListThenWatchOperation.run(executor, map, op, fatalErrorHandler, onEventCallback, onErrorCallback);
+          observer.onSubscribe(new DisposableWatch(watch));
         } catch (Exception e) {
           // First call the error callback to provide a hook for cleanup, but then call System.exit(-1) because
           // we won't continue from here. Let Kubernetes restart the Pod.
@@ -53,5 +56,27 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
         }
       }
     };
+  }
+
+  private static class DisposableWatch implements Disposable {
+
+    private final AtomicReference<Watch> watch = new AtomicReference<>();
+
+    private DisposableWatch(Watch watch) {
+      this.watch.set(watch);
+    }
+
+    @Override
+    public void dispose() {
+      Watch w = watch.getAndSet(null);
+      if (w != null) {
+        w.close();
+      }
+    }
+
+    @Override
+    public boolean isDisposed() {
+      return watch.get() == null;
+    }
   }
 }

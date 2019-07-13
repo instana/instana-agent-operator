@@ -2,6 +2,7 @@ package com.instana.operator.cache;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
+import io.reactivex.disposables.Disposable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 class CacheTest {
@@ -105,5 +107,24 @@ class CacheTest {
     }
     cacheService.terminate(5, TimeUnit.SECONDS);
     Assertions.assertTrue(errorHandler.wasSystemExitCalled());
+  }
+
+  @Test
+  void testDispose() throws Exception {
+    final AtomicInteger numberEventsReceived = new AtomicInteger(0);
+    try (KubernetesSimulator simulator = new KubernetesSimulator()) {
+      simulator.simulatePodAdded("test", "test", 1);
+      Disposable watch = podCache.listThenWatch(simulator).subscribe(
+          event -> {
+            numberEventsReceived.incrementAndGet();
+          }
+      );
+      simulator.simulatePodModified("test", 2);
+      simulator.simulatePodModified("test", 3);
+      watch.dispose();
+      Assertions.assertTrue(simulator.isWatchCloseCalled());
+      Assertions.assertEquals(1, numberEventsReceived.get()); // only initial ADDED event.
+    }
+    cacheService.terminate(5, TimeUnit.SECONDS);
   }
 }
