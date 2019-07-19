@@ -1,15 +1,20 @@
 Installing the Instana Agent Operator Manually
 ==============================================
 
-The [deploy/](../deploy) directory contains the YAML files that need to be applied to install the operator manually:
+The [deploy/](../deploy) directory contains the YAML files that need to be applied to install the operator manually.
+Deploy the operator as follows:
 
-* `kubectl apply -f instana-agent.namespace.yaml`: Creates the `instana-agent` namespace.
-* `kubectl apply -f instana-agent-operator.serviceaccount.yaml`: Creates the `instana-agent-operator` service account.
-* `kubectl apply -f instana-agent-operator.clusterrole.yaml`: Creates the `instana-agent-operator` cluster role.
-* `kubectl apply -f instana-agent-operator.clusterrolebinding.yaml`: Creates the `instana-agent-operator` cluster role binding.
-* `kubectl apply -f instana-agent.crd.yaml`: Creates the custom resource definition for `agents.instana.io`.
+```bash
+kubectl apply -f instana-agent.namespace.yaml
+kubectl apply -f instana-agent-operator.serviceaccount.yaml
+kubectl apply -f instana-agent-operator.clusterrole.yaml
+kubectl apply -f instana-agent-operator.clusterrolebinding.yaml
+kubectl apply -f instana-agent.crd.yaml
+kubectl apply -f instana-agent-operator.deployment.yaml
+```
 
-Now edit `instana-agent.customresource.yaml` and replace at least the following values:
+Now the operator should be up and running in namespace `instana-agent`, waiting for an `instana-agent` custom resource to
+be created. Before creating the custom resource, you must edit `instana-agent.customresource.yaml` and replace at least the following values:
 
   * `agent.key` must be set with your Instana agent key.
   * `agent.endpoint` must be set with the monitoring ingress endpoint, generally either `saas-us-west-2.instana.io` or `saas-eu-west-1.instana.io`.
@@ -18,7 +23,10 @@ Now edit `instana-agent.customresource.yaml` and replace at least the following 
 
 In case you need to adapt `configuration.yaml`, view the documentation here: [https://docs.instana.io/quick_start/agent_setup/container/kubernetes/](https://docs.instana.io/quick_start/agent_setup/container/kubernetes/).
 
-Finally, deploy the custom resource and the operator:
+Apply the edited custom resource:
 
-* `kubectl apply -f instana-agent.customresource.yaml`: Creates the `instana-agent` custom resource.
-* `kubectl apply -f instana-agent-operator.deployment.yaml`: Creates the `instana-agent-operator` deployment.
+```bash
+kubectl apply -f instana-agent.customresource.yaml
+```
+
+The operator will pick up the configuration from the custom resource and deploy the Instana agent.
