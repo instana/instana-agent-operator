@@ -5,12 +5,7 @@ The [deploy/](../deploy) directory contains the YAML files that need to be appli
 Deploy the operator as follows:
 
 ```bash
-kubectl apply -f instana-agent.namespace.yaml
-kubectl apply -f instana-agent-operator.serviceaccount.yaml
-kubectl apply -f instana-agent-operator.clusterrole.yaml
-kubectl apply -f instana-agent-operator.clusterrolebinding.yaml
-kubectl apply -f instana-agent.crd.yaml
-kubectl apply -f instana-agent-operator.deployment.yaml
+kubectl apply -f instana-agent-operator.yaml
 ```
 
 Now the operator should be up and running in namespace `instana-agent`, waiting for an `instana-agent` custom resource to

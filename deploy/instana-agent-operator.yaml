@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: instana-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: instana-agent-operator
+  namespace: instana-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: instana-agent-operator
+  namespace: instana-agent
+rules:
+  # TODO: This is an experimental alpha version. We didn't clean up the permissions yet,
+  # so these are probably more rights than needed for running the operator.
+  # This will be cleaned up before promoting the operator to beta.
+- apiGroups: ["", "apps", "extensions", "rbac.authorization.k8s.io"] # "" indicates the core API group
+  resources:
+  - pods
+  - pods/exec
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - secrets
+  - replicasets
+  - deployments
+  - daemonsets
+  - clusterroles
+  - clusterrolebindings
+  - serviceaccounts
+  verbs:
+  - '*'
+- apiGroups: ["apiextensions.k8s.io", "customresourcedefinitions.apiextensions.k8s.io"]
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - list
+- apiGroups: ["instana.io"]
+  resources:
+  - agents
+  verbs:
+  - watch
+  - list
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: instana-agent-operator
+  namespace: instana-agent
+subjects:
+- kind: ServiceAccount
+  name: instana-agent-operator
+  namespace: instana-agent
+roleRef:
+  kind: ClusterRole
+  name: instana-agent-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: agents.instana.io
+  namespace: instana-agent
+spec:
+  group: instana.io
+  version: v1alpha1
+  scope: Namespaced
+  names:
+    plural: agents
+    singular: agent
+    kind: InstanaAgent
+    shortNames:
+    - ia
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: instana-agent-operator
+  namespace: instana-agent
+spec:
+  selector:
+    matchLabels:
+      app: instana-agent-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: instana-agent-operator
+    spec:
+      serviceAccountName: instana-agent-operator
+      containers:
+      - image: instana/instana-agent-operator
+        name: instana-agent-operator
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
