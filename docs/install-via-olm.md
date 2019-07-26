@@ -1,48 +1,43 @@
 Install Using the Operator Lifecycle Manager (OLM)
 --------------------------------------------------
 
-The `instana-agent-operator` is available on [operator hub](https://operatorhub.io).
+First, install the Instana agent operator from [OperatorHub.io](https://operatorhub.io/), or [OpenShift Container Platform](https://www.openshift.com/), or [OKD](https://www.okd.io/). If you are a developer and want to test source code changes, follow the instruction on [run-operator-registry-locally.md](run-operator-registry-locally.md) to set up a local operator registry.
 
-If you run the [Operator Lifecycle Manager (OLM)](https://github.com/operator-framework/operator-lifecycle-manager), you can install the `instana-operator-agent` as follows:
+Second, create the target namespace where the Instana agent should be installed. The agent does not need to run in the same namespace as the operator. Most users create a new namespace `instana-agent` for running the agents.
 
-### Create the instana-agent namespace
+Third, create a custom resource with the agent configuration in the target namespace. The operator will pick up the custom resource and install the Instana agent accordingly.
 
-Either click on _Administration_ -> _Namespaces_ -> _Create Namespace_ in the OLM user interface, or apply the following YAML:
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: instana-agent
-```
-
-### Create the instana-agent operator group
-
-Create a file `operator-group.yaml` with the following content:
+The following is a minimal template of the custom resource:
 
 ```yaml
-apiVersion: operators.coreos.com/v1alpha2
-kind: OperatorGroup
+apiVersion: instana.io/v1alpha1
+kind: InstanaAgent
 metadata:
   name: instana-agent
   namespace: instana-agent
-  spec:
-    targetNamespaces:
-    - instana-agent
+spec:
+  agent.zone.name: '{{ (optional) name of the zone of the host }}'
+  agent.key: '{{ put your Instana agent key here }}'
+  agent.endpoint.host: '{{ the monitoring ingress endpoint }}'
+  agent.endpoint.port: '{{ the monitoring ingress endpoint port, wrapped in quotes }}'
+config.files:
+  configuration.yaml: |
+    # You can leave this empty, or use this to configure your instana agent.
+    # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/
 ```
 
-Apply with `kubectl apply -f operator-group.yaml`
+Save the template in a file `instana-agent.yaml` and edit the following values:
 
-### Create a Subscription
+* If your target namespace is not `instana-agent`, replace the `namespace:` accordingly.
+* `agent.key` must be set with your Instana agent key.
+* `agent.endpoint` must be set with the monitoring ingress endpoint, generally either `saas-us-west-2.instana.io` or `saas-eu-west-1.instana.io`.
+* `agent.endpoint.port` must be set with the monitoring ingress port, generally "443" (wrapped in quotes).
+* `agent.zone.name` should be set with the name of the Kubernetes cluster that is be displayed in Instana.
 
-Create a Subscription for the Instana Agent Operator on the OLM's Web interface. Make sure to choose the `instana-agent` namespace.
+For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation here: [https://docs.instana.io/quick_start/agent_setup/container/kubernetes/](https://docs.instana.io/quick_start/agent_setup/container/kubernetes/).
 
-This should start the `instana-agent-operator` Pod in the `instana-agent` namespace.
+Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster sho
 
-### Create an instana-agent resource
+## Uninstalling
 
-After creating the Subscription above, you will see the Instana Agent Operator under Installed Operators in the OLM's Web interface.
-
-Click on _Create New_ to create a new `instana-agent` custom resource. You need to change some of the default values in the template. A description of the fields in the custom resource can be found in [install-manually.md](install-manually.md) under `instana-agent.customresource.yaml`.
-
-Installing the custom resource should trigger the `instana-agent` Pods to be started in the `instana-agent` namespace. After a few minutes you should see your Kubernetes cluster in the Instana Web interface.
+In order to uninstall the Instana agent, simply remove the custom resource with `kubectl delete -f instana-agent.yaml`.

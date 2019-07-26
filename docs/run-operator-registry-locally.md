@@ -56,6 +56,11 @@ cd ./0.0.3
 curl -OL $PR_BRANCH/instana-agent.crd.yaml
 curl -OL $PR_BRANCH/instana-agent.v0.0.3.clusterserviceversion.yaml
 
+mkdir ./0.0.4
+cd ./0.0.4
+curl -OL $PR_BRANCH/instana-agent.crd.yaml
+curl -OL $PR_BRANCH/instana-agent.v0.0.4.clusterserviceversion.yaml
+
 cd ../../../
 ```
 
@@ -92,8 +97,4 @@ Result
 
 On [http://localhost:9000](http://localhost:9000) under _Operator Management_ -> _Create Subscription_ you should now be able to choose the `instana-agent-operator`. If it's not there immediately, wait a minute and reload the page, as it takes a while until the OLM runs your example registry Pod.
 
-Make sure that you execute the steps in [install-via-olm.md](install-via-olm.md) before creating the subscription:
-
-* `instana-agent` namespace
-* `instana-agent` operator group
-* `instana-agent` custom resoure
+You can now follow the instructions on [install-via-olm.md](install-via-olm.md) to install the operator.
