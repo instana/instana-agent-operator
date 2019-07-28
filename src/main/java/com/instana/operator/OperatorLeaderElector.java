@@ -109,12 +109,13 @@ public class OperatorLeaderElector {
         ConfigMap lock = new ConfigMapBuilder()
             .withNewMetadata()
             .withName(LEADER_LOCK)
+            .withNamespace(operatorNamespace)
             .withOwnerReferences(myself)
             .endMetadata()
             .build();
         try {
           LOGGER.debug("Trying to create ConfigMap " + operatorNamespace + "/" + LEADER_LOCK + "...");
-          client.configMaps().create(lock);
+          client.inNamespace(operatorNamespace).configMaps().create(lock);
           LOGGER.debug("Successfully created ConfigMap " + operatorNamespace + "/" + LEADER_LOCK + ".");
         } catch (KubernetesClientException e) {
           // For status codes, see https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#http-status-codes
