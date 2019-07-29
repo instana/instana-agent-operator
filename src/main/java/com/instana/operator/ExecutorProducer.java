@@ -17,6 +17,7 @@ public class ExecutorProducer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorProducer.class);
   public static final String CDI_HANDLER = "cdi-handler";
+  public static final String AGENT_COORDINATOR_POLL = "agent-coordinator-poll";
 
   /**
    * The CDI_HANDLER is a single-threaded executor. It should be used to handle CDI events.
@@ -27,7 +28,7 @@ public class ExecutorProducer {
    */
   @Produces
   @Singleton
-  public NotificationOptions cdiHandler(ScheduledExecutorService executor) {
+  public NotificationOptions cdiHandler(@Named(CDI_HANDLER) ScheduledExecutorService executor) {
     return NotificationOptions.ofExecutor(executor);
   }
 
@@ -36,6 +37,13 @@ public class ExecutorProducer {
   @Named(CDI_HANDLER)
   public ScheduledExecutorService cdiHandler(SingleThreadFactoryBuilder threadFactoryBuilder) {
     return newSingleThreadScheduledExecutor(threadFactoryBuilder.build("cdi-handler"));
+  }
+
+  @Produces
+  @Singleton
+  @Named(AGENT_COORDINATOR_POLL)
+  public ScheduledExecutorService agendCoordinatorPoll(SingleThreadFactoryBuilder threadFactoryBuilder) {
+    return newSingleThreadScheduledExecutor(threadFactoryBuilder.build("agent-coordinator-poll"));
   }
 
   @Produces
