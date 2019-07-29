@@ -1,8 +1,8 @@
 package com.instana.operator.customresource;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -10,10 +10,9 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.io.IOException;
 
-@JsonDeserialize(
-    using = JsonDeserializer.None.class
-)
+@JsonDeserialize
 @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+@JsonIgnoreProperties(ignoreUnknown = true)
 @RegisterForReflection
 public class InstanaAgentSpec {
 

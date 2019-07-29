@@ -1,13 +1,12 @@
 package com.instana.operator.client;
 
+import com.instana.operator.FatalErrorHandler;
 import com.instana.operator.customresource.DoneableInstanaAgent;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentList;
-import com.instana.operator.FatalErrorHandler;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.internal.SSLUtils;
@@ -38,6 +37,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
 import static com.instana.operator.util.StringUtils.isEmpty;
 import static okhttp3.ConnectionSpec.CLEARTEXT;
 
@@ -71,9 +71,11 @@ public class KubernetesClientProducer {
 
   @Produces
   @Singleton
-  MixedOperation<InstanaAgent, InstanaAgentList, DoneableInstanaAgent, Resource<InstanaAgent, DoneableInstanaAgent>> makeCustomResourceClient(
-      KubernetesClient defaultClient) {
-    Optional<CustomResourceDefinition> crd = defaultClient.customResourceDefinitions().list().getItems().stream()
+  MixedOperation<InstanaAgent, InstanaAgentList, DoneableInstanaAgent, Resource<InstanaAgent, DoneableInstanaAgent>>
+  makeCustomResourceClient(DefaultKubernetesClient defaultClient, @Named(OPERATOR_NAMESPACE) String operatorNamespace) {
+    Optional<CustomResourceDefinition> crd = defaultClient
+        .inNamespace(operatorNamespace)
+        .customResourceDefinitions().list().getItems().stream()
         .filter(c -> CRD_NAME.equals(c.getMetadata().getName()))
         .findFirst();
     if (!crd.isPresent()) {

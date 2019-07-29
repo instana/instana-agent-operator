@@ -23,8 +23,8 @@ public class FatalErrorHandler {
     return null; // will not happen, because we called System.exit();
   }
 
-  // This must happen before other onStartup() methoods, therefore we set priority APPLICATION - 1.
-  public void onStartup(@Observes @Priority(APPLICATION - 1) StartupEvent _ev) {
+  // This must happen before other onStartup() methoods, therefore we set priority APPLICATION - 2.
+  public void onStartup(@Observes @Priority(APPLICATION - 2) StartupEvent _ev) {
     RxJavaPlugins.setErrorHandler(exception -> {
       LOGGER.error(exception.getMessage(), exception);
       systemExit(-1);
