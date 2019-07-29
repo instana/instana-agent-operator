@@ -49,7 +49,6 @@ rules:
   verbs:
   - 'list'
   - 'watch'
-  - 'secrets'
 # -------------------------------------------------------------------------
 # Events are just created but not watched. It's a fire-and-forget operation.
 # -------------------------------------------------------------------------
