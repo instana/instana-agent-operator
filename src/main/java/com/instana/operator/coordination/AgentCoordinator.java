@@ -81,7 +81,7 @@ class AgentCoordinator {
       do {
         DesiredAssignments desired = calculateAssignments(polledState);
 
-        failedPods = assign(desired);
+        failedPods = assign(polledState.keySet(), desired);
 
         for (String failedPod : failedPods) {
           polledState.remove(failedPod);
@@ -148,8 +148,9 @@ class AgentCoordinator {
     return new DesiredAssignments(desired);
   }
 
-  private Set<String> assign(DesiredAssignments desired) {
-    Map<String, Pod> pods = agentPods.get();
+  private Set<String> assign(Set<String> polledPods, DesiredAssignments desired) {
+    Map<String, Pod> pods = new HashMap<>(agentPods.get());
+    pods.keySet().retainAll(polledPods);
     Set<String> failedPods = new HashSet<>();
 
     for (Map.Entry<String, Pod> pod : pods.entrySet()) {

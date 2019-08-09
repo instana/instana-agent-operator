@@ -4,6 +4,9 @@ import com.instana.operator.events.AgentPodAdded;
 import com.instana.operator.events.AgentPodDeleted;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -16,14 +19,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasKey;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.hasValue;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -37,7 +38,7 @@ import static org.mockito.Mockito.when;
 
 class AgentCoordinatorTest {
 
-  Map<Pod, Set<String>> assignments;
+  Map<Pod, CoordinationRecord> podStates;
   PodCoordinationIO podCoordinationIO;
 
   @Test
@@ -50,17 +51,19 @@ class AgentCoordinatorTest {
 
     Pod[] pods = new Pod[]{createPod(), createPod(), createPod()};
 
+    setPodRequests(pods[0], singleton("test-resource"));
+    setPodRequests(pods[1], singleton("test-resource"));
+    setPodRequests(pods[2], singleton("test-resource"));
+
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[2]));
 
     mockExecutor.tick();
 
-    List<String> assignedResources = new ArrayList<>();
-    assignments.values().forEach(assignedResources::addAll);
-
-    assertThat(assignedResources, hasSize(1));
-    assertThat(assignedResources, contains("test-resource"));
+    assertThat(podStates.values(),
+        containsExactlyOnce(
+            hasAssignment("test-resource")));
   }
 
   @Test
@@ -73,17 +76,16 @@ class AgentCoordinatorTest {
 
     Pod pod = createPod();
 
+    setPodRequests(pod, singleton("test-resource"));
+
     coordinator.onAgentPodAdded(new AgentPodAdded(pod));
 
     mockExecutor.tick();
 
-    assertThat(assignments, hasEntry(equalTo(pod), contains("test-resource")));
-    assignments.clear();
-    when(podCoordinationIO.pollPod(pod))
-        .thenReturn(new CoordinationRecord(Collections.singleton("test-resource"), Collections.singleton("test-resource")));
+    assertThat(podStates, hasEntry(equalTo(pod), hasAssignment("test-resource")));
 
     mockExecutor.tick();
-    assertThat(assignments.entrySet(), empty());
+    verify(podCoordinationIO, times(1)).assign(any(), any());
   }
 
   @Test
@@ -95,27 +97,27 @@ class AgentCoordinatorTest {
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
+    setPodRequests(pods[0], singleton("test-resource"));
+    setPodRequests(pods[1], singleton("test-resource"));
+
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
 
     mockExecutor.tick();
 
-    assertThat(assignments, hasValue(contains("test-resource")));
+    assertThat(podStates.values(), containsInAnyOrder(
+        hasAssignment("test-resource"),
+        not(hasAssignment("test-resource"))));
 
-    Pod leader = assignments.entrySet().stream()
-        .filter(e -> e.getValue().contains("test-resource"))
-        .map(Map.Entry::getKey)
-        .findFirst()
-        .get();
-
-    assignments.clear();
-
+    Pod leader = getCurrentlyAssignedLeader("test-resource");
     coordinator.onAgentPodDeleted(new AgentPodDeleted(leader.getMetadata().getUid()));
+    podStates.remove(leader);
 
     mockExecutor.tick();
 
-    assertThat(assignments, hasValue(contains("test-resource")));
-    assertThat(assignments, not(hasKey(leader.getMetadata().getUid())));
+    assertThat(podStates.values(),
+        containsExactlyOnce(
+            hasAssignment("test-resource")));
   }
 
   @Test
@@ -127,12 +129,12 @@ class AgentCoordinatorTest {
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
+    setPodRequests(pods[0], singleton("test-resource"));
+    setPodRequests(pods[1], singleton("test-resource"));
+
     when(podCoordinationIO.pollPod(any()))
         .thenThrow(new IOException("failure"))
-        .thenAnswer(i -> {
-          Pod pod = i.getArgument(0);
-          return new CoordinationRecord(Collections.singleton("test-resource"), assignments.get(pod));
-        });
+        .thenAnswer(i -> podStates.get(i.<Pod>getArgument(0)));
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
@@ -140,11 +142,9 @@ class AgentCoordinatorTest {
     mockExecutor.tick();
     mockExecutor.tick();
 
-    List<String> assignedResources = new ArrayList<>();
-    assignments.values().forEach(assignedResources::addAll);
-
-    assertThat(assignedResources, hasSize(1));
-    assertThat(assignedResources, contains("test-resource"));
+    assertThat(podStates.values(),
+        containsExactlyOnce(
+            hasAssignment("test-resource")));
   }
 
   @Test
@@ -156,9 +156,7 @@ class AgentCoordinatorTest {
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    when(podCoordinationIO.pollPod(pods[0]))
-        .thenReturn(new CoordinationRecord(Collections.singleton("test-resource"), Collections.emptySet()));
-
+    setPodRequests(pods[0], singleton("test-resource"));
     when(podCoordinationIO.pollPod(pods[1]))
         .thenThrow(new IOException("failure"));
 
@@ -167,11 +165,8 @@ class AgentCoordinatorTest {
 
     mockExecutor.tick();
 
-    List<String> assignedResources = new ArrayList<>();
-    assignments.values().forEach(assignedResources::addAll);
-
-    assertThat(assignedResources, hasSize(1));
-    assertThat(assignedResources, contains("test-resource"));
+    assertThat(podStates.get(pods[0]), hasAssignment("test-resource"));
+    assertThat(podStates.get(pods[1]), not(hasAssignment("test-resource")));
   }
 
   @Test
@@ -183,26 +178,25 @@ class AgentCoordinatorTest {
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    when(podCoordinationIO.pollPod(any()))
-        .thenReturn(new CoordinationRecord(Collections.singleton("test-resource"), Collections.emptySet()));
-
-    HashMap<Pod, Set<String>> assignments = new HashMap<>();
-    doAnswer(i -> assignments.put(i.getArgument(0), i.getArgument(1)))
-        .when(podCoordinationIO).assign(eq(pods[0]), any());
-
-    doThrow(new IOException("failure"))
-        .when(podCoordinationIO).assign(eq(pods[1]), any());
+    setPodRequests(pods[0], singleton("test-resource"));
+    setPodRequests(pods[1], singleton("test-resource"));
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
 
     mockExecutor.tick();
 
-    List<String> assignedResources = new ArrayList<>();
-    assignments.values().forEach(assignedResources::addAll);
+    Pod leader = getCurrentlyAssignedLeader("test-resource");
 
-    assertThat(assignedResources, hasSize(1));
-    assertThat(assignedResources, contains("test-resource"));
+    doThrow(new IOException("failure"))
+        .when(podCoordinationIO).pollPod(eq(leader));
+    doThrow(new IOException("failure"))
+        .when(podCoordinationIO).assign(eq(leader), any());
+
+    mockExecutor.tick();
+
+    Pod otherPod = pods[0].equals(leader) ? pods[1] : pods[0];
+    assertThat(podStates.get(otherPod), hasAssignment("test-resource"));
   }
 
   @Test
@@ -214,30 +208,24 @@ class AgentCoordinatorTest {
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
+    setPodRequests(pods[0], singleton("test-resource"));
+    setPodRequests(pods[1], singleton("test-resource"));
+
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
 
     mockExecutor.tick();
 
-    Pod leader = assignments.entrySet().stream()
-        .filter(e -> e.getValue().contains("test-resource"))
-        .map(Map.Entry::getKey)
-        .findFirst()
-        .get();
-
-    assignments.clear();
+    Pod leader = getCurrentlyAssignedLeader("test-resource");
 
     // pod reports it does not have any assignments for some reason
-    when(podCoordinationIO.pollPod(leader))
-        .thenReturn(new CoordinationRecord(Collections.singleton("test-resource"), Collections.emptySet()));
+    setPodAssignment(leader, emptySet());
 
     mockExecutor.tick();
 
-    List<String> assignedResources = new ArrayList<>();
-    assignments.values().forEach(assignedResources::addAll);
-
-    assertThat(assignedResources, hasSize(1));
-    assertThat(assignedResources, contains("test-resource"));
+    assertThat(podStates.values(),
+        containsExactlyOnce(
+            hasAssignment("test-resource")));
   }
 
   @Test
@@ -248,6 +236,8 @@ class AgentCoordinatorTest {
     AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
 
     Pod pod = createPod();
+
+    setPodRequests(pod, singleton("test-resource"));
 
     doThrow(new IOException("failure"))
         .when(podCoordinationIO).assign(any(), any());
@@ -262,15 +252,40 @@ class AgentCoordinatorTest {
   void setupMockPodCoordinationIO() throws IOException {
     podCoordinationIO = mock(PodCoordinationIO.class);
 
-    when(podCoordinationIO.pollPod(any()))
-        .thenAnswer(i -> {
-          Pod pod = i.getArgument(0);
-          return new CoordinationRecord(Collections.singleton("test-resource"), assignments.get(pod));
-        });
-
-    assignments = new HashMap<>();
-    doAnswer(i -> assignments.put(i.getArgument(0), i.getArgument(1)))
+    podStates = new HashMap<>();
+    doAnswer(i -> setPodAssignment(i.getArgument(0), i.getArgument(1)))
         .when(podCoordinationIO).assign(any(), any());
+
+    when(podCoordinationIO.pollPod(any()))
+        .thenAnswer(i -> podStates.get(i.<Pod>getArgument(0)));
+  }
+
+  CoordinationRecord setPodRequests(Pod pod, Set<String> requested) {
+    return podStates.compute(pod, (k, v) -> {
+      if (v == null) {
+        return new CoordinationRecord(requested, Collections.emptySet());
+      } else {
+        return new CoordinationRecord(requested, v.getAssigned());
+      }
+    });
+  }
+
+  CoordinationRecord setPodAssignment(Pod pod, Set<String> assigned) {
+    return podStates.compute(pod, (k, v) -> {
+      if (v == null) {
+        return new CoordinationRecord(Collections.emptySet(), assigned);
+      } else {
+        return new CoordinationRecord(v.getRequested(), assigned);
+      }
+    });
+  }
+
+  Pod getCurrentlyAssignedLeader(String resource) {
+    return podStates.entrySet().stream()
+        .filter(e -> e.getValue().getAssigned().contains(resource))
+        .map(Map.Entry::getKey)
+        .findFirst()
+        .get();
   }
 
   private Pod createPod() {
@@ -305,5 +320,39 @@ class AgentCoordinatorTest {
       runnables.forEach(Runnable::run);
     }
 
+  }
+
+  static TypeSafeMatcher<CoordinationRecord> hasAssignment(String resource) {
+    return new TypeSafeMatcher<CoordinationRecord>() {
+      @Override
+      protected boolean matchesSafely(CoordinationRecord item) {
+        return item.getAssigned().contains(resource);
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("has assignment " + resource);
+      }
+    };
+  }
+
+  static <T> TypeSafeMatcher<Iterable<T>> containsExactlyOnce(Matcher<T> matcher) {
+    return new TypeSafeMatcher<Iterable<T>>() {
+      @Override
+      protected boolean matchesSafely(Iterable<T> items) {
+        int count = 0;
+        for (T item : items) {
+          if (matcher.matches(item)) {
+            count++;
+          }
+        }
+        return count == 1;
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("contains exactly one " + matcher);
+      }
+    };
   }
 }

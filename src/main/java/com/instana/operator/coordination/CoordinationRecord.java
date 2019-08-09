@@ -24,4 +24,12 @@ public class CoordinationRecord {
   public Set<String> getAssigned() {
     return assigned;
   }
+
+  @Override
+  public String toString() {
+    return "CoordinationRecord{" +
+        "requested=" + requested +
+        ", assigned=" + assigned +
+        '}';
+  }
 }
