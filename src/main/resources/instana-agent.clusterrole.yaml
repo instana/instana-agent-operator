@@ -44,3 +44,7 @@ rules:
     resources:
       - "endpoints"
     verbs: ["create", "update", "patch"]
+  - apiGroups: ["apps.openshift.io"]
+    resources:
+      - "deploymentconfigs"
+    verbs: ["get", "list", "watch"]
