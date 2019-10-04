@@ -3,7 +3,9 @@ Install Using the Operator Lifecycle Manager (OLM)
 
 First, install the Instana agent operator from [OperatorHub.io](https://operatorhub.io/), or [OpenShift Container Platform](https://www.openshift.com/), or [OKD](https://www.okd.io/). If you are a developer and want to test source code changes, follow the instruction on [run-operator-registry-locally.md](run-operator-registry-locally.md) to set up a local operator registry.
 
-Second, create the target namespace where the Instana agent should be installed. The agent does not need to run in the same namespace as the operator. Most users create a new namespace `instana-agent` for running the agents.
+If you are installing the operator into OpenShift, note the extra steps required [here](openshift.md).
+
+If you don't already have one, create the target namespace where the Instana agent should be installed. The agent does not need to run in the same namespace as the operator. Most users create a new namespace `instana-agent` for running the agents.
 
 Third, create a custom resource with the agent configuration in the target namespace. The operator will pick up the custom resource and install the Instana agent accordingly.
 
@@ -36,7 +38,7 @@ Save the template in a file `instana-agent.yaml` and edit the following values:
 
 For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation here: [https://docs.instana.io/quick_start/agent_setup/container/kubernetes/](https://docs.instana.io/quick_start/agent_setup/container/kubernetes/).
 
-Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster sho
+Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster should show on the infrastructure map on your Instana Web interface.
 
 ## Uninstalling
 
