@@ -21,7 +21,7 @@ jobs:
     - run: docker build -f src/main/docker/Dockerfile.jvm -t instana/instana-agent-operator .
 
     - run: mkdir -p workspace
-    - run: docker save -o workspace/operator.tar
+    - run: docker save -o workspace/operator.tar instana/instana-agent-operator
     - persist_to_workspace:
         root: workspace
         paths:
