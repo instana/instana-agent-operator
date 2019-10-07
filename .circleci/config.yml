@@ -24,3 +24,12 @@ jobs:
         key: m2-{{ checksum "pom.xml" }}
         paths:
           - ~/.m2
+
+workflows:
+  version: 2
+  build:
+    jobs:
+    - build:
+        filters:
+          tags:
+            only: /.*/
