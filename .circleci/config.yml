@@ -46,6 +46,8 @@ jobs:
 
     - run: docker load -i workspace/operator.tar
 
+    - run: docker tag instana/instana-agent-operator instana/instana-agent-operator:${CIRCLE_TAG:1}
+
 workflows:
   version: 2
   build:
