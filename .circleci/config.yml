@@ -18,12 +18,30 @@ jobs:
         version: 18.06.0-ce
         docker_layer_caching: true
 
-    - run: docker build -f src/main/docker/Dockerfile.jvm .
+    - run: docker build -f src/main/docker/Dockerfile.jvm -t instana/instana-agent-operator .
+
+    - run: mkdir -p workspace
+    - run: docker save -o workspace/operator.tar
+    - persist_to_workspace:
+        root: workspace
+        paths:
+        - operator.tar
 
     - save_cache:
         key: m2-{{ checksum "pom.xml" }}
         paths:
           - ~/.m2
+
+  push:
+    steps:
+    - setup_remote_docker:
+        version: 18.06.0-ce
+        docker_layer_caching: true
+
+    - attach_workspace:
+        at: workspace
+
+    - run: docker load -i workspace/operator.tar
 
 workflows:
   version: 2
@@ -33,3 +51,9 @@ workflows:
         filters:
           tags:
             only: /.*/
+    - push:
+        requires:
+        - build
+        filters:
+          tags:
+            only: /v.*/
