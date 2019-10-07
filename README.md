@@ -1,6 +1,8 @@
 Instana Agent Operator
 ======================
 
+[![CircleCI](https://circleci.com/gh/instana/instana-agent-operator.svg?style=svg)](https://circleci.com/gh/instana/instana-agent-operator)
+
 This is an experimental alpha version of the upcoming Kubernetes Operator for the [Instana APM Agent](https://www.instana.com).
 
 There are two ways to install the operator:
