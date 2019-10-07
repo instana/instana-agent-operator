@@ -7,4 +7,14 @@ jobs:
     steps:
     - checkout
 
+    - restore_cache:
+        keys:
+          - m2-{{ checksum "pom.xml" }}
+          - m2-
+
     - run: ./mvnw package
+
+    - save_cache:
+        key: m2-{{ checksum "pom.xml" }}
+        paths:
+          - ~/.m2
