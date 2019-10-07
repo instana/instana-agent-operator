@@ -33,6 +33,9 @@ jobs:
           - ~/.m2
 
   push:
+    docker:
+    - image: circleci/openjdk:11
+
     steps:
     - setup_remote_docker:
         version: 18.06.0-ce
