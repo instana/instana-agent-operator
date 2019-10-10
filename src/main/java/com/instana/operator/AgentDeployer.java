@@ -15,6 +15,8 @@ import io.fabric8.kubernetes.api.model.DoneableSecret;
 import io.fabric8.kubernetes.api.model.DoneableServiceAccount;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarSource;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
 import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
@@ -246,7 +248,12 @@ public class AgentDeployer {
   private Secret newSecret(InstanaAgent owner,
                            MixedOperation<Secret, SecretList, DoneableSecret, Resource<Secret, DoneableSecret>> op) {
     Secret secret = load("instana-agent.secret.yaml", owner, op);
-    secret.setData(Collections.singletonMap("key", base64(owner.getSpec().getAgentKey())));
+    HashMap<String, String> secrets = new HashMap<>();
+    secrets.put("key", base64(owner.getSpec().getAgentKey()));
+    if (!isBlank(owner.getSpec().getAgentDownloadKey())) {
+      secrets.put("downloadKey", base64(owner.getSpec().getAgentKey()));
+    }
+    secret.setData(secrets);
     return secret;
   }
 
@@ -272,7 +279,15 @@ public class AgentDeployer {
     env.add(createEnvVar("JAVA_OPTS", "-Xmx" + config.getAgentMemLimit() / 3 + "M -XX:+ExitOnOutOfMemoryError"));
 
     if (!isBlank(config.getAgentDownloadKey())) {
-      env.add(createEnvVar("INSTANA_DOWNLOAD_KEY", config.getAgentDownloadKey()));
+      env.add(new EnvVarBuilder()
+          .withName("INSTANA_DOWNLOAD_KEY")
+          .withNewValueFrom()
+          .withNewSecretKeyRef()
+          .withName("instana-agent")
+          .withKey("downloadKey")
+          .endSecretKeyRef()
+          .endValueFrom()
+          .build());
     }
     if (!isBlank(config.getAgentProxyHost())) {
       env.add(createEnvVar("INSTANA_AGENT_PROXY_HOST", config.getAgentProxyHost()));
