@@ -28,3 +28,4 @@ config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.
       # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/
+    other: some other config file

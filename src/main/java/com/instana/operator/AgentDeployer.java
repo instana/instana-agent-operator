@@ -24,6 +24,8 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.ServiceAccountList;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetList;
 import io.fabric8.kubernetes.api.model.apps.DoneableDaemonSet;
@@ -247,8 +249,7 @@ public class AgentDeployer {
   private ConfigMap newConfigMap(InstanaAgent owner,
                                  MixedOperation<ConfigMap, ConfigMapList, DoneableConfigMap, Resource<ConfigMap, DoneableConfigMap>> op) {
     ConfigMap configMap = load("instana-agent.configmap.yaml", owner, op);
-    configMap.setData(
-        Collections.singletonMap("configuration.yaml", owner.getSpec().getConfigFiles().getConfigurationYaml()));
+    configMap.setData(owner.getSpec().getConfigFiles());
     return configMap;
   }
 
@@ -309,6 +310,14 @@ public class AgentDeployer {
     limits.put("cpu", cpu(config.getAgentCpuLimit()));
     limits.put("memory", mem(config.getAgentMemLimit(), "Mi"));
     container.getResources().setLimits(limits);
+
+    List<VolumeMount> volumeMounts = container.getVolumeMounts();
+    owner.getSpec().getConfigFiles().keySet().forEach(fileName ->
+        volumeMounts.add(new VolumeMountBuilder()
+            .withName("configuration")
+            .withMountPath("/root/" + fileName)
+            .withSubPath(fileName)
+            .build()));
 
     return daemonSet;
   }

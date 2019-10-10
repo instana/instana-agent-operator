@@ -9,6 +9,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 
 @JsonDeserialize
 @JsonInclude(JsonInclude.Include.NON_DEFAULT)
@@ -33,7 +35,7 @@ public class InstanaAgentSpec {
   static final String DEFAULT_AGENT_HTTP_LISTEN = "*";
 
   @JsonProperty("config.files")
-  private InstanaAgentConfigFiles configFiles;
+  private Map<String, String> configFiles;
   @JsonProperty(value = "agent.zone.name")
   private String agentZoneName;
   @JsonProperty("agent.key")
@@ -87,15 +89,15 @@ public class InstanaAgentSpec {
   @JsonProperty(value = "agent.http.listen", defaultValue = DEFAULT_AGENT_HTTP_LISTEN)
   private String agentHttpListen = DEFAULT_AGENT_HTTP_LISTEN;
 
-  public InstanaAgentConfigFiles getConfigFiles() {
+  public Map<String, String> getConfigFiles() {
     if (configFiles == null) {
-      return new InstanaAgentConfigFiles();
+      return Collections.emptyMap();
     } else {
       return configFiles;
     }
   }
 
-  public void setConfigFiles(InstanaAgentConfigFiles configFiles) {
+  public void setConfigFiles(Map<String, String> configFiles) {
     this.configFiles = configFiles;
   }
 

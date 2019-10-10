@@ -55,9 +55,6 @@ spec:
               mountPath: /var/log
             - name: machine-id
               mountPath: /etc/machine-id
-            - name: configuration
-              subPath: configuration.yaml
-              mountPath: /root/configuration.yaml
           livenessProbe:
             httpGet:
               path: /status
