@@ -295,6 +295,9 @@ public class AgentDeployer {
     if (!isBlank(config.getAgentHttpListen())) {
       env.add(createEnvVar("INSTANA_AGENT_HTTP_LISTEN", config.getAgentHttpListen()));
     }
+    if (!isBlank(config.getClusterName())) {
+      env.add(createEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", config.getClusterName()));
+    }
     System.getenv().entrySet().stream()
         .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
         .forEach(e -> {

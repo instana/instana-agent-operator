@@ -88,9 +88,10 @@ public class InstanaAgentSpec {
   private Boolean agentProxyUseDNS;
   @JsonProperty(value = "agent.http.listen", defaultValue = DEFAULT_AGENT_HTTP_LISTEN)
   private String agentHttpListen = DEFAULT_AGENT_HTTP_LISTEN;
-
   @JsonProperty(value = "agent.host.repository")
   private String agentHostRepository;
+  @JsonProperty(value = "cluster.name")
+  private String clusterName;
 
   public Map<String, String> getConfigFiles() {
     if (configFiles == null) {
@@ -318,6 +319,10 @@ public class InstanaAgentSpec {
 
   public void setAgentHostRepository(String agentHostRepository) {
     this.agentHostRepository = agentHostRepository;
+  }
+
+  public String getClusterName() {
+    return clusterName;
   }
 
   // We call equals() to check if the Spec was updated.
