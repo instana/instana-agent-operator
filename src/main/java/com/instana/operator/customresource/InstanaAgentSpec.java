@@ -89,6 +89,9 @@ public class InstanaAgentSpec {
   @JsonProperty(value = "agent.http.listen", defaultValue = DEFAULT_AGENT_HTTP_LISTEN)
   private String agentHttpListen = DEFAULT_AGENT_HTTP_LISTEN;
 
+  @JsonProperty(value = "agent.host.repository")
+  private String agentHostRepository;
+
   public Map<String, String> getConfigFiles() {
     if (configFiles == null) {
       return Collections.emptyMap();
@@ -307,6 +310,14 @@ public class InstanaAgentSpec {
 
   public void setAgentHttpListen(String agentHttpListen) {
     this.agentHttpListen = agentHttpListen;
+  }
+
+  public String getAgentHostRepository() {
+    return agentHostRepository;
+  }
+
+  public void setAgentHostRepository(String agentHostRepository) {
+    this.agentHostRepository = agentHostRepository;
   }
 
   // We call equals() to check if the Spec was updated.

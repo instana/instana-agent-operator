@@ -16,6 +16,8 @@ import io.fabric8.kubernetes.api.model.DoneableServiceAccount;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
+import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.QuantityBuilder;
@@ -24,6 +26,8 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.ServiceAccountList;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
@@ -318,6 +322,22 @@ public class AgentDeployer {
             .withMountPath("/root/" + fileName)
             .withSubPath(fileName)
             .build()));
+
+    String hostRepository = owner.getSpec().getAgentHostRepository();
+    if (!isBlank(hostRepository)) {
+      List<Volume> volumes = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
+      volumes.add(new VolumeBuilder()
+          .withName("repo")
+          .withHostPath(new HostPathVolumeSourceBuilder()
+              .withPath(hostRepository)
+              .build())
+          .build());
+
+      volumeMounts.add(new VolumeMountBuilder()
+          .withName("repo")
+          .withMountPath("/opt/instana/agent/data/repo")
+          .build());
+    }
 
     return daemonSet;
   }

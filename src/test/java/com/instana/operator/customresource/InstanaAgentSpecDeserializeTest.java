@@ -61,6 +61,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
     assertThat(spec.getAgentHttpListen(), equalTo(DEFAULT_AGENT_HTTP_LISTEN));
+    assertThat(spec.getAgentHostRepository(), nullValue());
 
     assertThat(spec.getAgentDownloadKey(), nullValue());
     assertThat(spec.getAgentProxyHost(), nullValue());
@@ -101,6 +102,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemReq(), equalTo(513));
     assertThat(spec.getAgentMemLimit(), equalTo(518));
     assertThat(spec.getAgentHttpListen(), equalTo("127.0.0.1"));
+    assertThat(spec.getAgentHostRepository(), equalTo("/Users/stan/.m2/repository"));
 
     assertThat(spec.getAgentDownloadKey(), equalTo("test-download-key"));
     assertThat(spec.getAgentProxyHost(), equalTo("proxy.instana.io"));
