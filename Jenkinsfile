@@ -37,7 +37,7 @@ pipeline {
             image.push()
 
             if (TAG && isFullRelease(TAG)) {
-              echo "This is where we would push the latest tag. Change me after ready to release for the first time."
+              image.push('latest')
             } else {
               echo "Skipping pushing latest tag because this is a pre-release or branch."
             }
