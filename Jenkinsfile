@@ -45,6 +45,30 @@ pipeline {
         }
       }
     }
+
+    stage('OLM Artifact Generation') {
+      agent {
+        dockerfile {
+          filename 'olm/Dockerfile'
+          reuseNode true
+        }
+      }
+      steps {
+        script {
+          def TAG = gitTag()
+          def VERSION = dockerVersion(TAG)
+
+          sh "./olm/createCSV.sh $VERSION"
+        }
+      }
+
+      post {
+        success {
+          archiveArtifacts artifacts: 'target/olm/*.yaml'
+        }
+      }
+    }
+
   }
 }
 
