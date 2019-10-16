@@ -24,7 +24,9 @@ agent.proxy.user: proxy-user
 agent.proxy.password: proxy-password
 agent.proxy.use.dns: true
 agent.http.listen: 127.0.0.1
+agent.host.repository: /Users/stan/.m2/repository
 config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.
       # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/
+    other: some other config file

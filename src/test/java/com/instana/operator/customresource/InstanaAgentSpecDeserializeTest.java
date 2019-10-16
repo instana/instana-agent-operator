@@ -22,8 +22,11 @@ import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_RBAC_CREATE;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SECRET_NAME;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SERVICE_ACCOUNT_NAME;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNull.nullValue;
 import static org.hamcrest.core.StringStartsWith.startsWith;
@@ -41,7 +44,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentKey(), equalTo("_PUT_YOUR_AGENT_KEY_HERE_"));
     assertThat(spec.getAgentEndpointHost(), equalTo("saas-us-west-2.instana.io"));
     assertThat(spec.getAgentEndpointPort(), equalTo(443));
-    assertThat(spec.getConfigFiles().getConfigurationYaml(), startsWith("# You can leave "));
+    assertThat(spec.getConfigFiles().entrySet(), empty());
 
     assertThat(spec.getAgentClusterRoleName(), equalTo(DEFAULT_AGENT_CLUSTER_ROLE_NAME));
     assertThat(spec.getAgentClusterRoleBindingName(), equalTo(DEFAULT_AGENT_CLUSTER_ROLE_BINDING_NAME));
@@ -58,6 +61,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
     assertThat(spec.getAgentHttpListen(), equalTo(DEFAULT_AGENT_HTTP_LISTEN));
+    assertThat(spec.getAgentHostRepository(), nullValue());
 
     assertThat(spec.getAgentDownloadKey(), nullValue());
     assertThat(spec.getAgentProxyHost(), nullValue());
@@ -79,7 +83,9 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentKey(), equalTo("_PUT_YOUR_AGENT_KEY_HERE_"));
     assertThat(spec.getAgentEndpointHost(), equalTo("saas-us-west-2.instana.io"));
     assertThat(spec.getAgentEndpointPort(), equalTo(443));
-    assertThat(spec.getConfigFiles().getConfigurationYaml(), startsWith("# You can leave "));
+    assertThat(spec.getConfigFiles(), allOf(
+        hasEntry(equalTo("configuration.yaml"), startsWith("# You can leave ")),
+        hasEntry(equalTo("other"), startsWith("some other config file"))));
 
     assertThat(spec.getAgentClusterRoleName(), equalTo("test-cluster-role"));
     assertThat(spec.getAgentClusterRoleBindingName(), equalTo("test-cluster-role-binding"));
@@ -96,6 +102,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemReq(), equalTo(513));
     assertThat(spec.getAgentMemLimit(), equalTo(518));
     assertThat(spec.getAgentHttpListen(), equalTo("127.0.0.1"));
+    assertThat(spec.getAgentHostRepository(), equalTo("/Users/stan/.m2/repository"));
 
     assertThat(spec.getAgentDownloadKey(), equalTo("test-download-key"));
     assertThat(spec.getAgentProxyHost(), equalTo("proxy.instana.io"));

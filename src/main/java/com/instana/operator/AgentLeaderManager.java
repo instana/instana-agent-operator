@@ -139,7 +139,7 @@ public class AgentLeaderManager {
   private boolean notifyPod(Pod pod, boolean isLeader) {
     try {
       MediaType contentType = MediaType.get("text/yaml");
-      String content = "com.instana.plugin.kubernetes.leader: " + isLeader;
+      String content = "leader: " + isLeader;
       String ip = pod.getStatus().getHostIP();
       Request request = new Request.Builder()
           .url("http://" + ip + ":" + AGENT_PORT + "/config/com.instana.plugin.kubernetes")

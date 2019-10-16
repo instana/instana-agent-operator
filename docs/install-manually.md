@@ -1,6 +1,8 @@
 Installing the Instana Agent Operator Manually
 ==============================================
 
+Before you start, if you are installing the operator into OpenShift, note the extra steps required [here](openshift.md).
+
 The [deploy/](../deploy) directory contains the YAML files that need to be applied to install the operator manually.
 Deploy the operator as follows:
 

@@ -8,5 +8,4 @@ metadata:
       kind: InstanaAgent
       name: placeholder
       uid: placeholder
-data:
-  configuration.yaml: placeholder
+data: {}

@@ -15,7 +15,11 @@ import io.fabric8.kubernetes.api.model.DoneableSecret;
 import io.fabric8.kubernetes.api.model.DoneableServiceAccount;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarSource;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
+import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.QuantityBuilder;
@@ -24,6 +28,10 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.ServiceAccountList;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetList;
 import io.fabric8.kubernetes.api.model.apps.DoneableDaemonSet;
@@ -240,15 +248,19 @@ public class AgentDeployer {
   private Secret newSecret(InstanaAgent owner,
                            MixedOperation<Secret, SecretList, DoneableSecret, Resource<Secret, DoneableSecret>> op) {
     Secret secret = load("instana-agent.secret.yaml", owner, op);
-    secret.setData(Collections.singletonMap("key", base64(owner.getSpec().getAgentKey())));
+    HashMap<String, String> secrets = new HashMap<>();
+    secrets.put("key", base64(owner.getSpec().getAgentKey()));
+    if (!isBlank(owner.getSpec().getAgentDownloadKey())) {
+      secrets.put("downloadKey", base64(owner.getSpec().getAgentKey()));
+    }
+    secret.setData(secrets);
     return secret;
   }
 
   private ConfigMap newConfigMap(InstanaAgent owner,
                                  MixedOperation<ConfigMap, ConfigMapList, DoneableConfigMap, Resource<ConfigMap, DoneableConfigMap>> op) {
     ConfigMap configMap = load("instana-agent.configmap.yaml", owner, op);
-    configMap.setData(
-        Collections.singletonMap("configuration.yaml", owner.getSpec().getConfigFiles().getConfigurationYaml()));
+    configMap.setData(owner.getSpec().getConfigFiles());
     return configMap;
   }
 
@@ -267,7 +279,15 @@ public class AgentDeployer {
     env.add(createEnvVar("JAVA_OPTS", "-Xmx" + config.getAgentMemLimit() / 3 + "M -XX:+ExitOnOutOfMemoryError"));
 
     if (!isBlank(config.getAgentDownloadKey())) {
-      env.add(createEnvVar("INSTANA_DOWNLOAD_KEY", config.getAgentDownloadKey()));
+      env.add(new EnvVarBuilder()
+          .withName("INSTANA_DOWNLOAD_KEY")
+          .withNewValueFrom()
+          .withNewSecretKeyRef()
+          .withName("instana-agent")
+          .withKey("downloadKey")
+          .endSecretKeyRef()
+          .endValueFrom()
+          .build());
     }
     if (!isBlank(config.getAgentProxyHost())) {
       env.add(createEnvVar("INSTANA_AGENT_PROXY_HOST", config.getAgentProxyHost()));
@@ -290,6 +310,9 @@ public class AgentDeployer {
     if (!isBlank(config.getAgentHttpListen())) {
       env.add(createEnvVar("INSTANA_AGENT_HTTP_LISTEN", config.getAgentHttpListen()));
     }
+    if (!isBlank(config.getClusterName())) {
+      env.add(createEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", config.getClusterName()));
+    }
     System.getenv().entrySet().stream()
         .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
         .forEach(e -> {
@@ -309,6 +332,30 @@ public class AgentDeployer {
     limits.put("cpu", cpu(config.getAgentCpuLimit()));
     limits.put("memory", mem(config.getAgentMemLimit(), "Mi"));
     container.getResources().setLimits(limits);
+
+    List<VolumeMount> volumeMounts = container.getVolumeMounts();
+    owner.getSpec().getConfigFiles().keySet().forEach(fileName ->
+        volumeMounts.add(new VolumeMountBuilder()
+            .withName("configuration")
+            .withMountPath("/root/" + fileName)
+            .withSubPath(fileName)
+            .build()));
+
+    String hostRepository = owner.getSpec().getAgentHostRepository();
+    if (!isBlank(hostRepository)) {
+      List<Volume> volumes = daemonSet.getSpec().getTemplate().getSpec().getVolumes();
+      volumes.add(new VolumeBuilder()
+          .withName("repo")
+          .withHostPath(new HostPathVolumeSourceBuilder()
+              .withPath(hostRepository)
+              .build())
+          .build());
+
+      volumeMounts.add(new VolumeMountBuilder()
+          .withName("repo")
+          .withMountPath("/opt/instana/agent/data/repo")
+          .build());
+    }
 
     return daemonSet;
   }
