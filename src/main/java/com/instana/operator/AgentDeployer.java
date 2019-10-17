@@ -251,7 +251,7 @@ public class AgentDeployer {
     HashMap<String, String> secrets = new HashMap<>();
     secrets.put("key", base64(owner.getSpec().getAgentKey()));
     if (!isBlank(owner.getSpec().getAgentDownloadKey())) {
-      secrets.put("downloadKey", base64(owner.getSpec().getAgentKey()));
+      secrets.put("downloadKey", base64(owner.getSpec().getAgentDownloadKey()));
     }
     secret.setData(secrets);
     return secret;
