@@ -1,13 +1,13 @@
-apiVersion: instana.io/v1alpha1
+apiVersion: instana.io/v1beta1
 kind: InstanaAgent
 metadata:
   name: instana-agent
   namespace: instana-agent
 spec:
-  agent.zone.name: {{ (optional) name of the zone of the host }}
-  agent.key: {{ put your Instana agent key here }}
-  agent.endpoint.host: {{ the monitoring ingress endpoint }}
-  agent.endpoint.port: {{ the monitoring ingress endpoint port, wrapped in quotes }}
+  agent.zone.name: (optional) name of the zone of the host
+  agent.key: put your Instana agent key here
+  agent.endpoint.host: the monitoring ingress endpoint
+  agent.endpoint.port: the monitoring ingress endpoint port, wrapped in quotes
   config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.
