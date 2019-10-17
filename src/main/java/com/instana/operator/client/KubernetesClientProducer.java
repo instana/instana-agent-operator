@@ -50,7 +50,7 @@ public class KubernetesClientProducer {
   private static final Logger LOGGER = LoggerFactory.getLogger(KubernetesClientProducer.class);
   public static final String CRD_GROUP = "instana.io";
   public static final String CRD_NAME = "agents." + CRD_GROUP;
-  public static final String CRD_VERSION = "v1alpha1";
+  public static final String CRD_VERSION = "v1beta1";
   public static final String CR_KIND = InstanaAgent.class.getSimpleName();
 
   @Inject
