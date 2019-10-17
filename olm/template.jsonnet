@@ -16,7 +16,12 @@ local mapDeployment(dep) = {
 	name: dep.metadata.name,
 	spec: dep.spec
 };
-local deployment = std.filterMap(isDeployment, mapDeployment, resources)[0];
+local deployment = std.filterMap(isDeployment, mapDeployment, resources)[0] + {
+	spec+: { template+: { spec+: {
+		assert std.length(super.containers) == 1 : "Expected exactly 1 container in operator deployment pod",
+		containers: [ super.containers[0] { image: super.image + ":" + version } ]
+	}}}
+};
 local isCrd(res) = res.kind == "CustomResourceDefinition";
 local crd = std.filter(isCrd, resources)[0];
 local crdWithDescriptors = {
