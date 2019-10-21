@@ -1,5 +1,3 @@
-
-def IMAGE_NAME = 'instana/instana-agent-operator'
 def DOCKERFILE = './src/main/docker/Dockerfile.jvm'
 
 pipeline {
@@ -30,9 +28,8 @@ pipeline {
         script {
           def TAG = gitTag()
           def VERSION = dockerVersion(TAG)
-          def TAGGED_IMAGE = "$IMAGE_NAME:$VERSION"
 
-          def image = docker.build(TAGGED_IMAGE, "-f $DOCKERFILE --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER .")
+          def image = docker.build("instana/instana-agent-operator:$VERSION", "-f $DOCKERFILE --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER .")
 
           docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
             image.push()
@@ -46,7 +43,7 @@ pipeline {
 
           if (TAG && isFullRelease(TAG)) {
             docker.withRegistry('https://scan.connect.redhat.com/v1/', '60f49bbb-514e-4945-9c28-be68576d10e2') {
-                image.push("scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/$TAGGED_IMAGE")
+                image.push("scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:$VERSION")
             }
           }
         }
