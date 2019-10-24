@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -46,6 +47,7 @@ class AgentCoordinator {
   private ScheduledExecutorService executor;
 
   void onAgentPodAdded(@ObservesAsync AgentPodAdded event) {
+    LOGGER.info("Pod {} added", event.getPod().getMetadata().getName());
     Map<String, Pod> previous = agentPods.getAndUpdate(current -> {
       HashMap<String, Pod> update = new HashMap<>(current);
       update.put(event.getPod().getMetadata().getUid(), event.getPod());
@@ -60,6 +62,7 @@ class AgentCoordinator {
   }
 
   void onAgentPodDeleted(@ObservesAsync AgentPodDeleted event) {
+    LOGGER.info("Pod {} deleted", getReadablePodName(event.getUid()));
     Map<String, Pod> pods = agentPods.updateAndGet(current -> {
       HashMap<String, Pod> update = new HashMap<>(current);
       update.remove(event.getUid());
@@ -169,6 +172,13 @@ class AgentCoordinator {
       }
     }
     return failedPods;
+  }
+
+  private String getReadablePodName(String uid) {
+    return Optional.ofNullable(
+        agentPods.get().get(uid))
+        .map(p -> p.getMetadata().getName())
+        .orElse(uid);
   }
 
   static class CommittedAssignments {
