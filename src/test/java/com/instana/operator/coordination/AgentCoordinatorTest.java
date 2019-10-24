@@ -8,6 +8,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,12 +29,14 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class AgentCoordinatorTest {
@@ -247,6 +250,35 @@ class AgentCoordinatorTest {
     mockExecutor.tick();
 
     verify(podCoordinationIO, times(1)).assign(any(), any());
+  }
+
+  @Test
+  void mustNotPollNonexistantPods() throws IOException {
+    setupMockPodCoordinationIO();
+    MockExecutor mockExecutor = new MockExecutor();
+
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+
+    Pod pod1 = createPod();
+    Pod pod2 = createPod();
+
+    setPodRequests(pod1, singleton("test-resource"));
+    setPodRequests(pod2, singleton("test-resource"));
+
+    coordinator.onAgentPodAdded(new AgentPodAdded(pod1));
+    coordinator.onAgentPodAdded(new AgentPodAdded(pod2));
+
+    mockExecutor.tick();
+
+    Mockito.clearInvocations(podCoordinationIO);
+
+    coordinator.onAgentPodDeleted(new AgentPodDeleted(pod1.getMetadata().getUid()));
+
+    mockExecutor.tick();
+
+    verify(podCoordinationIO, times(1)).pollPod(pod2);
+    verify(podCoordinationIO, atLeast(0)).assign(pod2, singleton("test-resource"));
+    verifyNoMoreInteractions(podCoordinationIO);
   }
 
   void setupMockPodCoordinationIO() throws IOException {

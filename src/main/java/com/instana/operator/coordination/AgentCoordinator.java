@@ -31,7 +31,6 @@ import static com.instana.operator.ExecutorProducer.AGENT_COORDINATOR_POLL;
 class AgentCoordinator {
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentCoordinator.class);
   private final AtomicReference<Map<String, Pod>> agentPods = new AtomicReference<>(Collections.emptyMap());
-  private final CommittedAssignments committedAssignments = CommittedAssignments.empty();
   private final PodCoordinationIO podCoordinationIO;
   private final Random random = new Random();
 
@@ -58,7 +57,9 @@ class AgentCoordinator {
       return;
     }
 
-    schedule = executor.scheduleWithFixedDelay(this::pollAgentsAndAssignLeaders, 5, 5, TimeUnit.SECONDS);
+    if (schedule == null) {
+      schedule = executor.scheduleWithFixedDelay(this::pollAgentsAndAssignLeaders, 5, 5, TimeUnit.SECONDS);
+    }
   }
 
   void onAgentPodDeleted(@ObservesAsync AgentPodDeleted event) {
@@ -71,23 +72,23 @@ class AgentCoordinator {
 
     if (pods.isEmpty()) {
       schedule.cancel(false);
+      schedule = null;
     }
   }
 
   private void pollAgentsAndAssignLeaders() {
     try {
-      Map<String, CoordinationRecord> polledState = pollPodsForResourceInterests();
-
-      commitPolledState(polledState);
-
+      Map<String, Pod> activePods = agentPods.get();
       Set<String> failedPods;
       do {
-        DesiredAssignments desired = calculateAssignments(polledState);
+        LeadershipStatus leadershipStatus = pollForLeadershipStatus(activePods);
 
-        failedPods = assign(polledState.keySet(), desired);
+        DesiredAssignments desired = calculateAssignments(leadershipStatus);
+
+        failedPods = assign(leadershipStatus, desired);
 
         for (String failedPod : failedPods) {
-          polledState.remove(failedPod);
+          activePods.remove(failedPod);
         }
       } while (!failedPods.isEmpty());
     } catch (Exception e) {
@@ -95,8 +96,7 @@ class AgentCoordinator {
     }
   }
 
-  private Map<String, CoordinationRecord> pollPodsForResourceInterests() {
-    Map<String, Pod> pods = agentPods.get();
+  private LeadershipStatus pollForLeadershipStatus(Map<String, Pod> pods) {
     Map<String, CoordinationRecord> resourcesByPod = new HashMap<>();
 
     for (Map.Entry<String, Pod> entry : pods.entrySet()) {
@@ -109,36 +109,16 @@ class AgentCoordinator {
       }
     }
 
-    return resourcesByPod;
+    return new LeadershipStatus(resourcesByPod);
   }
 
-  private void commitPolledState(Map<String, CoordinationRecord> polledState) {
-    for (Map.Entry<String, CoordinationRecord> pod : polledState.entrySet()) {
-      if (pod.getValue() == null || pod.getValue().getAssigned() == null) {
-        committedAssignments.commit(pod.getKey(), Collections.emptySet());
-      } else {
-        committedAssignments.commit(pod.getKey(), pod.getValue().getAssigned());
-      }
-    }
-  }
-
-  private DesiredAssignments calculateAssignments(Map<String, CoordinationRecord> polledState) {
-    Map<String, Set<String>> podsByResource = new HashMap<>();
-
-    for (Map.Entry<String, CoordinationRecord> pod : polledState.entrySet()) {
-      pod.getValue().getRequested().forEach(resource -> podsByResource.compute(resource, (r, pods) -> {
-        if (pods == null) {
-          pods = new HashSet<>();
-        }
-        pods.add(pod.getKey());
-        return pods;
-      }));
-    }
+  private DesiredAssignments calculateAssignments(LeadershipStatus leadershipStatus) {
+    Map<String, Set<String>> resourceRequests = leadershipStatus.getResourceRequests();
 
     HashMap<String, String> desired = new HashMap<>();
-    for (Map.Entry<String, Set<String>> resource : podsByResource.entrySet()) {
-      String currentLeaderPod = committedAssignments.leaderForResource(resource.getKey());
-      Set<String> possiblePods = podsByResource.get(resource.getKey());
+    for (Map.Entry<String, Set<String>> resource : resourceRequests.entrySet()) {
+      String currentLeaderPod = leadershipStatus.leaderForResource(resource.getKey());
+      Set<String> possiblePods = resourceRequests.get(resource.getKey());
       if (currentLeaderPod != null && possiblePods.contains(currentLeaderPod)) {
         desired.put(resource.getKey(), currentLeaderPod);
       } else {
@@ -151,20 +131,19 @@ class AgentCoordinator {
     return new DesiredAssignments(desired);
   }
 
-  private Set<String> assign(Set<String> polledPods, DesiredAssignments desired) {
+  private Set<String> assign(LeadershipStatus leadershipStatus, DesiredAssignments desired) {
     Map<String, Pod> pods = new HashMap<>(agentPods.get());
-    pods.keySet().retainAll(polledPods);
+    pods.keySet().retainAll(leadershipStatus.responsivePods());
     Set<String> failedPods = new HashSet<>();
 
     for (Map.Entry<String, Pod> pod : pods.entrySet()) {
-      Set<String> previous = committedAssignments.resourcesAssignedToPod(pod.getKey());
+      Set<String> previous = leadershipStatus.resourcesAssignedToPod(pod.getKey());
       Set<String> updated = desired.resourcesAssignedToPod(pod.getKey());
       if (updated.equals(previous)) {
         continue;
       }
       try {
         podCoordinationIO.assign(pod.getValue(), updated);
-        committedAssignments.commit(pod.getKey(), updated);
         LOGGER.info("Assigned leadership of {} to {}", updated, pod.getValue().getMetadata().getName());
       } catch (IOException e) {
         LOGGER.warn("Failed to assign leading resources to {}: {}", pod.getValue().getMetadata().getName(), e.getMessage());
@@ -181,36 +160,55 @@ class AgentCoordinator {
         .orElse(uid);
   }
 
-  static class CommittedAssignments {
-    final Map<String, Set<String>> status;
+  private static class LeadershipStatus {
+    final Map<String, CoordinationRecord> status;
 
-    CommittedAssignments(Map<String, Set<String>> status) {
+    LeadershipStatus(Map<String, CoordinationRecord> status) {
       this.status = status;
     }
 
-    static CommittedAssignments empty() {
-      return new CommittedAssignments(new HashMap<>());
+    Map<String, Set<String>> getResourceRequests() {
+      Map<String, Set<String>> resourceRequests = new HashMap<>();
+
+      for (Map.Entry<String, CoordinationRecord> pod : status.entrySet()) {
+        for (String resource : pod.getValue().getRequested()) {
+          resourceRequests.compute(resource, (k, prev) -> {
+            Set<String> pods = Optional.ofNullable(prev)
+                .orElseGet(HashSet::new);
+            pods.add(pod.getKey());
+            return pods;
+          });
+        }
+      }
+
+      return resourceRequests;
+    }
+
+    Set<String> resourcesAssignedToPod(String podUid) {
+      return Optional.ofNullable(status.get(podUid))
+          .map(CoordinationRecord::getAssigned)
+          .orElse(Collections.emptySet());
     }
 
     String leaderForResource(String resource) {
-      for (Map.Entry<String, Set<String>> pod : status.entrySet()) {
-        if (pod.getValue().contains(resource)) {
+      for (Map.Entry<String, CoordinationRecord> pod : status.entrySet()) {
+        if (pod.getValue() == null || pod.getValue().getAssigned() == null) {
+          continue;
+        }
+        if (pod.getValue().getAssigned().contains(resource)) {
           return pod.getKey();
         }
       }
       return null;
     }
 
-    Set<String> resourcesAssignedToPod(String podUid) {
-      return status.getOrDefault(podUid, Collections.emptySet());
+    Set<String> responsivePods() {
+      return status.keySet();
     }
 
-    void commit(String pod, Set<String> resources) {
-      status.put(pod, resources);
-    }
   }
 
-  static class DesiredAssignments {
+  private static class DesiredAssignments {
     final Map<String, String> spec;
 
     DesiredAssignments(Map<String, String> spec) {
@@ -226,6 +224,5 @@ class AgentCoordinator {
       }
       return assignedResources;
     }
-
   }
 }
