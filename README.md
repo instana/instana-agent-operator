@@ -6,6 +6,8 @@ Instana is an [APM solution](https://www.instana.com/product-overview/) built fo
 
 ## Instana Agent Operator
 
+This repositoriy contains the Kubernetes Operator to install and manage the Instana agent.
+
 ### Installing
 
 There are two ways to install the operator:
