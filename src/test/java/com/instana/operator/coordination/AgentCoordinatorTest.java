@@ -12,15 +12,22 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -40,9 +47,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class AgentCoordinatorTest {
-
-  Map<Pod, CoordinationRecord> podStates;
-  PodCoordinationIO podCoordinationIO;
+  private Map<Pod, CoordinationRecord> podStates;
+  private PodCoordinationIO podCoordinationIO;
 
   @Test
   void mustAssignLeaderForPodBasedOnRequestedResources() throws IOException {
@@ -50,13 +56,13 @@ class AgentCoordinatorTest {
 
     MockExecutor mockExecutor = new MockExecutor();
     AgentCoordinator coordinator = new AgentCoordinator(
-        podCoordinationIO, mockExecutor.getExecutor());
+        podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod[] pods = new Pod[]{createPod(), createPod(), createPod()};
 
-    setPodRequests(pods[0], singleton("test-resource"));
-    setPodRequests(pods[1], singleton("test-resource"));
-    setPodRequests(pods[2], singleton("test-resource"));
+    setPodRequests(pods[0], "test-resource", "another-resource");
+    setPodRequests(pods[1], "test-resource");
+    setPodRequests(pods[2], "test-resource", "another-resource");
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
@@ -67,6 +73,9 @@ class AgentCoordinatorTest {
     assertThat(podStates.values(),
         containsExactlyOnce(
             hasAssignment("test-resource")));
+    assertThat(podStates.values(),
+        containsExactlyOnce(
+            hasAssignment("another-resource")));
   }
 
   @Test
@@ -75,11 +84,11 @@ class AgentCoordinatorTest {
 
     MockExecutor mockExecutor = new MockExecutor();
     AgentCoordinator coordinator = new AgentCoordinator(
-        podCoordinationIO, mockExecutor.getExecutor());
+        podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod pod = createPod();
 
-    setPodRequests(pod, singleton("test-resource"));
+    setPodRequests(pod, "test-resource");
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pod));
 
@@ -96,18 +105,19 @@ class AgentCoordinatorTest {
     setupMockPodCoordinationIO();
 
     MockExecutor mockExecutor = new MockExecutor();
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    setPodRequests(pods[0], singleton("test-resource"));
-    setPodRequests(pods[1], singleton("test-resource"));
+    setPodRequests(pods[0], "test-resource");
+    setPodRequests(pods[1], "test-resource");
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
 
     mockExecutor.tick();
 
+    //noinspection unchecked
     assertThat(podStates.values(), containsInAnyOrder(
         hasAssignment("test-resource"),
         not(hasAssignment("test-resource"))));
@@ -128,16 +138,16 @@ class AgentCoordinatorTest {
     setupMockPodCoordinationIO();
 
     MockExecutor mockExecutor = new MockExecutor();
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    setPodRequests(pods[0], singleton("test-resource"));
-    setPodRequests(pods[1], singleton("test-resource"));
+    setPodRequests(pods[0], "test-resource");
+    setPodRequests(pods[1], "test-resource");
 
-    when(podCoordinationIO.pollPod(any()))
-        .thenThrow(new IOException("failure"))
-        .thenAnswer(i -> podStates.get(i.<Pod>getArgument(0)));
+    doThrow(new IOException("failure"))
+        .doAnswer(i -> getPodState(i.getArgument(0)))
+        .when(podCoordinationIO).pollPod(any());
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
@@ -155,13 +165,13 @@ class AgentCoordinatorTest {
     setupMockPodCoordinationIO();
 
     MockExecutor mockExecutor = new MockExecutor();
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    setPodRequests(pods[0], singleton("test-resource"));
-    when(podCoordinationIO.pollPod(pods[1]))
-        .thenThrow(new IOException("failure"));
+    setPodRequests(pods[0], "test-resource");
+    doThrow(new IOException("failure"))
+        .when(podCoordinationIO).pollPod(pods[1]);
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
@@ -177,12 +187,12 @@ class AgentCoordinatorTest {
     setupMockPodCoordinationIO();
 
     MockExecutor mockExecutor = new MockExecutor();
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    setPodRequests(pods[0], singleton("test-resource"));
-    setPodRequests(pods[1], singleton("test-resource"));
+    setPodRequests(pods[0], "test-resource");
+    setPodRequests(pods[1], "test-resource");
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
@@ -207,28 +217,28 @@ class AgentCoordinatorTest {
     setupMockPodCoordinationIO();
     MockExecutor mockExecutor = new MockExecutor();
 
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod[] pods = new Pod[] { createPod(), createPod() };
 
-    setPodRequests(pods[0], singleton("test-resource"));
-    setPodRequests(pods[1], singleton("test-resource"));
+    setPodRequests(pods[0], "another-resource");
+    setPodRequests(pods[1], "another-resource");
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[0]));
     coordinator.onAgentPodAdded(new AgentPodAdded(pods[1]));
 
     mockExecutor.tick();
 
-    Pod leader = getCurrentlyAssignedLeader("test-resource");
+    Pod leader = getCurrentlyAssignedLeader("another-resource");
 
     // pod reports it does not have any assignments for some reason
-    setPodAssignment(leader, emptySet());
+    setPodAssignment(leader);
 
     mockExecutor.tick();
 
     assertThat(podStates.values(),
         containsExactlyOnce(
-            hasAssignment("test-resource")));
+            hasAssignment("another-resource")));
   }
 
   @Test
@@ -236,11 +246,11 @@ class AgentCoordinatorTest {
     setupMockPodCoordinationIO();
     MockExecutor mockExecutor = new MockExecutor();
 
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod pod = createPod();
 
-    setPodRequests(pod, singleton("test-resource"));
+    setPodRequests(pod, "test-resource");
 
     doThrow(new IOException("failure"))
         .when(podCoordinationIO).assign(any(), any());
@@ -253,17 +263,17 @@ class AgentCoordinatorTest {
   }
 
   @Test
-  void mustNotPollNonexistantPods() throws IOException {
+  void mustNotPollNonExistentPods() throws IOException {
     setupMockPodCoordinationIO();
     MockExecutor mockExecutor = new MockExecutor();
 
-    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mockExecutor.getExecutor());
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
 
     Pod pod1 = createPod();
     Pod pod2 = createPod();
 
-    setPodRequests(pod1, singleton("test-resource"));
-    setPodRequests(pod2, singleton("test-resource"));
+    setPodRequests(pod1, "test-resource");
+    setPodRequests(pod2, "test-resource");
 
     coordinator.onAgentPodAdded(new AgentPodAdded(pod1));
     coordinator.onAgentPodAdded(new AgentPodAdded(pod2));
@@ -281,19 +291,72 @@ class AgentCoordinatorTest {
     verifyNoMoreInteractions(podCoordinationIO);
   }
 
+  @Test
+  void mustHandleWhenPodIsDeletedDuringReconciliation() throws IOException {
+    MockExecutor mockExecutor = new MockExecutor();
+
+    AtomicReference<AgentCoordinator> coordinatorRef = new AtomicReference<>();
+
+    Pod pod1 = createPod();
+    Pod pod2 = createPod();
+
+    setupMockPodCoordinationIO(() -> { },
+        () -> {
+          coordinatorRef.get().onAgentPodDeleted(new AgentPodDeleted(pod2.getMetadata().getUid()));
+          podStates.remove(pod2);
+        });
+
+    AgentCoordinator coordinator = new AgentCoordinator(podCoordinationIO, mock(Random.class), mockExecutor.getExecutor());
+    coordinatorRef.set(coordinator);
+
+    setPodRequests(pod1, "test-resource");
+    setPodRequests(pod2, "test-resource");
+
+    coordinator.onAgentPodAdded(new AgentPodAdded(pod1));
+    coordinator.onAgentPodAdded(new AgentPodAdded(pod2));
+
+    mockExecutor.tick();
+
+    assertThat(podStates.get(pod1), hasAssignment("test-resource"));
+  }
+
   void setupMockPodCoordinationIO() throws IOException {
+    setupMockPodCoordinationIO(() -> {
+    }, () -> {
+    });
+  }
+
+  void setupMockPodCoordinationIO(Runnable onAssignHook, Runnable onPollHook) throws IOException {
     podCoordinationIO = mock(PodCoordinationIO.class);
 
     podStates = new HashMap<>();
-    doAnswer(i -> setPodAssignment(i.getArgument(0), i.getArgument(1)))
-        .when(podCoordinationIO).assign(any(), any());
+    doAnswer(i -> {
+      setPodAssignment(i.getArgument(0), i.<Set<String>>getArgument(1));
+      onAssignHook.run();
+      return null;
+    }).when(podCoordinationIO).assign(any(), any());
 
     when(podCoordinationIO.pollPod(any()))
-        .thenAnswer(i -> podStates.get(i.<Pod>getArgument(0)));
+        .thenAnswer(i -> {
+          CoordinationRecord record = getPodState(i.getArgument(0));
+          onPollHook.run();
+          return record;
+        });
   }
 
-  CoordinationRecord setPodRequests(Pod pod, Set<String> requested) {
-    return podStates.compute(pod, (k, v) -> {
+  CoordinationRecord getPodState(Pod pod) throws IOException {
+    if (!podStates.containsKey(pod)) {
+      throw new IOException("Pod " + pod.getMetadata().getName() + " does not exist");
+    }
+    return podStates.get(pod);
+  }
+
+  void setPodRequests(Pod pod, String... requested) {
+    setPodRequests(pod, new HashSet<>(Arrays.asList(requested)));
+  }
+
+  void setPodRequests(Pod pod, Set<String> requested) {
+    podStates.compute(pod, (k, v) -> {
       if (v == null) {
         return new CoordinationRecord(requested, Collections.emptySet());
       } else {
@@ -302,8 +365,15 @@ class AgentCoordinatorTest {
     });
   }
 
-  CoordinationRecord setPodAssignment(Pod pod, Set<String> assigned) {
-    return podStates.compute(pod, (k, v) -> {
+  void setPodAssignment(Pod pod, String... assigned) throws IOException {
+    setPodAssignment(pod, new HashSet<>(Arrays.asList(assigned)));
+  }
+
+  void setPodAssignment(Pod pod, Set<String> assigned) throws IOException {
+    if (!podStates.containsKey(pod)) {
+      throw new IOException("Pod " + pod.getMetadata().getName() + " does not exist");
+    }
+    podStates.compute(pod, (k, v) -> {
       if (v == null) {
         return new CoordinationRecord(Collections.emptySet(), assigned);
       } else {
@@ -335,23 +405,51 @@ class AgentCoordinatorTest {
 
     private List<Runnable> runnables = new ArrayList<>();
 
-    public MockExecutor() {
+    MockExecutor() {
       executor = mock(ScheduledExecutorService.class);
       when(executor.scheduleWithFixedDelay(any(), anyLong(), anyLong(), any()))
           .thenAnswer(i -> {
             Runnable runnable = i.getArgument(0);
             runnables.add(runnable);
-            return null;
+            return new TestFuture(runnable, () -> runnables.remove(runnable));
           });
     }
 
-    public ScheduledExecutorService getExecutor() {
+    ScheduledExecutorService getExecutor() {
       return executor;
     }
     void tick() {
       runnables.forEach(Runnable::run);
     }
 
+  }
+
+  static class TestFuture<V> extends FutureTask<V> implements ScheduledFuture<V> {
+
+    private final Runnable onCancel;
+
+    TestFuture(Runnable runnable, Runnable onCancel) {
+      super(runnable, null);
+      this.onCancel = onCancel;
+    }
+
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      onCancel.run();
+      return super.cancel(mayInterruptIfRunning);
+    }
+
+    @SuppressWarnings("NullableProblems")
+    @Override
+    public long getDelay(TimeUnit unit) {
+      return 0;
+    }
+
+    @SuppressWarnings("NullableProblems")
+    @Override
+    public int compareTo(Delayed o) {
+      return 0;
+    }
   }
 
   static TypeSafeMatcher<CoordinationRecord> hasAssignment(String resource) {
