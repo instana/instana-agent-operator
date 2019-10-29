@@ -1,8 +1,10 @@
-# Kubernetes Operator for the Instana APM Agent
+# Instana
 
-Instana is a fully automated Application Performance Monitoring (APM) tool for microservices.
+Instana is an [APM solution](https://www.instana.com/product-overview/) built for microservices that enables IT Ops to build applications faster and deliver higher quality services by automating monitoring, tracing and root cause analysis. The solution is optimized for [Kubernetes](https://www.instana.com/automatic-kubernetes-monitoring/) and [OpenShift](https://www.instana.com/blog/automatic-root-cause-analysis-for-openshift-applications/).
 
-This is the Kubernetes Operator for installing the [Instana APM Agent](https://www.instana.com) on Kubernetes or OpenShift.
+## Instana Agent Operator
+
+This is the Kubernetes Operator for installing the Instana Agent on Kubernetes or OpenShift.
 
 ## Configuration and Installation
 
