@@ -74,7 +74,7 @@ pipeline {
 
       post {
         success {
-          archiveArtifacts artifacts: 'target/*.tar.gz'
+          archiveArtifacts artifacts: 'target/*.zip'
         }
       }
     }
