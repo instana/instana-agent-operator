@@ -10,7 +10,7 @@ REGISTRY=$3
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 TARGET_DIR="$SCRIPTPATH/../target"
 MANIFEST_DIR="$TARGET_DIR/$MANIFEST_NAME"
-TAR_PATH="$TARGET_DIR/$MANIFEST_NAME-$VERSION.tar.gz"
+ZIP_PATH="$TARGET_DIR/$MANIFEST_NAME-$VERSION.zip"
 PREV_VERSION=${PREV_VERSION:-prev}
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 CRD_DESCRIPTORS=$($SCRIPTPATH/yaml_to_json < "$SCRIPTPATH/CRD.descriptors.yaml")
@@ -41,4 +41,6 @@ done
 
 operator-courier verify $MANIFEST_DIR
 
-tar -czvf $TAR_PATH -C $MANIFEST_DIR .
+pushd $MANIFEST_DIR
+zip $ZIP_PATH ./*
+popd
