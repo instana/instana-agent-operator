@@ -7,8 +7,10 @@ local isoDate = std.extVar('isoDate');
 local resources = std.parseJson(std.extVar('resources'));
 local version = std.extVar('version');
 local prevVersion = std.extVar('prevVersion');
-local crdVersion = "v1beta1";
+local registry = std.extVar('registry');
 
+local crdVersion = "v1beta1";
+local imagePrefix = if std.length(registry) > 0 then registry + "/" else "";
 local isClusterRole(res) = res.kind == "ClusterRole";
 local rules = std.filter(isClusterRole, resources)[0].rules;
 local isDeployment(res) = res.kind == "Deployment";
@@ -19,7 +21,7 @@ local mapDeployment(dep) = {
 local deployment = std.filterMap(isDeployment, mapDeployment, resources)[0] + {
 	spec+: { template+: { spec+: {
 		assert std.length(super.containers) == 1 : "Expected exactly 1 container in operator deployment pod",
-		containers: [ super.containers[0] { image: super.image + ":" + version } ]
+		containers: [ super.containers[0] { image: imagePrefix + super.image + ":" + version } ]
 	}}}
 };
 local isCrd(res) = res.kind == "CustomResourceDefinition";
@@ -42,7 +44,7 @@ local crdWithDescriptors = {
 				"alm-examples": examples,
 				"categories": "Monitoring,OpenShift Optional",
 				"certified": "false",
-				"containerImage": "instana/instana-agent-operator:" + version,
+				"containerImage": imagePrefix + "instana/instana-agent-operator:" + version,
 				"createdAt": isoDate,
 				"description": "Fully automated Application Performance Monitoring (APM) for microservices.",
 				"support": "Instana",
