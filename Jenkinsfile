@@ -66,13 +66,15 @@ pipeline {
           def TAG = gitTag()
           def VERSION = dockerVersion(TAG)
 
-          sh "./olm/createCSV.sh $VERSION"
+          sh "./olm/createCSV.sh $VERSION olm"
+
+          sh "./olm/createCSV.sh $VERSION redhat registry.connect.redhat.com"
         }
       }
 
       post {
         success {
-          archiveArtifacts artifacts: 'target/olm/*.yaml'
+          archiveArtifacts artifacts: 'target/*.zip'
         }
       }
     }
