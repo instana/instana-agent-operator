@@ -1,16 +1,10 @@
 package com.instana.operator;
 
-import com.instana.operator.ExecutorProducer.SingleThreadFactoryBuilder;
 import com.instana.operator.cache.Cache;
 import com.instana.operator.cache.CacheService;
 import com.instana.operator.events.OperatorLeaderElected;
 import com.instana.operator.events.OperatorPodValidated;
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.ConfigMapList;
-import io.fabric8.kubernetes.api.model.OwnerReference;
-import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
@@ -68,7 +62,7 @@ public class OperatorLeaderElector {
   @Inject
   KubernetesEventService kubernetesEventService;
   @Inject
-  SingleThreadFactoryBuilder threadFactoryBuilder;
+  ExecutorProducer.SingleThreadFactoryBuilder threadFactoryBuilder;
   @Inject
   NotificationOptions asyncSerial;
 
