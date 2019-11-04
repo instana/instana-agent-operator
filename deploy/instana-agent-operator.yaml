@@ -156,14 +156,21 @@ metadata:
   namespace: instana-agent
 spec:
   group: instana.io
-  version: v1beta1
   scope: Namespaced
+  version: v1beta1
   names:
     plural: agents
     singular: agent
     kind: InstanaAgent
     shortNames:
     - ia
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+  - name: v1alpha1
+    served: true
+    storage: false
 ---
 apiVersion: apps/v1
 kind: Deployment
