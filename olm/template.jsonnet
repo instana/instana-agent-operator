@@ -36,7 +36,7 @@ local crdWithDescriptors = {
 };
 
 {
-	["instana-agent.v" + version + ".clusterserviceversion.json"]: {
+	["instana-agent-operator.v" + version + ".clusterserviceversion.json"]: {
 		"apiVersion": "operators.coreos.com/v1alpha1",
 		"kind": "ClusterServiceVersion",
 		"metadata": {
@@ -134,5 +134,5 @@ local crdWithDescriptors = {
 			}
 		]
 	},
-	["instana-agent.crd.json"]: crd
+	["agents.instana.io.crd.json"]: crd
 }
