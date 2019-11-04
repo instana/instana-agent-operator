@@ -3,15 +3,18 @@ Installing the Instana Agent Operator Manually
 
 Before you start, if you are installing the operator into OpenShift, note the extra steps required [here](openshift.md).
 
-The [deploy/](../deploy) directory contains the YAML files that need to be applied to install the operator manually.
 Deploy the operator as follows:
 
 ```bash
-kubectl apply -f instana-agent-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/instana/instana-agent-operator/master/deploy/instana-agent-operator.yaml
 ```
 
 Now the operator should be up and running in namespace `instana-agent`, waiting for an `instana-agent` custom resource to
-be created. Before creating the custom resource, you must edit `instana-agent.customresource.yaml` and replace at least the following values:
+be created.
+
+Create the custom resource yaml file, following [this](https://github.com/instana/instana-agent-operator/blob/master/deploy/instana-agent.customresource.yaml) template.
+
+Edit the template and replace at least the following values:
 
   * `agent.key` must be set with your Instana agent key.
   * `agent.endpoint` must be set with the monitoring ingress endpoint, generally either `saas-us-west-2.instana.io` or `saas-eu-west-1.instana.io`.
