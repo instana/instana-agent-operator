@@ -11,7 +11,8 @@ SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 TARGET_DIR="$SCRIPTPATH/../target"
 MANIFEST_DIR="$TARGET_DIR/$MANIFEST_NAME"
 ZIP_PATH="$TARGET_DIR/$MANIFEST_NAME-$VERSION.zip"
-PREV_VERSION=${PREV_VERSION:-prev}
+# TODO: automate this
+PREV_VERSION=${PREV_VERSION:-"0.1.2"}
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 CRD_DESCRIPTORS=$($SCRIPTPATH/yaml_to_json < "$SCRIPTPATH/CRD.descriptors.yaml")
 EXAMPLES=$($SCRIPTPATH/yaml_to_json < "$SCRIPTPATH/../deploy/instana-agent.customresource.yaml")
