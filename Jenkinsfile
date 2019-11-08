@@ -75,8 +75,8 @@ pipeline {
 
       post {
         success {
-          archiveArtifacts artifacts: 'target/redhat.zip'
-          archiveArtifacts artifacts: 'target/olm'
+          archiveArtifacts artifacts: 'target/redhat-*.zip'
+          archiveArtifacts artifacts: 'target/olm/*'
         }
       }
     }
