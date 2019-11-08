@@ -6,13 +6,14 @@ local image = std.extVar('image');
 local isoDate = std.extVar('isoDate');
 local resources = std.parseJson(std.extVar('resources'));
 local version = std.extVar('version');
-local prevVersion = std.extVar('prevVersion');
+local prevPackage = std.parseJson(std.extVar('prevPackage'))[0];
 local registry = std.extVar('registry');
 
 local crdVersion = "v1beta1";
 local imagePrefix = if std.length(registry) > 0 then registry + "/" else "";
 local isClusterRole(res) = res.kind == "ClusterRole";
 local rules = std.filter(isClusterRole, resources)[0].rules;
+local prevVersion = std.split(prevPackage.channels[0].currentCSV, 'v')[1];
 local isDeployment(res) = res.kind == "Deployment";
 local mapDeployment(dep) = {
 	name: dep.metadata.name,
