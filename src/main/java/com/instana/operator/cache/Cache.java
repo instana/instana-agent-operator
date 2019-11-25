@@ -44,6 +44,7 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
       protected void subscribeActual(Observer<? super CacheEvent> observer) {
         BiConsumer<Watcher.Action, String> onEventCallback = (action, uid) -> observer.onNext(new CacheEvent(action, uid));
         Consumer<Exception> onErrorCallback = observer::onError;
+
         try {
           Watch watch = ListThenWatchOperation.run(executor, map, op, fatalErrorHandler, onEventCallback, onErrorCallback);
           observer.onSubscribe(new DisposableWatch(watch));

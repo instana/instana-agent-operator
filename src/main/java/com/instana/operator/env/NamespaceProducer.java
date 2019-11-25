@@ -1,7 +1,7 @@
 package com.instana.operator.env;
 
 import com.instana.operator.FatalErrorHandler;
-import com.instana.operator.string.Contents;
+import com.instana.operator.string.CharSequenceContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +77,7 @@ public class NamespaceProducer {
   Set<String> loadTargetNamespaces() {
     Set<String> result = new TreeSet<>();
     String targetNamespaces = System.getenv(TARGET_NAMESPACES);
-    if (!Contents.isBlank(targetNamespaces)) {
+    if (!CharSequenceContent.isBlank(targetNamespaces)) {
       for (String ns : targetNamespaces.split(",")) {
         result.add(ns.trim());
       }
@@ -95,6 +95,6 @@ public class NamespaceProducer {
   }
 
   private Optional<String> loadOperatorNamespaceFromEnv() {
-    return Optional.ofNullable(System.getenv(OPERATOR_NAMESPACE)).filter(s -> !Contents.isBlank(s));
+    return Optional.ofNullable(System.getenv(OPERATOR_NAMESPACE)).filter(s -> !CharSequenceContent.isBlank(s));
   }
 }

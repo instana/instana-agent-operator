@@ -64,7 +64,7 @@ import java.util.concurrent.TimeUnit;
 import static com.instana.operator.resource.KubernetesResource.hasOwner;
 import static com.instana.operator.resource.KubernetesResource.hasSameName;
 import static com.instana.operator.resource.KubernetesResource.name;
-import static com.instana.operator.string.Contents.isBlank;
+import static com.instana.operator.string.CharSequenceContent.isBlank;
 import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
 import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
 

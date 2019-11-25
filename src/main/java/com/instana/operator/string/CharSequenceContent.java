@@ -1,6 +1,6 @@
 package com.instana.operator.string;
 
-public class Contents {
+public class CharSequenceContent {
 
   // from apache commons-lang
   public static boolean isBlank(final CharSequence cs) {

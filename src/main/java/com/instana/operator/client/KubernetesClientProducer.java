@@ -38,7 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
-import static com.instana.operator.string.Contents.isEmpty;
+import static com.instana.operator.string.CharSequenceContent.isEmpty;
 import static okhttp3.ConnectionSpec.CLEARTEXT;
 
 @ApplicationScoped
@@ -48,9 +48,8 @@ public class KubernetesClientProducer {
   public static final String AGENT_POD_HTTP_CLIENT = "AGENT_POD_CLIENT";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KubernetesClientProducer.class);
-  public static final String CRD_GROUP = "instana.io";
-  public static final String CRD_NAME = "agents." + CRD_GROUP;
-  public static final String CRD_VERSION = CRD_GROUP + "/v1beta1";
+  public static final String CRD_NAME = "agents.instana.io";
+  public static final String CRD_VERSION = "instana.io/v1beta1";
   public static final String CR_KIND = InstanaAgent.class.getSimpleName();
 
   @Inject
