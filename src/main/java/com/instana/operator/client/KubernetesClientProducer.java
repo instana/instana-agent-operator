@@ -50,7 +50,7 @@ public class KubernetesClientProducer {
   private static final Logger LOGGER = LoggerFactory.getLogger(KubernetesClientProducer.class);
   public static final String CRD_GROUP = "instana.io";
   public static final String CRD_NAME = "agents." + CRD_GROUP;
-  public static final String CRD_VERSION = "v1beta1";
+  public static final String CRD_VERSION = CRD_GROUP + "/v1beta1";
   public static final String CR_KIND = InstanaAgent.class.getSimpleName();
 
   @Inject
@@ -83,7 +83,7 @@ public class KubernetesClientProducer {
           "Custom resource definition " + CRD_NAME + " not found. Please create the CRD using the provided YAML.");
       fatalErrorHandler.systemExit(-1);
     }
-    KubernetesDeserializer.registerCustomKind(CRD_GROUP + "/" + CRD_VERSION, CR_KIND, InstanaAgent.class);
+    KubernetesDeserializer.registerCustomKind(CRD_VERSION, CR_KIND, InstanaAgent.class);
     return defaultClient
         .customResources(crd.get(), InstanaAgent.class, InstanaAgentList.class, DoneableInstanaAgent.class);
   }

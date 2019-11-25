@@ -8,11 +8,9 @@ import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
-import io.reactivex.disposables.Disposable;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -58,25 +56,4 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
     };
   }
 
-  private static class DisposableWatch implements Disposable {
-
-    private final AtomicReference<Watch> watch = new AtomicReference<>();
-
-    private DisposableWatch(Watch watch) {
-      this.watch.set(watch);
-    }
-
-    @Override
-    public void dispose() {
-      Watch w = watch.getAndSet(null);
-      if (w != null) {
-        w.close();
-      }
-    }
-
-    @Override
-    public boolean isDisposed() {
-      return watch.get() == null;
-    }
-  }
 }
