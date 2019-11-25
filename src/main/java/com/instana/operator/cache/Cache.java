@@ -30,6 +30,29 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
     this.fatalErrorHandler = fatalErrorHandler;
   }
 
+  /**
+   * Note that the callback is called in the executor thread.
+   */
+  Watch run(ListerWatcher<T, L> op,
+            FatalErrorHandler fatalErrorHandler,
+            BiConsumer<Watcher.Action, String> onEventCallback,
+            Consumer<Exception> onErrorCallback) {
+
+    // list
+    op.list()
+        .getItems()
+        .forEach(resource -> {
+              map.putIfNewer(resource.getMetadata().getUid(), resource);
+              String uid = resource.getMetadata().getUid();
+              executor.execute(() -> exitOnError(onEventCallback, fatalErrorHandler).accept(Watcher.Action.ADDED, uid));
+            }
+        );
+
+    // watch
+
+    return op.watch(new HasMetadataWatcher<>(map, fatalErrorHandler, executor, onEventCallback, onErrorCallback));
+  }
+
   public Optional<T> get(String uid) {
     return map.get(uid);
   }
@@ -46,7 +69,7 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
         Consumer<Exception> onErrorCallback = observer::onError;
 
         try {
-          Watch watch = ListThenWatchOperation.run(executor, map, op, fatalErrorHandler, onEventCallback, onErrorCallback);
+          Watch watch = run(op, fatalErrorHandler, onEventCallback, onErrorCallback);
           observer.onSubscribe(new DisposableWatch(watch));
         } catch (Exception e) {
           // First call the error callback to provide a hook for cleanup, but then call System.exit(-1) because
