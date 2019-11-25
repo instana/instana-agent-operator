@@ -24,8 +24,8 @@ import java.util.concurrent.TimeoutException;
 
 import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
 import static com.instana.operator.env.OperatorPodNameProducer.POD_NAME;
-import static com.instana.operator.util.ResourceUtils.RUNNING;
-import static com.instana.operator.util.ResourceUtils.isRunning;
+import static com.instana.operator.resource.KubernetesResource.RUNNING;
+import static com.instana.operator.resource.KubernetesResource.isRunning;
 
 @ApplicationScoped
 public class OperatorPodLoader {

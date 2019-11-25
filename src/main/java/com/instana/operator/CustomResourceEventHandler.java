@@ -17,7 +17,7 @@ import javax.enterprise.event.ObservesAsync;
 import javax.inject.Inject;
 
 import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
-import static com.instana.operator.util.ResourceUtils.name;
+import static com.instana.operator.resource.KubernetesResource.name;
 
 /**
  * On custom resource events, we need to make sure to first update the

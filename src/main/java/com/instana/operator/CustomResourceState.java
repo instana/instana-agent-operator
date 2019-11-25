@@ -17,7 +17,7 @@ import javax.inject.Inject;
 import java.util.Optional;
 
 import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
-import static com.instana.operator.util.ResourceUtils.name;
+import static com.instana.operator.resource.KubernetesResource.name;
 
 @ApplicationScoped
 public class CustomResourceState {

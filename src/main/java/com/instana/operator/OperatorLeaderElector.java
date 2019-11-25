@@ -24,8 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
 import static com.instana.operator.env.OperatorPodNameProducer.POD_NAME;
-import static com.instana.operator.util.ResourceUtils.hasOwner;
-import static com.instana.operator.util.ResourceUtils.name;
+import static com.instana.operator.resource.KubernetesResource.hasOwner;
+import static com.instana.operator.resource.KubernetesResource.name;
 
 // Java implementation of https://github.com/operator-framework/operator-sdk/blob/master/pkg/leader/leader.go
 // If more than one instana-agent-operator Pod is running, this is used to define which of these will be the leader.

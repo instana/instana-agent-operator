@@ -13,7 +13,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
-import static com.instana.operator.util.ResourceUtils.name;
+import static com.instana.operator.resource.KubernetesResource.name;
 
 @ApplicationScoped
 public class KubernetesEventService {

@@ -2,7 +2,7 @@ package com.instana.operator.customresource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.instana.operator.util.FileUtil;
+import com.instana.operator.file.ClasspathFile;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -35,7 +35,7 @@ class InstanaAgentSpecDeserializeTest {
 
   @Test
   void testDefaultValues() throws IOException {
-    String yaml = FileUtil.readFromClasspath("/customresource-min.yaml");
+    String yaml = ClasspathFile.read("/customresource-min.yaml");
     String json = yamlToJson(yaml);
     ObjectMapper mapper = new ObjectMapper();
     InstanaAgentSpec spec = mapper.readValue(json, InstanaAgentSpec.class);
@@ -74,7 +74,7 @@ class InstanaAgentSpecDeserializeTest {
 
   @Test
   void testCustomValues() throws IOException {
-    String yaml = FileUtil.readFromClasspath("/customresource-max.yaml");
+    String yaml = ClasspathFile.read("/customresource-max.yaml");
     String json = yamlToJson(yaml);
     ObjectMapper mapper = new ObjectMapper();
     InstanaAgentSpec spec = mapper.readValue(json, InstanaAgentSpec.class);
@@ -115,7 +115,7 @@ class InstanaAgentSpecDeserializeTest {
 
   @Test
   void testEquals() throws Exception {
-    String yaml = FileUtil.readFromClasspath("/customresource-min.yaml");
+    String yaml = ClasspathFile.read("/customresource-min.yaml");
     ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     InstanaAgentSpec spec1 = mapper.readValue(yaml, InstanaAgentSpec.class);
     InstanaAgentSpec spec2 = mapper.readValue(yaml, InstanaAgentSpec.class);

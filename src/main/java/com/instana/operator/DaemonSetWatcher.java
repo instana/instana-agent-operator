@@ -23,9 +23,9 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.instana.operator.util.ResourceUtils.hasOwner;
-import static com.instana.operator.util.ResourceUtils.isRunning;
-import static com.instana.operator.util.ResourceUtils.name;
+import static com.instana.operator.resource.KubernetesResource.hasOwner;
+import static com.instana.operator.resource.KubernetesResource.isRunning;
+import static com.instana.operator.resource.KubernetesResource.name;
 
 @ApplicationScoped
 public class DaemonSetWatcher {

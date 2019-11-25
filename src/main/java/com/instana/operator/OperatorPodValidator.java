@@ -2,7 +2,7 @@ package com.instana.operator;
 
 import com.instana.operator.events.OperatorPodRunning;
 import com.instana.operator.events.OperatorPodValidated;
-import com.instana.operator.util.StringUtils;
+import com.instana.operator.string.Contents;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,7 @@ public class OperatorPodValidator {
   private void validate(Pod myself) {
     if (myself.getMetadata().getAnnotations() != null) {
       String olmOperatorNamespace = myself.getMetadata().getAnnotations().get("olm.operatorNamespace");
-      if (!StringUtils.isBlank(olmOperatorNamespace)) {
+      if (!Contents.isBlank(olmOperatorNamespace)) {
         if (!olmOperatorNamespace.equals(operatorNamespace)) {
           LOGGER.error("Configuration error: The operator Pod " + podName + " runs in namespace " + operatorNamespace
               + " but is annotated with olm.operatorNamespace: " + olmOperatorNamespace);
@@ -63,7 +63,7 @@ public class OperatorPodValidator {
         }
       }
       String olmTargetNamespaces = myself.getMetadata().getAnnotations().get("olm.targetNamespaces");
-      if (!StringUtils.isBlank(olmTargetNamespaces)) {
+      if (!Contents.isBlank(olmTargetNamespaces)) {
         if (System.getenv(TARGET_NAMESPACES) == null) {
           LOGGER.error("Configuration error: The operator Pod " + podName + " is annotated with" +
               " olm.targetNamespaces: " + olmTargetNamespaces + " but the environment variable " + TARGET_NAMESPACES +

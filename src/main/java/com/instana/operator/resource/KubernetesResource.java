@@ -1,4 +1,4 @@
-package com.instana.operator.util;
+package com.instana.operator.resource;
 
 import com.instana.operator.customresource.InstanaAgent;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -7,7 +7,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 
 import java.util.function.Predicate;
 
-public class ResourceUtils {
+public class KubernetesResource {
 
   public static final String RUNNING = "running";
 
@@ -20,7 +20,7 @@ public class ResourceUtils {
   }
 
   public static Predicate<Pod> isRunning() {
-    return ResourceUtils::isRunning;
+    return KubernetesResource::isRunning;
   }
 
   public static <T extends HasMetadata> Predicate<T> hasOwner(HasMetadata owner) {
