@@ -13,9 +13,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
-public class CacheService {
+public class ResourceService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(CacheService.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ResourceService.class);
 
   @Inject
   FatalErrorHandler fatalErrorHandler;
@@ -36,8 +36,8 @@ public class CacheService {
     return thread;
   });
 
-  public <T extends HasMetadata, L extends KubernetesResourceList<T>> Cache<T, L> newCache(Class<T> resourceClass, Class<L> resourceListClass) {
-    return new Cache<>(executor, fatalErrorHandler);
+  public <T extends HasMetadata, L extends KubernetesResourceList<T>> ResourceWatch<T, L> newResourceWatch(Class<L> resourceListClass) {
+    return new ResourceWatch<>(executor, fatalErrorHandler);
   }
 
   // For tests only. In production the CacheService is a Singleton that should never be terminated.

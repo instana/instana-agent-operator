@@ -1,7 +1,7 @@
 package com.instana.operator;
 
-import com.instana.operator.cache.Cache;
-import com.instana.operator.cache.CacheService;
+import com.instana.operator.cache.ResourceWatch;
+import com.instana.operator.cache.ResourceService;
 import com.instana.operator.events.AgentPodAdded;
 import com.instana.operator.events.AgentPodDeleted;
 import com.instana.operator.events.DaemonSetAdded;
@@ -33,7 +33,7 @@ public class DaemonSetWatcher {
   @Inject
   DefaultKubernetesClient defaultClient;
   @Inject
-  CacheService cacheService;
+  ResourceService resourceService;
   @Inject
   Event<AgentPodAdded> agentPodAddedEvent;
   @Inject
@@ -64,11 +64,11 @@ public class DaemonSetWatcher {
     daemonSetDeleted(null);
     daemonSet = event.getDaemonSet();
     String namespace = daemonSet.getMetadata().getNamespace();
-    Cache<Pod, PodList> podCache = cacheService.newCache(Pod.class, PodList.class);
+    ResourceWatch<Pod, PodList> podResourceWatch = resourceService.newResourceWatch(PodList.class);
     LOGGER.info("Looking for agent Pods in DaemonSet " + name(daemonSet) + "...");
-    watch = podCache.listThenWatch(defaultClient.inNamespace(namespace).pods()).subscribe(
+    watch = podResourceWatch.listThenWatch(defaultClient.inNamespace(namespace).pods()).subscribe(
         e -> {
-          Optional<Pod> pod = podCache.get(e.getUid())
+          Optional<Pod> pod = podResourceWatch.get(e.getUid())
               .filter(hasOwner(daemonSet))
               .filter(isRunning());
           if (pod.isPresent()) {

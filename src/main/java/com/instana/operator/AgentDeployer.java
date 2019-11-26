@@ -1,7 +1,7 @@
 package com.instana.operator;
 
-import com.instana.operator.cache.Cache;
-import com.instana.operator.cache.CacheService;
+import com.instana.operator.cache.ResourceWatch;
+import com.instana.operator.cache.ResourceService;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentSpec;
 import com.instana.operator.events.DaemonSetAdded;
@@ -76,7 +76,7 @@ public class AgentDeployer {
   @Inject
   DefaultKubernetesClient defaultClient;
   @Inject
-  CacheService cacheService;
+  ResourceService resourceService;
   @Inject
   FatalErrorHandler fatalErrorHandler;
   @Inject
@@ -135,13 +135,14 @@ public class AgentDeployer {
   }
 
   private Disposable watchDaemonSets(String targetNamespace) {
-    Cache<DaemonSet, DaemonSetList> daemonSetCache = cacheService.newCache(DaemonSet.class, DaemonSetList.class);
-    return daemonSetCache.listThenWatch(
+    ResourceWatch<DaemonSet, DaemonSetList> daemonSetResourceWatch = resourceService
+        .newResourceWatch(DaemonSetList.class);
+    return daemonSetResourceWatch.listThenWatch(
         defaultClient.inNamespace(targetNamespace).apps().daemonSets().withField("metadata.name", DAEMON_SET_NAME))
         .subscribe(
             ev -> {
               if (ev.getAction() == ADDED) {
-                Optional<DaemonSet> daemonSet = daemonSetCache.get(ev.getUid())
+                Optional<DaemonSet> daemonSet = daemonSetResourceWatch.get(ev.getUid())
                     .filter(ds -> hasOwner(ds, owner));
                 if (daemonSet.isPresent()) {
                   daemonSetAddedEvent.fireAsync(new DaemonSetAdded(daemonSet.get()), asyncSerial)
@@ -157,18 +158,23 @@ public class AgentDeployer {
             });
   }
 
-  private <T extends HasMetadata, L extends KubernetesResourceList<T>, D extends Doneable<T>, R extends Resource<T, D>>
-  Disposable create(Class<T> resourceClass, Class<L> resourceListClass, Factory<T, L, D, R> factory,
+  private <T extends HasMetadata,
+      L extends KubernetesResourceList<T>,
+      D extends Doneable<T>,
+      R extends Resource<T, D>>
+  Disposable create(Class<T> resourceClass,
+                    Class<L> resourceListClass,
+                    Factory<T, L, D, R> factory,
                     MixedOperation<T, L, D, R> op) {
-    Cache<T, L> cache = cacheService.newCache(resourceClass, resourceListClass);
-    Disposable watch = cache.listThenWatch(op).subscribe(event -> {
-          if (!cache.get(event.getUid()).isPresent()) {
+    ResourceWatch<T, L> resourceWatch = resourceService.newResourceWatch(resourceListClass);
+    Disposable watch = resourceWatch.listThenWatch(op).subscribe(event -> {
+          if (!resourceWatch.get(event.getUid()).isPresent()) {
             LOGGER.info(resourceClass.getSimpleName() + " has been deleted. Scheduling re-creation.");
             // Delay 5 seconds such that CustomResourceDeleted event is processed before createServiceAccount().
             executor.schedule(() -> createResource(3, op, factory), 5, TimeUnit.SECONDS);
           }
         }
-    );
+                                                                );
     createResource(3, op, factory);
     return watch;
   }

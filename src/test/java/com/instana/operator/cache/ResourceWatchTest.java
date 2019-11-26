@@ -14,24 +14,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-class CacheTest {
+class ResourceWatchTest {
 
-  private CacheService cacheService;
+  private ResourceService resourceService;
   private FatalErrorHandler errorHandler;
-  private Cache<Pod, PodList> podCache;
+  private ResourceWatch<Pod, PodList> podResourceWatch;
 
   @BeforeEach
   void setUp() {
     errorHandler = new FatalErrorHandler();
     errorHandler.onStartup(null);
-    cacheService = new CacheService();
-    cacheService.fatalErrorHandler = errorHandler;
-    podCache = cacheService.newCache(Pod.class, PodList.class);
+    resourceService = new ResourceService();
+    resourceService.fatalErrorHandler = errorHandler;
+    podResourceWatch = resourceService.newResourceWatch(PodList.class);
   }
 
   @AfterEach
   void tearDown() throws Exception {
-    cacheService.terminate(5, TimeUnit.SECONDS);
+    resourceService.terminate(5, TimeUnit.SECONDS);
   }
 
   @Test
@@ -42,27 +42,27 @@ class CacheTest {
 
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
       simulator.simulatePodAdded("uid1", "pod1", 123);
-      podCache.listThenWatch(simulator).subscribe(
+      podResourceWatch.listThenWatch(simulator).subscribe(
           event -> {
             switch (event.getUid()) {
             case "uid1":
-              pod1.set(podCache.get(event.getUid()));
+              pod1.set(podResourceWatch.get(event.getUid()));
               break;
             case "uid2":
-              pod2.set(podCache.get(event.getUid()));
+              pod2.set(podResourceWatch.get(event.getUid()));
               break;
             default:
               Assertions.fail("unexpected uid " + event.getUid());
             }
           }
-      );
+                                                         );
       simulator.simulatePodModified("uid1", 125);
       simulator.simulatePodModified("uid1", 139);
       simulator.simulatePodAdded("uid2", "pod2", 789);
       simulator.simulatePodModified("uid2", 633); // less than the previous version for pod2
       simulator.simulatePodDeleted("uid1");
     }
-    cacheService.terminate(5, TimeUnit.SECONDS);
+    resourceService.terminate(5, TimeUnit.SECONDS);
     Assertions.assertFalse(pod1.get().isPresent());
     Assertions.assertTrue(pod2.get().isPresent());
     Assertions.assertEquals("789", pod2.get().get().getMetadata().getResourceVersion());
@@ -72,12 +72,12 @@ class CacheTest {
   @Test
   void testExceptionInEventProcessor() throws Exception {
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
-      podCache.listThenWatch(simulator).subscribe(
+      podResourceWatch.listThenWatch(simulator).subscribe(
           event -> {throw new RuntimeException("this should trigger System.exit(-1)");}
-      );
+                                                         );
       simulator.simulatePodAdded("uid1", "pod1", 1);
     }
-    cacheService.terminate(5, TimeUnit.SECONDS);
+    resourceService.terminate(5, TimeUnit.SECONDS);
     Assertions.assertTrue(errorHandler.wasSystemExitCalled());
   }
 
@@ -85,13 +85,13 @@ class CacheTest {
   void testErrorHandlerCalled() throws Exception {
     AtomicBoolean errorHandlerCalled = new AtomicBoolean(false);
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
-      podCache.listThenWatch(simulator).subscribe(
+      podResourceWatch.listThenWatch(simulator).subscribe(
           event -> {},
           ex -> {errorHandlerCalled.set(true);}
-      );
+                                                         );
       simulator.simulateError();
     }
-    cacheService.terminate(5, TimeUnit.SECONDS);
+    resourceService.terminate(5, TimeUnit.SECONDS);
     Assertions.assertTrue(errorHandlerCalled.get());
     Assertions.assertTrue(errorHandler.wasSystemExitCalled());
   }
@@ -99,13 +99,13 @@ class CacheTest {
   @Test
   void testExceptionInErrorHandler() throws Exception {
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
-      podCache.listThenWatch(simulator).subscribe(
+      podResourceWatch.listThenWatch(simulator).subscribe(
           event -> {},
           ex -> {throw new RuntimeException("test");}
-      );
+                                                         );
       simulator.simulateError();
     }
-    cacheService.terminate(5, TimeUnit.SECONDS);
+    resourceService.terminate(5, TimeUnit.SECONDS);
     Assertions.assertTrue(errorHandler.wasSystemExitCalled());
   }
 
@@ -114,11 +114,11 @@ class CacheTest {
     final AtomicInteger numberEventsReceived = new AtomicInteger(0);
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
       simulator.simulatePodAdded("test", "test", 1);
-      Disposable watch = podCache.listThenWatch(simulator).subscribe(
+      Disposable watch = podResourceWatch.listThenWatch(simulator).subscribe(
           event -> {
             numberEventsReceived.incrementAndGet();
           }
-      );
+                                                                            );
       Thread.sleep(100); // receive first event
       watch.dispose();
       simulator.simulatePodModified("test", 2);
@@ -126,6 +126,6 @@ class CacheTest {
       Assertions.assertTrue(simulator.isWatchCloseCalled());
       Assertions.assertEquals(1, numberEventsReceived.get()); // only initial ADDED event.
     }
-    cacheService.terminate(5, TimeUnit.SECONDS);
+    resourceService.terminate(5, TimeUnit.SECONDS);
   }
 }

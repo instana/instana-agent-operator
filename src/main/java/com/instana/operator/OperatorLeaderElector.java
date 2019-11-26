@@ -1,7 +1,7 @@
 package com.instana.operator;
 
-import com.instana.operator.cache.Cache;
-import com.instana.operator.cache.CacheService;
+import com.instana.operator.cache.ResourceWatch;
+import com.instana.operator.cache.ResourceService;
 import com.instana.operator.events.OperatorLeaderElected;
 import com.instana.operator.events.OperatorPodValidated;
 import io.fabric8.kubernetes.api.model.*;
@@ -48,7 +48,7 @@ public class OperatorLeaderElector {
   @Inject
   DefaultKubernetesClient client;
   @Inject
-  CacheService cacheService;
+  ResourceService resourceService;
   @Inject
   Event<OperatorLeaderElected> electedLeaderEvent;
   @Inject
@@ -128,9 +128,10 @@ public class OperatorLeaderElector {
   }
 
   private void watchForLock(OwnerReference myself, Runnable becameLeaderCallback) {
-    Cache<ConfigMap, ConfigMapList> cache = cacheService.newCache(ConfigMap.class, ConfigMapList.class);
-    cache.listThenWatch(client.inNamespace(operatorNamespace).configMaps().withField("metadata.name", LEADER_LOCK)).subscribe(event -> {
-      Optional<ConfigMap> lock = cache.get(event.getUid());
+    ResourceWatch<ConfigMap, ConfigMapList> resourceWatch = resourceService.newResourceWatch(ConfigMapList.class);
+    resourceWatch
+        .listThenWatch(client.inNamespace(operatorNamespace).configMaps().withField("metadata.name", LEADER_LOCK)).subscribe(event -> {
+      Optional<ConfigMap> lock = resourceWatch.get(event.getUid());
       lockPresent.set(lock.isPresent());
       boolean iOwnTheLock = lock.filter(hasOwner(myself)).isPresent();
       if (iOwnTheLock && !leader.get()) {

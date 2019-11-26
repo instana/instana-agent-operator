@@ -1,7 +1,7 @@
 package com.instana.operator;
 
-import com.instana.operator.cache.Cache;
-import com.instana.operator.cache.CacheService;
+import com.instana.operator.cache.ResourceWatch;
+import com.instana.operator.cache.ResourceService;
 import com.instana.operator.client.KubernetesClientProducer;
 import com.instana.operator.customresource.DoneableInstanaAgent;
 import com.instana.operator.customresource.InstanaAgent;
@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CustomResourceWatcher {
 
   @Inject
-  CacheService cacheService;
+  ResourceService resourceService;
   @Inject
   MixedOperation<InstanaAgent, InstanaAgentList, DoneableInstanaAgent, Resource<InstanaAgent, DoneableInstanaAgent>> client;
   @Inject
@@ -69,9 +69,10 @@ public class CustomResourceWatcher {
         ops.add(client.inNamespace(targetNamespace));
       }
     }
-    Cache<InstanaAgent, InstanaAgentList> cache = cacheService.newCache(InstanaAgent.class, InstanaAgentList.class);
+    ResourceWatch<InstanaAgent, InstanaAgentList> resourceWatch = resourceService
+        .newResourceWatch(InstanaAgentList.class);
     for (FilterWatchListMultiDeletable<InstanaAgent, InstanaAgentList, Boolean, Watch, Watcher<InstanaAgent>> op : ops) {
-      cache.listThenWatch(op).subscribe(event -> handleCacheEvent(cache.get(event.getUid())));
+      resourceWatch.listThenWatch(op).subscribe(event -> handleCacheEvent(resourceWatch.get(event.getUid())));
     }
   }
 

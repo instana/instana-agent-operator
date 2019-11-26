@@ -14,18 +14,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import static com.instana.operator.cache.ExceptionHandlerWrapper.exitOnError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
-
+public class ResourceWatch<T extends HasMetadata, L extends KubernetesResourceList<T>> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ResourceWatch.class);
   private final ResourceMap<T> map = new ResourceMap<>();
   private final ExecutorService executor;
   private final FatalErrorHandler fatalErrorHandler;
 
   /**
-   * package private, use {@link CacheService} to create a new Cache.
+   * package private, use {@link ResourceService} to create a new Cache.
    */
-  Cache(ExecutorService executor, FatalErrorHandler fatalErrorHandler) {
+  ResourceWatch(ExecutorService executor, FatalErrorHandler fatalErrorHandler) {
     this.executor = executor;
     this.fatalErrorHandler = fatalErrorHandler;
   }
@@ -44,7 +45,14 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
         .forEach(resource -> {
               map.putIfNewer(resource.getMetadata().getUid(), resource);
               String uid = resource.getMetadata().getUid();
-              executor.execute(() -> exitOnError(onEventCallback, fatalErrorHandler).accept(Watcher.Action.ADDED, uid));
+              executor.execute(() -> ((BiConsumer<Watcher.Action, String>) (a, b) -> {
+                try {
+                  onEventCallback.accept(a, b);
+                } catch (Exception e) {
+                  LOGGER.error(e.getMessage(), e);
+                  fatalErrorHandler.systemExit(-1);
+                }
+              }).accept(Watcher.Action.ADDED, uid));
             }
         );
 
@@ -74,7 +82,14 @@ public class Cache<T extends HasMetadata, L extends KubernetesResourceList<T>> {
         } catch (Exception e) {
           // First call the error callback to provide a hook for cleanup, but then call System.exit(-1) because
           // we won't continue from here. Let Kubernetes restart the Pod.
-          exitOnError(onErrorCallback, fatalErrorHandler).andThen(ex -> fatalErrorHandler.systemExit(-1)).accept(e);
+          ((Consumer<Exception>) (a) -> {
+            try {
+              onErrorCallback.accept(a);
+            } catch (Exception e1) {
+              LOGGER.error(e1.getMessage(), e1);
+              fatalErrorHandler.systemExit(-1);
+            }
+          }).andThen(ex -> fatalErrorHandler.systemExit(-1)).accept(e);
         }
       }
     };

@@ -1,7 +1,7 @@
 package com.instana.operator;
 
-import com.instana.operator.cache.Cache;
-import com.instana.operator.cache.CacheService;
+import com.instana.operator.cache.ResourceWatch;
+import com.instana.operator.cache.ResourceService;
 import com.instana.operator.events.OperatorPodRunning;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
@@ -35,7 +35,7 @@ public class OperatorPodLoader {
   @Inject
   DefaultKubernetesClient client;
   @Inject
-  CacheService cacheService;
+  ResourceService resourceService;
   @Inject
   @Named(OPERATOR_NAMESPACE)
   String operatorNamespace;
@@ -60,9 +60,9 @@ public class OperatorPodLoader {
 
   private Pod loadMyself(int timeout, TimeUnit unit) {
     CompletableFuture<Pod> myself = new CompletableFuture<>();
-    Cache<Pod, PodList> podCache = cacheService.newCache(Pod.class, PodList.class);
-    Disposable watch = podCache.listThenWatch(client.inNamespace(operatorNamespace).pods()).subscribe(event -> {
-      Optional<Pod> pod = podCache.get(event.getUid()).filter(p -> podName.equals(p.getMetadata().getName()));
+    ResourceWatch<Pod, PodList> podResourceWatch = resourceService.newResourceWatch(PodList.class);
+    Disposable watch = podResourceWatch.listThenWatch(client.inNamespace(operatorNamespace).pods()).subscribe(event -> {
+      Optional<Pod> pod = podResourceWatch.get(event.getUid()).filter(p -> podName.equals(p.getMetadata().getName()));
       if (pod.isPresent()) {
         if (isRunning(pod.get())) {
           myself.complete(pod.get());

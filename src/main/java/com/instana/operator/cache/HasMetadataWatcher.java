@@ -1,7 +1,5 @@
 package com.instana.operator.cache;
 
-import static com.instana.operator.cache.ExceptionHandlerWrapper.exitOnError;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
@@ -55,7 +53,14 @@ public class HasMetadataWatcher<T extends HasMetadata> implements Watcher<T> {
       }
 
       if (updated) {
-        executor.execute(() -> exitOnError(onEventCallback, fatalErrorHandler).accept(action, uid));
+        executor.execute(() -> ((BiConsumer<Action, String>) (a, b) -> {
+          try {
+            onEventCallback.accept(a, b);
+          } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            fatalErrorHandler.systemExit(-1);
+          }
+        }).accept(action, uid));
       }
     } catch (RejectedExecutionException e) {
       // This happens if executor.execute() throws a RejectedExecutionException, so it doesn't make sense to
@@ -71,7 +76,14 @@ public class HasMetadataWatcher<T extends HasMetadata> implements Watcher<T> {
       try {
         // We call the onErrorCallback to allow for cleanup, but after that we terminate the JVM
         // and have Kubernetes restart the Pod, because there is no way to recover from this.
-        executor.execute(() -> exitOnError(onErrorCallback, fatalErrorHandler)
+        executor.execute(() -> ((Consumer<Exception>) (a) -> {
+          try {
+            onErrorCallback.accept(a);
+          } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            fatalErrorHandler.systemExit(-1);
+          }
+        })
             .andThen(c -> fatalErrorHandler.systemExit(-1))
             .accept(cause));
       } catch (Exception e) {
