@@ -1,7 +1,11 @@
 Installing the Instana Agent Operator Manually
 ==============================================
 
+### Prerequisites for OpenShift
+
 Before you start, if you are installing the operator into OpenShift, note the extra steps required [here](openshift.md).
+
+### Steps
 
 Deploy the operator as follows:
 

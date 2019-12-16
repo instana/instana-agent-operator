@@ -1,9 +1,13 @@
 Install Using the Operator Lifecycle Manager (OLM)
 --------------------------------------------------
 
-First, install the Instana agent operator from [OperatorHub.io](https://operatorhub.io/), or [OpenShift Container Platform](https://www.openshift.com/), or [OKD](https://www.okd.io/). If you are a developer and want to test source code changes, follow the instruction on [run-operator-registry-locally.md](run-operator-registry-locally.md) to set up a local operator registry.
+### Prerequisites for OpenShift
 
 If you are installing the operator into OpenShift, note the extra steps required [here](openshift.md).
+
+### Steps
+
+First, install the Instana agent operator from [OperatorHub.io](https://operatorhub.io/), or [OpenShift Container Platform](https://www.openshift.com/), or [OKD](https://www.okd.io/). If you are a developer and want to test source code changes, follow the instruction on [run-operator-registry-locally.md](run-operator-registry-locally.md) to set up a local operator registry.
 
 If you don't already have one, create the target namespace where the Instana agent should be installed. The agent does not need to run in the same namespace as the operator. Most users create a new namespace `instana-agent` for running the agents.
 

@@ -6,7 +6,11 @@ Instana is an [APM solution](https://www.instana.com/product-overview/) built fo
 
 This is the Kubernetes Operator for installing the Instana Agent on Kubernetes or OpenShift.
 
-## Configuration and Installation
+## Prerequisites for OpenShift
+
+If you are installing the operator into OpenShift, note the extra steps required [here](openshift.md).
+
+## Installation and Configuration
 
 First, install this operator from [OperatorHub.io](https://operatorhub.io/), [OpenShift Container Platform](https://www.openshift.com/), or [OKD](https://www.okd.io/).
 
