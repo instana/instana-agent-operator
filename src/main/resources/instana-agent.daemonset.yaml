@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: instana-agent
@@ -9,12 +9,15 @@ metadata:
       name: placeholder
       uid: placeholder
 spec:
+  selector:
+    matchLabels:
+      app: instana-agent
   template:
     metadata:
       labels:
         app: instana-agent
     spec:
-      serviceAccount: instana-agent
+      serviceAccountName: instana-agent
       hostIPC: true
       hostNetwork: true
       hostPID: true
@@ -35,7 +38,7 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: metadata.name
-            - name: INSTANA_AGENT_POD_IP
+            - name: POD_IP
               valueFrom:
                 fieldRef:
                   apiVersion: v1
@@ -53,6 +56,8 @@ spec:
               mountPath: /sys
             - name: log
               mountPath: /var/log
+            - name: var-lib
+              mountPath: /var/lib/containers/storage
             - name: machine-id
               mountPath: /etc/machine-id
           livenessProbe:
@@ -79,6 +84,9 @@ spec:
         - name: log
           hostPath:
             path: /var/log
+        - name: var-lib
+          hostPath:
+            path: /var/lib/containers/storage
         - name: machine-id
           hostPath:
             path: /etc/machine-id
