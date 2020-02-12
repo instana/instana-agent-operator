@@ -1,3 +1,4 @@
+cluster.name: "test-cluster-name"
 agent.zone.name: my-k8s-cluster
 agent.key: _PUT_YOUR_AGENT_KEY_HERE_
 agent.endpoint.host: saas-us-west-2.instana.io

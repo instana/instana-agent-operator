@@ -3,6 +3,7 @@ package com.instana.operator.customresource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.instana.operator.util.FileUtil;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNull.nullValue;
 import static org.hamcrest.core.StringStartsWith.startsWith;
@@ -58,10 +60,9 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
     assertThat(spec.getAgentHostRepository(), nullValue());
-
     assertThat(spec.getAgentDownloadKey(), nullValue());
-
     assertThat(spec.getAgentEnv().entrySet(), empty());
+    assertThat(spec.getClusterName(), nullValue());
   }
 
   @Test
@@ -79,6 +80,7 @@ class InstanaAgentSpecDeserializeTest {
         hasEntry(equalTo("configuration.yaml"), startsWith("# You can leave ")),
         hasEntry(equalTo("other"), startsWith("some other config file"))));
 
+    assertThat(spec.getAgentEnv().size(), is(8));
     assertThat(spec.getAgentEnv(), hasEntry(equalTo("INSTANA_AGENT_MODE"), equalTo("APM")));
 
     assertThat(spec.getAgentClusterRoleName(), equalTo("test-cluster-role"));
@@ -96,6 +98,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemLimit(), equalTo(518));
     assertThat(spec.getAgentHostRepository(), equalTo("/Users/stan/.m2/repository"));
     assertThat(spec.getAgentDownloadKey(), equalTo("test-download-key"));
+    assertThat(spec.getClusterName(), equalTo("test-cluster-name"));
   }
 
   @Test
