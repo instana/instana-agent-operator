@@ -16,16 +16,16 @@ agent.cpuLimit: 1.8
 agent.memReq: 513
 agent.memLimit: 518
 agent.downloadKey: test-download-key
-agent.proxy.host: proxy.instana.io
-agent.proxy.port: 8443
-agent.proxy.protocol: https
-agent.proxy.user: proxy-user
-agent.proxy.password: proxy-password
-agent.proxy.use.dns: true
-agent.http.listen: 127.0.0.1
 agent.host.repository: /Users/stan/.m2/repository
 agent.env:
   INSTANA_AGENT_MODE: APM
+  INSTANA_AGENT_PROXY_HOST: proxy.instana.io
+  INSTANA_AGENT_PROXY_PORT: 8443
+  INSTANA_AGENT_PROXY_PROTOCOL: https
+  INSTANA_AGENT_PROXY_USER: proxy-user
+  INSTANA_AGENT_PROXY_PASSSWORD: proxy-password
+  INSTANA_AGENT_PROXY_USE_DNS: true
+  INSTANA_AGENT_HTTP_LISTEN: 127.0.0.1
 config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.

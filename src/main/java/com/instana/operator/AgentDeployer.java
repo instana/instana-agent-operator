@@ -284,27 +284,6 @@ public class AgentDeployer {
           .endValueFrom()
           .build());
     }
-    if (!isBlank(config.getAgentProxyHost())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_HOST", config.getAgentProxyHost()));
-    }
-    if (config.getAgentProxyPort() != null) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PORT", config.getAgentProxyPort().toString()));
-    }
-    if (!isBlank(config.getAgentProxyProtocol())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PROTOCOL", config.getAgentProxyProtocol()));
-    }
-    if (!isBlank(config.getAgentProxyUser())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_USER", config.getAgentProxyUser()));
-    }
-    if (!isBlank(config.getAgentProxyPassword())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PASSWORD", config.getAgentProxyPassword()));
-    }
-    if (config.isAgentProxyUseDNS() != null && config.isAgentProxyUseDNS()) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_USE_DNS", config.isAgentProxyUseDNS().toString()));
-    }
-    if (!isBlank(config.getAgentHttpListen())) {
-      env.add(createEnvVar("INSTANA_AGENT_HTTP_LISTEN", config.getAgentHttpListen()));
-    }
     if (!isBlank(config.getClusterName())) {
       env.add(createEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", config.getClusterName()));
     }

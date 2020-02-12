@@ -13,12 +13,10 @@ import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_LIMIT;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_REQ;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_DAEMON_SET_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_HTTP_LISTEN;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_IMAGE_NAME;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_IMAGE_TAG;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_LIMIT;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_REQ;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MODE;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_RBAC_CREATE;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SECRET_NAME;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SERVICE_ACCOUNT_NAME;
@@ -59,16 +57,9 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentCpuLimit(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_LIMIT)));
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
-    assertThat(spec.getAgentHttpListen(), equalTo(DEFAULT_AGENT_HTTP_LISTEN));
     assertThat(spec.getAgentHostRepository(), nullValue());
 
     assertThat(spec.getAgentDownloadKey(), nullValue());
-    assertThat(spec.getAgentProxyHost(), nullValue());
-    assertThat(spec.getAgentProxyPort(), nullValue());
-    assertThat(spec.getAgentProxyProtocol(), nullValue());
-    assertThat(spec.getAgentProxyUser(), nullValue());
-    assertThat(spec.getAgentProxyPassword(), nullValue());
-    assertThat(spec.isAgentProxyUseDNS(), nullValue());
 
     assertThat(spec.getAgentEnv().entrySet(), empty());
   }
@@ -103,16 +94,8 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentCpuLimit(), equalTo(1.8));
     assertThat(spec.getAgentMemReq(), equalTo(513));
     assertThat(spec.getAgentMemLimit(), equalTo(518));
-    assertThat(spec.getAgentHttpListen(), equalTo("127.0.0.1"));
     assertThat(spec.getAgentHostRepository(), equalTo("/Users/stan/.m2/repository"));
-
     assertThat(spec.getAgentDownloadKey(), equalTo("test-download-key"));
-    assertThat(spec.getAgentProxyHost(), equalTo("proxy.instana.io"));
-    assertThat(spec.getAgentProxyPort(), equalTo(8443));
-    assertThat(spec.getAgentProxyProtocol(), equalTo("https"));
-    assertThat(spec.getAgentProxyUser(), equalTo("proxy-user"));
-    assertThat(spec.getAgentProxyPassword(), equalTo("proxy-password"));
-    assertThat(spec.isAgentProxyUseDNS(), equalTo(true));
   }
 
   @Test

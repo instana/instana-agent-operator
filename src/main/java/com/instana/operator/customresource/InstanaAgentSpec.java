@@ -32,7 +32,6 @@ public class InstanaAgentSpec {
   static final String DEFAULT_AGENT_CPU_LIMIT = "1.5";
   static final String DEFAULT_AGENT_MEM_REQ = "512";
   static final String DEFAULT_AGENT_MEM_LIMIT = "512";
-  static final String DEFAULT_AGENT_HTTP_LISTEN = "*";
 
   @JsonProperty("config.files")
   private Map<String, String> configFiles;
@@ -72,20 +71,6 @@ public class InstanaAgentSpec {
   private Integer agentMemLimit = Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT);
   @JsonProperty(value = "agent.downloadKey")
   private String agentDownloadKey;
-  @JsonProperty(value = "agent.proxy.host")
-  private String agentProxyHost;
-  @JsonProperty(value = "agent.proxy.port")
-  private Integer agentProxyPort;
-  @JsonProperty(value = "agent.proxy.protocol")
-  private String agentProxyProtocol;
-  @JsonProperty(value = "agent.proxy.user")
-  private String agentProxyUser;
-  @JsonProperty(value = "agent.proxy.password")
-  private String agentProxyPassword;
-  @JsonProperty(value = "agent.proxy.use.dns")
-  private Boolean agentProxyUseDNS;
-  @JsonProperty(value = "agent.http.listen", defaultValue = DEFAULT_AGENT_HTTP_LISTEN)
-  private String agentHttpListen = DEFAULT_AGENT_HTTP_LISTEN;
   @JsonProperty(value = "agent.host.repository")
   private String agentHostRepository;
   @JsonProperty(value = "cluster.name")
@@ -247,62 +232,6 @@ public class InstanaAgentSpec {
 
   public void setAgentDownloadKey(String agentDownloadKey) {
     this.agentDownloadKey = agentDownloadKey;
-  }
-
-  public String getAgentProxyHost() {
-    return agentProxyHost;
-  }
-
-  public void setAgentProxyHost(String agentProxyHost) {
-    this.agentProxyHost = agentProxyHost;
-  }
-
-  public Integer getAgentProxyPort() {
-    return agentProxyPort;
-  }
-
-  public void setAgentProxyPort(Integer agentProxyPort) {
-    this.agentProxyPort = agentProxyPort;
-  }
-
-  public String getAgentProxyProtocol() {
-    return agentProxyProtocol;
-  }
-
-  public void setAgentProxyProtocol(String agentProxyProtocol) {
-    this.agentProxyProtocol = agentProxyProtocol;
-  }
-
-  public String getAgentProxyUser() {
-    return agentProxyUser;
-  }
-
-  public void setAgentProxyUser(String agentProxyUser) {
-    this.agentProxyUser = agentProxyUser;
-  }
-
-  public String getAgentProxyPassword() {
-    return agentProxyPassword;
-  }
-
-  public void setAgentProxyPassword(String agentProxyPassword) {
-    this.agentProxyPassword = agentProxyPassword;
-  }
-
-  public Boolean isAgentProxyUseDNS() {
-    return agentProxyUseDNS;
-  }
-
-  public void setAgentProxyUseDNS(boolean agentProxyUseDNS) {
-    this.agentProxyUseDNS = agentProxyUseDNS;
-  }
-
-  public String getAgentHttpListen() {
-    return agentHttpListen;
-  }
-
-  public void setAgentHttpListen(String agentHttpListen) {
-    this.agentHttpListen = agentHttpListen;
   }
 
   public String getAgentHostRepository() {
