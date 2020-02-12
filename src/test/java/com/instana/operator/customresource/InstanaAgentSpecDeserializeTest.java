@@ -55,7 +55,6 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.isAgentRbacCreate(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE)));
     assertThat(spec.getAgentImageName(), equalTo(DEFAULT_AGENT_IMAGE_NAME));
     assertThat(spec.getAgentImageTag(), equalTo(DEFAULT_AGENT_IMAGE_TAG));
-    assertThat(spec.getAgentMode(), equalTo(DEFAULT_AGENT_MODE));
     assertThat(spec.getAgentCpuReq(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_REQ)));
     assertThat(spec.getAgentCpuLimit(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_LIMIT)));
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
@@ -70,6 +69,8 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentProxyUser(), nullValue());
     assertThat(spec.getAgentProxyPassword(), nullValue());
     assertThat(spec.isAgentProxyUseDNS(), nullValue());
+
+    assertThat(spec.getAgentEnv().entrySet(), empty());
   }
 
   @Test
@@ -87,6 +88,8 @@ class InstanaAgentSpecDeserializeTest {
         hasEntry(equalTo("configuration.yaml"), startsWith("# You can leave ")),
         hasEntry(equalTo("other"), startsWith("some other config file"))));
 
+    assertThat(spec.getAgentEnv(), hasEntry(equalTo("INSTANA_AGENT_MODE"), equalTo("APM")));
+
     assertThat(spec.getAgentClusterRoleName(), equalTo("test-cluster-role"));
     assertThat(spec.getAgentClusterRoleBindingName(), equalTo("test-cluster-role-binding"));
     assertThat(spec.getAgentServiceAccountName(), equalTo("test-service-account"));
@@ -96,7 +99,6 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.isAgentRbacCreate(), equalTo(Boolean.FALSE));
     assertThat(spec.getAgentImageName(), equalTo("instana/test-image"));
     assertThat(spec.getAgentImageTag(), equalTo("1.2.3"));
-    assertThat(spec.getAgentMode(), equalTo("NONE"));
     assertThat(spec.getAgentCpuReq(), equalTo(0.7));
     assertThat(spec.getAgentCpuLimit(), equalTo(1.8));
     assertThat(spec.getAgentMemReq(), equalTo(513));

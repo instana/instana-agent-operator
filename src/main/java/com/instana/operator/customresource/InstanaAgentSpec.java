@@ -62,8 +62,6 @@ public class InstanaAgentSpec {
   private String agentImageName = DEFAULT_AGENT_IMAGE_NAME;
   @JsonProperty(value = "agent.image.tag", defaultValue = DEFAULT_AGENT_IMAGE_TAG)
   private String agentImageTag = DEFAULT_AGENT_IMAGE_TAG;
-  @JsonProperty(value = "agent.mode", defaultValue = DEFAULT_AGENT_MODE)
-  private String agentMode = DEFAULT_AGENT_MODE;
   @JsonProperty(value = "agent.cpuReq", defaultValue = DEFAULT_AGENT_CPU_REQ)
   private Double agentCpuReq = Double.parseDouble(DEFAULT_AGENT_CPU_REQ);
   @JsonProperty(value = "agent.cpuLimit", defaultValue = DEFAULT_AGENT_CPU_LIMIT)
@@ -92,6 +90,8 @@ public class InstanaAgentSpec {
   private String agentHostRepository;
   @JsonProperty(value = "cluster.name")
   private String clusterName;
+  @JsonProperty(value = "agent.env")
+  private Map<String, String> agentEnv;
 
   public Map<String, String> getConfigFiles() {
     if (configFiles == null) {
@@ -209,14 +209,6 @@ public class InstanaAgentSpec {
     this.agentImageTag = agentImageTag;
   }
 
-  public String getAgentMode() {
-    return agentMode;
-  }
-
-  public void setAgentMode(String agentMode) {
-    this.agentMode = agentMode;
-  }
-
   public Double getAgentCpuReq() {
     return agentCpuReq;
   }
@@ -323,6 +315,17 @@ public class InstanaAgentSpec {
 
   public String getClusterName() {
     return clusterName;
+  }
+
+  public Map<String, String> getAgentEnv() {
+    if (agentEnv == null)
+      return Collections.emptyMap();
+    else
+      return agentEnv;
+  }
+
+  public void setAgentEnv(Map<String, String> env) {
+    agentEnv = env;
   }
 
   // We call equals() to check if the Spec was updated.

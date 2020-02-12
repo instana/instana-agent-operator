@@ -11,7 +11,6 @@ agent.configMapName: test-config-map
 agent.rbac.create: false
 agent.image: instana/test-image
 agent.image.tag: 1.2.3
-agent.mode: NONE
 agent.cpuReq: 0.7
 agent.cpuLimit: 1.8
 agent.memReq: 513
@@ -25,6 +24,8 @@ agent.proxy.password: proxy-password
 agent.proxy.use.dns: true
 agent.http.listen: 127.0.0.1
 agent.host.repository: /Users/stan/.m2/repository
+agent.env:
+  INSTANA_AGENT_MODE: APM
 config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.
