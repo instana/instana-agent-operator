@@ -8,6 +8,8 @@ spec:
   agent.key: put your Instana agent key here
   agent.endpoint.host: the monitoring ingress endpoint
   agent.endpoint.port: the monitoring ingress endpoint port, wrapped in quotes
+  agent.env:
+    INSTANA_AGENT_TAGS: example
   config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.
