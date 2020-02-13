@@ -32,7 +32,6 @@ public class InstanaAgentSpec {
   static final String DEFAULT_AGENT_CPU_LIMIT = "1.5";
   static final String DEFAULT_AGENT_MEM_REQ = "512";
   static final String DEFAULT_AGENT_MEM_LIMIT = "512";
-  static final String DEFAULT_AGENT_HTTP_LISTEN = "*";
 
   @JsonProperty("config.files")
   private Map<String, String> configFiles;
@@ -62,8 +61,6 @@ public class InstanaAgentSpec {
   private String agentImageName = DEFAULT_AGENT_IMAGE_NAME;
   @JsonProperty(value = "agent.image.tag", defaultValue = DEFAULT_AGENT_IMAGE_TAG)
   private String agentImageTag = DEFAULT_AGENT_IMAGE_TAG;
-  @JsonProperty(value = "agent.mode", defaultValue = DEFAULT_AGENT_MODE)
-  private String agentMode = DEFAULT_AGENT_MODE;
   @JsonProperty(value = "agent.cpuReq", defaultValue = DEFAULT_AGENT_CPU_REQ)
   private Double agentCpuReq = Double.parseDouble(DEFAULT_AGENT_CPU_REQ);
   @JsonProperty(value = "agent.cpuLimit", defaultValue = DEFAULT_AGENT_CPU_LIMIT)
@@ -74,24 +71,12 @@ public class InstanaAgentSpec {
   private Integer agentMemLimit = Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT);
   @JsonProperty(value = "agent.downloadKey")
   private String agentDownloadKey;
-  @JsonProperty(value = "agent.proxy.host")
-  private String agentProxyHost;
-  @JsonProperty(value = "agent.proxy.port")
-  private Integer agentProxyPort;
-  @JsonProperty(value = "agent.proxy.protocol")
-  private String agentProxyProtocol;
-  @JsonProperty(value = "agent.proxy.user")
-  private String agentProxyUser;
-  @JsonProperty(value = "agent.proxy.password")
-  private String agentProxyPassword;
-  @JsonProperty(value = "agent.proxy.use.dns")
-  private Boolean agentProxyUseDNS;
-  @JsonProperty(value = "agent.http.listen", defaultValue = DEFAULT_AGENT_HTTP_LISTEN)
-  private String agentHttpListen = DEFAULT_AGENT_HTTP_LISTEN;
   @JsonProperty(value = "agent.host.repository")
   private String agentHostRepository;
   @JsonProperty(value = "cluster.name")
   private String clusterName;
+  @JsonProperty(value = "agent.env")
+  private Map<String, String> agentEnv;
 
   public Map<String, String> getConfigFiles() {
     if (configFiles == null) {
@@ -209,14 +194,6 @@ public class InstanaAgentSpec {
     this.agentImageTag = agentImageTag;
   }
 
-  public String getAgentMode() {
-    return agentMode;
-  }
-
-  public void setAgentMode(String agentMode) {
-    this.agentMode = agentMode;
-  }
-
   public Double getAgentCpuReq() {
     return agentCpuReq;
   }
@@ -257,62 +234,6 @@ public class InstanaAgentSpec {
     this.agentDownloadKey = agentDownloadKey;
   }
 
-  public String getAgentProxyHost() {
-    return agentProxyHost;
-  }
-
-  public void setAgentProxyHost(String agentProxyHost) {
-    this.agentProxyHost = agentProxyHost;
-  }
-
-  public Integer getAgentProxyPort() {
-    return agentProxyPort;
-  }
-
-  public void setAgentProxyPort(Integer agentProxyPort) {
-    this.agentProxyPort = agentProxyPort;
-  }
-
-  public String getAgentProxyProtocol() {
-    return agentProxyProtocol;
-  }
-
-  public void setAgentProxyProtocol(String agentProxyProtocol) {
-    this.agentProxyProtocol = agentProxyProtocol;
-  }
-
-  public String getAgentProxyUser() {
-    return agentProxyUser;
-  }
-
-  public void setAgentProxyUser(String agentProxyUser) {
-    this.agentProxyUser = agentProxyUser;
-  }
-
-  public String getAgentProxyPassword() {
-    return agentProxyPassword;
-  }
-
-  public void setAgentProxyPassword(String agentProxyPassword) {
-    this.agentProxyPassword = agentProxyPassword;
-  }
-
-  public Boolean isAgentProxyUseDNS() {
-    return agentProxyUseDNS;
-  }
-
-  public void setAgentProxyUseDNS(boolean agentProxyUseDNS) {
-    this.agentProxyUseDNS = agentProxyUseDNS;
-  }
-
-  public String getAgentHttpListen() {
-    return agentHttpListen;
-  }
-
-  public void setAgentHttpListen(String agentHttpListen) {
-    this.agentHttpListen = agentHttpListen;
-  }
-
   public String getAgentHostRepository() {
     return agentHostRepository;
   }
@@ -323,6 +244,17 @@ public class InstanaAgentSpec {
 
   public String getClusterName() {
     return clusterName;
+  }
+
+  public Map<String, String> getAgentEnv() {
+    if (agentEnv == null)
+      return Collections.emptyMap();
+    else
+      return agentEnv;
+  }
+
+  public void setAgentEnv(Map<String, String> env) {
+    agentEnv = env;
   }
 
   // We call equals() to check if the Spec was updated.

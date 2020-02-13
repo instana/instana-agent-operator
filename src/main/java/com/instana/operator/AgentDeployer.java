@@ -15,10 +15,7 @@ import io.fabric8.kubernetes.api.model.DoneableSecret;
 import io.fabric8.kubernetes.api.model.DoneableServiceAccount;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarSource;
-import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
 import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -57,7 +54,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.nio.charset.Charset;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -264,8 +260,8 @@ public class AgentDeployer {
     return configMap;
   }
 
-  private DaemonSet newDaemonSet(InstanaAgent owner,
-                                 MixedOperation<DaemonSet, DaemonSetList, DoneableDaemonSet, Resource<DaemonSet, DoneableDaemonSet>> op) {
+  DaemonSet newDaemonSet(InstanaAgent owner,
+                         MixedOperation<DaemonSet, DaemonSetList, DoneableDaemonSet, Resource<DaemonSet, DoneableDaemonSet>> op) {
     InstanaAgentSpec config = owner.getSpec();
     DaemonSet daemonSet = load("instana-agent.daemonset.yaml", owner, op);
 
@@ -275,7 +271,6 @@ public class AgentDeployer {
     env.add(createEnvVar("INSTANA_ZONE", config.getAgentZoneName()));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT", config.getAgentEndpointHost()));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", "" + config.getAgentEndpointPort()));
-    env.add(createEnvVar("INSTANA_AGENT_MODE", config.getAgentMode()));
     env.add(createEnvVar("JAVA_OPTS", "-Xmx" + config.getAgentMemLimit() / 3 + "M -XX:+ExitOnOutOfMemoryError"));
 
     if (!isBlank(config.getAgentDownloadKey())) {
@@ -289,30 +284,10 @@ public class AgentDeployer {
           .endValueFrom()
           .build());
     }
-    if (!isBlank(config.getAgentProxyHost())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_HOST", config.getAgentProxyHost()));
-    }
-    if (config.getAgentProxyPort() != null) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PORT", config.getAgentProxyPort().toString()));
-    }
-    if (!isBlank(config.getAgentProxyProtocol())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PROTOCOL", config.getAgentProxyProtocol()));
-    }
-    if (!isBlank(config.getAgentProxyUser())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_USER", config.getAgentProxyUser()));
-    }
-    if (!isBlank(config.getAgentProxyPassword())) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_PASSWORD", config.getAgentProxyPassword()));
-    }
-    if (config.isAgentProxyUseDNS() != null && config.isAgentProxyUseDNS()) {
-      env.add(createEnvVar("INSTANA_AGENT_PROXY_USE_DNS", config.isAgentProxyUseDNS().toString()));
-    }
-    if (!isBlank(config.getAgentHttpListen())) {
-      env.add(createEnvVar("INSTANA_AGENT_HTTP_LISTEN", config.getAgentHttpListen()));
-    }
     if (!isBlank(config.getClusterName())) {
       env.add(createEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", config.getClusterName()));
     }
+    config.getAgentEnv().forEach((k, v) -> env.add(createEnvVar(k, v)));
     System.getenv().entrySet().stream()
         .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
         .forEach(e -> {
