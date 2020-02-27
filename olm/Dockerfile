@@ -2,7 +2,7 @@ FROM alpine
 
 RUN apk update
 
-RUN apk add jsonnet --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
+RUN apk add jsonnet --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 
 RUN apk add python3 bash git zip
 

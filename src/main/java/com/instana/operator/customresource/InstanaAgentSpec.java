@@ -25,9 +25,7 @@ public class InstanaAgentSpec {
   static final String DEFAULT_AGENT_DAEMON_SET_NAME = "instana-agent";
   static final String DEFAULT_AGENT_CONFIG_MAP_NAME = "instana-agent";
   static final String DEFAULT_AGENT_RBAC_CREATE = "true";
-  static final String DEFAULT_AGENT_IMAGE_NAME = "instana/agent";
-  static final String DEFAULT_AGENT_IMAGE_TAG = "latest";
-  static final String DEFAULT_AGENT_MODE = "APM";
+  static final String DEFAULT_AGENT_IMAGE = "instana/agent:latest";
   static final String DEFAULT_AGENT_CPU_REQ = "0.5";
   static final String DEFAULT_AGENT_CPU_LIMIT = "1.5";
   static final String DEFAULT_AGENT_MEM_REQ = "512";
@@ -57,10 +55,8 @@ public class InstanaAgentSpec {
   private String agentConfigMapName = DEFAULT_AGENT_CONFIG_MAP_NAME;
   @JsonProperty(value = "agent.rbac.create", defaultValue = DEFAULT_AGENT_RBAC_CREATE)
   private Boolean agentRbacCreate = Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE);
-  @JsonProperty(value = "agent.image", defaultValue = DEFAULT_AGENT_IMAGE_NAME)
-  private String agentImageName = DEFAULT_AGENT_IMAGE_NAME;
-  @JsonProperty(value = "agent.image.tag", defaultValue = DEFAULT_AGENT_IMAGE_TAG)
-  private String agentImageTag = DEFAULT_AGENT_IMAGE_TAG;
+  @JsonProperty(value = "agent.image", defaultValue = DEFAULT_AGENT_IMAGE)
+  private String agentImage = DEFAULT_AGENT_IMAGE;
   @JsonProperty(value = "agent.cpuReq", defaultValue = DEFAULT_AGENT_CPU_REQ)
   private Double agentCpuReq = Double.parseDouble(DEFAULT_AGENT_CPU_REQ);
   @JsonProperty(value = "agent.cpuLimit", defaultValue = DEFAULT_AGENT_CPU_LIMIT)
@@ -178,20 +174,12 @@ public class InstanaAgentSpec {
     this.agentRbacCreate = agentRbacCreate;
   }
 
-  public String getAgentImageName() {
-    return agentImageName;
+  public String getAgentImage() {
+    return agentImage;
   }
 
-  public void setAgentImageName(String agentImageName) {
-    this.agentImageName = agentImageName;
-  }
-
-  public String getAgentImageTag() {
-    return agentImageTag;
-  }
-
-  public void setAgentImageTag(String agentImageTag) {
-    this.agentImageTag = agentImageTag;
+  public void setAgentImage(String agentImage) {
+    this.agentImage = agentImage;
   }
 
   public Double getAgentCpuReq() {

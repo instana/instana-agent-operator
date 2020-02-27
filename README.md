@@ -15,6 +15,10 @@ There are two ways to install the operator:
 * [docs/install-manually.md](docs/install-manually.md) describes how to install the operator by creating the required resources manually.
 * [docs/install-via-olm.md](docs/install-via-olm.md) describes how to install the operator using the Operator Lifecycle Manager (OLM).
 
+### Configuration
+
+[docs/configuration.md](doc/configuration.md) describes configuration options you can set via the Instana Agent CRD. 
+
 ### Building
 
 [![CircleCI](https://circleci.com/gh/instana/instana-agent-operator.svg?style=svg)](https://circleci.com/gh/instana/instana-agent-operator)

@@ -10,8 +10,7 @@ agent.secretName: test-secret
 agent.daemonSetName: test-daemon-set
 agent.configMapName: test-config-map
 agent.rbac.create: false
-agent.image: instana/test-image
-agent.image.tag: 1.2.3
+agent.image: instana/test-image:1.2.3
 agent.cpuReq: 0.7
 agent.cpuLimit: 1.8
 agent.memReq: 513

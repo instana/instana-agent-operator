@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 
 class AgentDeployerTest {
 
@@ -40,5 +41,26 @@ class AgentDeployerTest {
 
     assertThat(agentContainer.getEnv(), allOf(
         hasItem(new EnvVar("INSTANA_AGENT_MODE", "APM", null))));
+  }
+
+  @Test
+  void daemonset_must_include_specified_image() {
+    AgentDeployer deployer = new AgentDeployer();
+
+    InstanaAgentSpec agentSpec = new InstanaAgentSpec();
+    agentSpec.setAgentImage("other/image:some-tag");
+
+    InstanaAgent crd = new InstanaAgent();
+    crd.setSpec(agentSpec);
+
+    DaemonSet daemonSet = deployer.newDaemonSet(
+        crd,
+        client.inNamespace("instana-agent").apps().daemonSets());
+
+    PodSpec podSpec = daemonSet.getSpec().getTemplate().getSpec();
+
+    Container agentContainer = podSpec.getContainers().get(0);
+
+    assertThat(agentContainer.getImage(), is("other/image:some-tag"));
   }
 }

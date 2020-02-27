@@ -24,9 +24,24 @@ Edit the template and replace at least the following values:
   * `agent.endpoint` must be set with the monitoring ingress endpoint, generally either `saas-us-west-2.instana.io` or `saas-eu-west-1.instana.io`.
   * `agent.endpoint.port` must be set with the monitoring ingress port, generally `"443"` (wrapped in quotes).
   * `agent.zone.name` should be set with the name of the Kubernetes cluster that is be displayed in Instana.
-  * `agent.env` can be used to specify environment variables for the agent, for instance, proxy configuration. See possible environment values [here](https://docs.instana.io/quick_start/agent_setup/container/docker/).
+  * `agent.env` can be used to specify environment variables for the agent, for instance, proxy configuration. See possible environment values [here](https://docs.instana.io/quick_start/agent_setup/container/docker/). For instance:
 
-In case you need to adapt `configuration.yaml`, view the documentation here: [https://docs.instana.io/quick_start/agent_setup/container/kubernetes/](https://docs.instana.io/quick_start/agent_setup/container/kubernetes/).
+        agent.env:
+          INSTANA_AGENT_TAGS: staging
+
+  * `config.files` can be used to specify configuration files, for instance, specifying a `configuration.yaml`:
+
+        config.files:
+          configuration.yaml: |
+            # Example of configuration yaml template
+
+            # Host
+            #com.instana.plugin.host:
+            #  tags:
+            #    - 'dev'
+            #    - 'app1'
+
+     In case you need to adapt `configuration.yaml`, view the documentation here: [https://docs.instana.io/quick_start/agent_setup/container/kubernetes/](https://docs.instana.io/quick_start/agent_setup/container/kubernetes/).
 
 Apply the edited custom resource:
 

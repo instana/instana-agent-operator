@@ -266,6 +266,11 @@ public class AgentDeployer {
     DaemonSet daemonSet = load("instana-agent.daemonset.yaml", owner, op);
 
     Container container = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0);
+
+    if (!isBlank(config.getAgentImage())) {
+      container.setImage(config.getAgentImage());
+    }
+
     List<EnvVar> env = container.getEnv();
 
     env.add(createEnvVar("INSTANA_ZONE", config.getAgentZoneName()));
