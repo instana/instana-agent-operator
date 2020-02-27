@@ -17,7 +17,7 @@ There are two ways to install the operator:
 
 ### Configuration
 
-[docs/configuration.md](doc/configuration.md) describes configuration options you can set via the Instana Agent CRD. 
+[docs/configuration.md](docs/configuration.md) describes configuration options you can set via the Instana Agent CRD.
 
 ### Building
 
