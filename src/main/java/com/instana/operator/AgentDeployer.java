@@ -4,6 +4,7 @@ import com.instana.operator.cache.Cache;
 import com.instana.operator.cache.CacheService;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentSpec;
+import com.instana.operator.env.Environment;
 import com.instana.operator.events.DaemonSetAdded;
 import com.instana.operator.events.DaemonSetDeleted;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -100,6 +101,8 @@ public class AgentDeployer {
   private Disposable[] watchers = null;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentDeployer.class);
+
+  private Environment environment = System::getenv;
 
   public void customResourceAdded(InstanaAgent customResource) {
     if (owner != null) {
@@ -267,8 +270,13 @@ public class AgentDeployer {
 
     Container container = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0);
 
-    if (!isBlank(config.getAgentImage())) {
-      container.setImage(config.getAgentImage());
+    String imageFromEnvVar = environment.get(Environment.RELATED_IMAGE_INSTANA_AGENT);
+    String imageFromCustomResource = config.getAgentImage();
+
+    if (!isBlank(imageFromCustomResource)) {
+      container.setImage(imageFromCustomResource);
+    } else if (!isBlank(imageFromEnvVar)) {
+      container.setImage(imageFromEnvVar);
     }
 
     List<EnvVar> env = container.getEnv();
@@ -374,6 +382,10 @@ public class AgentDeployer {
       fatalErrorHandler.systemExit(-1);
       return null; // will not happen, because we called System.exit(-1);
     }
+  }
+
+  public void setEnvironment(Environment environment) {
+    this.environment = environment;
   }
 
   private interface Factory<T extends HasMetadata, L extends KubernetesResourceList<T>, D extends Doneable<T>, R extends Resource<T, D>> {

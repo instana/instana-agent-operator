@@ -3,6 +3,7 @@ package com.instana.operator.customresource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.instana.operator.util.FileUtil;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -13,7 +14,6 @@ import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_LIMIT;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_REQ;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_DAEMON_SET_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_IMAGE;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_LIMIT;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_REQ;
 import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_RBAC_CREATE;
@@ -25,6 +25,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNull.nullValue;
 import static org.hamcrest.core.StringStartsWith.startsWith;
@@ -43,6 +44,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentEndpointHost(), equalTo("saas-us-west-2.instana.io"));
     assertThat(spec.getAgentEndpointPort(), equalTo(443));
     assertThat(spec.getConfigFiles().entrySet(), empty());
+    assertThat(spec.getAgentImage(), is(nullValue()));
 
     assertThat(spec.getAgentClusterRoleName(), equalTo(DEFAULT_AGENT_CLUSTER_ROLE_NAME));
     assertThat(spec.getAgentClusterRoleBindingName(), equalTo(DEFAULT_AGENT_CLUSTER_ROLE_BINDING_NAME));
@@ -51,7 +53,6 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentDaemonSetName(), equalTo(DEFAULT_AGENT_DAEMON_SET_NAME));
     assertThat(spec.getAgentConfigMapName(), equalTo(DEFAULT_AGENT_CONFIG_MAP_NAME));
     assertThat(spec.isAgentRbacCreate(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE)));
-    assertThat(spec.getAgentImage(), equalTo(DEFAULT_AGENT_IMAGE));
     assertThat(spec.getAgentCpuReq(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_REQ)));
     assertThat(spec.getAgentCpuLimit(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_LIMIT)));
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
