@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.instana.operator.env.Environment.TARGET_NAMESPACES;
+
 @ApplicationScoped
 public class CustomResourceWatcher {
 
@@ -40,7 +42,7 @@ public class CustomResourceWatcher {
   @Inject
   MixedOperation<InstanaAgent, InstanaAgentList, DoneableInstanaAgent, Resource<InstanaAgent, DoneableInstanaAgent>> client;
   @Inject
-  @Named(NamespaceProducer.TARGET_NAMESPACES)
+  @Named(TARGET_NAMESPACES)
   Set<String> targetNamespaces;
   @Inject
   Event<CustomResourceDeleted> deletedEvent;

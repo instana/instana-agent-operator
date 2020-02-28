@@ -25,7 +25,6 @@ public class InstanaAgentSpec {
   static final String DEFAULT_AGENT_DAEMON_SET_NAME = "instana-agent";
   static final String DEFAULT_AGENT_CONFIG_MAP_NAME = "instana-agent";
   static final String DEFAULT_AGENT_RBAC_CREATE = "true";
-  static final String DEFAULT_AGENT_IMAGE = "instana/agent:latest";
   static final String DEFAULT_AGENT_CPU_REQ = "0.5";
   static final String DEFAULT_AGENT_CPU_LIMIT = "1.5";
   static final String DEFAULT_AGENT_MEM_REQ = "512";
@@ -55,8 +54,8 @@ public class InstanaAgentSpec {
   private String agentConfigMapName = DEFAULT_AGENT_CONFIG_MAP_NAME;
   @JsonProperty(value = "agent.rbac.create", defaultValue = DEFAULT_AGENT_RBAC_CREATE)
   private Boolean agentRbacCreate = Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE);
-  @JsonProperty(value = "agent.image", defaultValue = DEFAULT_AGENT_IMAGE)
-  private String agentImage = DEFAULT_AGENT_IMAGE;
+  @JsonProperty(value = "agent.image")
+  private String agentImage;
   @JsonProperty(value = "agent.cpuReq", defaultValue = DEFAULT_AGENT_CPU_REQ)
   private Double agentCpuReq = Double.parseDouble(DEFAULT_AGENT_CPU_REQ);
   @JsonProperty(value = "agent.cpuLimit", defaultValue = DEFAULT_AGENT_CPU_LIMIT)

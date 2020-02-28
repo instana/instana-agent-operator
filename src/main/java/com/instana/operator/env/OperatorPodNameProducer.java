@@ -10,20 +10,24 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import static com.instana.operator.env.Environment.POD_NAME;
+
 @ApplicationScoped
 public class OperatorPodNameProducer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OperatorPodNameProducer.class);
-  public static final String POD_NAME = "POD_NAME";
 
   @Inject
   FatalErrorHandler fatalErrorHandler;
+
+  @Inject
+  Environment environment;
 
   @Produces
   @Singleton
   @Named(POD_NAME)
   String findPodName() {
-    String podName = System.getenv(POD_NAME);
+    String podName = environment.get(POD_NAME);
     if (podName == null) {
       LOGGER.error("Environment variable " + POD_NAME + " not found." +
           " Please ensure the Downward API for " + POD_NAME + " is set using the provided YAML.");

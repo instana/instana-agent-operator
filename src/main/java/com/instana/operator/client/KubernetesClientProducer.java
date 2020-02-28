@@ -37,7 +37,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
+import static com.instana.operator.env.Environment.OPERATOR_NAMESPACE;
 import static com.instana.operator.util.StringUtils.isEmpty;
 import static okhttp3.ConnectionSpec.CLEARTEXT;
 

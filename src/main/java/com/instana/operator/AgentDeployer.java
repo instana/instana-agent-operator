@@ -4,6 +4,7 @@ import com.instana.operator.cache.Cache;
 import com.instana.operator.cache.CacheService;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentSpec;
+import com.instana.operator.env.Environment;
 import com.instana.operator.events.DaemonSetAdded;
 import com.instana.operator.events.DaemonSetDeleted;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -92,6 +93,8 @@ public class AgentDeployer {
   @Inject
   @Named(ExecutorProducer.CDI_HANDLER)
   ScheduledExecutorService executor;
+  @Inject
+  Environment environment;
 
   // The custom endpoints will be the owner of all resources we create.
   private InstanaAgent owner = null;
@@ -267,8 +270,13 @@ public class AgentDeployer {
 
     Container container = daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0);
 
-    if (!isBlank(config.getAgentImage())) {
-      container.setImage(config.getAgentImage());
+    String imageFromEnvVar = environment.get(Environment.RELATED_IMAGE_INSTANA_AGENT);
+    String imageFromCustomResource = config.getAgentImage();
+
+    if (!isBlank(imageFromCustomResource)) {
+      container.setImage(imageFromCustomResource);
+    } else if (!isBlank(imageFromEnvVar)) {
+      container.setImage(imageFromEnvVar);
     }
 
     List<EnvVar> env = container.getEnv();
@@ -293,7 +301,7 @@ public class AgentDeployer {
       env.add(createEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", config.getClusterName()));
     }
     config.getAgentEnv().forEach((k, v) -> env.add(createEnvVar(k, v)));
-    System.getenv().entrySet().stream()
+    environment.all().entrySet().stream()
         .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
         .forEach(e -> {
           env.add(createEnvVar(e.getKey().replaceAll("INSTANA_AGENT_", ""), e.getValue()));
@@ -374,6 +382,10 @@ public class AgentDeployer {
       fatalErrorHandler.systemExit(-1);
       return null; // will not happen, because we called System.exit(-1);
     }
+  }
+
+  public void setEnvironment(Environment environment) {
+    this.environment = environment;
   }
 
   private interface Factory<T extends HasMetadata, L extends KubernetesResourceList<T>, D extends Doneable<T>, R extends Resource<T, D>> {

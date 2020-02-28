@@ -207,3 +207,5 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.annotations['olm.targetNamespaces']
+        - name: RELATED_IMAGE_INSTANA_AGENT
+          value: instana/agent:latest
