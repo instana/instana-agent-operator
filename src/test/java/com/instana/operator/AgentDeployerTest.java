@@ -3,15 +3,17 @@ package com.instana.operator;
 import com.google.common.collect.ImmutableMap;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentSpec;
+import com.instana.operator.env.Environment;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
+import java.util.Collections;
 
 import static com.instana.operator.env.Environment.RELATED_IMAGE_INSTANA_AGENT;
+import static java.util.Collections.emptyMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
@@ -24,6 +26,7 @@ class AgentDeployerTest {
   @Test
   void daemonset_must_include_environment() {
     AgentDeployer deployer = new AgentDeployer();
+    deployer.setEnvironment(empty());
 
     InstanaAgentSpec agentSpec = new InstanaAgentSpec();
     agentSpec.setAgentEnv(ImmutableMap.<String, String>builder()
@@ -46,6 +49,7 @@ class AgentDeployerTest {
   @Test
   void daemonset_must_include_specified_image() {
     AgentDeployer deployer = new AgentDeployer();
+    deployer.setEnvironment(empty());
 
     InstanaAgentSpec agentSpec = new InstanaAgentSpec();
     agentSpec.setAgentImage("other/image:some-tag");
@@ -65,11 +69,8 @@ class AgentDeployerTest {
 
   @Test
   void daemonset_must_include_image_from_csv_if_specified() {
-    HashMap<String, String> environment = new HashMap<>();
     AgentDeployer deployer = new AgentDeployer();
-    deployer.setEnvironment(environment::get);
-
-    environment.put(RELATED_IMAGE_INSTANA_AGENT, "other/image:some-tag");
+    deployer.setEnvironment(singleVar(RELATED_IMAGE_INSTANA_AGENT, "other/image:some-tag"));
 
     InstanaAgent crd = new InstanaAgent();
     crd.setSpec(new InstanaAgentSpec());
@@ -86,4 +87,13 @@ class AgentDeployerTest {
   private Container getAgentContainer(DaemonSet daemonSet) {
     return daemonSet.getSpec().getTemplate().getSpec().getContainers().get(0);
   }
+
+  private Environment empty() {
+    return Environment.fromMap(emptyMap());
+  }
+
+  private Environment singleVar(String key, String value) {
+    return Environment.fromMap(Collections.singletonMap(key, value));
+  }
+
 }

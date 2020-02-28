@@ -18,12 +18,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
+import static com.instana.operator.env.Environment.OPERATOR_NAMESPACE;
+import static com.instana.operator.env.Environment.TARGET_NAMESPACES;
+
 @ApplicationScoped
 public class NamespaceProducer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceProducer.class);
-  public static final String OPERATOR_NAMESPACE = "OPERATOR_NAMESPACE";
-  public static final String TARGET_NAMESPACES = "TARGET_NAMESPACES";
+
 
   // From the CSV deployment spec:
   // ----------------------------------------------
@@ -42,6 +44,9 @@ public class NamespaceProducer {
 
   @Inject
   FatalErrorHandler fatalErrorHandler;
+
+  @Inject
+  Environment environment;
 
   @Produces
   @Singleton
@@ -76,7 +81,7 @@ public class NamespaceProducer {
   @Named(TARGET_NAMESPACES)
   Set<String> loadTargetNamespaces() {
     Set<String> result = new TreeSet<>();
-    String targetNamespaces = System.getenv(TARGET_NAMESPACES);
+    String targetNamespaces = environment.get(TARGET_NAMESPACES);
     if (!StringUtils.isBlank(targetNamespaces)) {
       for (String ns : targetNamespaces.split(",")) {
         result.add(ns.trim());
@@ -95,6 +100,6 @@ public class NamespaceProducer {
   }
 
   private Optional<String> loadOperatorNamespaceFromEnv() {
-    return Optional.ofNullable(System.getenv(OPERATOR_NAMESPACE)).filter(s -> !StringUtils.isBlank(s));
+    return Optional.ofNullable(environment.get(OPERATOR_NAMESPACE)).filter(s -> !StringUtils.isBlank(s));
   }
 }

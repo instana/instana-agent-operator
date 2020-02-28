@@ -93,6 +93,8 @@ public class AgentDeployer {
   @Inject
   @Named(ExecutorProducer.CDI_HANDLER)
   ScheduledExecutorService executor;
+  @Inject
+  Environment environment;
 
   // The custom endpoints will be the owner of all resources we create.
   private InstanaAgent owner = null;
@@ -101,8 +103,6 @@ public class AgentDeployer {
   private Disposable[] watchers = null;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentDeployer.class);
-
-  private Environment environment = System::getenv;
 
   public void customResourceAdded(InstanaAgent customResource) {
     if (owner != null) {
@@ -301,7 +301,7 @@ public class AgentDeployer {
       env.add(createEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", config.getClusterName()));
     }
     config.getAgentEnv().forEach((k, v) -> env.add(createEnvVar(k, v)));
-    System.getenv().entrySet().stream()
+    environment.all().entrySet().stream()
         .filter(e -> e.getKey().startsWith("INSTANA_AGENT_") && !"INSTANA_AGENT_KEY".equals(e.getKey()))
         .forEach(e -> {
           env.add(createEnvVar(e.getKey().replaceAll("INSTANA_AGENT_", ""), e.getValue()));

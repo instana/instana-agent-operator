@@ -22,8 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
-import static com.instana.operator.env.OperatorPodNameProducer.POD_NAME;
+import static com.instana.operator.env.Environment.OPERATOR_NAMESPACE;
+import static com.instana.operator.env.Environment.POD_NAME;
 import static com.instana.operator.util.ResourceUtils.RUNNING;
 import static com.instana.operator.util.ResourceUtils.isRunning;
 

@@ -4,7 +4,12 @@ import com.instana.operator.cache.Cache;
 import com.instana.operator.cache.CacheService;
 import com.instana.operator.events.OperatorLeaderElected;
 import com.instana.operator.events.OperatorPodValidated;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.ConfigMapList;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
@@ -22,8 +27,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
-import static com.instana.operator.env.OperatorPodNameProducer.POD_NAME;
+import static com.instana.operator.env.Environment.OPERATOR_NAMESPACE;
+import static com.instana.operator.env.Environment.POD_NAME;
 import static com.instana.operator.util.ResourceUtils.hasOwner;
 import static com.instana.operator.util.ResourceUtils.name;
 

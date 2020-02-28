@@ -1,5 +1,6 @@
 package com.instana.operator;
 
+import com.instana.operator.env.Environment;
 import com.instana.operator.events.OperatorPodRunning;
 import com.instana.operator.events.OperatorPodValidated;
 import com.instana.operator.util.StringUtils;
@@ -16,9 +17,9 @@ import javax.inject.Named;
 import java.util.Set;
 import java.util.TreeSet;
 
-import static com.instana.operator.env.NamespaceProducer.OPERATOR_NAMESPACE;
-import static com.instana.operator.env.NamespaceProducer.TARGET_NAMESPACES;
-import static com.instana.operator.env.OperatorPodNameProducer.POD_NAME;
+import static com.instana.operator.env.Environment.OPERATOR_NAMESPACE;
+import static com.instana.operator.env.Environment.POD_NAME;
+import static com.instana.operator.env.Environment.TARGET_NAMESPACES;
 
 @ApplicationScoped
 public class OperatorPodValidator {
@@ -40,6 +41,8 @@ public class OperatorPodValidator {
   Event<OperatorPodValidated> operatorPodValidatedEventEvent;
   @Inject
   NotificationOptions asyncSerial;
+  @Inject
+  Environment environment;
 
   void onOperatorPodRunning(@ObservesAsync OperatorPodRunning event) {
     Pod myself = event.getOperatorPod();
@@ -64,7 +67,7 @@ public class OperatorPodValidator {
       }
       String olmTargetNamespaces = myself.getMetadata().getAnnotations().get("olm.targetNamespaces");
       if (!StringUtils.isBlank(olmTargetNamespaces)) {
-        if (System.getenv(TARGET_NAMESPACES) == null) {
+        if (environment.get(TARGET_NAMESPACES) == null) {
           LOGGER.error("Configuration error: The operator Pod " + podName + " is annotated with" +
               " olm.targetNamespaces: " + olmTargetNamespaces + " but the environment variable " + TARGET_NAMESPACES +
               " is empty.");
@@ -77,7 +80,7 @@ public class OperatorPodValidator {
         if (!targetNamespaces.equals(nss)) {
           LOGGER.error("Configuration error: The operator Pod " + podName + " is annotated with" +
               " olm.targetNamespaces: " + olmTargetNamespaces + " but has environment variable " + TARGET_NAMESPACES +
-              "=\"" + System.getenv(TARGET_NAMESPACES) + "\".");
+              "=\"" + environment.get(TARGET_NAMESPACES) + "\".");
           fatalErrorHandler.systemExit(-1);
         }
       }
