@@ -1,3 +1,4 @@
+local agentImage = std.extVar('agentImage');
 local crd = std.parseJson(std.extVar('crds'))[0];
 local crd_descriptors = std.parseJson(std.extVar('crd_descriptors'))[0];
 local description = std.extVar('description');
@@ -23,7 +24,17 @@ local mapDeployment(dep) = {
 local deployment = std.filterMap(isDeployment, mapDeployment, resources)[0] + {
 	spec+: { template+: { spec+: {
 		assert std.length(super.containers) == 1 : "Expected exactly 1 container in operator deployment pod",
-		containers: [ super.containers[0] { image: imagePrefix + super.image + ":" + version } ]
+		containers: [
+			super.containers[0] {
+				image: imagePrefix + super.image + ":" + version,
+				[if std.length(agentImage) > 0 then "env"]: super.env + [
+					{
+						name: "RELATED_IMAGE_INSTANA_AGENT",
+						value: agentImage
+					}
+				]
+			}
+		]
 	}}}
 };
 local isCrd(res) = res.kind == "CustomResourceDefinition";
