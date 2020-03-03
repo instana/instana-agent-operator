@@ -4,10 +4,11 @@ local description = std.extVar('description');
 local examples = std.extVar('examples');
 local image = std.extVar('image');
 local isoDate = std.extVar('isoDate');
-local resources = std.parseJson(std.extVar('resources'));
-local version = std.extVar('version');
 local prevPackage = std.parseJson(std.extVar('prevPackage'))[0];
 local registry = std.extVar('registry');
+local replaces = std.parseJson(std.extVar('replaces'));
+local resources = std.parseJson(std.extVar('resources'));
+local version = std.extVar('version');
 
 local crdVersion = "v1beta1";
 local imagePrefix = if std.length(registry) > 0 then registry + "/" else "";
@@ -65,7 +66,7 @@ local crdWithDescriptors = {
 				}
 			],
 			"version": version,
-			"replaces": "instana-agent-operator.v" + prevVersion,
+			[if replaces then "replaces"]: "instana-agent-operator.v" + prevVersion,
 			"minKubeVersion": "1.11.0",
 			"provider": {
 				"name": "Instana"

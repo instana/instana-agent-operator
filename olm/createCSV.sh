@@ -5,7 +5,13 @@ set -e
 SCRIPT=$0
 VERSION=${1:-dev}
 MANIFEST_NAME=${2:-olm}
-REGISTRY=$3
+
+if [ $MANIFEST_NAME = "olm" ] ; then
+  REPLACES=true
+elif [ $MANIFEST_NAME = "redhat" ] ; then
+  REGISTRY="registry.connect.redhat.com"
+  REPLACES=false
+fi
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 TARGET_DIR="$SCRIPTPATH/../target"
@@ -29,6 +35,7 @@ jsonnet \
   --ext-str registry=$REGISTRY \
   --ext-str prevPackage="$PREV_PACKAGE" \
   --ext-str resources="$RESOURCES" \
+  --ext-str replaces="$REPLACES" \
   --ext-str version=$VERSION \
   -m $MANIFEST_DIR \
   $SCRIPTPATH/template.jsonnet

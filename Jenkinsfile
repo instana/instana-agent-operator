@@ -69,7 +69,7 @@ pipeline {
 
           sh "./olm/createCSV.sh $VERSION olm"
 
-          sh "./olm/createCSV.sh $VERSION redhat registry.connect.redhat.com"
+          sh "./olm/createCSV.sh $VERSION redhat"
         }
       }
 
