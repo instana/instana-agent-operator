@@ -7,11 +7,10 @@ VERSION=${1:-dev}
 MANIFEST_NAME=${2:-olm}
 
 if [ $MANIFEST_NAME = "olm" ] ; then
-  REPLACES=true
+  REDHAT=false
 elif [ $MANIFEST_NAME = "redhat" ] ; then
   REGISTRY="registry.connect.redhat.com"
-  REPLACES=false
-  AGENT_IMAGE="registry.connect.redhat.com/instana/agent:latest"
+  REDHAT=true
 fi
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -28,7 +27,6 @@ RESOURCES=$($SCRIPTPATH/yaml_to_json < "$SCRIPTPATH/../deploy/instana-agent-oper
 mkdir -p $MANIFEST_DIR
 
 jsonnet \
-  --ext-str agentImage="$AGENT_IMAGE" \
   --ext-str crd_descriptors="$CRD_DESCRIPTORS" \
   --ext-str-file description=$SCRIPTPATH/description.md \
   --ext-str examples="$EXAMPLES" \
@@ -36,8 +34,8 @@ jsonnet \
   --ext-str isoDate=$DATE \
   --ext-str registry=$REGISTRY \
   --ext-str prevPackage="$PREV_PACKAGE" \
+  --ext-str redhat="$REDHAT" \
   --ext-str resources="$RESOURCES" \
-  --ext-str replaces="$REPLACES" \
   --ext-str version=$VERSION \
   -m $MANIFEST_DIR \
   $SCRIPTPATH/template.jsonnet

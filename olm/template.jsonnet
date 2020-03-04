@@ -1,4 +1,3 @@
-local agentImage = std.extVar('agentImage');
 local crd = std.parseJson(std.extVar('crds'))[0];
 local crd_descriptors = std.parseJson(std.extVar('crd_descriptors'))[0];
 local description = std.extVar('description');
@@ -6,8 +5,8 @@ local examples = std.extVar('examples');
 local image = std.extVar('image');
 local isoDate = std.extVar('isoDate');
 local prevPackage = std.parseJson(std.extVar('prevPackage'))[0];
+local redhat = std.parseJson(std.extVar('redhat'));
 local registry = std.extVar('registry');
-local replaces = std.parseJson(std.extVar('replaces'));
 local resources = std.parseJson(std.extVar('resources'));
 local version = std.extVar('version');
 
@@ -27,10 +26,15 @@ local deployment = std.filterMap(isDeployment, mapDeployment, resources)[0] + {
 		containers: [
 			super.containers[0] {
 				image: imagePrefix + super.image + ":" + version,
-				[if std.length(agentImage) > 0 then "env"]: super.env + [
+				[if redhat then "ports"]: [{ containerPort: 9000 }],
+				[if redhat then "env"]: super.env + [
 					{
 						name: "RELATED_IMAGE_INSTANA_AGENT",
-						value: agentImage
+						value: "registry.connect.redhat.com/instana/agent:latest"
+					},
+					{
+						name: "QUARKUS_HTTP_PORT",
+						value: "9000"
 					}
 				]
 			}
@@ -77,7 +81,7 @@ local crdWithDescriptors = {
 				}
 			],
 			"version": version,
-			[if replaces then "replaces"]: "instana-agent-operator.v" + prevVersion,
+			[if !redhat then "replaces"]: "instana-agent-operator.v" + prevVersion,
 			"minKubeVersion": "1.11.0",
 			"provider": {
 				"name": "Instana"
