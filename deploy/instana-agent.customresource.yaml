@@ -4,10 +4,10 @@ metadata:
   name: instana-agent
   namespace: instana-agent
 spec:
-  agent.zone.name: (optional) name of the zone of the host
-  agent.key: put your Instana agent key here
-  agent.endpoint.host: the monitoring ingress endpoint
-  agent.endpoint.port: the monitoring ingress endpoint port, wrapped in quotes
+  agent.zone.name: my-zone # (optional) name of the zone of the host
+  agent.key: replace-me # put your Instana agent key here
+  agent.endpoint.host: ingress-red-saas.instana.io # the monitoring ingress endpoint
+  agent.endpoint.port: 443 # the monitoring ingress endpoint port, wrapped in quotes
   agent.env:
     INSTANA_AGENT_TAGS: example
   config.files:
