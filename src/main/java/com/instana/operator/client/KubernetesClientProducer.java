@@ -121,7 +121,7 @@ public class KubernetesClientProducer {
           trustManager = (X509TrustManager) trustManagers[0];
         }
 
-        SSLContext sslContext = SSLUtils.sslContext(keyManagers, trustManagers, config.isTrustCerts());
+        SSLContext sslContext = SSLUtils.sslContext(keyManagers, trustManagers);
         httpClientBuilder.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
       } else {
         SSLContext context = SSLContext.getInstance("TLSv1.2");

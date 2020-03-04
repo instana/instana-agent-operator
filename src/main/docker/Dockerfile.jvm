@@ -13,7 +13,6 @@ LABEL name="instana-agent-operator" \
 
 RUN microdnf install java-11-openjdk-headless && microdnf clean all
 COPY licenses /licenses
-ENV JAVA_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 COPY target/lib/* /deployments/lib/
 COPY target/*-runner.jar /deployments/app.jar
 ENTRYPOINT [ "java", "-jar", "/deployments/app.jar" ]
