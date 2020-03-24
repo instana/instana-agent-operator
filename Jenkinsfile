@@ -28,7 +28,7 @@ pipeline {
         script {
           def TAG = gitTag()
           def VERSION = dockerVersion(TAG)
-          def BUILD_ARGS = "-f $DOCKERFILE --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
+          def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
           docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
             def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
