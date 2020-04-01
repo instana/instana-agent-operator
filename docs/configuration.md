@@ -28,7 +28,7 @@ Currently, it is also possible to configure the `agent.image` via the `RELATED_I
 ---
         env:
         - name: "RELATED_IMAGE_INSTANA_AGENT",
-					value: "instana/agent:latest"
+          value: "instana/agent:latest"
 ```
 
 The operator first looks at the `agent.image` parameter in the CRD to determine the agent image. If this is null, it then checks the environment variable above. Finally if both of these are null, it usess the default `instana/agent:latest`.
