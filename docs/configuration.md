@@ -1,5 +1,7 @@
 ## Configuration
 
+### Custom Resource Values
+
 The Instana Agent Custom resource supports the following values:
 
 | Parameter | Description |
@@ -17,3 +19,16 @@ The Instana Agent Custom resource supports the following values:
 | `agent.cpuLimit` | (optional) CPU limits for agent in CPU cores |
 | `agent.memReq` | (optional) Memory requests for agent in Mi |
 | `agent.memLimit` | (optional) Memory limits for agent in Mi |
+
+### Environment variables
+
+Currently, it is also possible to configure the `agent.image` via the `RELATED_IMAGE_INSTANA_AGENT` environment variable specified in the [`instana-agent-operator` deployment](../deploy/instana-agent-operator.yaml#L197):
+
+```yaml
+---
+        env:
+        - name: "RELATED_IMAGE_INSTANA_AGENT",
+					value: "instana/agent:latest"
+```
+
+The operator first looks at the `agent.image` parameter in the CRD to determine the agent image. If this is null, it then checks the environment variable above. Finally if both of these are null, it usess the default `instana/agent:latest`.
