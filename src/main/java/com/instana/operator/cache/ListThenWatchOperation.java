@@ -42,7 +42,7 @@ class ListThenWatchOperation {
         );
 
     // watch
-    final Backoff backoff = new Backoff((backoffCallback) -> {
+    final Retry retry = new Retry((backoffCallback) -> {
       final Watch watch = op.watch(new Watcher<T>() {
         @Override
         public void eventReceived(Action action, T resource) {
@@ -85,6 +85,6 @@ class ListThenWatchOperation {
       return Disposables.fromAction(watch::close);
     }, Schedulers.from(executor));
 
-    return backoff.start();
+    return retry.start();
   }
 }

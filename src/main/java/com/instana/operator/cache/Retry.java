@@ -9,15 +9,15 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class Backoff {
+public class Retry {
   public static final Duration INITIAL_DELAY = Duration.ofSeconds(1);
-  private final BackoffRunnable task;
+  private final RetryRunnable task;
   private final Scheduler scheduler;
   private final AtomicReference<Duration> delay = new AtomicReference<>(INITIAL_DELAY);
   private final AtomicReference<Disposable> scheduledDisposableRef = new AtomicReference<>();
   private final AtomicReference<Disposable> taskDisposableRef = new AtomicReference<>();
 
-  public Backoff(BackoffRunnable task, Scheduler scheduler) {
+  public Retry(RetryRunnable task, Scheduler scheduler) {
     this.task = task;
     this.scheduler = scheduler;
   }
@@ -31,7 +31,7 @@ public class Backoff {
   }
 
   @FunctionalInterface
-  interface BackoffRunnable {
+  interface RetryRunnable {
     Disposable run(TaskCallback callback);
   }
 
