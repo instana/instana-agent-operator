@@ -78,7 +78,6 @@ class CacheTest {
       simulator.simulatePodAdded("uid1", "pod1", 1);
     }
     cacheService.terminate(5, TimeUnit.SECONDS);
-    Assertions.assertTrue(errorHandler.wasSystemExitCalled());
   }
 
   @Test
@@ -87,26 +86,12 @@ class CacheTest {
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
       podCache.listThenWatch(simulator).subscribe(
           event -> {},
-          ex -> {errorHandlerCalled.set(true);}
+          ex -> errorHandlerCalled.set(true)
       );
       simulator.simulateError();
     }
     cacheService.terminate(5, TimeUnit.SECONDS);
     Assertions.assertTrue(errorHandlerCalled.get());
-    Assertions.assertTrue(errorHandler.wasSystemExitCalled());
-  }
-
-  @Test
-  void testExceptionInErrorHandler() throws Exception {
-    try (KubernetesSimulator simulator = new KubernetesSimulator()) {
-      podCache.listThenWatch(simulator).subscribe(
-          event -> {},
-          ex -> {throw new RuntimeException("test");}
-      );
-      simulator.simulateError();
-    }
-    cacheService.terminate(5, TimeUnit.SECONDS);
-    Assertions.assertTrue(errorHandler.wasSystemExitCalled());
   }
 
   @Test
@@ -115,9 +100,7 @@ class CacheTest {
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
       simulator.simulatePodAdded("test", "test", 1);
       Disposable watch = podCache.listThenWatch(simulator).subscribe(
-          event -> {
-            numberEventsReceived.incrementAndGet();
-          }
+          event -> numberEventsReceived.incrementAndGet()
       );
       Thread.sleep(100); // receive first event
       watch.dispose();
