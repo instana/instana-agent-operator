@@ -76,7 +76,6 @@ class ListThenWatchOperation {
         @Override
         public void onClose(KubernetesClientException cause) {
           if (cause != null) { // null means normal close, i.e. Watch.close() was called.
-            onErrorCallback.accept(cause);
             // tell backoff we failed with an error so we restart the watches
             backoffCallback.done(cause);
           }

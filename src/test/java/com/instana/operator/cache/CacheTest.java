@@ -78,10 +78,11 @@ class CacheTest {
       simulator.simulatePodAdded("uid1", "pod1", 1);
     }
     cacheService.terminate(5, TimeUnit.SECONDS);
+    Assertions.assertTrue(errorHandler.wasSystemExitCalled());
   }
 
   @Test
-  void testErrorHandlerCalled() throws Exception {
+  void testWatchErrorsAreHandled() throws Exception {
     AtomicBoolean errorHandlerCalled = new AtomicBoolean(false);
     try (KubernetesSimulator simulator = new KubernetesSimulator()) {
       podCache.listThenWatch(simulator).subscribe(
@@ -91,7 +92,7 @@ class CacheTest {
       simulator.simulateError();
     }
     cacheService.terminate(5, TimeUnit.SECONDS);
-    Assertions.assertTrue(errorHandlerCalled.get());
+    Assertions.assertFalse(errorHandlerCalled.get());
   }
 
   @Test
