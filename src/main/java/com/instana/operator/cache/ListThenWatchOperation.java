@@ -77,7 +77,7 @@ class ListThenWatchOperation {
         public void onClose(KubernetesClientException cause) {
           if (cause != null) { // null means normal close, i.e. Watch.close() was called.
             // tell backoff we failed with an error so we restart the watches
-            LOGGER.info("Exception in watch: " + cause.getMessage() + ". Restarting watch...");
+            LOGGER.debug("Exception in watch: " + cause.getMessage() + ". Restarting watch...");
             backoffCallback.done(cause);
           }
         }
