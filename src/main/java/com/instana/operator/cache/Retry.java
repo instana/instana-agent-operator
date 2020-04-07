@@ -10,7 +10,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Retry {
-  public static final Duration INITIAL_DELAY = Duration.ofSeconds(1);
+  static final Duration INITIAL_DELAY = Duration.ofSeconds(1);
+  static final Duration RESET_DELAY = Duration.ofMinutes(5);
   private final RetryRunnable task;
   private final Scheduler scheduler;
   private final AtomicReference<Duration> delay = new AtomicReference<>(INITIAL_DELAY);
@@ -43,7 +44,9 @@ public class Retry {
   private class TaskRunnable implements Runnable {
     @Override
     public void run() {
+      final Disposable resetDisposable = scheduler.scheduleDirect(() -> delay.set(INITIAL_DELAY), RESET_DELAY.toMillis(), TimeUnit.MILLISECONDS);
       taskDisposableRef.set(task.run(ex -> {
+        resetDisposable.dispose();
         if (ex != null) {
           scheduledDisposableRef.set(scheduler.scheduleDirect(new TaskRunnable(), delay.get().toMillis(), TimeUnit.MILLISECONDS));
           delay.updateAndGet(cur -> cur.multipliedBy(2));
@@ -51,4 +54,5 @@ public class Retry {
       }));
     }
   }
+
 }
