@@ -1,5 +1,4 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
-MAINTAINER Instana, support@instana.com
 
 ARG VERSION=dev
 ARG BUILD=1

@@ -2,18 +2,24 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: instana-agent
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: instana-agent-operator
   namespace: instana-agent
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: instana-agent-operator
   namespace: instana-agent
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
 rules:
 # -------------------------------------------------------------------------
 # The following are the resources created by the operator,
@@ -139,7 +145,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: instana-agent-operator
-  namespace: instana-agent
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
 subjects:
 - kind: ServiceAccount
   name: instana-agent-operator
@@ -154,6 +161,8 @@ kind: CustomResourceDefinition
 metadata:
   name: agents.instana.io
   namespace: instana-agent
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
 spec:
   group: instana.io
   scope: Namespaced
@@ -177,15 +186,17 @@ kind: Deployment
 metadata:
   name: instana-agent-operator
   namespace: instana-agent
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
 spec:
   selector:
     matchLabels:
-      app: instana-agent-operator
+      app.kubernetes.io/name: instana-agent-operator
   replicas: 1
   template:
     metadata:
       labels:
-        app: instana-agent-operator
+        app.kubernetes.io/name: instana-agent-operator
     spec:
       serviceAccountName: instana-agent-operator
       containers:
