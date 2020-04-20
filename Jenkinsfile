@@ -70,6 +70,12 @@ pipeline {
           sh "./olm/create-artifacts.sh $VERSION olm"
 
           sh "./olm/create-artifacts.sh $VERSION redhat"
+
+          withCredentials([string(credentialsId: 'GH_TOKEN', variable: 'GH_TOKEN')]) {
+            if (isFullRelease(TAG)) {
+              sh "./olm/operator-resources/create-github-release.sh $VERSION $GH_TOKEN"
+            }
+          }
         }
       }
 
