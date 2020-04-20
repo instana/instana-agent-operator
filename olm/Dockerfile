@@ -4,7 +4,7 @@ RUN apk update
 
 RUN apk add jsonnet --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 
-RUN apk add python3 bash git zip
+RUN apk add python3 bash git zip jq curl
 
 RUN pip3 install --upgrade pip
 
