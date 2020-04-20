@@ -22,7 +22,7 @@ The Instana Agent Custom resource supports the following values:
 
 ### Environment variables
 
-Currently, it is also possible to configure the `agent.image` via the `RELATED_IMAGE_INSTANA_AGENT` environment variable specified in the [`instana-agent-operator` deployment](../deploy/instana-agent-operator.yaml#L197):
+Currently, it is also possible to configure the `agent.image` via the `RELATED_IMAGE_INSTANA_AGENT` environment variable specified in the [`instana-agent-operator` deployment](../olm/operator-resources/instana-agent-operator.yaml#L197):
 
 ```yaml
 ---
