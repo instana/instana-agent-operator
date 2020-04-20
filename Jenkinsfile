@@ -67,9 +67,9 @@ pipeline {
           def TAG = gitTag()
           def VERSION = dockerVersion(TAG)
 
-          sh "./olm/createCSV.sh $VERSION olm"
+          sh "./olm/create-artifacts.sh $VERSION olm"
 
-          sh "./olm/createCSV.sh $VERSION redhat"
+          sh "./olm/create-artifacts.sh $VERSION redhat"
         }
       }
 
@@ -77,6 +77,7 @@ pipeline {
         success {
           archiveArtifacts artifacts: 'target/redhat-*.zip'
           archiveArtifacts artifacts: 'target/olm/*'
+          archiveArtifacts artifacts: 'target/operator-resources/*'
         }
       }
     }
