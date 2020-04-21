@@ -33,7 +33,7 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   GITHUB_RELEASE_ID=$(echo ${GITHUB_RELEASE_RESPONSE} | jq .id)
   if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
     echo "Unable to determine GitHub Release id. Please check on https://github.com/instana/instana-agent-operator/releases if it was created"
-    exit 1
+    exit 0
   fi
 fi
 
