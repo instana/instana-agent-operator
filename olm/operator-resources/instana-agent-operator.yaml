@@ -91,7 +91,6 @@ rules:
   - 'pods'
   - 'replicationcontrollers'
   - 'resourcequotas'
-  - 'resourcequotas'
   - 'services'
   verbs:
   - 'get'
@@ -110,6 +109,8 @@ rules:
   resources:
   - 'deployments'
   - 'replicasets'
+  - 'daemonsets'
+  - 'statefulsets'
   verbs:
   - 'get'
   - 'list'
@@ -118,6 +119,7 @@ rules:
   - 'batch'
   resources:
   - 'jobs'
+  - 'cronjobs'
   verbs:
   - 'get'
   - 'list'
@@ -132,6 +134,14 @@ rules:
   - 'get'
   - 'list'
   - 'watch'
+- apiGroups:
+  - 'networking.k8s.io'
+  resources:
+    - 'ingresses'
+  verbs:
+    - 'get'
+    - 'list'
+    - 'watch'
 - apiGroups:
   - "apps.openshift.io"
   resources:

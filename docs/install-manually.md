@@ -10,7 +10,7 @@ Before you start, if you are installing the operator into OpenShift, note the ex
 Deploy the operator as follows:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/instana/instana-agent-operator/master/deploy/instana-agent-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/instana/instana-agent-operator/master/olm/operator-resources/instana-agent-operator.yaml
 ```
 
 Now the operator should be up and running in namespace `instana-agent`, waiting for an `instana-agent` custom resource to
