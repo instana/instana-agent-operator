@@ -71,9 +71,9 @@ pipeline {
 
           sh "./olm/create-artifacts.sh $VERSION redhat"
 
-          withCredentials([string(credentialsId: 'GH_TOKEN', variable: 'GH_TOKEN')]) {
+          withCredentials([string(credentialsId: 'GH_API_TOKEN', variable: 'GH_API_TOKEN')]) {
             if (isFullRelease(TAG)) {
-              sh "./olm/operator-resources/create-github-release.sh $VERSION $GH_TOKEN"
+              sh "./olm/operator-resources/create-github-release.sh $VERSION $GH_API_TOKEN"
             }
           }
         }
