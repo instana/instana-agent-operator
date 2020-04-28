@@ -13,7 +13,7 @@ fi
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )/../.."
 TARGET_DIR="$ROOT_DIR/target"
 MANIFEST_NAME="operator-resources"
-MANIFEST_DIR="$TARGET_DIR/$MANIFEST_NAME"
+MANIFEST_DIR="$TARGET_DIR/$MANIFEST_NAME/$VERSION"
 GITHUB_RELEASES_URL="https://api.github.com/repos/instana/instana-agent-operator/releases"
 
 printf "%s" "Checking if release v${VERSION} exists..."
@@ -37,7 +37,7 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   fi
 fi
 
-OPERATOR_RESOURCE_FILENAME="instana-agent-operator.v${VERSION}.yaml"
+OPERATOR_RESOURCE_FILENAME="instana-agent-operator.yaml"
 OPERATOR_RESOURCE="${MANIFEST_DIR}/${OPERATOR_RESOURCE_FILENAME}"
 
 upload_github_asset() {
