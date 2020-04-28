@@ -25,11 +25,11 @@ CRD_DESCRIPTORS=$(${SCRIPTPATH}/yaml_to_json < "$SCRIPTPATH/CRD.descriptors.yaml
 EXAMPLES=$(${SCRIPTPATH}/yaml_to_json < "$SCRIPTPATH/../deploy/instana-agent.customresource.yaml")
 
 # Generate versioned operator artifacts if they do not exist
-if [[ ! -f "$OPERATOR_RESOURCES_DIR/instana-agent-operator.v$VERSION.yaml" ]] ; then
+if [[ ! -f "$OPERATOR_RESOURCES_DIR/$VERSION/instana-agent-operator.yaml" ]] ; then
   ${SCRIPTPATH}/operator-resources/create-operator-artifacts.sh ${VERSION}
 fi
 
-RESOURCES=$(${SCRIPTPATH}/yaml_to_json < "$OPERATOR_RESOURCES_DIR/instana-agent-operator.v$VERSION.yaml")
+RESOURCES=$(${SCRIPTPATH}/yaml_to_json < "$OPERATOR_RESOURCES_DIR/$VERSION/instana-agent-operator.yaml")
 
 mkdir -p ${MANIFEST_DIR}
 
