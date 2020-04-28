@@ -30,16 +30,15 @@ pipeline {
           def VERSION = dockerVersion(TAG)
           def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
-          docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
-            def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
+          if (isFullRelease(TAG)) {
+            docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
+              def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
 
-            image.push()
-
-            if (isFullRelease(TAG)) {
+              image.push()
               image.push('latest')
-            } else {
-              echo "Skipping pushing latest tag because this is a pre-release or branch."
             }
+          } else {
+            echo "Skipping pushing tag because this is a pre-release or branch."
           }
 
           if (isFullRelease(TAG)) {
