@@ -50,7 +50,7 @@ spec:
 config.files:
   configuration.yaml: |
     # You can leave this empty, or use this to configure your instana agent.
-    # See https://docs.instana.io/quick_start/agent_setup/container/kubernetes/
+    # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
 ```
 
 Save the template in a file `instana-agent.yaml` and edit the following values:
@@ -61,7 +61,7 @@ Save the template in a file `instana-agent.yaml` and edit the following values:
 * `agent.endpoint.port` must be set with the monitoring ingress port, generally "443" (wrapped in quotes).
 * `agent.zone.name` should be set with the name of the Kubernetes cluster that is be displayed in Instana.
 
-For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation here: [https://docs.instana.io/quick_start/agent_setup/container/kubernetes/](https://docs.instana.io/quick_start/agent_setup/container/kubernetes/).
+For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation [here](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/).
 
 Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster should show on the infrastructure map on your Instana Web interface.
 
