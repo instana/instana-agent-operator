@@ -1,7 +1,6 @@
-Run an Operator Registry Locally
---------------------------------
+## Run an Operator Registry Locally
 
-[install-via-olm.md](install-via-olm.md) describes how to install the `instana-agent-operator` using the [Operator Lifecycle Manager (OLM)](https://github.com/operator-framework/operator-lifecycle-manager). By default, the OLM will download the `instana-agent-operator` bundle from [operatorhub.io](https://operatorhub.io).
+[Install Operator via OLM](https://docs.instana.io/setup_and_manage/host_agent/on/openshift/#install-operator-via-olm) describes how to install the `instana-agent-operator` using the [Operator Lifecycle Manager (OLM)](https://github.com/operator-framework/operator-lifecycle-manager). By default, the OLM will download the `instana-agent-operator` bundle from [operatorhub.io](https://operatorhub.io).
 
 Most users should use the bundle from [operatorhub.io](https://operatorhub.io). However, if you want to make changes to the operator bundle, it is convenient to have your own operator registry running locally, so that you can experiment with your changes. This document shows how to run the OLM and an [operator registry](https://github.com/operator-framework/operator-registry) locally.
 
@@ -92,9 +91,8 @@ spec:
 
 _TODO: If you have pushed the `example-registry` image to a remote repository above, change the `image:` prefix accordingly so that the image is pulled from there._
 
-Result
-------
+## Result
 
 On [http://localhost:9000](http://localhost:9000) under _Operator Management_ -> _Create Subscription_ you should now be able to choose the `instana-agent-operator`. If it's not there immediately, wait a minute and reload the page, as it takes a while until the OLM runs your example registry Pod.
 
-You can now follow the instructions on [install-via-olm.md](install-via-olm.md) to install the operator.
+You can now follow the instructions on [Install Operator via OLM](https://docs.instana.io/setup_and_manage/host_agent/on/openshift/#install-operator-via-olm).

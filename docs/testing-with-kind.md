@@ -60,7 +60,7 @@ kind load docker-image instana/agent
 Install the Operator
 --------------------
 
-Follow the steps described in [install-manually.md](install-manually.md)
+Follow the steps described in [Install Operator Manually](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually)
 
 Expected result
 ---------------
