@@ -2,20 +2,17 @@ local operatorResources = std.parseJson(std.extVar('operatorResources'));
 local version = std.extVar('version');
 
 local addVersionToMetadataLabels(resource) = resource + {
-	metadata+: { labels+:
-	 super.labels + { "app.kubernetes.io/version": version }
-	}
+  metadata+: { labels+:
+    super.labels + { "app.kubernetes.io/version": version }
+  }
 };
 local operatorResourcesWithVersion = std.map(addVersionToMetadataLabels, operatorResources);
 
 local addVersionToDeploymentSpec(deployment) = deployment + {
   spec+: {
-    selector+: { matchLabels+:
-      super.matchLabels + { "app.kubernetes.io/version": version }
-  	},
-  	template+: { metadata+: { labels+:
-  	  super.labels + { "app.kubernetes.io/version": version }
-  	}}
+    template+: { metadata+: { labels+:
+      super.labels + { "app.kubernetes.io/version": version }
+    }}
   }
 };
 local isDeployment(res) = res.kind == "Deployment";
