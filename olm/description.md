@@ -37,20 +37,23 @@ Third, create a custom resource with the agent configuration in the target names
 The following is a minimal template of the custom resource:
 
 ```yaml
-apiVersion: instana.io/v1alpha1
+apiVersion: instana.io/v1beta1
 kind: InstanaAgent
 metadata:
   name: instana-agent
   namespace: instana-agent
 spec:
-  agent.zone.name: '{{ (optional) name of the zone of the host }}'
-  agent.key: '{{ put your Instana agent key here }}'
-  agent.endpoint.host: '{{ the monitoring ingress endpoint }}'
-  agent.endpoint.port: '{{ the monitoring ingress endpoint port, wrapped in quotes }}'
-config.files:
-  configuration.yaml: |
-    # You can leave this empty, or use this to configure your instana agent.
-    # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
+  agent.zone.name: my-zone # (optional) name of the zone of the host
+  agent.key: replace-me # replace with your Instana agent key
+  agent.endpoint.host: ingress-red-saas.instana.io # the monitoring ingress endpoint
+  agent.endpoint.port: 443 # the monitoring ingress endpoint port, wrapped in quotes
+  agent.env:
+    INSTANA_AGENT_TAGS: example
+  cluster.name: replace-me # replace with the name of your Kubernetes cluster
+  config.files:
+    configuration.yaml: |
+      # You can leave this empty, or use this to configure your instana agent.
+      # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
 ```
 
 Save the template in a file `instana-agent.yaml` and edit the following values:
