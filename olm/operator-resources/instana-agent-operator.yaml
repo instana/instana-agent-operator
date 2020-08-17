@@ -92,7 +92,9 @@ rules:
   - 'replicationcontrollers'
   - 'resourcequotas'
   - 'services'
-  verbs:
+  - 'persistentvolumes'
+  - 'persistentvolumeclaims'
+verbs:
   - 'get'
   - 'list'
   - 'watch'
