@@ -81,7 +81,7 @@ local crdWithDescriptors = {
 				}
 			],
 			"version": version,
-			[if !redhat then "replaces"]: "instana-agent-operator.v" + prevVersion,
+			"replaces": "instana-agent-operator.v" + prevVersion,
 			"minKubeVersion": "1.11.0",
 			"provider": {
 				"name": "Instana"
