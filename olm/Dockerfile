@@ -6,6 +6,8 @@ RUN apk add jsonnet --repository=http://dl-cdn.alpinelinux.org/alpine/edge/commu
 
 RUN apk add python3 bash git zip jq curl
 
+RUN apk add py3-pip
+
 RUN pip3 install --upgrade pip
 
 RUN pip3 install pyyaml operator-courier
