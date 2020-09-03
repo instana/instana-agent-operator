@@ -38,7 +38,7 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
 fi
 
 OPERATOR_RESOURCE_FILENAME="instana-agent-operator.yaml"
-OPERATOR_RESOURCE="${MANIFEST_DIR}/${OPERATOR_RESOURCE_FILENAME}"
+PATH_TO_OPERATOR_RESOURCE="${MANIFEST_DIR}/${OPERATOR_RESOURCE_FILENAME}"
 
 upload_github_asset() {
   local asset_file=$1
@@ -55,4 +55,6 @@ upload_github_asset() {
   fi
 }
 
-upload_github_asset ${OPERATOR_RESOURCE} ${OPERATOR_RESOURCE_FILENAME}
+upload_github_asset ${PATH_TO_OPERATOR_RESOURCE} ${OPERATOR_RESOURCE_FILENAME}
+upload_github_asset "${TARGET_DIR}/redhat-$VERSION.zip" "redhat-$VERSION.zip"
+upload_github_asset "${TARGET_DIR}/olm-$VERSION.zip" "olm-$VERSION.zip"
