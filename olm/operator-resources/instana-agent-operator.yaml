@@ -94,7 +94,7 @@ rules:
   - 'services'
   - 'persistentvolumes'
   - 'persistentvolumeclaims'
-verbs:
+  verbs:
   - 'get'
   - 'list'
   - 'watch'
