@@ -174,7 +174,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: agents.instana.io
-  namespace: instana-agent
   labels:
     app.kubernetes.io/name: instana-agent-operator
 spec:
