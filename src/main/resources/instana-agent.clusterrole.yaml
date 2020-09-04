@@ -44,7 +44,7 @@ rules:
       - "resourcequotas"
       - "persistentvolumes"
       - "persistentvolumeclaims"
-      verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources:
       - "endpoints"
