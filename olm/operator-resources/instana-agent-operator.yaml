@@ -23,7 +23,7 @@ metadata:
 rules:
 # -------------------------------------------------------------------------
 # The following are the resources created by the operator,
-# the operator needs to list, watch, and create these resources.
+# the operator needs to list, watch, create and update these resources.
 # -------------------------------------------------------------------------
 - apiGroups:
   - ''
@@ -41,6 +41,8 @@ rules:
   - 'list'
   - 'watch'
   - 'create'
+  - 'update'
+  - 'patch'
 # -------------------------------------------------------------------------
 # The following need to be watched, but not created:
 # * Pods are created by the daemon set.
