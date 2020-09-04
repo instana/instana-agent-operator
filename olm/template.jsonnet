@@ -69,7 +69,7 @@ local crdWithDescriptors = {
 				"capabilities": "Basic Install"
 			},
 			"name": "instana-agent-operator.v" + version,
-			"namespace": "placeholder"
+			[if redhat then "namespace"]: "placeholder"
 		},
 		"spec": {
 			"displayName": "Instana Agent Operator",
