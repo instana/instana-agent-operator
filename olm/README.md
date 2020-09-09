@@ -6,7 +6,7 @@ To create the templates, run
 
    ./create-artifacts.sh
 
-This requires a couple of prerequisites (`jsonnet`, `python3`, `pyyaml`, and `operator-courier`), which are packaged in the Dockerfile for running in CI.
+This requires a couple of prerequisites (`jsonnet`, `python3`, `pyyaml`, `operator-courier`, `semver` and `requests`), which are packaged in the Dockerfile for running in CI.
 
 ### TODO
 

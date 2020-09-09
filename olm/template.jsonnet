@@ -4,9 +4,9 @@ local description = std.extVar('description');
 local examples = std.extVar('examples');
 local image = std.extVar('image');
 local isoDate = std.extVar('isoDate');
-local prevPackage = std.parseJson(std.extVar('prevPackage'))[0];
 local redhat = std.parseJson(std.extVar('redhat'));
 local registry = std.extVar('registry');
+local replaces = std.extVar('replaces');
 local resources = std.parseJson(std.extVar('resources'));
 local version = std.extVar('version');
 
@@ -14,7 +14,6 @@ local crdVersion = "v1beta1";
 local imagePrefix = if std.length(registry) > 0 then registry + "/" else "";
 local isClusterRole(res) = res.kind == "ClusterRole";
 local rules = std.filter(isClusterRole, resources)[0].rules;
-local prevVersion = std.split(prevPackage.channels[0].currentCSV, 'v')[1];
 local isDeployment(res) = res.kind == "Deployment";
 local mapDeployment(dep) = {
 	name: dep.metadata.name,
@@ -81,7 +80,7 @@ local crdWithDescriptors = {
 				}
 			],
 			"version": version,
-			"replaces": "instana-agent-operator.v" + prevVersion,
+			"replaces": replaces,
 			"minKubeVersion": "1.11.0",
 			"provider": {
 				"name": "Instana"

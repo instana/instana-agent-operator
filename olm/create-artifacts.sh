@@ -24,14 +24,16 @@ DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 CRD_DESCRIPTORS=$(${SCRIPTPATH}/yaml_to_json < "$SCRIPTPATH/CRD.descriptors.yaml")
 EXAMPLES=$(${SCRIPTPATH}/yaml_to_json < "$SCRIPTPATH/../deploy/instana-agent.customresource.yaml")
 
+mkdir -p ${MANIFEST_DIR}
+
+REPLACES=$(${SCRIPTPATH}/versioning/collect_csvs.py --outdir $MANIFEST_DIR --source $MANIFEST_NAME)
+
 # Generate versioned operator artifacts if they do not exist
 if [[ ! -f "$OPERATOR_RESOURCES_DIR/$VERSION/instana-agent-operator.yaml" ]] ; then
   ${SCRIPTPATH}/operator-resources/create-operator-artifacts.sh ${VERSION}
 fi
 
 RESOURCES=$(${SCRIPTPATH}/yaml_to_json < "$OPERATOR_RESOURCES_DIR/$VERSION/instana-agent-operator.yaml")
-
-mkdir -p ${MANIFEST_DIR}
 
 jsonnet \
   --ext-str crd_descriptors="$CRD_DESCRIPTORS" \
@@ -40,7 +42,7 @@ jsonnet \
   --ext-str-file image=${SCRIPTPATH}/image.svg \
   --ext-str isoDate=${DATE} \
   --ext-str registry=${REGISTRY} \
-  --ext-str prevPackage="$PREV_PACKAGE" \
+  --ext-str replaces="$REPLACES" \
   --ext-str redhat="$REDHAT" \
   --ext-str resources="$RESOURCES" \
   --ext-str version=${VERSION} \
