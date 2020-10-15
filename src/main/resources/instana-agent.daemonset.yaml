@@ -18,6 +18,7 @@ spec:
         app: instana-agent
     spec:
       serviceAccountName: instana-agent
+      dnsPolicy: ClusterFirstWithHostNet
       hostIPC: true
       hostNetwork: true
       hostPID: true
