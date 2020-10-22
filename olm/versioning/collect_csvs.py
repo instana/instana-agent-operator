@@ -28,17 +28,23 @@ for digest in digests:
 
   tar = tarfile.open(fileobj=io.BytesIO(response.content), mode='r')
 
-  bundle_member = [member for member in tar.getmembers() if 'bundle.yaml' in member.name][0]
+  possible_bundle_members = [member for member in tar.getmembers() if 'bundle.yaml' in member.name]
 
-  bundle = tar.extractfile(bundle_member)
+  if (len(possible_bundle_members) > 0):
+    bundle_member = possible_bundle_members[0]
 
-  data = yaml.load(bundle, Loader=yaml.SafeLoader)
+    bundle = tar.extractfile(bundle_member)
 
-  csv_bundles = yaml.load_all(data['data']['clusterServiceVersions'], Loader=yaml.SafeLoader)
+    data = yaml.load(bundle, Loader=yaml.SafeLoader)
+
+    csv_bundles = yaml.load_all(data['data']['clusterServiceVersions'], Loader=yaml.SafeLoader)
+  else:
+    csv_bundles = [yaml.load(tar.extractfile(member),Loader=yaml.SafeLoader) for member in tar.getmembers() if 'clusterserviceversion.yaml' in member.name]
 
   for csv_bundle in csv_bundles:
     for csv in csv_bundle:
-      csvs_by_version[csv['spec']['version']] = csv
+      if isinstance(csv, dict):
+        csvs_by_version[csv['spec']['version']] = csv
 
 
 ordered_csvs = sorted(csvs_by_version.values(), key=lambda csv: semver.VersionInfo.parse(csv['spec']['version']))
