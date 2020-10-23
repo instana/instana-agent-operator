@@ -142,7 +142,7 @@ local crdWithDescriptors = {
 		}
 	},
 	"instana-agent.package.json": {
-		packageName: "instana-agent",
+		packageName: "instana-agent-operator",
 		channels: [
 			{
 				name: "beta",
