@@ -23,6 +23,10 @@ digests = [bundle['content']['digest'] for bundle in bundles]
 
 csvs_by_version = {}
 
+def add_csv(csv):
+  if isinstance(csv, dict):
+    csvs_by_version[csv['spec']['version']] = csv
+
 for digest in digests:
   response = requests.get('https://quay.io/cnr/api/v1/packages/certified-operators/instana-agent/blobs/sha256/%s' % digest, stream=True)
 
@@ -39,13 +43,15 @@ for digest in digests:
 
     csv_bundles = yaml.load_all(data['data']['clusterServiceVersions'], Loader=yaml.SafeLoader)
   else:
+    csv_members = [member for member in tar.getmembers() if 'clusterserviceversion.yaml' in member.name]
     csv_bundles = [yaml.load(tar.extractfile(member),Loader=yaml.SafeLoader) for member in tar.getmembers() if 'clusterserviceversion.yaml' in member.name]
 
   for csv_bundle in csv_bundles:
-    for csv in csv_bundle:
-      if isinstance(csv, dict):
-        csvs_by_version[csv['spec']['version']] = csv
-
+    if isinstance(csv_bundle, list):
+      for csv in csv_bundle:
+        add_csv(csv)
+    else:
+      add_csv(csv_bundle)
 
 ordered_csvs = sorted(csvs_by_version.values(), key=lambda csv: semver.VersionInfo.parse(csv['spec']['version']))
 
@@ -57,7 +63,8 @@ for csv in ordered_csvs:
   if prior:
     csv['spec']['replaces'] = prior
   prior = name
-  with open('%s/%s.yaml' % (args.outdir, name), 'w') as f:
-    yaml.safe_dump(csv, f, default_flow_style=False)
+  if (args.outdir):
+    with open('%s/%s.yaml' % (args.outdir, name), 'w') as f:
+      yaml.safe_dump(csv, f, default_flow_style=False)
 
 print(ordered_csvs[len(ordered_csvs) - 1]['metadata']['name'])

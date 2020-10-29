@@ -10,7 +10,7 @@ RUN apk add py3-pip
 
 RUN pip3 install --upgrade pip
 
-RUN pip3 install pyyaml operator-courier requests semver
+RUN pip3 install pyyaml requests semver
 
 COPY olm/ olm/
 

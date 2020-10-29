@@ -5,17 +5,19 @@ set -e
 SCRIPT=$0
 VERSION=${1:-dev}
 MANIFEST_NAME=${2:-olm}
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+TARGET_DIR="$SCRIPTPATH/../target"
+BUNDLE_DIR="$TARGET_DIR/$MANIFEST_NAME"
 
 if [ $MANIFEST_NAME = "olm" ] ; then
   REDHAT=false
+  MANIFEST_DIR=$BUNDLE_DIR
 elif [ $MANIFEST_NAME = "redhat" ] ; then
   REGISTRY="registry.connect.redhat.com"
   REDHAT=true
+  MANIFEST_DIR="$BUNDLE_DIR/manifests"
 fi
 
-SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-TARGET_DIR="$SCRIPTPATH/../target"
-MANIFEST_DIR="$TARGET_DIR/$MANIFEST_NAME"
 OPERATOR_RESOURCES_DIR="$TARGET_DIR/operator-resources"
 MANIFEST_ZIP_PATH="$TARGET_DIR/$MANIFEST_NAME-$VERSION.zip"
 PREV_PACKAGE_URL="https://raw.githubusercontent.com/operator-framework/community-operators/master/upstream-community-operators/instana-agent/instana-agent.package.yaml"
@@ -26,7 +28,7 @@ EXAMPLES=$(${SCRIPTPATH}/yaml_to_json < "$SCRIPTPATH/../deploy/instana-agent.cus
 
 mkdir -p ${MANIFEST_DIR}
 
-REPLACES=$(${SCRIPTPATH}/versioning/collect_csvs.py --outdir $MANIFEST_DIR --source $MANIFEST_NAME)
+REPLACES=$(${SCRIPTPATH}/versioning/collect_csvs.py --source $MANIFEST_NAME)
 
 # Generate versioned operator artifacts if they do not exist
 if [[ ! -f "$OPERATOR_RESOURCES_DIR/$VERSION/instana-agent-operator.yaml" ]] ; then
@@ -56,8 +58,10 @@ do
   rm ${f}
 done
 
-operator-courier verify ${MANIFEST_DIR}
-
-pushd ${MANIFEST_DIR}
-zip ${MANIFEST_ZIP_PATH} ./*
-popd
+if [ $MANIFEST_NAME = "olm" ] ; then
+  pushd ${MANIFEST_DIR}
+  zip ${MANIFEST_ZIP_PATH} ./*
+  popd
+else
+  cp -r ${SCRIPTPATH}/metadata $BUNDLE_DIR/metadata
+fi

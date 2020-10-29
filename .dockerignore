@@ -6,3 +6,4 @@
 !target/lib/*
 !olm/
 !deploy/
+!bundle/

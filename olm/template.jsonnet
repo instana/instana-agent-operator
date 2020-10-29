@@ -12,6 +12,7 @@ local version = std.extVar('version');
 
 local crdVersion = "v1beta1";
 local imagePrefix = if std.length(registry) > 0 then registry + "/" else "";
+local renderCsvVersion = !redhat;
 local isClusterRole(res) = res.kind == "ClusterRole";
 local rules = std.filter(isClusterRole, resources)[0].rules;
 local isDeployment(res) = res.kind == "Deployment";
@@ -52,7 +53,7 @@ local crdWithDescriptors = {
 };
 
 {
-	["instana-agent-operator.v" + version + ".clusterserviceversion.json"]: {
+	["instana-agent-operator" + (if renderCsvVersion then ".v" + version else "") + ".clusterserviceversion.json"]: {
 		"apiVersion": "operators.coreos.com/v1alpha1",
 		"kind": "ClusterServiceVersion",
 		"metadata": {
@@ -141,7 +142,7 @@ local crdWithDescriptors = {
 			]
 		}
 	},
-	"instana-agent.package.json": {
+	[if !redhat then "instana-agent.package.json"]: {
 		packageName: "instana-agent-operator",
 		channels: [
 			{
@@ -150,5 +151,5 @@ local crdWithDescriptors = {
 			}
 		]
 	},
-	["agents.instana.io.crd.json"]: crd
+	"agents.instana.io.crd.json": crd
 }
