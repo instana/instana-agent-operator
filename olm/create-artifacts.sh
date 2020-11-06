@@ -58,10 +58,11 @@ do
   rm ${f}
 done
 
-if [ $MANIFEST_NAME = "olm" ] ; then
-  pushd ${MANIFEST_DIR}
-  zip ${MANIFEST_ZIP_PATH} ./*
-  popd
-else
-  cp -r ${SCRIPTPATH}/metadata $BUNDLE_DIR/metadata
+if [ $MANIFEST_NAME = "redhat" ]; then
+  mkdir -p $BUNDLE_DIR/metadata
+  cp -r ${SCRIPTPATH}/metadata/ $BUNDLE_DIR/metadata
 fi
+
+pushd ${BUNDLE_DIR}
+zip -r ${MANIFEST_ZIP_PATH} .
+popd
