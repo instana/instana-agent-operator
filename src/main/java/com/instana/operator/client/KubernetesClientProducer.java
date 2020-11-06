@@ -73,19 +73,19 @@ public class KubernetesClientProducer {
   @Singleton
   MixedOperation<InstanaAgent, InstanaAgentList, DoneableInstanaAgent, Resource<InstanaAgent, DoneableInstanaAgent>>
   makeCustomResourceClient(DefaultKubernetesClient defaultClient, @Named(OPERATOR_NAMESPACE) String operatorNamespace) {
-    Optional<CustomResourceDefinition> crd = defaultClient
+    CustomResourceDefinition crd = defaultClient
         .inNamespace(operatorNamespace)
-        .customResourceDefinitions().list().getItems().stream()
-        .filter(c -> CRD_NAME.equals(c.getMetadata().getName()))
-        .findFirst();
-    if (!crd.isPresent()) {
+        .customResourceDefinitions()
+        .withName(CRD_NAME)
+        .get();
+    if (crd == null) {
       LOGGER.error(
           "Custom resource definition " + CRD_NAME + " not found. Please create the CRD using the provided YAML.");
       fatalErrorHandler.systemExit(-1);
     }
     KubernetesDeserializer.registerCustomKind(CRD_GROUP + "/" + CRD_VERSION, CR_KIND, InstanaAgent.class);
     return defaultClient
-        .customResources(crd.get(), InstanaAgent.class, InstanaAgentList.class, DoneableInstanaAgent.class);
+        .customResources(crd, InstanaAgent.class, InstanaAgentList.class, DoneableInstanaAgent.class);
   }
 
   @Produces
