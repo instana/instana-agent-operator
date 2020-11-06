@@ -55,6 +55,7 @@ rules:
   - 'pods'
   - 'customresourcedefinitions'
   verbs:
+  - 'get'
   - 'list'
   - 'watch'
 # -------------------------------------------------------------------------
