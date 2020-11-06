@@ -80,7 +80,7 @@ pipeline {
 
       post {
         success {
-          archiveArtifacts artifacts: 'target/redhat/**/*'
+          archiveArtifacts artifacts: 'target/redhat'
           archiveArtifacts artifacts: 'target/olm-*.zip'
           archiveArtifacts artifacts: 'target/operator-resources/**/*'
         }
