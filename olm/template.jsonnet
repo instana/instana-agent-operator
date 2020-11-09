@@ -143,7 +143,7 @@ local crdWithDescriptors = {
 		}
 	},
 	[if !redhat then "instana-agent.package.json"]: {
-		packageName: "instana-agent-operator",
+		packageName: "instana-agent",
 		channels: [
 			{
 				name: "beta",
