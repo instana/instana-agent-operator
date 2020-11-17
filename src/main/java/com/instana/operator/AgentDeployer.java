@@ -30,6 +30,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetList;
 import io.fabric8.kubernetes.api.model.apps.DoneableDaemonSet;
@@ -62,6 +63,7 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
 import static com.instana.operator.util.ResourceUtils.hasOwner;
 import static com.instana.operator.util.ResourceUtils.hasSameName;
 import static com.instana.operator.util.ResourceUtils.name;
@@ -73,6 +75,7 @@ import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
 public class AgentDeployer {
 
   private static final String DAEMON_SET_NAME = "instana-agent";
+  private static final String VERSION_LABEL = "app.kubernetes.io/version";
 
   @Inject
   DefaultKubernetesClient defaultClient;
@@ -376,6 +379,11 @@ public class AgentDeployer {
       resource.getMetadata().setNamespace(owner.getMetadata().getNamespace());
       resource.getMetadata().getOwnerReferences().get(0).setUid(owner.getMetadata().getUid());
       resource.getMetadata().getOwnerReferences().get(0).setName(owner.getMetadata().getName());
+
+      CustomResourceDefinition crd = defaultClient.customResourceDefinitions().withName(CRD_NAME).get();
+      if (crd != null && crd.getMetadata().getLabels() != null && crd.getMetadata().getLabels().containsKey(VERSION_LABEL)) {
+        resource.getMetadata().getLabels().putIfAbsent(VERSION_LABEL, crd.getMetadata().getLabels().get(VERSION_LABEL));
+      }
       return resource;
     } catch (Exception e) {
       LOGGER.error("Failed to load " + filename + " from classpath: " + e.getMessage(), e);
@@ -384,8 +392,12 @@ public class AgentDeployer {
     }
   }
 
-  public void setEnvironment(Environment environment) {
+  void setEnvironment(Environment environment) {
     this.environment = environment;
+  }
+
+  void setDefaultClient(DefaultKubernetesClient defaultClient) {
+    this.defaultClient = defaultClient;
   }
 
   private interface Factory<T extends HasMetadata, L extends KubernetesResourceList<T>, D extends Doneable<T>, R extends Resource<T, D>> {

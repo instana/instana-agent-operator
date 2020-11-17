@@ -8,6 +8,8 @@ metadata:
       kind: InstanaAgent
       name: placeholder
       uid: placeholder
+  labels:
+    app.kubernetes.io/managed-by: instana-agent-operator
 subjects:
   - kind: ServiceAccount
     name: instana-agent
