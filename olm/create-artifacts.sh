@@ -60,7 +60,7 @@ done
 
 if [ $MANIFEST_NAME = "redhat" ]; then
   mkdir -p $BUNDLE_DIR/metadata
-  cp -r ${SCRIPTPATH}/metadata/ $BUNDLE_DIR/metadata
+  cp ${SCRIPTPATH}/metadata/* $BUNDLE_DIR/metadata
 fi
 
 pushd ${BUNDLE_DIR}
