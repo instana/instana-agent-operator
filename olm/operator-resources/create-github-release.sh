@@ -16,7 +16,7 @@ MANIFEST_NAME="operator-resources"
 MANIFEST_DIR="$TARGET_DIR/$MANIFEST_NAME/$VERSION"
 GITHUB_RELEASES_URL="https://api.github.com/repos/instana/instana-agent-operator/releases"
 
-printf "%s" "Checking if release v${VERSION} exists..."
+printf "%s\n" "Checking if release v${VERSION} exists..."
 GITHUB_RELEASE_RESPONSE=$(curl -X GET \
   -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
   ${GITHUB_RELEASES_URL}/tags/v${VERSION})

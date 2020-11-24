@@ -87,6 +87,30 @@ pipeline {
       }
     }
 
+    stage('Upload RedHat Operator Bundle') {
+      steps {
+        script {
+          def TAG = gitTag()
+          def VERSION = dockerVersion(TAG)
+          def BUNDLE_DIR = "target/downloads/${VERSION}/redhat-${VERSION}"
+          def BUILD_ARGS = "-f olm/bundle.Dockerfile ${BUNDLE_DIR}"
+
+
+          if (isFullRelease(TAG)) {
+            withCredentials([string(credentialsId: 'GH_API_TOKEN', variable: 'GH_API_TOKEN')]) {
+              sh "./olm/operator-resources/download-github-release-assets.sh $VERSION $GH_API_TOKEN"
+            }
+
+            sh "unzip ${BUNDLE_DIR}.zip -d ${BUNDLE_DIR}"
+
+            docker.withRegistry('https://scan.connect.redhat.com/v1/', '60f49bbb-514e-4945-9c28-be68576d10e2') {
+              def image = docker.build("scan.connect.redhat.com/ospid-5fc350a1-9257-4291-9f2a-df9257b9e791/instana-agent-operator-bundle:$VERSION", BUILD_ARGS)
+              image.push()
+            }
+          }
+        }
+      }
+    }
   }
 }
 

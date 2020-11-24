@@ -21,3 +21,6 @@ local.properties
 
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# macOS files
+.DS_Store
