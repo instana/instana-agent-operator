@@ -26,7 +26,3 @@ There are two ways to install the operator:
 * [docs/build.md](docs/build.md) describes how to build the Docker image from source code.
 * [docs/testing-with-kind.md](docs/testing-with-kind.md) shows how to test the operator in a local Kind cluster.
 * [docs/run-operator-registry-locally.md](docs/run-operator-registry-locally.md) describes how to set up a local Operator Lifecycle Manager and Registry to test the OLM deployment locally.
-
-### TODO
-
-* The new bundle format for the RedHat operator is not fully automated. Please see [the readme](olm/README.md) for more information.
