@@ -10,57 +10,31 @@ Kind (**K**ubernetes **in** **D**ocker) will set up a local cluster where all no
 Set up a local Kubernetes Cluster with Kind
 -------------------------------------------
 
-Create `kind-config.yaml` with the following content (replace `/home` with `/Users` on macOS):
-
-```yaml
-kind: Cluster
-apiVersion: kind.sigs.k8s.io/v1alpha3
-nodes:
-- role: control-plane
-  extraMounts:
-    - containerPath: /hosthome
-      hostPath: /home
-- role: worker
-  extraMounts:
-    - containerPath: /hosthome
-      hostPath: /home
-- role: worker
-  extraMounts:
-    - containerPath: /hosthome
-      hostPath: /home
-```
-
 Install [kind](https://kind.sigs.k8s.io/) (a single executable that can be downloaded from the [Github release page](https://github.com/kubernetes-sigs/kind/releases)) and run the following commands to create the cluster:
 
 ```sh
-kind --config kind-config.yaml create cluster
-export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
-kubectl get nodes
+./e2e-testing/with-kind/create-cluster.sh
 ```
 
 You should see a cluster with one control-pane and two worker nodes up and running.
 
-Prepare the Docker Images
--------------------------
-
-In the `instana-agent-operator` project, build the `instana/instana-agent-operator` Docker image and push it to the local Kind cluster:
-
-```sh
-mvn package docker:build
-kind load docker-image instana/instana-agent-operator
-```
-
-Pull the `instana/agent` Docker image and push it to the local Kind cluster:
-
-```sh
-docker pull instana/agent
-kind load docker-image instana/agent
-```
+This script will also do the following:
+- Build the `instana/instana-agent-operator` Docker image locally and load it into the local Kind cluster
+- Pull the latest `instana/agent` Docker image locally and load it into the local Kind cluster
 
 Install the Operator
 --------------------
 
-Follow the steps described in [Install Operator Manually](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually)
+Follow the steps described in [Install Operator Manually](https://www.instana.com/docs/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually).
+
+If your changes include the `instana-agent-operator.yaml`, you'll need to generate a new version of that file:
+```sh
+./olm/create-artifacts.sh dev olm
+```
+Otherwise, you can download `instana-agent-operator.yaml` file from the latest [GitHub release](https://github.com/instana/instana-agent-operator/releases)
+
+Then in either case, change the `imagePullPolicy` for the `Deployment` from `Always` to `IfNotPresent`.
+This will ensure that it uses the locally built `instana/instana-agent-operator` image instead of pulling from the remote registry.
 
 Expected result
 ---------------
@@ -69,12 +43,17 @@ Expected result
 kubectl -n instana-agent get pods
 ```
 
-should show two instances of the `instana-agent-operator` (see the number of `replicas` configured in `instana-agent-operator-deploy.yaml`), and two instances of `instana-agent` (one on each node in the cluster).
+This should show one instance of the `instana-agent-operator` (see the number of `replicas` configured in `olm/operator-resources/instana-agent-operator.yaml`), and two instances of `instana-agent` (one on each worker node in the cluster).
+
+Delete a node
+-------------
+
+Delete one of the worker nodes that is running the `instana-agent` leader pod. The operator should reassign leadership to another agent pod.
+You should see the reassignment if you tail the logs for the operator pod.
 
 Clean up
 --------
 
 ```sh
-kind delete cluster
-unset KUBECONFIG
+./e2e-testing/with-kind/delete-cluster.sh
 ```
