@@ -6,14 +6,12 @@ import com.instana.operator.client.KubernetesClientProducer;
 import com.instana.operator.customresource.DoneableInstanaAgent;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentList;
-import com.instana.operator.env.NamespaceProducer;
 import com.instana.operator.events.CustomResourceAdded;
 import com.instana.operator.events.CustomResourceDeleted;
 import com.instana.operator.events.CustomResourceModified;
 import com.instana.operator.events.CustomResourceOtherInstanceAdded;
 import com.instana.operator.events.OperatorLeaderElected;
 import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -61,7 +59,7 @@ public class CustomResourceWatcher {
   private final AtomicReference<InstanaAgent> current = new AtomicReference<>();
 
   public void onElectedLeader(@ObservesAsync OperatorLeaderElected _ev) {
-    List<FilterWatchListMultiDeletable<InstanaAgent, InstanaAgentList, Boolean, Watch, Watcher<InstanaAgent>>> ops = new ArrayList<>();
+    List<FilterWatchListMultiDeletable<InstanaAgent, InstanaAgentList, Boolean, Watch>> ops = new ArrayList<>();
     if (targetNamespaces.isEmpty()) {
       LOGGER.info("Watching for " + KubernetesClientProducer.CRD_NAME + " resources in any namespace.");
       ops.add(client.inAnyNamespace());
@@ -72,7 +70,7 @@ public class CustomResourceWatcher {
       }
     }
     Cache<InstanaAgent, InstanaAgentList> cache = cacheService.newCache(InstanaAgent.class, InstanaAgentList.class);
-    for (FilterWatchListMultiDeletable<InstanaAgent, InstanaAgentList, Boolean, Watch, Watcher<InstanaAgent>> op : ops) {
+    for (FilterWatchListMultiDeletable<InstanaAgent, InstanaAgentList, Boolean, Watch> op : ops) {
       cache.listThenWatch(op).subscribe(event -> handleCacheEvent(cache.get(event.getUid())));
     }
   }
