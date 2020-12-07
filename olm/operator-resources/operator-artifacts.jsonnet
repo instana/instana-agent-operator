@@ -10,9 +10,15 @@ local operatorResourcesWithVersion = std.map(addVersionToMetadataLabels, operato
 
 local addVersionToDeploymentSpec(deployment) = deployment + {
   spec+: {
-    template+: { metadata+: { labels+:
-      super.labels + { "app.kubernetes.io/version": version }
-    }}
+    template+: {
+      metadata+: {
+        labels+: super.labels + { "app.kubernetes.io/version": version }
+      },
+      spec+:
+        super.spec + {
+          containers: std.mapWithIndex(function(i, c) if i == 0 then c + {image: c.image + ":" + version} else c, super.containers)
+        }
+    }
   }
 };
 local isDeployment(res) = res.kind == "Deployment";
