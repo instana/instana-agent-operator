@@ -12,12 +12,12 @@ This repository contains the Kubernetes Operator to install and manage the Insta
 
 There are two ways to install the operator:
 
-* [Creating the required resources manually](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually)
-* [Using the Operator Lifecycle Manager (OLM)](https://docs.instana.io/setup_and_manage/host_agent/on/openshift/#install-operator-via-olm)
+* [Creating the required resources manually](https://www.instana.com/docs/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually)
+* [Using the Operator Lifecycle Manager (OLM)](https://www.instana.com/docs/setup_and_manage/host_agent/on/openshift/#install-operator-via-olm)
 
 ### Configuration
 
-[This documentation section](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
+[This documentation section](https://www.instana.com/docs/setup_and_manage/host_agent/on/kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
 
 ### Building
 
