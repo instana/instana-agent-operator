@@ -25,7 +25,7 @@ local deployment = std.filterMap(isDeployment, mapDeployment, resources)[0] + {
 		assert std.length(super.containers) == 1 : "Expected exactly 1 container in operator deployment pod",
 		containers: [
 			super.containers[0] {
-				image: imagePrefix + super.image + ":" + version,
+				image: imagePrefix + super.image,
 				[if redhat then "ports"]: [{ containerPort: 9000 }],
 				[if redhat then "env"]: super.env + [
 					{
