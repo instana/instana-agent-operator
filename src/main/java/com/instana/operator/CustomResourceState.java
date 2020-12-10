@@ -1,23 +1,28 @@
 package com.instana.operator;
 
+import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
+import static com.instana.operator.util.ResourceUtils.name;
+import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
+
+import java.util.Optional;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.instana.operator.customresource.DoneableInstanaAgent;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentList;
 import com.instana.operator.customresource.InstanaAgentStatus;
 import com.instana.operator.customresource.ResourceInfo;
+
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-import java.util.Optional;
-
-import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
-import static com.instana.operator.util.ResourceUtils.name;
 
 @ApplicationScoped
 public class CustomResourceState {
@@ -127,7 +132,17 @@ public class CustomResourceState {
     try {
       client.inNamespace(customResource.getMetadata().getNamespace()).createOrReplace(customResource);
     } catch (Exception e) {
-      LOGGER.warn("Failed to update " + CRD_NAME + " " + name(customResource) + ": " + e.getMessage());
+      StringBuilder errorMessage = new StringBuilder();
+      errorMessage
+          .append("Failed to update Custom Resource ")
+          .append("[" + CRD_NAME + "]")
+          .append(name(customResource) + ".");
+      if (e instanceof KubernetesClientException) {
+        if (((KubernetesClientException)e).getCode() == HTTP_FORBIDDEN) {
+          errorMessage.append("Please ensure the operator has the updated cluster role permissions.");
+        }
+      }
+      LOGGER.warn(errorMessage.toString() + " Error: " + e.getMessage());
       // No need to System.exit() if we cannot update the status. Ignore this and carry on.
     }
   }

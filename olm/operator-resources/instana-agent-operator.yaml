@@ -67,9 +67,9 @@ rules:
   - 'events'
   verbs:
   - 'create'
-# -------------------------------------------------------------------------
-# For the custom resource, the operator needs list, watch, get, update.
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# For the custom resource, the operator needs list, watch, get, update, create.
+# -----------------------------------------------------------------------------
 - apiGroups:
   - 'instana.io'
   resources:
@@ -79,6 +79,7 @@ rules:
   - 'update'
   - 'list'
   - 'watch'
+  - 'create'
 # -------------------------------------------------------------------------
 # Below are the permissions are for the agent.
 # The operator needs these permissions to create the agent's cluster role.

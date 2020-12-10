@@ -11,9 +11,9 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
  */
 public class ListerWatcher<T extends HasMetadata, L extends KubernetesResourceList<T>> {
 
-  private final FilterWatchListDeletable<T, L, Boolean, Watch, Watcher<T>> op;
+  private final FilterWatchListDeletable<T, L, Boolean, Watch> op;
 
-  ListerWatcher(FilterWatchListDeletable<T, L, Boolean, Watch, Watcher<T>> op) {
+  ListerWatcher(FilterWatchListDeletable<T, L, Boolean, Watch> op) {
     this.op = op;
   }
 

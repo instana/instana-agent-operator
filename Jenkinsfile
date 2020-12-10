@@ -33,9 +33,7 @@ pipeline {
           if (isFullRelease(TAG)) {
             docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
               def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
-
               image.push()
-              image.push('latest')
             }
           } else {
             echo "Skipping pushing tag because this is a pre-release or branch."
@@ -46,7 +44,6 @@ pipeline {
               // annoyingly no way to reuse the existing image with docker jenkins plugin.
               // probably should just pull all of this into a shell script
               def image = docker.build("scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:$VERSION", BUILD_ARGS)
-
               image.push()
             }
           }

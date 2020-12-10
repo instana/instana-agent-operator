@@ -30,7 +30,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetList;
 import io.fabric8.kubernetes.api.model.apps.DoneableDaemonSet;
@@ -70,6 +70,7 @@ import static com.instana.operator.util.ResourceUtils.name;
 import static com.instana.operator.util.StringUtils.isBlank;
 import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
 import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
 
 @ApplicationScoped
 public class AgentDeployer {
@@ -204,7 +205,7 @@ public class AgentDeployer {
         customResourceState.update(created);
       } catch (KubernetesClientException e) {
         // For status codes, see https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#http-status-codes
-        if (e.getCode() == 409 && nRetries > 1) {
+        if (e.getCode() == HTTP_CONFLICT && nRetries > 1) {
           // Another resource of the same name exists in the same namespace.
           // Maybe it's currently being removed, try again in a few seconds.
           executor.schedule(() -> createResource(nRetries - 1, op, factory), 10, TimeUnit.SECONDS);

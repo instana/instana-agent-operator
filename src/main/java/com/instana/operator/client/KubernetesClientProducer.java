@@ -4,7 +4,7 @@ import com.instana.operator.FatalErrorHandler;
 import com.instana.operator.customresource.DoneableInstanaAgent;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentList;
-import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -34,7 +34,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.net.Proxy;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.instana.operator.env.Environment.OPERATOR_NAMESPACE;

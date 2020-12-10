@@ -25,7 +25,7 @@ import com.instana.operator.env.Environment;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
