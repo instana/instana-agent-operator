@@ -133,13 +133,16 @@ public class CustomResourceState {
       client.inNamespace(customResource.getMetadata().getNamespace()).createOrReplace(customResource);
     } catch (Exception e) {
       StringBuilder errorMessage = new StringBuilder();
-      errorMessage.append("Failed to update Custom Resource").append(CRD_NAME).append(name(customResource));
+      errorMessage
+          .append("Failed to update Custom Resource ")
+          .append("[" + CRD_NAME + "]")
+          .append(name(customResource) + ".");
       if (e instanceof KubernetesClientException) {
         if (((KubernetesClientException)e).getCode() == HTTP_FORBIDDEN) {
-          errorMessage.append(". Please ensure the operator has the updated cluster role permissions.");
+          errorMessage.append("Please ensure the operator has the updated cluster role permissions.");
         }
       }
-      LOGGER.warn(errorMessage.toString() + ": " + e.getMessage());
+      LOGGER.warn(errorMessage.toString() + " Error: " + e.getMessage());
       // No need to System.exit() if we cannot update the status. Ignore this and carry on.
     }
   }
