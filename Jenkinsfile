@@ -54,7 +54,7 @@ pipeline {
     stage('OLM Artifact Generation') {
       agent {
         dockerfile {
-          filename 'olm/Dockerfile'
+          filename 'olm/Dockerfile.ci'
           reuseNode true
         }
       }
@@ -90,7 +90,7 @@ pipeline {
           def TAG = gitTag()
           def VERSION = dockerVersion(TAG)
           def BUNDLE_DIR = "target/downloads/${VERSION}/redhat-${VERSION}"
-          def BUILD_ARGS = "-f olm/bundle.Dockerfile ${BUNDLE_DIR}"
+          def BUILD_ARGS = "-f olm/Dockerfile.bundle ${BUNDLE_DIR}"
 
 
           if (isFullRelease(TAG)) {
