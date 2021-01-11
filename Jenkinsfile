@@ -30,21 +30,20 @@ pipeline {
           def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
           if (isFullRelease(TAG)) {
+            // DockerHub
             docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
               def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
               image.push()
             }
-          } else {
-            echo "Skipping pushing tag because this is a pre-release or branch."
-          }
-
-          if (isFullRelease(TAG)) {
+            // RedHat registry
             docker.withRegistry('https://scan.connect.redhat.com/v1/', '60f49bbb-514e-4945-9c28-be68576d10e2') {
               // annoyingly no way to reuse the existing image with docker jenkins plugin.
               // probably should just pull all of this into a shell script
               def image = docker.build("scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:$VERSION", BUILD_ARGS)
               image.push()
             }
+          } else {
+            echo "Skipping pushing tag because this is a pre-release or branch."
           }
         }
       }
@@ -98,6 +97,7 @@ pipeline {
 
             sh "unzip ${BUNDLE_DIR}.zip -d ${BUNDLE_DIR}"
 
+            // Operator Bundle on RedHat Registry
             docker.withRegistry('https://scan.connect.redhat.com/v1/', '5fc350a1-9257-4291-9f2a-df9257b9e791') {
               def image = docker.build("scan.connect.redhat.com/ospid-5fc350a1-9257-4291-9f2a-df9257b9e791/instana-agent-operator-bundle:$VERSION", BUILD_ARGS)
               image.push()
