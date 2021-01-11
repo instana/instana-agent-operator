@@ -1,5 +1,3 @@
-def DOCKERFILE = './src/main/docker/Dockerfile.jvm'
-
 pipeline {
   agent any
 
@@ -28,6 +26,7 @@ pipeline {
         script {
           def TAG = gitTag()
           def VERSION = dockerVersion(TAG)
+          def DOCKERFILE = './src/main/docker/Dockerfile.jvm'
           def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
           if (isFullRelease(TAG)) {
@@ -91,7 +90,6 @@ pipeline {
           def VERSION = dockerVersion(TAG)
           def BUNDLE_DIR = "target/downloads/${VERSION}/redhat-${VERSION}"
           def BUILD_ARGS = "-f olm/Dockerfile.bundle ${BUNDLE_DIR}"
-
 
           if (isFullRelease(TAG)) {
             withCredentials([string(credentialsId: 'GH_API_TOKEN', variable: 'GH_API_TOKEN')]) {
