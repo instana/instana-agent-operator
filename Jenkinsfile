@@ -100,7 +100,7 @@ pipeline {
 
             sh "unzip ${BUNDLE_DIR}.zip -d ${BUNDLE_DIR}"
 
-            docker.withRegistry('https://scan.connect.redhat.com/v1/', '60f49bbb-514e-4945-9c28-be68576d10e2') {
+            docker.withRegistry('https://scan.connect.redhat.com/v1/', '5fc350a1-9257-4291-9f2a-df9257b9e791') {
               def image = docker.build("scan.connect.redhat.com/ospid-5fc350a1-9257-4291-9f2a-df9257b9e791/instana-agent-operator-bundle:$VERSION", BUILD_ARGS)
               image.push()
             }
