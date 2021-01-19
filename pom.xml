@@ -17,6 +17,8 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.target>1.8</maven.compiler.target>
+    <build-helper-plugin.version>3.2.0</build-helper-plugin.version>
+    <license-plugin.version>4.0.rc2</license-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -119,6 +121,62 @@
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
           </systemProperties>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>timestamp-property</id>
+            <goals>
+              <goal>timestamp-property</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <name>current.year</name>
+              <locale>en_US</locale>
+              <pattern>yyyy</pattern>
+              <unit>year</unit>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>${license-plugin.version}</version>
+        <configuration>
+          <useDefaultExcludes>true</useDefaultExcludes>
+          <aggregate>false</aggregate>
+          <defaultProperties>
+            <currentYear>${current.year}</currentYear>
+          </defaultProperties>
+          <mapping>
+            <Dockerfile.jvm>SCRIPT_STYLE</Dockerfile.jvm>
+            <Dockerfile.native>SCRIPT_STYLE</Dockerfile.native>
+            <Dockerfile.ci>SCRIPT_STYLE</Dockerfile.ci>
+            <Dockerfile.bundle>SCRIPT_STYLE</Dockerfile.bundle>
+          </mapping>
+          <licenseSets>
+            <licenseSet>
+              <header>license-header.txt</header>
+              <includes>
+                <include>**/src/main/java/**/*.java</include>
+                <include>**/src/test/java/**/*.java</include>
+                <include>**/*Dockerfile*</include>
+                <include>**/*.sh</include>
+              </includes>
+            </licenseSet>
+          </licenseSets>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
