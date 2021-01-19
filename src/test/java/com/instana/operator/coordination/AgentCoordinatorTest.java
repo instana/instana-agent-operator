@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc.
+ */
 package com.instana.operator.coordination;
 
 import com.instana.operator.events.AgentPodAdded;

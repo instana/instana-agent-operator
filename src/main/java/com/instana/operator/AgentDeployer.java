@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc.
+ */
 package com.instana.operator;
 
 import com.instana.operator.cache.Cache;

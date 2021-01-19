@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc.
+ */
 package com.instana.operator.util;
 
 import java.io.BufferedReader;

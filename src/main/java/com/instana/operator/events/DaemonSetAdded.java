@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc.
+ */
 package com.instana.operator.events;
 
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
