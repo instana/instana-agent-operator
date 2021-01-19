@@ -19,6 +19,7 @@
     <maven.compiler.target>1.8</maven.compiler.target>
     <build-helper-plugin.version>3.2.0</build-helper-plugin.version>
     <license-plugin.version>4.0.rc2</license-plugin.version>
+    <git-build-hook-plugin.version>3.0.0</git-build-hook-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -174,6 +175,23 @@
           <execution>
             <goals>
               <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.rudikershaw.gitbuildhook</groupId>
+        <artifactId>git-build-hook-maven-plugin</artifactId>
+        <version>${git-build-hook-plugin.version}</version>
+        <configuration>
+          <installHooks>
+            <pre-commit>.githooks/pre-commit</pre-commit>
+          </installHooks>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>install</goal>
             </goals>
           </execution>
         </executions>

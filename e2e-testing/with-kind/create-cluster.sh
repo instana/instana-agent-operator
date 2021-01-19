@@ -19,7 +19,7 @@ kind --config $KIND_CONFIG_FILE create cluster
 kubectl get nodes
 
 printf "%s\n" "Build and load Operator image into kind cluster"
-./mvnw -C -B clean package
+./mvnw -C -B clean verify
 docker build -f $BASE_DIR/src/main/docker/Dockerfile.jvm -t instana/instana-agent-operator:$VERSION $BASE_DIR
 kind load docker-image instana/instana-agent-operator
 

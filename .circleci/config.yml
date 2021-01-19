@@ -12,7 +12,7 @@ jobs:
           - m2-{{ checksum "pom.xml" }}
           - m2-
 
-    - run: ./mvnw package
+    - run: ./mvnw -C -B clean verify
 
     - setup_remote_docker:
         version: 18.06.0-ce
