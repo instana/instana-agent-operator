@@ -16,7 +16,7 @@ pipeline {
 
           sh "./mvnw versions:set -DnewVersion=$VERSION"
 
-          sh "./mvnw -C -B clean package"
+          sh "./mvnw -C -B clean verify"
         }
       }
     }

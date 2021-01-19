@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc.
+ */
 package com.instana.operator;
 
 import static com.instana.operator.env.Environment.RELATED_IMAGE_INSTANA_AGENT;

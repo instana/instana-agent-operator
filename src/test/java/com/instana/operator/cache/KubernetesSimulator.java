@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc.
+ */
 package com.instana.operator.cache;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
