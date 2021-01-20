@@ -190,6 +190,7 @@
         </configuration>
         <executions>
           <execution>
+            <phase>validate</phase>
             <goals>
               <goal>install</goal>
             </goals>
