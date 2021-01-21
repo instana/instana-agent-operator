@@ -20,14 +20,12 @@ command_exists mvn || {
 }
 
 echo "Checking license headers..."
-echo "=================================="
-mvn --quiet validate license:check
-MVN_STATUS=$?
+echo "==========================="
 
-if [ $MVN_STATUS -eq 0 ]; then
-	echo -e "All license headers are in place. \n"
+if mvn --quiet validate; then
+	echo "All license headers are in place."
 else
   echo "=================================="
-	echo -e >&2 "Some license headers are missing. Please run 'mvn validate license:format' to add them. \n"
+	echo "Some license headers are missing. Please run 'mvn validate license:format' to add them." >&2
 	exit 1
 fi

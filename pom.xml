@@ -173,6 +173,7 @@
         </configuration>
         <executions>
           <execution>
+            <phase>validate</phase>
             <goals>
               <goal>check</goal>
             </goals>
@@ -182,7 +183,7 @@
       <plugin>
         <groupId>com.rudikershaw.gitbuildhook</groupId>
         <artifactId>git-build-hook-maven-plugin</artifactId>
-        <version>${git-build-hook-plugin.version}</version>
+        <inherited>false</inherited>
         <configuration>
           <installHooks>
             <pre-commit>.githooks/pre-commit</pre-commit>
