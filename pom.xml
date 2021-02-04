@@ -150,8 +150,10 @@
         <configuration>
           <useDefaultExcludes>true</useDefaultExcludes>
           <aggregate>false</aggregate>
+          <skipExistingHeaders>true</skipExistingHeaders>
           <defaultProperties>
             <currentYear>${current.year}</currentYear>
+            <fileCreationYear>${current.year}</fileCreationYear>
           </defaultProperties>
           <mapping>
             <Dockerfile.jvm>SCRIPT_STYLE</Dockerfile.jvm>
@@ -173,7 +175,7 @@
         </configuration>
         <executions>
           <execution>
-            <phase>validate</phase>
+            <phase>verify</phase>
             <goals>
               <goal>check</goal>
             </goals>
