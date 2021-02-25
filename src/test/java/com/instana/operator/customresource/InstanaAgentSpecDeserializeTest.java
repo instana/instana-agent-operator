@@ -11,17 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CLUSTER_ROLE_BINDING_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CLUSTER_ROLE_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CONFIG_MAP_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_LIMIT;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_REQ;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_DAEMON_SET_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_LIMIT;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_REQ;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_RBAC_CREATE;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SECRET_NAME;
-import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SERVICE_ACCOUNT_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.*;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -53,6 +43,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentServiceAccountName(), equalTo(DEFAULT_AGENT_SERVICE_ACCOUNT_NAME));
     assertThat(spec.getAgentSecretName(), equalTo(DEFAULT_AGENT_SECRET_NAME));
     assertThat(spec.getAgentDaemonSetName(), equalTo(DEFAULT_AGENT_DAEMON_SET_NAME));
+    assertThat(spec.getAgentImagePullPolicy(), equalTo(DEFAULT_AGENT_IMAGE_PULLPOLICY));
     assertThat(spec.getAgentConfigMapName(), equalTo(DEFAULT_AGENT_CONFIG_MAP_NAME));
     assertThat(spec.isAgentRbacCreate(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE)));
     assertThat(spec.getAgentCpuReq(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_REQ)));
@@ -91,6 +82,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentConfigMapName(), equalTo("test-config-map"));
     assertThat(spec.isAgentRbacCreate(), equalTo(Boolean.FALSE));
     assertThat(spec.getAgentImage(), equalTo("instana/test-image:1.2.3"));
+    assertThat(spec.getAgentImagePullPolicy(), equalTo("Always"));
     assertThat(spec.getAgentCpuReq(), equalTo(0.7));
     assertThat(spec.getAgentCpuLimit(), equalTo(1.8));
     assertThat(spec.getAgentMemReq(), equalTo(513));

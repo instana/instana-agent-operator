@@ -287,6 +287,16 @@ public class AgentDeployer {
       container.setImage(imageFromEnvVar);
     }
 
+    // Get ImagePullPolicy value
+    String imagePullPolicyFromEnvVar = environment.get(Environment.RELATED_IMAGE_PULLPOLICY_INSTANA_AGENT);
+    String imagePullPolicyFromCustomResource = config.getAgentImagePullPolicy();
+
+    if (!isBlank(imagePullPolicyFromCustomResource)) {
+      container.setImagePullPolicy(imagePullPolicyFromCustomResource);
+    } else if (!isBlank(imagePullPolicyFromEnvVar)) {
+      container.setImagePullPolicy(imagePullPolicyFromEnvVar);
+    }
+
     List<EnvVar> env = container.getEnv();
 
     env.add(createEnvVar("INSTANA_ZONE", config.getAgentZoneName()));
