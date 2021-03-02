@@ -11,7 +11,20 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static com.instana.operator.customresource.InstanaAgentSpec.*;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CLUSTER_ROLE_BINDING_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CLUSTER_ROLE_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CONFIG_MAP_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_LIMIT;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_CPU_REQ;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_DAEMON_SET_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_LIMIT;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_MEM_REQ;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_RBAC_CREATE;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SECRET_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_SERVICE_ACCOUNT_NAME;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_IMAGE_PULLPOLICY;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_OTEL_ACTIVE;
+import static com.instana.operator.customresource.InstanaAgentSpec.DEFAULT_AGENT_OTEL_PORT;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,6 +63,8 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentCpuLimit(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_LIMIT)));
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
+    assertThat(spec.getAgentOtelActive(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE)));
+    assertThat(spec.getAgentOtelPort(), equalTo(Integer.parseInt(DEFAULT_AGENT_OTEL_PORT)));
     assertThat(spec.getAgentHostRepository(), nullValue());
     assertThat(spec.getAgentDownloadKey(), nullValue());
     assertThat(spec.getAgentEnv().entrySet(), empty());
@@ -87,6 +102,8 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentCpuLimit(), equalTo(1.8));
     assertThat(spec.getAgentMemReq(), equalTo(513));
     assertThat(spec.getAgentMemLimit(), equalTo(518));
+    assertThat(spec.getAgentOtelActive(), equalTo(true));
+    assertThat(spec.getAgentOtelPort(), equalTo(55680));
     assertThat(spec.getAgentHostRepository(), equalTo("/Users/stan/.m2/repository"));
     assertThat(spec.getAgentDownloadKey(), equalTo("test-download-key"));
     assertThat(spec.getClusterName(), equalTo("test-cluster-name"));
