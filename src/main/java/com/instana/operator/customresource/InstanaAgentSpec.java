@@ -63,8 +63,8 @@ public class InstanaAgentSpec {
   private Boolean agentRbacCreate = Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE);
   @JsonProperty(value = "agent.image")
   private String agentImage;
-  @JsonProperty(value = "agent.imagePullPolicy")
-  private String agentImagePullPolicy;
+  @JsonProperty(value = "agent.imagePullPolicy", defaultValue = DEFAULT_AGENT_IMAGE_PULLPOLICY)
+  private String agentImagePullPolicy = DEFAULT_AGENT_IMAGE_PULLPOLICY;
   @JsonProperty(value = "agent.cpuReq", defaultValue = DEFAULT_AGENT_CPU_REQ)
   private Double agentCpuReq = Double.parseDouble(DEFAULT_AGENT_CPU_REQ);
   @JsonProperty(value = "agent.cpuLimit", defaultValue = DEFAULT_AGENT_CPU_LIMIT)

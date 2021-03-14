@@ -64,7 +64,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
     assertThat(spec.getAgentOtelActive(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE)));
-    assertThat(spec.getAgentOtelPort(), equalTo(Integer.parseInt(DEFAULT_AGENT_OTEL_PORT)));
+    assertThat(spec.getAgentOtelPort(), equalTo(DEFAULT_AGENT_OTEL_PORT));
     assertThat(spec.getAgentHostRepository(), nullValue());
     assertThat(spec.getAgentDownloadKey(), nullValue());
     assertThat(spec.getAgentEnv().entrySet(), empty());
@@ -97,7 +97,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentConfigMapName(), equalTo("test-config-map"));
     assertThat(spec.isAgentRbacCreate(), equalTo(Boolean.FALSE));
     assertThat(spec.getAgentImage(), equalTo("instana/test-image:1.2.3"));
-    assertThat(spec.getAgentImagePullPolicy(), equalTo("Always"));
+    assertThat(spec.getAgentImagePullPolicy(), equalTo("IfNotPresent"));
     assertThat(spec.getAgentCpuReq(), equalTo(0.7));
     assertThat(spec.getAgentCpuLimit(), equalTo(1.8));
     assertThat(spec.getAgentMemReq(), equalTo(513));
