@@ -63,8 +63,8 @@ public class InstanaAgentSpec {
   private Boolean agentRbacCreate = Boolean.parseBoolean(DEFAULT_AGENT_RBAC_CREATE);
   @JsonProperty(value = "agent.image")
   private String agentImage;
-  @JsonProperty(value = "agent.imagePullPolicy")
-  private String agentImagePullPolicy;
+  @JsonProperty(value = "agent.imagePullPolicy", defaultValue = DEFAULT_AGENT_IMAGE_PULLPOLICY)
+  private String agentImagePullPolicy = DEFAULT_AGENT_IMAGE_PULLPOLICY;
   @JsonProperty(value = "agent.cpuReq", defaultValue = DEFAULT_AGENT_CPU_REQ)
   private Double agentCpuReq = Double.parseDouble(DEFAULT_AGENT_CPU_REQ);
   @JsonProperty(value = "agent.cpuLimit", defaultValue = DEFAULT_AGENT_CPU_LIMIT)
@@ -77,8 +77,8 @@ public class InstanaAgentSpec {
   private String agentDownloadKey;
   @JsonProperty(value = "agent.host.repository")
   private String agentHostRepository;
-  @JsonProperty(value = "agent.otel.active", defaultValue = DEFAULT_AGENT_OTEL_ACTIVE)
-  private Boolean agentOtelActive= Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE);
+  @JsonProperty(value = "opentelemetry.enabled", defaultValue = DEFAULT_AGENT_OTEL_ACTIVE)
+  private Boolean agentOpenTelemetryEnabled = Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE);
   @JsonProperty(value = "cluster.name")
   private String clusterName;
   @JsonProperty(value = "agent.env")
@@ -248,9 +248,9 @@ public class InstanaAgentSpec {
 
   public void setAgentImagePullPolicy(String imagePullPolicy) { this.agentImagePullPolicy = imagePullPolicy; }
 
-  public Boolean getAgentOtelActive() { return agentOtelActive; }
+  public Boolean getAgentOpenTelemetryEnabled() { return agentOpenTelemetryEnabled; }
 
-  public void setAgentOtelActive(Boolean agentOtelActive) { this.agentOtelActive = agentOtelActive; }
+  public void setAgentOpenTelemetryEnabled(Boolean agentOpenTelemetryEnabled) { this.agentOpenTelemetryEnabled = agentOpenTelemetryEnabled; }
 
   public Integer getAgentOtelPort() { return DEFAULT_AGENT_OTEL_PORT; }
 
