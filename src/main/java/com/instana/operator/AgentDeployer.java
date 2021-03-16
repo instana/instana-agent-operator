@@ -4,34 +4,6 @@
  */
 package com.instana.operator;
 
-import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
-import static com.instana.operator.util.ResourceUtils.hasOwner;
-import static com.instana.operator.util.ResourceUtils.hasSameName;
-import static com.instana.operator.util.ResourceUtils.name;
-import static com.instana.operator.util.StringUtils.getBoolean;
-import static com.instana.operator.util.StringUtils.isBlank;
-import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
-import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
-import static java.net.HttpURLConnection.HTTP_CONFLICT;
-
-import java.nio.charset.Charset;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.enterprise.event.NotificationOptions;
-import javax.inject.Inject;
-import javax.inject.Named;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.instana.operator.cache.Cache;
 import com.instana.operator.cache.CacheService;
 import com.instana.operator.customresource.InstanaAgent;
@@ -39,47 +11,38 @@ import com.instana.operator.customresource.InstanaAgentSpec;
 import com.instana.operator.env.Environment;
 import com.instana.operator.events.DaemonSetAdded;
 import com.instana.operator.events.DaemonSetDeleted;
-
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapList;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.ContainerPort;
-import io.fabric8.kubernetes.api.model.Doneable;
-import io.fabric8.kubernetes.api.model.DoneableConfigMap;
-import io.fabric8.kubernetes.api.model.DoneableSecret;
-import io.fabric8.kubernetes.api.model.DoneableServiceAccount;
-import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.QuantityBuilder;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretList;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
-import io.fabric8.kubernetes.api.model.ServiceAccountList;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeBuilder;
-import io.fabric8.kubernetes.api.model.VolumeMount;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetList;
 import io.fabric8.kubernetes.api.model.apps.DoneableDaemonSet;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingList;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleList;
-import io.fabric8.kubernetes.api.model.rbac.DoneableClusterRole;
-import io.fabric8.kubernetes.api.model.rbac.DoneableClusterRoleBinding;
+import io.fabric8.kubernetes.api.model.rbac.*;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.reactivex.disposables.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Event;
+import javax.enterprise.event.NotificationOptions;
+import javax.inject.Inject;
+import javax.inject.Named;
+import java.nio.charset.Charset;
+import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import static com.instana.operator.client.KubernetesClientProducer.CRD_NAME;
+import static com.instana.operator.util.ResourceUtils.*;
+import static com.instana.operator.util.StringUtils.getBoolean;
+import static com.instana.operator.util.StringUtils.isBlank;
+import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
+import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
 
 @ApplicationScoped
 public class AgentDeployer {
