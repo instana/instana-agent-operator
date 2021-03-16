@@ -63,7 +63,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentCpuLimit(), equalTo(Double.parseDouble(DEFAULT_AGENT_CPU_LIMIT)));
     assertThat(spec.getAgentMemReq(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_REQ)));
     assertThat(spec.getAgentMemLimit(), equalTo(Integer.parseInt(DEFAULT_AGENT_MEM_LIMIT)));
-    assertThat(spec.getAgentOtelActive(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE)));
+    assertThat(spec.getAgentOpenTelemetryEnabled(), equalTo(Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE)));
     assertThat(spec.getAgentOtelPort(), equalTo(DEFAULT_AGENT_OTEL_PORT));
     assertThat(spec.getAgentHostRepository(), nullValue());
     assertThat(spec.getAgentDownloadKey(), nullValue());
@@ -102,7 +102,7 @@ class InstanaAgentSpecDeserializeTest {
     assertThat(spec.getAgentCpuLimit(), equalTo(1.8));
     assertThat(spec.getAgentMemReq(), equalTo(513));
     assertThat(spec.getAgentMemLimit(), equalTo(518));
-    assertThat(spec.getAgentOtelActive(), equalTo(true));
+    assertThat(spec.getAgentOpenTelemetryEnabled(), equalTo(true));
     assertThat(spec.getAgentOtelPort(), equalTo(55680));
     assertThat(spec.getAgentHostRepository(), equalTo("/Users/stan/.m2/repository"));
     assertThat(spec.getAgentDownloadKey(), equalTo("test-download-key"));

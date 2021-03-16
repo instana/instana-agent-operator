@@ -18,8 +18,6 @@ agent.memReq: 513
 agent.memLimit: 518
 agent.downloadKey: test-download-key
 agent.host.repository: /Users/stan/.m2/repository
-agent.otel.active: true
-agent.otel.port: 55680
 agent.env:
   INSTANA_AGENT_MODE: APM
   INSTANA_AGENT_PROXY_HOST: proxy.instana.io
@@ -29,6 +27,7 @@ agent.env:
   INSTANA_AGENT_PROXY_PASSSWORD: proxy-password
   INSTANA_AGENT_PROXY_USE_DNS: true
   INSTANA_AGENT_HTTP_LISTEN: 127.0.0.1
+opentelemetry.enabled: true
 config.files:
     configuration.yaml: |
       # You can leave this empty, or use this to configure your instana agent.

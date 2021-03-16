@@ -77,8 +77,8 @@ public class InstanaAgentSpec {
   private String agentDownloadKey;
   @JsonProperty(value = "agent.host.repository")
   private String agentHostRepository;
-  @JsonProperty(value = "agent.otel.active", defaultValue = DEFAULT_AGENT_OTEL_ACTIVE)
-  private Boolean agentOtelActive= Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE);
+  @JsonProperty(value = "opentelemetry.enabled", defaultValue = DEFAULT_AGENT_OTEL_ACTIVE)
+  private Boolean agentOpenTelemetryEnabled = Boolean.parseBoolean(DEFAULT_AGENT_OTEL_ACTIVE);
   @JsonProperty(value = "cluster.name")
   private String clusterName;
   @JsonProperty(value = "agent.env")
@@ -248,9 +248,9 @@ public class InstanaAgentSpec {
 
   public void setAgentImagePullPolicy(String imagePullPolicy) { this.agentImagePullPolicy = imagePullPolicy; }
 
-  public Boolean getAgentOtelActive() { return agentOtelActive; }
+  public Boolean getAgentOpenTelemetryEnabled() { return agentOpenTelemetryEnabled; }
 
-  public void setAgentOtelActive(Boolean agentOtelActive) { this.agentOtelActive = agentOtelActive; }
+  public void setAgentOpenTelemetryEnabled(Boolean agentOpenTelemetryEnabled) { this.agentOpenTelemetryEnabled = agentOpenTelemetryEnabled; }
 
   public Integer getAgentOtelPort() { return DEFAULT_AGENT_OTEL_PORT; }
 
