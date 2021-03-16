@@ -14,6 +14,7 @@ import com.instana.operator.events.DaemonSetDeleted;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.Doneable;
 import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.DoneableSecret;
@@ -72,6 +73,7 @@ import static com.instana.operator.util.ResourceUtils.hasOwner;
 import static com.instana.operator.util.ResourceUtils.hasSameName;
 import static com.instana.operator.util.ResourceUtils.name;
 import static com.instana.operator.util.StringUtils.isBlank;
+import static com.instana.operator.util.StringUtils.getBoolean;
 import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
 import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
@@ -287,6 +289,12 @@ public class AgentDeployer {
       container.setImage(imageFromEnvVar);
     }
 
+    // Get ImagePullPolicy value
+    configureAgentImagePullPolicy(config, container);
+
+    // Get and check for OpenTelemetry Settings
+    configureOpentelemetry(container,config);
+
     List<EnvVar> env = container.getEnv();
 
     env.add(createEnvVar("INSTANA_ZONE", config.getAgentZoneName()));
@@ -354,6 +362,27 @@ public class AgentDeployer {
     }
 
     return daemonSet;
+  }
+
+  private void configureAgentImagePullPolicy(InstanaAgentSpec config, Container container) {
+    String imagePullPolicyFromEnvVar = environment.get(Environment.RELATED_IMAGE_PULLPOLICY_INSTANA_AGENT);
+    String imagePullPolicyFromCustomResource = config.getAgentImagePullPolicy();
+
+    if (!isBlank(imagePullPolicyFromCustomResource)) {
+      container.setImagePullPolicy(imagePullPolicyFromCustomResource);
+    } else if (!isBlank(imagePullPolicyFromEnvVar)) {
+      container.setImagePullPolicy(imagePullPolicyFromEnvVar);
+    }
+  }
+
+  private void configureOpentelemetry(Container container, InstanaAgentSpec config) {
+    // Get ImagePullPolicy value
+    String otelActiveFromEnvVar = environment.get(Environment.RELATED_INSTANA_OTEL_ACTIVE);
+    Boolean otelActiveFromCustomResource = config.getAgentOtelActive();
+
+    if(otelActiveFromCustomResource || getBoolean(otelActiveFromEnvVar)){
+      container.getPorts().add(new ContainerPort(config.getAgentOtelPort(),null, null,null,null));
+    }
   }
 
   private Quantity mem(int value, String format) {

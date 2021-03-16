@@ -20,6 +20,36 @@ public class StringUtils {
     return true;
   }
 
+  public static boolean getBoolean(final String booleanValue) {
+    try{
+      return Boolean.parseBoolean(booleanValue);
+    }catch (Exception es){
+      // Boolean not parsable
+    }
+    return false;
+  }
+
+  public static boolean isInteger(String intValue) {
+    try {
+      Integer.parseInt(intValue);
+    } catch(NumberFormatException e) {
+      return false;
+    } catch(NullPointerException e) {
+      return false;
+    }
+    return true;
+  }
+
+  public static Integer getInteger(String intValue) {
+    try {
+      return Integer.parseInt(intValue);
+    } catch(NumberFormatException e) {
+
+    } catch(NullPointerException e) {
+    }
+    return null;
+  }
+
   // from apache commons-lang
   public static boolean isEmpty(final CharSequence cs) {
     return cs == null || cs.length() == 0;

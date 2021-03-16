@@ -11,12 +11,15 @@ agent.daemonSetName: test-daemon-set
 agent.configMapName: test-config-map
 agent.rbac.create: false
 agent.image: instana/test-image:1.2.3
+agent.imagePullPolicy: Always
 agent.cpuReq: 0.7
 agent.cpuLimit: 1.8
 agent.memReq: 513
 agent.memLimit: 518
 agent.downloadKey: test-download-key
 agent.host.repository: /Users/stan/.m2/repository
+agent.otel.active: true
+agent.otel.port: 55680
 agent.env:
   INSTANA_AGENT_MODE: APM
   INSTANA_AGENT_PROXY_HOST: proxy.instana.io
