@@ -30,11 +30,11 @@ pipeline {
           def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
           if (isFullRelease(TAG)) {
-            withCredentials([string(credentialsId: '60f49bbb-514e-4945-9c28-be68576d10e2', variable: 'RH_API_TOKEN')]) {
+            withCredentials([usernamePassword(credentialsId: '60f49bbb-514e-4945-9c28-be68576d10e2', usernameVariable: 'RH_API_USER', passwordVariable: 'RH_API_PASSWORD')]) {
               if (0 == sh (
                   script: '''
                   export DOCKER_CLI_EXPERIMENTAL=enabled
-                  docker login -u unused -p ${RH_API_TOKEN} https://scan.connect.redhat.com/v1/
+                  docker login -u ${RH_API_USER} -p ${RH_API_PASSWORD} https://scan.connect.redhat.com/v1/
                   docker manifest inspect scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:${TAG}
                   ''',
                   returnStatus: true
