@@ -29,7 +29,7 @@ pipeline {
           def DOCKERFILE = './src/main/docker/Dockerfile.jvm'
           def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
-          if (isFullRelease(TAG)) {
+          if (isFullRelease(TAG) && !skipImagePublish()) {
             // DockerHub
             docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
               def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
@@ -123,6 +123,13 @@ def isFullRelease(tag) {
   }
   def isPrerelease = (tag ==~ /^.*-.*$/)
   return !isPrerelease;
+}
+
+// Simple check that needs to be added explicitly to a pipeline, but to skip
+// the Image publish step for when that succeeded but the OLM bundle needs to be uploaded
+// again.
+def skipImagePublish() {
+  return ( "${SKIP_IMAGE_PUBLISH}" == "true" );
 }
 
 def versionFromTag(git_tag) {
