@@ -36,7 +36,7 @@ pipeline {
                   export DOCKER_CLI_EXPERIMENTAL=enabled
                   docker login -u unused -p ${RH_API_TOKEN} https://scan.connect.redhat.com/v1/
                   docker manifest inspect scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:${TAG}
-                  '''
+                  ''',
                   returnStatus: true
                   )) {
                 println "Skipping pushing of Operator Image artefacts because tag already exists"
