@@ -32,11 +32,11 @@ pipeline {
           if (isFullRelease(TAG)) {
             withCredentials([usernamePassword(credentialsId: '60f49bbb-514e-4945-9c28-be68576d10e2', usernameVariable: 'RH_API_USER', passwordVariable: 'RH_API_PASSWORD')]) {
               if (0 == sh (
-                  script: '''
+                  script: """
                   export DOCKER_CLI_EXPERIMENTAL=enabled
                   docker login -u ${RH_API_USER} -p ${RH_API_PASSWORD} https://scan.connect.redhat.com/v1/
-                  docker manifest inspect scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:${TAG}
-                  ''',
+                  docker manifest inspect scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:${VERSION}
+                  """,
                   returnStatus: true
                   )) {
                 println "Skipping pushing of Operator Image artefacts because tag already exists"
