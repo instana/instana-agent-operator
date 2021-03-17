@@ -30,29 +30,32 @@ pipeline {
           def BUILD_ARGS = "-f $DOCKERFILE --pull --build-arg VERSION=$VERSION --build-arg BUILD=$BUILD_NUMBER ."
 
           if (isFullRelease(TAG)) {
-            // DockerHub
-            docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
-              def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
-              image.push()
-            }
+            withCredentials([string(credentialsId: '60f49bbb-514e-4945-9c28-be68576d10e2', variable: 'RH_API_TOKEN')]) {
+              if 0 == sh (
+                  script: '''
+                  export DOCKER_CLI_EXPERIMENTAL=enabled
+                  docker login -u unused -p ${RH_API_TOKEN} https://scan.connect.redhat.com/v1/
+                  docker manifest inspect scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:${TAG}
+                  '''
+                  returnStatus: true
+                  ) {
+                println "Skipping pushing of Operator Image artefacts because tag already exists"
+              } else {
 
-            def rhPushOutput
-            try {
+                // DockerHub
+                docker.withRegistry('https://index.docker.io/v1/', '8a04e3ab-c6db-44af-8198-1beb391c98d2') {
+                  def image = docker.build("instana/instana-agent-operator:$VERSION", BUILD_ARGS)
+                  image.push()
+              }
+
               // RedHat registry
               docker.withRegistry('https://scan.connect.redhat.com/v1/', '60f49bbb-514e-4945-9c28-be68576d10e2') {
                 // annoyingly no way to reuse the existing image with docker jenkins plugin.
                 // probably should just pull all of this into a shell script
                 def image = docker.build("scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator:$VERSION", BUILD_ARGS)
-                rhPushOutput = image.push()
-                println "Push output: " + rhPushOutput;
+                image.push()
               }
-            } catch (e) {
-              println "Push output: " + rhPushOutput;
-              println "Pushing to RedHat failed for reason: " + e.getMessage();
-              if (e.getMessage().contains("image tag you are pushing already exists")) {
-                println "Ignoring failure, image exists already"
-              } else {
-                throw e;
+
               }
             }
 
