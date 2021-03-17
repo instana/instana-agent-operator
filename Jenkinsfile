@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  parameters {
+    string(name: 'SKIP_IMAGE_PUBLISH', defaultValue: 'false', description: 'Potentially skip Image publish when later step failed')
+  }
+
   stages {
     stage('Maven Package') {
       agent {
