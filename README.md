@@ -30,3 +30,4 @@ There are two ways to install the operator:
 ### Contributing
 
 Please see the guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
+
