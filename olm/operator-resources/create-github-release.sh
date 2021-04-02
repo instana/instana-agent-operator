@@ -32,7 +32,7 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   GITHUB_RELEASE_RESPONSE=$(curl -X POST \
     -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
     -H 'Content-Type: application/json' \
-    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"master\", \"name\": \"v${VERSION}\" }" \
+    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"main\", \"name\": \"v${VERSION}\" }" \
     ${GITHUB_RELEASES_URL})
 
   GITHUB_RELEASE_ID=$(echo ${GITHUB_RELEASE_RESPONSE} | jq .id)
