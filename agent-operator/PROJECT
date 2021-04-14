@@ -1,0 +1,12 @@
+domain: instana.com
+layout: go.kubebuilder.io/v3
+projectName: instana-agent-operator
+repo: github.com/instana/instana-agent-operator
+resources:
+- group: instana
+  kind: InstanaAgent
+  version: v1beta1
+version: "1"
+plugins:
+  manifests.sdk.operatorframework.io/v3: {}
+  scorecard.sdk.operatorframework.io/v3: {}
