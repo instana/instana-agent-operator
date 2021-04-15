@@ -6,7 +6,7 @@ resources:
 - group: instana
   kind: InstanaAgent
   version: v1beta1
-version: "1"
+version: "3"
 plugins:
   manifests.sdk.operatorframework.io/v3: {}
   scorecard.sdk.operatorframework.io/v3: {}
