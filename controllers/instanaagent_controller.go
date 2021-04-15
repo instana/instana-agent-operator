@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. YEAR
+(c) Copyright IBM Corp. 2021
 (c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
