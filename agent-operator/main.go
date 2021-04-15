@@ -17,144 +17,145 @@ limitations under the License.
 package main
 
 import (
-  "errors"
-  "flag"
-  "fmt"
-  "github.com/instana/instana-agent-operator/controllers"
-  "os"
-  "runtime"
+	"errors"
+	"fmt"
+	"runtime"
 
-  agentoperatorv1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
-  "github.com/instana/instana-agent-operator/logger"
-  "github.com/instana/instana-agent-operator/version"
-  "github.com/spf13/pflag"
-  istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
-  k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"github.com/spf13/pflag"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
-  // Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-  // to ensure that exec-entrypoint and run can make use of them.
-  _ "k8s.io/client-go/plugin/pkg/client/auth"
+	agentoperatorv1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	"github.com/instana/instana-agent-operator/logger"
+	"github.com/instana/instana-agent-operator/version"
 
-  utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-  clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-  "k8s.io/client-go/rest"
-  ctrl "sigs.k8s.io/controller-runtime"
-  "sigs.k8s.io/controller-runtime/pkg/client/config"
-  "sigs.k8s.io/controller-runtime/pkg/manager"
-  //+kubebuilder:scaffold:imports
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	//+kubebuilder:scaffold:imports
+
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
-  scheme = k8sruntime.NewScheme()
-  log    = logger.NewAgentLogger()
+	scheme = k8sruntime.NewScheme()
+	log    = logger.NewAgentLogger()
 )
 
 var subcmdCallbacks = map[string]func(ns string, cfg *rest.Config) (manager.Manager, error){
-  //"operator": startOperator,
+	//"operator": startOperator,
 }
 
 var errBadSubcmd = errors.New("subcommand must be operator")
 
 var (
-  certsDir string
-  certFile string
-  keyFile  string
+	certsDir string
+	certFile string
+	keyFile  string
 )
 
 func init() {
-  utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-  utilruntime.Must(agentoperatorv1beta1.AddToScheme(scheme))
-  // +kubebuilder:scaffold:scheme
+	utilruntime.Must(agentoperatorv1beta1.AddToScheme(scheme))
+	// +kubebuilder:scaffold:scheme
 }
 
+var globalLog = logf.Log.WithName("global")
+
 func main() {
-  pflag.Parse()
+	pflag.Parse()
 
-  ctrl.SetLogger(logger.NewAgentLogger())
+	ctrl.SetLogger(logger.NewAgentLogger())
 
-  printVersion()
+	printVersion()
 
-  subcmd := "operator"
-  if args := pflag.Args(); len(args) > 0 {
-    subcmd = args[0]
-  }
+	// subcmd := "operator"
+	// if args := pflag.Args(); len(args) > 0 {
+	// 	subcmd = args[0]
+	// }
 
-  subcmdFn := subcmdCallbacks[subcmd]
-  if subcmdFn == nil {
-    log.Error(errBadSubcmd, "Unknown subcommand", "command", subcmd)
-    os.Exit(1)
-  }
+	// subcmdFn := subcmdCallbacks[subcmd]
+	// if subcmdFn == nil {
+	// 	log.Error(errBadSubcmd, "Unknown subcommand", "command", subcmd)
+	// 	os.Exit(1)
+	// }
 
-  namespace := os.Getenv("POD_NAMESPACE")
+	// namespace := os.Getenv("POD_NAMESPACE")
 
-  cfg, err := config.GetConfig()
+	// cfg, err := config.GetConfig()
 
-  //var enableLeaderElection bool
-  //var probeAddr string
-  //flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-  //flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-  //  "Enable leader election for controller manager. "+
-  //      "Enabling this will ensure there is only one active controller manager.")
-  //opts := zap.Options{
-  //  Development: true,
-  //}
-  //opts.BindFlags(flag.CommandLine)
-  //flag.Parse()
-  //
-  //ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-  //
-  //mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-  //  Scheme:                 scheme,
-  //  MetricsBindAddress:     metricsAddr,
-  //  Port:                   9443,
-  //  HealthProbeBindAddress: probeAddr,
-  //  LeaderElection:         enableLeaderElection,
-  //  LeaderElectionID:       "819a9291.instana.com",
-  //})
+	// //var enableLeaderElection bool
+	// //var probeAddr string
+	// //flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	// //flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	// //  "Enable leader election for controller manager. "+
+	// //      "Enabling this will ensure there is only one active controller manager.")
+	// //opts := zap.Options{
+	// //  Development: true,
+	// //}
+	// //opts.BindFlags(flag.CommandLine)
+	// //flag.Parse()
+	// //
+	// //ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// //
+	// //mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// //  Scheme:                 scheme,
+	// //  MetricsBindAddress:     metricsAddr,
+	// //  Port:                   9443,
+	// //  HealthProbeBindAddress: probeAddr,
+	// //  LeaderElection:         enableLeaderElection,
+	// //  LeaderElectionID:       "819a9291.instana.com",
+	// //})
 
-  if err != nil {
-    log.Error(err, "")
-    os.Exit(1)
-  }
+	// if err != nil {
+	// 	log.Error(err, "")
+	// 	os.Exit(1)
+	// }
 
-  mgr, err := subcmdFn(namespace, cfg)
-  if err != nil {
-    log.Error(err, "")
-    os.Exit(1)
-  }
+	// mgr, err := subcmdFn(namespace, cfg)
+	// if err != nil {
+	// 	log.Error(err, "")
+	// 	os.Exit(1)
+	// }
 
-  signalHandler := ctrl.SetupSignalHandler()
+	// signalHandler := ctrl.SetupSignalHandler()
 
-  //if err = (&controllers.PodSetReconciler{
-  //  Client: mgr.GetClient(),
-  //  Log:    ctrl.Log.WithName("controllers").WithName("PodSet"),
-  //  Scheme: mgr.GetScheme(),
-  //}).SetupWithManager(mgr); err != nil {
-  //  setupLog.Error(err, "unable to create controller", "controller", "PodSet")
-  //  os.Exit(1)
-  //}
-  ////+kubebuilder:scaffold:builder
-  //
-  //if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-  //  setupLog.Error(err, "unable to set up health check")
-  //  os.Exit(1)
-  //}
-  //if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-  //  setupLog.Error(err, "unable to set up ready check")
-  //  os.Exit(1)
-  //}
+	// //if err = (&controllers.PodSetReconciler{
+	// //  Client: mgr.GetClient(),
+	// //  Log:    ctrl.Log.WithName("controllers").WithName("PodSet"),
+	// //  Scheme: mgr.GetScheme(),
+	// //}).SetupWithManager(mgr); err != nil {
+	// //  setupLog.Error(err, "unable to create controller", "controller", "PodSet")
+	// //  os.Exit(1)
+	// //}
+	// ////+kubebuilder:scaffold:builder
+	// //
+	// //if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+	// //  setupLog.Error(err, "unable to set up health check")
+	// //  os.Exit(1)
+	// //}
+	// //if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+	// //  setupLog.Error(err, "unable to set up ready check")
+	// //  os.Exit(1)
+	// //}
 
-  log.Info("starting manager")
-  if err := mgr.Start(signalHandler); err != nil {
-    log.Error(err, "problem running manager")
-    os.Exit(1)
-  }
+	// log.Info("starting manager")
+	// if err := mgr.Start(signalHandler); err != nil {
+	// 	log.Error(err, "problem running manager")
+	// 	os.Exit(1)
+	// }
 
 }
 
 func printVersion() {
-  log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
-  log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
-  log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
+	log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
+	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
+	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 }

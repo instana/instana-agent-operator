@@ -1,0 +1,7 @@
+apiVersion: instana.instana.com/v1beta1
+kind: InstanaAgent
+metadata:
+  name: instanaagent-sample
+spec:
+  # Add fields here
+  foo: bar

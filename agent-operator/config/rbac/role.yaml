@@ -1,0 +1,34 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - instana.instana.com
+  resources:
+  - instanaagents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - instana.instana.com
+  resources:
+  - instanaagents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - instana.instana.com
+  resources:
+  - instanaagents/status
+  verbs:
+  - get
+  - patch
+  - update
