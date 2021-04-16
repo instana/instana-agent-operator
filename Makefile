@@ -69,7 +69,7 @@ test: generate fmt vet lint manifests ## Run tests.
 
 ##@ Build
 
-build: setup generate fmt vet ## Build manager binary.
+build: setup generate fmt vet lint ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export RUN_LOCAL=true
@@ -113,7 +113,6 @@ GOLANGCI_LINT = $(shell go env GOPATH)/bin/golangci-lint
 # Test if golangci-lint is available in the GOPATH, if not, set to local and download if needed
 ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-$(info "No linter in location $(GOPATH)/bin, will try $(GOLANGCI_LINT) instead or download...")
 endif
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
 	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0)
