@@ -22,40 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// // ImageSpec describes an image name and tag to use
-// type ImageSpec struct {
-// 	//Docker image name to use
-// 	Name string `json:"name"`
-
-// 	//Docker image tag to use
-// 	Tag string `json:"tag"`
-// }
-
-// //ConfigSpec describes the config template
-// type ConfigSpec struct {
-// 	//Number of replicas, will default to 1
-// 	Replicas *int32 `json:"replicas,omitempty"`
-
-// 	//Docker image to use
-// 	Image ImageSpec `json:"image"`
-
-// 	//Port, will default to 8000
-// 	Port *int32 `json:"port,omitempty"`
-
-// 	//Memory to allocate
-// 	Memory resource.Quantity `json:"memory"`
-
-// 	// Node group to have affinity toward
-// 	NodeAffinityLabel string `json:"nodeAffinityLabel,omitempty"`
-// }
-
-// InstanaAgentSpec defines the desired state of the Instana Agent
-// type InstanaAgentSpec struct {
-// 	//Config spec
-// 	Config ConfigSpec `json:"config"`
-
-// }
-
 type InstanaAgentEndpoint struct {
 	Host string `json:"host,omitempty"`
 	Port string `json:"port,omitempty"`
@@ -67,12 +33,12 @@ type InstanaAgentSpec struct {
 	// Optional: Set the zone of the host
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
-	ZoneName string `json:"zone.name,omitempty"`
+	ZoneName string `json:"zoneName,omitempty"`
 
 	// The name of your kubernetes cluster
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
-	ClusterName string `json:"cluster.name,omitempty"`
+	ClusterName string `json:"clusterName,omitempty"`
 
 	// Set your Instana agent key
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
@@ -96,7 +62,100 @@ type InstanaAgentSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Agent configuration files"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
-	ConfigFiles map[string]string `json:"conf.files,omitempty"`
+	ConfigFiles map[string]string `json:"configFiles,omitempty"`
+
+	// Kubernetes Cluster Role Name
+	// Defaults to instana-agent
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ClusterRoleName string `json:"clusterRoleName,omitempty"`
+
+	// Kubernetes Cluster Role Binding Name
+	// Defaults to instana-agent
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ClusterRoleBindingName string `json:"clusterRoleBindingName,omitempty"`
+
+	// Kubernetes Service Account Name
+	// Defaults to instana-agent
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// Kubernetes Secret Name
+	// Defaults to instana-agent
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	SecretName string `json:"secretName,omitempty"`
+
+	// Kubernetes Daemonset Name
+	// Defaults to instana-agent
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	DaemonSetName string `json:"daemonSetName,omitempty"`
+
+	// Kubernetes ConfigMap Name
+	// Defaults to instana-agent
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ConfigMapName string `json:"configMapName,omitempty"`
+
+	// Rbac creation
+	// Defaults to true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	RbacCreation bool `json:"rbacCreation,omitempty"`
+
+	// Instana agent image
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	Image string `json:"image,omitempty"`
+
+	// Kubernetes Image pull policy
+	// Defaults to Always
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	imagePullPolicy string `json:"imagePullPolicy,omitempty"`
+
+	// CpuReq
+	// Defaults to 0.5
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
+	CpuReq float32 `json:"cpuReq,omitempty"`
+
+	// CpuLimit
+	// Defaults to 1.5
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
+	CpuLimit float32 `json:"cpuLimit,omitempty"`
+
+	// MemReq
+	// Defaults to 512
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
+	MemReq byte `json:"memReq,omitempty"`
+
+	// MemLimit
+	// Defaults to 512
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
+	MemLimit byte `json:"memLimit,omitempty"`
+
+	// Instana agent download key
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	DownloadKey string `json:"downloadKey,omitempty"`
+
+	// Instana agent host repository
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	HostRepository string `json:"hostRepository,omitempty"`
+
+	// OpenTelemetry enabled
+	// Defaults to false
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	OpenTelemetryEnabled bool `json:"opentelemetryEnabled,omitempty"`
 }
 
 type ClusterSpec struct {
