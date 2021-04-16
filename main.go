@@ -1,23 +1,11 @@
 /*
-Copyright 2021 Instana.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * (c) Copyright IBM Corp. 2021
+ * (c) Copyright Instana Inc. 2021
+ */
 
 package main
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 
@@ -34,13 +22,8 @@ import (
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-
 	//+kubebuilder:scaffold:imports
-
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -48,17 +31,17 @@ var (
 	log    = logger.NewAgentLogger()
 )
 
-var subcmdCallbacks = map[string]func(ns string, cfg *rest.Config) (manager.Manager, error){
-	//"operator": startOperator,
-}
-
-var errBadSubcmd = errors.New("subcommand must be operator")
-
-var (
-	certsDir string
-	certFile string
-	keyFile  string
-)
+//var subcmdCallbacks = map[string]func(ns string, cfg *rest.Config) (manager.Manager, error){
+//	//"operator": startOperator,
+//}
+//
+//var errBadSubcmd = errors.New("subcommand must be operator")
+//
+//var (
+//	certsDir string
+//	certFile string
+//	keyFile  string
+//)
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -67,7 +50,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-var globalLog = logf.Log.WithName("global")
+//var globalLog = logf.Log.WithName("global")
 
 func main() {
 	pflag.Parse()
