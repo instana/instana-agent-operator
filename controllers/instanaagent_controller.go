@@ -21,11 +21,12 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	instanav1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	appV1 "k8s.io/api/apps/v1"
+	coreV1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	instanav1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 )
 
 // InstanaAgentReconciler reconciles a InstanaAgent object
@@ -60,5 +61,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *InstanaAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanav1beta1.InstanaAgent{}).
+		Owns(&appV1.DaemonSet{}).
+		Owns(&coreV1.Pod{}).
 		Complete(r)
 }
