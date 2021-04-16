@@ -136,14 +136,9 @@ endef
 .PHONY: bundle
 bundle: manifests kustomize
 	operator-sdk generate kustomize manifests -q
-	cd config/olm/$(PLATFORM) && $(KUSTOMIZE) edit set image "docker.io/instana/instana-agent-operator:snapshot"="$(IMG)"
-	$(KUSTOMIZE) build config/olm/$(PLATFORM) | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
-	rm -rf ./config/olm/$(PLATFORM)/$(VERSION)
-	mkdir -p ./config/olm/$(PLATFORM)/$(VERSION)
-	mv ./bundle/* ./config/olm/$(PLATFORM)/$(VERSION)
-	mv ./config/olm/$(PLATFORM)/$(VERSION)/manifests/instana-agent.clusterserviceversion.yaml ./config/olm/$(PLATFORM)/$(VERSION)/manifests/instana-agent.v$(VERSION).clusterserviceversion.yaml
-	mv ./bundle.Dockerfile ./config/olm/$(PLATFORM)/bundle-$(VERSION).Dockerfile
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:

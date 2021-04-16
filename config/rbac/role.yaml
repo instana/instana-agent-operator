@@ -7,9 +7,9 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - instana.instana.com
+  - instana.io
   resources:
-  - instanaagents
+  - instanaagent
   verbs:
   - create
   - delete
@@ -19,15 +19,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - instana.instana.com
+  - instana.io
   resources:
-  - instanaagents/finalizers
+  - instanaagent/finalizers
   verbs:
   - update
 - apiGroups:
-  - instana.instana.com
+  - instana.io
   resources:
-  - instanaagents/status
+  - instanaagent/status
   verbs:
   - get
   - patch

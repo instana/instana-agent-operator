@@ -36,9 +36,9 @@ type InstanaAgentReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=instana.instana.com,resources=instanaagents,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=instana.instana.com,resources=instanaagents/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=instana.instana.com,resources=instanaagents/finalizers,verbs=update
+//+kubebuilder:rbac:groups=instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=instana.io,resources=instanaagent/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=instana.io,resources=instanaagent/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -62,6 +62,7 @@ func (r *InstanaAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanav1beta1.InstanaAgent{}).
 		Owns(&appV1.DaemonSet{}).
+		Owns(&coreV1.Service{}).
 		Owns(&coreV1.Pod{}).
 		Complete(r)
 }

@@ -1,5 +1,6 @@
 /*
-Copyright 2021 Instana.
+(c) Copyright IBM Corp. 2021
+(c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -158,11 +159,8 @@ type InstanaAgentSpec struct {
 	OpenTelemetryEnabled bool `json:"opentelemetryEnabled,omitempty"`
 }
 
-type ClusterSpec struct {
-	Name string ``
-}
-
 // InstanaAgentStatus defines the observed state of InstanaAgent
+// +k8s:openapi-gen=true
 type InstanaAgentStatus struct {
 	//Status of each config
 	ConfigStatusses []appsv1.DeploymentStatus `json:"configStatusses,omitempty"`
@@ -171,6 +169,9 @@ type InstanaAgentStatus struct {
 // +kubebuilder:object:root=true
 
 // Defines the desired specs and states for instana agent deployment.
+// +k8s:openapi-gen=true
+// +kubebuilder:resource:path=instanaagent,scope=Namespaced,categories=instana
+// +operator-sdk:gen-csv:customresourcedefinitions.displayName="Instana Agent"
 // +operator-sdk:gen-csv:customresourcedefinitions.resources=`Daemonset,v1,"instana-agent-operator"
 // +operator-sdk:gen-csv:customresourcedefinitions.resources=`Pod,v1,"instana-agent-operator"
 // +operator-sdk:gen-csv:customresourcedefinitions.resources=`Service,v1,"instana-agent-operator"

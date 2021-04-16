@@ -1,0 +1,263 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: instanaagent.agents.instana.com
+spec:
+  group: agents.instana.com
+  names:
+    categories:
+    - instana
+    kind: InstanaAgent
+    listKind: InstanaAgentList
+    plural: instanaagent
+    singular: instanaagent
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: Defines the desired specs and states for instana agent deployment.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: InstanaAgentSpec defines the desired state of the Instana Agent
+            properties:
+              clusterName:
+                description: The name of your kubernetes cluster
+                type: string
+              clusterRoleBindingName:
+                description: Kubernetes Cluster Role Binding Name Defaults to instana-agent
+                type: string
+              clusterRoleName:
+                description: Kubernetes Cluster Role Name Defaults to instana-agent
+                type: string
+              configFiles:
+                additionalProperties:
+                  type: string
+                description: Configuration files
+                type: object
+              configMapName:
+                description: Kubernetes ConfigMap Name Defaults to instana-agent
+                type: string
+              cpuLimit:
+                description: CpuLimit Defaults to 1.5
+                type: string
+              cpuReq:
+                description: CpuReq Defaults to 0.5
+                type: string
+              daemonSetName:
+                description: Kubernetes Daemonset Name Defaults to instana-agent
+                type: string
+              downloadKey:
+                description: Instana agent download key
+                type: string
+              endpoint:
+                description: Set agent's endpoint
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: string
+                type: object
+              env:
+                description: Set environment vars
+                items:
+                  description: EnvVar represents an environment variable present in a Container.
+                  properties:
+                    name:
+                      description: Name of the environment variable. Must be a C_IDENTIFIER.
+                      type: string
+                    value:
+                      description: 'Variable references $(VAR_NAME) are expanded using the previous defined environment variables in the container and any service environment variables. If a variable cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax can be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded, regardless of whether the variable exists or not. Defaults to "".'
+                      type: string
+                    valueFrom:
+                      description: Source for the environment variable's value. Cannot be used if value is not empty.
+                      properties:
+                        configMapKeyRef:
+                          description: Selects a key of a ConfigMap.
+                          properties:
+                            key:
+                              description: The key to select.
+                              type: string
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the ConfigMap or its key must be defined
+                              type: boolean
+                          required:
+                          - key
+                          type: object
+                        fieldRef:
+                          description: 'Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`, `metadata.annotations[''<KEY>'']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.'
+                          properties:
+                            apiVersion:
+                              description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
+                              type: string
+                            fieldPath:
+                              description: Path of the field to select in the specified API version.
+                              type: string
+                          required:
+                          - fieldPath
+                          type: object
+                        resourceFieldRef:
+                          description: 'Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.'
+                          properties:
+                            containerName:
+                              description: 'Container name: required for volumes, optional for env vars'
+                              type: string
+                            divisor:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: Specifies the output format of the exposed resources, defaults to "1"
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            resource:
+                              description: 'Required: resource to select'
+                              type: string
+                          required:
+                          - resource
+                          type: object
+                        secretKeyRef:
+                          description: Selects a key of a secret in the pod's namespace
+                          properties:
+                            key:
+                              description: The key of the secret to select from.  Must be a valid secret key.
+                              type: string
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the Secret or its key must be defined
+                              type: boolean
+                          required:
+                          - key
+                          type: object
+                      type: object
+                  required:
+                  - name
+                  type: object
+                type: array
+              hostRepository:
+                description: Instana agent host repository
+                type: string
+              image:
+                description: Instana agent image
+                type: string
+              imagePullPolicy:
+                description: Kubernetes Image pull policy Defaults to Always
+                type: string
+              key:
+                description: Set your Instana agent key
+                type: string
+              memLimit:
+                description: MemLimit Defaults to 512
+                type: integer
+              memReq:
+                description: MemReq Defaults to 512
+                type: integer
+              opentelemetryEnabled:
+                description: OpenTelemetry enabled Defaults to false
+                type: boolean
+              rbacCreation:
+                description: Rbac creation Defaults to true
+                type: boolean
+              secretName:
+                description: Kubernetes Secret Name Defaults to instana-agent
+                type: string
+              serviceAccountName:
+                description: Kubernetes Service Account Name Defaults to instana-agent
+                type: string
+              zoneName:
+                description: 'Optional: Set the zone of the host'
+                type: string
+            type: object
+          status:
+            description: InstanaAgentStatus defines the observed state of InstanaAgent
+            properties:
+              configStatusses:
+                description: Status of each config
+                items:
+                  description: DeploymentStatus is the most recently observed status of the Deployment.
+                  properties:
+                    availableReplicas:
+                      description: Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.
+                      format: int32
+                      type: integer
+                    collisionCount:
+                      description: Count of hash collisions for the Deployment. The Deployment controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.
+                      format: int32
+                      type: integer
+                    conditions:
+                      description: Represents the latest available observations of a deployment's current state.
+                      items:
+                        description: DeploymentCondition describes the state of a deployment at a certain point.
+                        properties:
+                          lastTransitionTime:
+                            description: Last time the condition transitioned from one status to another.
+                            format: date-time
+                            type: string
+                          lastUpdateTime:
+                            description: The last time this condition was updated.
+                            format: date-time
+                            type: string
+                          message:
+                            description: A human readable message indicating details about the transition.
+                            type: string
+                          reason:
+                            description: The reason for the condition's last transition.
+                            type: string
+                          status:
+                            description: Status of the condition, one of True, False, Unknown.
+                            type: string
+                          type:
+                            description: Type of deployment condition.
+                            type: string
+                        required:
+                        - status
+                        - type
+                        type: object
+                      type: array
+                    observedGeneration:
+                      description: The generation observed by the deployment controller.
+                      format: int64
+                      type: integer
+                    readyReplicas:
+                      description: Total number of ready pods targeted by this deployment.
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Total number of non-terminated pods targeted by this deployment (their labels match the selector).
+                      format: int32
+                      type: integer
+                    unavailableReplicas:
+                      description: Total number of unavailable pods targeted by this deployment. This is the total number of pods that are still required for the deployment to have 100% available capacity. They may either be pods that are running but not yet available or pods that still have not been created.
+                      format: int32
+                      type: integer
+                    updatedReplicas:
+                      description: Total number of non-terminated pods targeted by this deployment that have the desired template spec.
+                      format: int32
+                      type: integer
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
