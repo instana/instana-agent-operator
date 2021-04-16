@@ -1,0 +1,49 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: instana-agent-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: APM observability
+  displayName: Instana Agent
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - IBM
+  - Cloud
+  - Observability
+  - Instana
+  links:
+  - name: Instana Agent Operator
+    url: https://instana-agent-operator.domain
+  maintainers:
+  - email: miel.donkers@instana.com
+    name: Miel
+  - email: henning.treu@instana.com
+    name: Henning
+  - email: yousef.abdelhamid@instana.com
+    name: Yousef
+  maturity: alpha
+  provider:
+    name: Instana
+    url: https://www.instana.com
+  version: 0.0.0

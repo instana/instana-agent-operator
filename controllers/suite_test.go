@@ -23,7 +23,6 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
-
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
@@ -52,7 +51,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = agentv1.AddToScheme(scheme.Scheme)
+	err = instanav1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = instanav1beta1.AddToScheme(scheme.Scheme)

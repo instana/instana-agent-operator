@@ -1,5 +1,3 @@
-
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -19,7 +17,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: InstanaAgent is the Schema for the beeinstanas API
+        description: Defines the desired specs and states for instana agent deployment.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -145,7 +143,7 @@ spec:
     storage: true
 status:
   acceptedNames:
-    kind: ""
-    plural: ""
+    kind: ''
+    plural: ''
   conditions: []
   storedVersions: []

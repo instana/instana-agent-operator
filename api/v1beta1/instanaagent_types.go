@@ -95,7 +95,10 @@ type InstanaAgentStatus struct {
 
 // +kubebuilder:object:root=true
 
-// InstanaAgent is the Schema for the beeinstanas API
+// Defines the desired specs and states for instana agent deployment.
+// +operator-sdk:gen-csv:customresourcedefinitions.resources=`Daemonset,v1,"instana-agent-operator"
+// +operator-sdk:gen-csv:customresourcedefinitions.resources=`Pod,v1,"instana-agent-operator"
+// +operator-sdk:gen-csv:customresourcedefinitions.resources=`Service,v1,"instana-agent-operator"
 type InstanaAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
