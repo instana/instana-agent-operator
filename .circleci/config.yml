@@ -21,6 +21,12 @@ jobs:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
       - run:
+          name: Install Python3
+          command: |
+            sudo apt-get -y -qq update
+            sudo apt-get install --no-install-recommends python3 python3-pip
+            sudo pip3 install pyyaml
+      - run:
           name: Run the build
           command: make build
           environment:
