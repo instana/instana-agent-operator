@@ -9,7 +9,6 @@ require (
 	github.com/onsi/gomega v1.10.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1 // indirect
-	github.com/ucf91/podset-operator v0.0.0-20210409100503-5740ba1e9944
 	go.uber.org/zap v1.15.0
 	golang.org/x/sys v0.0.0-20200909081042-eff7692f9009 // indirect
 	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5 // indirect

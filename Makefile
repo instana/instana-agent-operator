@@ -57,8 +57,11 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code
 	go vet ./...
 
+lint: golangci-lint ## Run the golang-ci linter
+	$(GOLANGCI_LINT) run
+
 ENVTEST_ASSETS_DIR = $(shell pwd)/testbin
-test: generate fmt vet manifests ## Run tests.
+test: generate fmt vet lint manifests ## Run tests.
 	mkdir -p $(ENVTEST_ASSETS_DIR)
 	test -f $(ENVTEST_ASSETS_DIR)/setup-envtest.sh || curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.6.3/hack/setup-envtest.sh
 	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
@@ -105,6 +108,15 @@ controller-gen: ## Download controller-gen locally if necessary.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+
+GOLANGCI_LINT = $(shell go env GOPATH)/bin/golangci-lint
+# Test if golangci-lint is available in the GOPATH, if not, set to local and download if needed
+ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
+GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
+$(info "No linter in location $(GOPATH)/bin, will try $(GOLANGCI_LINT) instead or download...")
+endif
+golangci-lint: ## Download the golangci-lint linter locally if necessary.
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
