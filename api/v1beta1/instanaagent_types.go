@@ -115,19 +115,19 @@ type InstanaAgentSpec struct {
 	// Defaults to Always
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
-	imagePullPolicy string `json:"imagePullPolicy,omitempty"`
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 
 	// CpuReq
 	// Defaults to 0.5
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
-	CpuReq float32 `json:"cpuReq,omitempty"`
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	CpuReq string `json:"cpuReq,omitempty"`
 
 	// CpuLimit
 	// Defaults to 1.5
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
-	CpuLimit float32 `json:"cpuLimit,omitempty"`
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	CpuLimit string `json:"cpuLimit,omitempty"`
 
 	// MemReq
 	// Defaults to 512
