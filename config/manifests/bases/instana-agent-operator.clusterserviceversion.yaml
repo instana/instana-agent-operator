@@ -30,12 +30,12 @@ spec:
         path: clusterName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Kubernetes Cluster Role Binding Name Defaults to instana-agent
+      - description: 'Optional: Kubernetes Cluster Role Binding Name Defaults to instana-agent'
         displayName: Cluster Role Binding Name
         path: clusterRoleBindingName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Kubernetes Cluster Role Name Defaults to instana-agent
+      - description: 'Optional: Kubernetes Cluster Role Name Defaults to instana-agent'
         displayName: Cluster Role Name
         path: clusterRoleName
         x-descriptors:
@@ -46,22 +46,12 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:advanced
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Kubernetes ConfigMap Name Defaults to instana-agent
+      - description: 'Optional: Kubernetes ConfigMap Name Defaults to instana-agent'
         displayName: Config Map Name
         path: configMapName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: CpuLimit Defaults to 1.5
-        displayName: Cpu Limit
-        path: cpuLimit
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:text
-      - description: CpuReq Defaults to 0.5
-        displayName: Cpu Req
-        path: cpuReq
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Kubernetes Daemonset Name Defaults to instana-agent-daemonset
+      - description: 'Optional: Kubernetes Daemonset Name Defaults to instana-agent-daemonset'
         displayName: Daemon Set Name
         path: daemonSetName
         x-descriptors:
@@ -83,17 +73,17 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:advanced
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Instana agent host repository
+      - description: 'Optional: Instana agent host repository'
         displayName: Host Repository
         path: hostRepository
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Instana agent image
+      - description: 'Optional: Instana agent image'
         displayName: Image
         path: image
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Kubernetes Image pull policy Defaults to Always
+      - description: 'Optional: Kubernetes Image pull policy Defaults to Always'
         displayName: Image Pull Policy
         path: imagePullPolicy
         x-descriptors:
@@ -103,32 +93,28 @@ spec:
         path: key
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
-      - description: MemLimit Defaults to 512
-        displayName: Mem Limit
-        path: memLimit
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:number
-      - description: MemReq Defaults to 512
-        displayName: Mem Req
-        path: memReq
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:number
-      - description: OpenTelemetry enabled Defaults to false
+      - description: 'Optional: OpenTelemetry enabled Defaults to false'
         displayName: Open Telemetry Enabled
         path: opentelemetryEnabled
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
-      - description: Rbac creation Defaults to true
+      - description: 'Optional: Rbac creation Defaults to true'
         displayName: Rbac Creation
         path: rbacCreation
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
-      - description: Kubernetes Secret Name Defaults to instana-agent
+      - description: 'Optional: Define resources requests and limits for single pods'
+        displayName: Resources
+        path: resources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:advanced
+        - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
+      - description: 'Optional: Kubernetes Secret Name Defaults to instana-agent'
         displayName: Secret Name
         path: secretName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Kubernetes Service Account Name Defaults to instana-agent
+      - description: 'Optional: Kubernetes Service Account Name Defaults to instana-agent'
         displayName: Service Account Name
         path: serviceAccountName
         x-descriptors:

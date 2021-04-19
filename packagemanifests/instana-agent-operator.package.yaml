@@ -1,0 +1,5 @@
+channels:
+- currentCSV: instana-agent-operator.v0.0.1
+  name: alpha
+defaultChannel: alpha
+packageName: instana-agent-operator

@@ -43,79 +43,63 @@ type InstanaAgentSpec struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent configuration files",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigFiles map[string]string `json:"configFiles,omitempty"`
 
-	// Kubernetes Cluster Role Name
+	// Optional: Kubernetes Cluster Role Name
 	// Defaults to instana-agent
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ClusterRoleName string `json:"clusterRoleName,omitempty"`
 
-	// Kubernetes Cluster Role Binding Name
+	// Optional: Kubernetes Cluster Role Binding Name
 	// Defaults to instana-agent
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ClusterRoleBindingName string `json:"clusterRoleBindingName,omitempty"`
 
-	// Kubernetes Service Account Name
+	// Optional: Kubernetes Service Account Name
 	// Defaults to instana-agent
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
-	// Kubernetes Secret Name
+	// Optional: Kubernetes Secret Name
 	// Defaults to instana-agent
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	SecretName string `json:"secretName,omitempty"`
 
-	// Kubernetes Daemonset Name
+	// Optional: Kubernetes Daemonset Name
 	// Defaults to instana-agent-daemonset
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DaemonSetName string `json:"daemonSetName,omitempty"`
 
-	// Kubernetes ConfigMap Name
+	// Optional: Kubernetes ConfigMap Name
 	// Defaults to instana-agent
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigMapName string `json:"configMapName,omitempty"`
 
-	// Rbac creation
+	// Optional: Rbac creation
 	// Defaults to true
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	RbacCreation bool `json:"rbacCreation,omitempty"`
 
-	// Instana agent image
+	// Optional: Instana agent image
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Image string `json:"image,omitempty"`
 
-	// Kubernetes Image pull policy
+	// Optional: Kubernetes Image pull policy
 	// Defaults to Always
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 
-	// CpuReq
-	// Defaults to 0.5
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
-	CpuReq string `json:"cpuReq,omitempty"`
-
-	// CpuLimit
-	// Defaults to 1.5
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
-	CpuLimit string `json:"cpuLimit,omitempty"`
-
-	// MemReq
-	// Defaults to 512
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
-	MemReq byte `json:"memReq,omitempty"`
-
-	// MemLimit
-	// Defaults to 512
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
-	MemLimit byte `json:"memLimit,omitempty"`
+	// Optional: Define resources requests and limits for single pods
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Instana agent download key
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DownloadKey string `json:"downloadKey,omitempty"`
 
-	// Instana agent host repository
+	// Optional: Instana agent host repository
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	HostRepository string `json:"hostRepository,omitempty"`
 
-	// OpenTelemetry enabled
+	// Optional: OpenTelemetry enabled
 	// Defaults to false
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	OpenTelemetryEnabled bool `json:"opentelemetryEnabled,omitempty"`

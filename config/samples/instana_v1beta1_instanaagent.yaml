@@ -4,10 +4,16 @@ metadata:
   name: instana-agent-sample
   namespace: instana-agent
 spec:
-  agent.zone.name: my-zone # (optional) name of the zone of the host
-  agent.key: replace-me # replace with your Instana agent key
-  agent.endpoint.host: ingress-red-saas.instana.io # the monitoring ingress endpoint
-  agent.endpoint.port: 443 # the monitoring ingress endpoint port, wrapped in quotes
-  agent.env:
-    INSTANA_AGENT_TAGS: example
-  cluster.name: replace-me # replace with the name of your Kubernetes cluster
+  zoneName: my-zone # (optional) name of the zone of the host
+  key: replace-me # replace with your Instana agent key
+  endpoint:
+    host: ingress-red-saas.instana.io # the monitoring ingress endpoint
+    port: 443 # the monitoring ingress endpoint port, wrapped in quotes
+  env:
+    - INSTANA_AGENT_TAGS: example
+  clusterName: replace-me # replace with the name of your Kubernetes cluster
+  downloadKey: replace-me # replace with your Instana agent download key
+  configFiles:
+    - configuration.yaml: |
+      # You can leave this empty, or use this to configure your instana agent.
+      # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
