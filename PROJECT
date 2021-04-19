@@ -11,7 +11,7 @@ resources:
     namespaced: true
   controller: true
   domain: instana.com
-  group: instana
+  group: agents
   kind: InstanaAgent
   path: github.com/instana/instana-agent-operator/api/v1beta1
   version: v1beta1

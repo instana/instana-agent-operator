@@ -8,9 +8,15 @@ metadata:
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
-  customresourcedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: Defines the desired specs and states for instana agent deployment.
+      displayName: Instana Agent
+      kind: InstanaAgent
+      name: instanaagent.agents.instana.com
+      version: v1beta1
   description: APM observability
-  displayName: Instana Agent
+  displayName: Instana agent
   icon:
   - base64data: ""
     mediatype: ""
@@ -30,20 +36,13 @@ spec:
   keywords:
   - IBM
   - Cloud
-  - Observability
-  - Instana
   links:
   - name: Instana Agent Operator
     url: https://instana-agent-operator.domain
   maintainers:
-  - email: miel.donkers@instana.com
-    name: Miel
-  - email: henning.treu@instana.com
-    name: Henning
-  - email: yousef.abdelhamid@instana.com
-    name: Yousef
+  - email: test
+    name: test
   maturity: alpha
   provider:
-    name: Instana
-    url: https://www.instana.com
+    name: IBM
   version: 0.0.0
