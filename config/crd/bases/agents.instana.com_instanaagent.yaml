@@ -61,7 +61,7 @@ spec:
                 description: CpuReq Defaults to 0.5
                 type: string
               daemonSetName:
-                description: Kubernetes Daemonset Name Defaults to instana-agent
+                description: Kubernetes Daemonset Name Defaults to instana-agent-daemonset
                 type: string
               downloadKey:
                 description: Instana agent download key
