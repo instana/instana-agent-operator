@@ -29,6 +29,7 @@ local.properties
 build/_output
 build/_test
 testbin/
+bin/
 
 ### Go ###
 # Binaries for programs and plugins
@@ -41,6 +42,3 @@ testbin/
 *.test
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-controller-gen
-kustomize
-golangci-lint
