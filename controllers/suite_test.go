@@ -19,7 +19,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	instanav1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -52,13 +52,13 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = instanav1beta1.AddToScheme(scheme.Scheme)
+	err = instanaV1Beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = instanav1beta1.AddToScheme(scheme.Scheme)
+	err = instanaV1Beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = instanav1beta1.AddToScheme(scheme.Scheme)
+	err = instanaV1Beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme

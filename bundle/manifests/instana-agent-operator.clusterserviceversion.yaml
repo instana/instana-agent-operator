@@ -13,21 +13,15 @@ metadata:
           },
           "spec": {
             "clusterName": "replace-me",
-            "configFiles": [
-              {
-                "configuration.yaml": ""
-              }
-            ],
+            "configFiles": {
+              "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n"
+            },
             "downloadKey": "replace-me",
             "endpoint": {
               "host": "ingress-red-saas.instana.io",
-              "port": 443
+              "port": "443"
             },
-            "env": [
-              {
-                "INSTANA_AGENT_TAGS": "example"
-              }
-            ],
+            "env": [],
             "key": "replace-me",
             "zoneName": "my-zone"
           }
@@ -192,6 +186,25 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+          - list
         - apiGroups:
           - authentication.k8s.io
           resources:
