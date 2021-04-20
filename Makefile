@@ -121,6 +121,15 @@ endif
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
 	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0)
 
+OPERATOR_SDK = $(shell command -v operator-sdk 2>/dev/null || echo "operator-sdk")
+# Test if operator-sdk is available on the system, otherwise download locally
+ifneq ($(shell test -f $(OPERATOR_SDK) && echo -n yes),yes)
+OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
+endif
+operator-sdk: ## Download the Operator SDK binary locally if necessary.
+	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.6.1,operator-sdk_$${OS}_$${ARCH})
+
+
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
@@ -135,13 +144,33 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+# curl-get-tool will download the package $3 from $2 and install it to $1.
+# The package name can use $${OS} and $${ARCH} to fetch the specific version (double $$ for escaping)
+define curl-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+ARCH=$$(case $$(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $$(uname -m) ;; esac) ;\
+OS=$$(uname | awk '{print tolower($$0)}') ;\
+echo "Downloading $(2)/$(3)" ;\
+curl -LO $(2)/$(3) ;\
+curl -LO $(2)/checksums.txt ;\
+grep $(3) checksums.txt | sha256sum -c - ;\
+chmod +x $(3) ;\
+mv $(3) $(1) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
+
+
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: manifests kustomize
-	operator-sdk generate kustomize manifests -q
+bundle: operator-sdk manifests kustomize
+	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	operator-sdk bundle validate ./bundle
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
