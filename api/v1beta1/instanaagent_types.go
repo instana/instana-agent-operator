@@ -16,6 +16,12 @@ type InstanaAgentEndpoint struct {
 	Port string `json:"port,omitempty"`
 }
 
+type AgentLeaderElector struct {
+	ImageName string `json:"imageName,omitempty"`
+	ImageTag  string `json:"imageTag,omitempty"`
+	Port      string `json:"port,omitempty"`
+}
+
 // InstanaAgentSpec defines the desired state of the Instana Agent
 // +k8s:openapi-gen=true
 type InstanaAgentSpec struct {
@@ -92,7 +98,7 @@ type InstanaAgentSpec struct {
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Instana agent download key
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	DownloadKey string `json:"downloadKey,omitempty"`
 
 	// Optional: Instana agent host repository
@@ -103,6 +109,10 @@ type InstanaAgentSpec struct {
 	// Defaults to false
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	OpenTelemetryEnabled bool `json:"opentelemetryEnabled,omitempty"`
+
+	// Set agent's endpoint
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent Leader Elector",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
+	LeaderElector *AgentLeaderElector `json:"leaderElector,omitempty"`
 }
 
 // InstanaAgentStatus defines the observed state of InstanaAgent
@@ -117,7 +127,7 @@ type InstanaAgentStatus struct {
 // Defines the desired specs and states for instana agent deployment.
 // +k8s:openapi-gen=true
 // +kubebuilder:resource:path=instanaagent,scope=Namespaced,categories=instana
-// +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent-daemonset},{Pod,v1,instana-agent-pod},{Service,v1,instana-agent-service}}
+// +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
 type InstanaAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

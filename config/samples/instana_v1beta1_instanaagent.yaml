@@ -1,7 +1,7 @@
 apiVersion: agents.instana.com/v1beta1
 kind: InstanaAgent
 metadata:
-  name: instana-agent-sample
+  name: instana-agent
   namespace: instana-agent
 spec:
   zoneName: my-zone # (optional) name of the zone of the host
