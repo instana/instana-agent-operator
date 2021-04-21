@@ -6,10 +6,7 @@ package com.instana.operator.cache;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 class ResourceMap<T extends HasMetadata> {
 
@@ -19,11 +16,11 @@ class ResourceMap<T extends HasMetadata> {
    * @return true if the map was updated, false otherwise.
    */
   boolean putIfNewer(String uid, T resource) {
-    synchronized(map) {
+    synchronized (map) {
       if (map.containsKey(uid)) {
-        int currentResourceVersion = Integer.parseInt(map.get(uid).getMetadata().getResourceVersion());
-        int newResourceVersion = Integer.parseInt(resource.getMetadata().getResourceVersion());
-        if (currentResourceVersion < newResourceVersion) {
+        String currentResourceVersion = Objects.toString(map.get(uid).getMetadata().getResourceVersion(), "");
+        String newResourceVersion = Objects.toString(resource.getMetadata().getResourceVersion(), "");
+        if (!currentResourceVersion.equals(newResourceVersion)) {
           map.put(uid, resource);
           return true;
         } else {
