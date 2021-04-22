@@ -155,6 +155,16 @@ spec:
               key:
                 description: Set your Instana agent key
                 type: string
+              leaderElector:
+                description: Set agent's endpoint
+                properties:
+                  imageName:
+                    type: string
+                  imageTag:
+                    type: string
+                  port:
+                    type: string
+                type: object
               opentelemetryEnabled:
                 description: 'Optional: OpenTelemetry enabled Defaults to false'
                 type: boolean

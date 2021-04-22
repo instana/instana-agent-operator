@@ -8,7 +8,7 @@ metadata:
           "apiVersion": "agents.instana.com/v1beta1",
           "kind": "InstanaAgent",
           "metadata": {
-            "name": "instana-agent-sample",
+            "name": "instana-agent",
             "namespace": "instana-agent"
           },
           "spec": {
@@ -42,13 +42,13 @@ spec:
       name: instanaagent.agents.instana.com
       resources:
       - kind: DaemonSet
-        name: instana-agent-daemonset
+        name: instana-agent
         version: v1
       - kind: Pod
-        name: instana-agent-pod
+        name: instana-agent
         version: v1
-      - kind: Service
-        name: instana-agent-service
+      - kind: Secret
+        name: instana-agent
         version: v1
       specDescriptors:
       - description: The name of your kubernetes cluster
@@ -86,7 +86,7 @@ spec:
         displayName: Download Key
         path: downloadKey
         x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
       - description: Set agent's endpoint
         displayName: Agent Endpoint
         path: endpoint
@@ -119,6 +119,12 @@ spec:
         path: key
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
+      - description: Set agent's endpoint
+        displayName: Agent Leader Elector
+        path: leaderElector
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:advanced
+        - urn:alm:descriptor:com.tectonic.ui:text
       - description: 'Optional: OpenTelemetry enabled Defaults to false'
         displayName: Open Telemetry Enabled
         path: opentelemetryEnabled
@@ -160,51 +166,6 @@ spec:
     spec:
       clusterPermissions:
       - rules:
-        - apiGroups:
-          - agents.instana.com
-          resources:
-          - instanaagent
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - agents.instana.com
-          resources:
-          - instanaagent/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - agents.instana.com
-          resources:
-          - instanaagent/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - apps
-          resources:
-          - daemonsets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - get
-          - list
         - apiGroups:
           - authentication.k8s.io
           resources:
