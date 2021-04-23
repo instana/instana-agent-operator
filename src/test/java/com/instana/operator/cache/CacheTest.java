@@ -63,7 +63,7 @@ class CacheTest {
       simulator.simulatePodModified("uid1", 125);
       simulator.simulatePodModified("uid1", 139);
       simulator.simulatePodAdded("uid2", "pod2", 789);
-      simulator.simulatePodModified("uid2", 633); // less than the previous version for pod2
+      simulator.simulatePodModified("uid2", 789); // similar to the previous version so ignored
       simulator.simulatePodDeleted("uid1");
     }
     cacheService.terminate(5, TimeUnit.SECONDS);
