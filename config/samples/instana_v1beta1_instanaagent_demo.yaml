@@ -4,10 +4,10 @@ metadata:
   name: instana-agent
   namespace: instana-agent
 spec:
-  zoneName: my-zone # (optional) name of the zone of the host
-  key: Mlp5a2MybV9SaUtKblZFLVROTmRyQQ== # replace with your Instana agent key
+  zoneName: my-operator-zone # (optional) name of the zone of the host
+  key: replace-me # replace with your Instana agent key
   endpoint:
-    host: ingress-pink-saas.instana.rocks # the monitoring ingress endpoint
+    host: ingress-red-saas.instana.io # the monitoring ingress endpoint
     port: "443" # the monitoring ingress endpoint port, wrapped in quotes
   env: []
   clusterName: docker-desktop # replace with the name of your Kubernetes cluster

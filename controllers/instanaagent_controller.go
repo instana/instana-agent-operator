@@ -92,7 +92,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) (*appV1.DaemonSet, error) {
+func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	daemonset := &appV1.DaemonSet{}
 	err := r.Get(ctx, req.NamespacedName, daemonset)
 	if err != nil {
@@ -106,10 +106,10 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 			}
 		}
 	}
-	return daemonset, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) (*rbacV1.ClusterRole, error) {
+func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error {
 	clusterRole := &rbacV1.ClusterRole{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentServiceAccountName, Namespace: AgentNameSpace}, clusterRole)
 	if err != nil {
@@ -123,10 +123,10 @@ func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) (*rba
 			}
 		}
 	}
-	return clusterRole, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context) (*rbacV1.ClusterRoleBinding, error) {
+func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context) error {
 	clusterRoleBinding := &rbacV1.ClusterRoleBinding{}
 	err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, clusterRoleBinding)
 	if err != nil {
@@ -140,10 +140,10 @@ func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context
 			}
 		}
 	}
-	return clusterRoleBinding, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileServiceAccounts(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.ServiceAccount, error) {
+func (r *InstanaAgentReconciler) reconcileServiceAccounts(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	serviceAcc := &coreV1.ServiceAccount{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentServiceAccountName, Namespace: AgentNameSpace}, serviceAcc)
 	if err != nil {
@@ -157,10 +157,10 @@ func (r *InstanaAgentReconciler) reconcileServiceAccounts(ctx context.Context, c
 			}
 		}
 	}
-	return serviceAcc, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Service, error) {
+func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	service := &coreV1.Service{}
 	err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, service)
 	if err != nil {
@@ -174,10 +174,10 @@ func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInsta
 			}
 		}
 	}
-	return service, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, error) {
+func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	secret := &coreV1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, secret)
 	if err != nil {
@@ -191,10 +191,10 @@ func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstan
 			}
 		}
 	}
-	return secret, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, error) {
+func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	pullSecret := &coreV1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentImagePullSecretName, Namespace: AgentNameSpace}, pullSecret)
 	if err != nil {
@@ -208,10 +208,10 @@ func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, 
 			}
 		}
 	}
-	return pullSecret, err
+	return err
 }
 
-func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.ConfigMap, error) {
+func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	configMap := &coreV1.ConfigMap{}
 	err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, configMap)
 	if err != nil {
@@ -225,7 +225,7 @@ func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInst
 			}
 		}
 	}
-	return configMap, err
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -486,12 +486,7 @@ func buildEnvVars(crdInstance *instanaV1Beta1.InstanaAgent) []coreV1.EnvVar {
 		{Name: "INSTANA_KUBERNETES_CLUSTER_NAME", Value: crdInstance.Spec.ClusterName},
 		{Name: "INSTANA_AGENT_ENDPOINT", Value: crdInstance.Spec.Endpoint.Host},
 		{Name: "INSTANA_AGENT_ENDPOINT_PORT", Value: crdInstance.Spec.Endpoint.Port},
-		{Name: "INSTANA_AGENT_KEY", ValueFrom: &coreV1.EnvVarSource{
-			SecretKeyRef: &coreV1.SecretKeySelector{
-				LocalObjectReference: coreV1.LocalObjectReference{Name: AgentSecretName},
-				Key:                  "key",
-			},
-		}},
+		{Name: "INSTANA_AGENT_KEY", Value: crdInstance.Spec.Key},
 		// {Name: "INSTANA_DOWNLOAD_KEY", ValueFrom: &coreV1.EnvVarSource{
 		// 	SecretKeyRef: &coreV1.SecretKeySelector{
 		// 		LocalObjectReference: coreV1.LocalObjectReference{Name: AgentSecretName},
