@@ -68,16 +68,34 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	r.reconcileSecrets(ctx, crdInstance)
-	r.reconcileImagePullSecrets(ctx, crdInstance)
-	r.reconcileServices(ctx, crdInstance)
-	r.reconcileServiceAccounts(ctx, crdInstance)
-	r.reconcileConfigMap(ctx, crdInstance)
-	r.reconcileClusterRole(ctx)
-	r.reconcileClusterRoleBinding(ctx)
-	r.reconcileDaemonset(ctx, req, crdInstance)
+	var reconcilationError = error(nil)
 
-	return ctrl.Result{}, nil
+	if err = r.reconcileSecrets(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileImagePullSecrets(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileServices(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileServiceAccounts(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileConfigMap(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileClusterRole(ctx); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileClusterRoleBinding(ctx); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileDaemonset(ctx, req, crdInstance); err != nil {
+		reconcilationError = err
+	}
+
+	return ctrl.Result{}, reconcilationError
 }
 
 func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {

@@ -12,7 +12,9 @@ import (
 )
 
 type InstanaAgentEndpoint struct {
+	// +kubebuilder:validation:Required
 	Host string `json:"host,omitempty"`
+	// +kubebuilder:validation:Required
 	Port string `json:"port,omitempty"`
 }
 
@@ -26,75 +28,84 @@ type AgentLeaderElector struct {
 // +k8s:openapi-gen=true
 type InstanaAgentSpec struct {
 	// Optional: Set the zone of the host
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ZoneName string `json:"zoneName,omitempty"`
 
-	// The name of your kubernetes cluster
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// Optional: The name of your kubernetes cluster
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// Set your Instana agent key
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent Key",xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent Key",xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	Key string `json:"key,omitempty"`
 
 	// Set agent's endpoint
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent Endpoint",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent Endpoint",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:validation:Required
 	Endpoint *InstanaAgentEndpoint `json:"endpoint,omitempty"`
 
 	// Set environment vars
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent environment variables",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent environment variables",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// Configuration files
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent configuration files",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent configuration files",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigFiles map[string]string `json:"configFiles,omitempty"`
 
 	// Optional: Kubernetes Cluster Role Name
 	// Defaults to instana-agent
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:instana-agent
 	ClusterRoleName string `json:"clusterRoleName,omitempty"`
 
 	// Optional: Kubernetes Cluster Role Binding Name
 	// Defaults to instana-agent
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:instana-agent
 	ClusterRoleBindingName string `json:"clusterRoleBindingName,omitempty"`
 
 	// Optional: Kubernetes Service Account Name
 	// Defaults to instana-agent
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:instana-agent
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
 	// Optional: Kubernetes Secret Name
 	// Defaults to instana-agent
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:instana-agent
 	SecretName string `json:"secretName,omitempty"`
 
 	// Optional: Kubernetes Daemonset Name
 	// Defaults to instana-agent-daemonset
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:instana-agent
 	DaemonSetName string `json:"daemonSetName,omitempty"`
 
 	// Optional: Kubernetes ConfigMap Name
 	// Defaults to instana-agent
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:instana-agent
 	ConfigMapName string `json:"configMapName,omitempty"`
 
 	// Optional: Rbac creation
 	// Defaults to true
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	// +kubebuilder:default:true
 	RbacCreation bool `json:"rbacCreation,omitempty"`
 
 	// Optional: Instana agent image
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Image string `json:"image,omitempty"`
 
 	// Optional: Kubernetes Image pull policy
 	// Defaults to Always
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:default:Always
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 
 	// Optional: Define resources requests and limits for single pods
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Instana agent download key
@@ -108,6 +119,7 @@ type InstanaAgentSpec struct {
 	// Optional: OpenTelemetry enabled
 	// Defaults to false
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	// +kubebuilder:default:false
 	OpenTelemetryEnabled bool `json:"opentelemetryEnabled,omitempty"`
 
 	// Set agent's endpoint
