@@ -46,7 +46,6 @@ var (
 	AgentServiceAccountName = AppName
 )
 
-// InstanaAgentReconciler reconciles a InstanaAgent object
 type InstanaAgentReconciler struct {
 	client.Client
 	Log    logr.Logger
@@ -58,16 +57,6 @@ type InstanaAgentReconciler struct {
 //+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,namespace=instana-agent,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,namespace=instana-agent,resources=pods,verbs=get;list;
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the InstanaAgent object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("instanaagent", req.NamespacedName)
@@ -86,7 +75,6 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	r.reconcileConfigMap(ctx, crdInstance)
 	r.reconcileClusterRole(ctx)
 	r.reconcileClusterRoleBinding(ctx)
-
 	r.reconcileDaemonset(ctx, req, crdInstance)
 
 	return ctrl.Result{}, nil
@@ -111,7 +99,7 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 
 func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error {
 	clusterRole := &rbacV1.ClusterRole{}
-	err := r.Get(ctx, client.ObjectKey{Name: AgentServiceAccountName, Namespace: AgentNameSpace}, clusterRole)
+	err := r.Get(ctx, client.ObjectKey{Name: AppName}, clusterRole)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent clusterRole deployed before, creating new one")
@@ -119,7 +107,7 @@ func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error
 			if err := r.Create(ctx, clusterRole); err != nil {
 				r.Log.Error(err, "Failed to create Instana agent clusterRole")
 			} else {
-				r.Log.Info(fmt.Sprintf("%s clusterRole created successfully", clusterRole))
+				r.Log.Info(fmt.Sprintf("%s clusterRole created successfully", AppName))
 			}
 		}
 	}
@@ -128,7 +116,7 @@ func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error
 
 func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context) error {
 	clusterRoleBinding := &rbacV1.ClusterRoleBinding{}
-	err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, clusterRoleBinding)
+	err := r.Get(ctx, client.ObjectKey{Name: AppName}, clusterRoleBinding)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent clusterRoleBinding deployed before, creating new one")
@@ -136,7 +124,7 @@ func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context
 			if err := r.Create(ctx, clusterRoleBinding); err != nil {
 				r.Log.Error(err, "Failed to create Instana agent clusterRoleBinding")
 			} else {
-				r.Log.Info(fmt.Sprintf("%s clusterRoleBinding created successfully", clusterRoleBinding))
+				r.Log.Info(fmt.Sprintf("%s clusterRoleBinding created successfully", AppName))
 			}
 		}
 	}
