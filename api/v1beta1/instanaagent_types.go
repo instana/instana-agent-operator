@@ -29,14 +29,17 @@ type AgentLeaderElector struct {
 type InstanaAgentSpec struct {
 	// Set the zone of the host
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:validation:Required
 	ZoneName string `json:"zoneName,omitempty"`
 
 	// The name of your kubernetes cluster
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	// +kubebuilder:validation:Required
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// Set your Instana agent key
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent Key",xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
+	// +kubebuilder:validation:Required
 	Key string `json:"key,omitempty"`
 
 	// Set agent's endpoint

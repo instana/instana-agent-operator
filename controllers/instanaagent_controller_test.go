@@ -68,6 +68,7 @@ var _ = Describe("Instana agent controller", func() {
 
 			// We'll need to retry getting this newly created InstanaAgent, given that creation may not immediately happen.
 			Eventually(func() bool {
+				// fetchCrdInstance()
 				err := k8sClient.Get(ctx, agentCRDLookupKey, createdAgentCRDInstance)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
