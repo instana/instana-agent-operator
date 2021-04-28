@@ -7,11 +7,6 @@ package controllers
 
 import (
 	"context"
-	b64 "encoding/base64"
-	"encoding/json"
-	"fmt"
-
-	"io/ioutil"
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
@@ -132,48 +127,4 @@ func buildLabels() map[string]string {
 		"app.kubernetes.io/version":    AppVersion,
 		"app.kubernetes.io/managed-by": AppName,
 	}
-}
-
-func generatePullSecretData(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) map[string][]byte {
-	type auths struct {
-		Username string `json:"username,omitempty"`
-		Password string `json:"password,omitempty"`
-		Auth     string `json:"auth,omitempty"`
-	}
-
-	type dockerConfig struct {
-		Auths map[string]auths `json:"auths,omitempty"`
-	}
-	passwordKey := crdInstance.Spec.Key
-	if len(passwordKey) == 0 {
-		passwordKey = crdInstance.Spec.DownloadKey
-	}
-	a := fmt.Sprintf("%s:%s", "_", passwordKey)
-	a = b64.StdEncoding.EncodeToString([]byte(a))
-
-	auth := auths{
-		Username: "_",
-		Password: passwordKey,
-		Auth:     a,
-	}
-
-	d := dockerConfig{
-		Auths: map[string]auths{
-			DockerRegistry: auth,
-		},
-	}
-	j, err := json.Marshal(d)
-	if err != nil {
-		Log.Error(errors.WithStack(err), "Failed to convert jsonkey")
-	}
-
-	return map[string][]byte{".dockerconfigjson": j}
-}
-
-func readFile(filename string, Log logr.Logger) string {
-	content, err := ioutil.ReadFile("config/" + filename)
-	if err != nil {
-		Log.Error(err, "failed to read configuration.yaml")
-	}
-	return string(content)
 }

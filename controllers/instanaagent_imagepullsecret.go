@@ -7,10 +7,13 @@ package controllers
 
 import (
 	"context"
+	b64 "encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	"github.com/pkg/errors"
 	coreV1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +30,42 @@ func newImagePullSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr
 		Type: coreV1.SecretTypeDockerConfigJson,
 		Data: generatePullSecretData(crdInstance, Log),
 	}
+}
+
+func generatePullSecretData(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) map[string][]byte {
+	type auths struct {
+		Username string `json:"username,omitempty"`
+		Password string `json:"password,omitempty"`
+		Auth     string `json:"auth,omitempty"`
+	}
+
+	type dockerConfig struct {
+		Auths map[string]auths `json:"auths,omitempty"`
+	}
+	passwordKey := crdInstance.Spec.Key
+	if len(passwordKey) == 0 {
+		passwordKey = crdInstance.Spec.DownloadKey
+	}
+	a := fmt.Sprintf("%s:%s", "_", passwordKey)
+	a = b64.StdEncoding.EncodeToString([]byte(a))
+
+	auth := auths{
+		Username: "_",
+		Password: passwordKey,
+		Auth:     a,
+	}
+
+	d := dockerConfig{
+		Auths: map[string]auths{
+			DockerRegistry: auth,
+		},
+	}
+	j, err := json.Marshal(d)
+	if err != nil {
+		Log.Error(errors.WithStack(err), "Failed to convert jsonkey")
+	}
+
+	return map[string][]byte{".dockerconfigjson": j}
 }
 
 func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
