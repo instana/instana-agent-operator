@@ -105,14 +105,16 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No daemonset deployed before, creating new one")
 			daemonset = newDaemonsetForCRD(crdInstance)
-			if err := r.Create(ctx, daemonset); err != nil {
-				r.Log.Error(err, "Failed to create daemonset")
-			} else {
+			if err = r.Create(ctx, daemonset); err == nil {
 				r.Log.Info(fmt.Sprintf("%s daemonSet created successfully", AppName))
+				return nil
+			} else {
+				r.Log.Error(err, "Failed to create daemonset")
 			}
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error {
@@ -122,14 +124,16 @@ func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent clusterRole deployed before, creating new one")
 			clusterRole = newClusterRoleForCRD()
-			if err := r.Create(ctx, clusterRole); err != nil {
-				r.Log.Error(err, "Failed to create Instana agent clusterRole")
-			} else {
+			if err = r.Create(ctx, clusterRole); err == nil {
 				r.Log.Info(fmt.Sprintf("%s clusterRole created successfully", AppName))
+				return nil
+			} else {
+				r.Log.Error(err, "Failed to create Instana agent clusterRole")
 			}
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context) error {
@@ -139,14 +143,16 @@ func (r *InstanaAgentReconciler) reconcileClusterRoleBinding(ctx context.Context
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent clusterRoleBinding deployed before, creating new one")
 			clusterRoleBinding = newClusterRoleBindingForCRD()
-			if err := r.Create(ctx, clusterRoleBinding); err != nil {
-				r.Log.Error(err, "Failed to create Instana agent clusterRoleBinding")
-			} else {
+			if err = r.Create(ctx, clusterRoleBinding); err == nil {
 				r.Log.Info(fmt.Sprintf("%s clusterRoleBinding created successfully", AppName))
+				return nil
+			} else {
+				r.Log.Error(err, "Failed to create Instana agent clusterRoleBinding")
 			}
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *InstanaAgentReconciler) reconcileServiceAccounts(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
@@ -156,14 +162,16 @@ func (r *InstanaAgentReconciler) reconcileServiceAccounts(ctx context.Context, c
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent service account deployed before, creating new one")
 			serviceAcc = newServiceAccountForCRD()
-			if err := r.Create(ctx, serviceAcc); err != nil {
-				r.Log.Error(err, "Failed to create service account")
-			} else {
+			if err = r.Create(ctx, serviceAcc); err == nil {
 				r.Log.Info(fmt.Sprintf("%s service account created successfully", AgentServiceAccountName))
+				return nil
+			} else {
+				r.Log.Error(err, "Failed to create service account")
 			}
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
@@ -173,14 +181,16 @@ func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInsta
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent service deployed before, creating new one")
 			service = newServiceForCRD()
-			if err := r.Create(ctx, service); err != nil {
-				r.Log.Error(err, "Failed to create service")
-			} else {
+			if err = r.Create(ctx, service); err == nil {
 				r.Log.Info(fmt.Sprintf("%s service created successfully", AppName))
+				return nil
+			} else {
+				r.Log.Error(err, "Failed to create service")
 			}
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
@@ -189,15 +199,19 @@ func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstan
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent config secret deployed before, creating new one")
-			secret = newSecretForCRD(crdInstance)
-			if err := r.Create(ctx, secret); err != nil {
-				r.Log.Error(err, "failed to create secret")
-			} else {
+			if secret, err = newSecretForCRD(crdInstance); err != nil {
+				return err
+			}
+			if err := r.Create(ctx, secret); err == nil {
 				r.Log.Info(fmt.Sprintf("%s secret created successfully", AgentSecretName))
+				return nil
+			} else {
+				r.Log.Error(err, "failed to create secret")
 			}
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
@@ -272,7 +286,6 @@ func newDaemonsetForCRD(crdInstance *instanaV1Beta1.InstanaAgent) *appV1.DaemonS
 }
 
 func newPodSpec(crdInstance *instanaV1Beta1.InstanaAgent) coreV1.PodSpec {
-
 	trueVar := true
 	secCtx := &coreV1.SecurityContext{
 		Privileged: &trueVar,
@@ -282,6 +295,8 @@ func newPodSpec(crdInstance *instanaV1Beta1.InstanaAgent) coreV1.PodSpec {
 	if len(crdInstance.Spec.Image) > 0 {
 		AgentImageName = crdInstance.Spec.Image
 	}
+
+	envVars := buildEnvVars(crdInstance)
 
 	return coreV1.PodSpec{
 		ServiceAccountName: AgentServiceAccountName,
@@ -294,7 +309,7 @@ func newPodSpec(crdInstance *instanaV1Beta1.InstanaAgent) coreV1.PodSpec {
 			Name:            AppName,
 			Image:           AgentImageName,
 			ImagePullPolicy: coreV1.PullAlways,
-			Env:             buildEnvVars(crdInstance),
+			Env:             envVars,
 			SecurityContext: secCtx,
 			Ports:           []coreV1.ContainerPort{{ContainerPort: AgentPort}},
 			VolumeMounts:    buildVolumeMounts(crdInstance),
@@ -312,7 +327,12 @@ func newPodSpec(crdInstance *instanaV1Beta1.InstanaAgent) coreV1.PodSpec {
 	}
 }
 
-func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) *coreV1.Secret {
+func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, error) {
+	agentKey := crdInstance.Spec.Key
+	agentDownloadKey := crdInstance.Spec.DownloadKey
+	if len(agentKey) == 0 {
+		return nil, errors.New("Failed to create agent secrets, please provide an agent key")
+	}
 	return &coreV1.Secret{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:      AgentSecretName,
@@ -321,10 +341,10 @@ func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) *coreV1.Secret {
 		},
 		Type: coreV1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			AgentKey:         []byte(crdInstance.Spec.Key),
-			AgentDownloadKey: []byte(crdInstance.Spec.DownloadKey),
+			AgentKey:         []byte(agentKey),
+			AgentDownloadKey: []byte(agentDownloadKey),
 		},
-	}
+	}, nil
 }
 
 func newImagePullSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) *coreV1.Secret {
@@ -483,23 +503,15 @@ func buildLabels() map[string]string {
 }
 
 func buildEnvVars(crdInstance *instanaV1Beta1.InstanaAgent) []coreV1.EnvVar {
-	envVars := crdInstance.Spec.Env
 
-	// optional := true
+	envVars := crdInstance.Spec.Env
+	optional := true
 	agentEnvVars := []coreV1.EnvVar{
 		{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"},
 		{Name: "INSTANA_ZONE", Value: crdInstance.Spec.ZoneName},
 		{Name: "INSTANA_KUBERNETES_CLUSTER_NAME", Value: crdInstance.Spec.ClusterName},
 		{Name: "INSTANA_AGENT_ENDPOINT", Value: crdInstance.Spec.Endpoint.Host},
 		{Name: "INSTANA_AGENT_ENDPOINT_PORT", Value: crdInstance.Spec.Endpoint.Port},
-		{Name: "INSTANA_AGENT_KEY", Value: crdInstance.Spec.Key},
-		// {Name: "INSTANA_DOWNLOAD_KEY", ValueFrom: &coreV1.EnvVarSource{
-		// 	SecretKeyRef: &coreV1.SecretKeySelector{
-		// 		LocalObjectReference: coreV1.LocalObjectReference{Name: AgentSecretName},
-		// 		Key:                  "downloadKey",
-		// 		Optional:             &optional,
-		// 	},
-		// }},
 		{Name: "INSTANA_AGENT_POD_NAME", ValueFrom: &coreV1.EnvVarSource{
 			FieldRef: &coreV1.ObjectFieldSelector{
 				FieldPath:  "metadata.name",
@@ -512,8 +524,26 @@ func buildEnvVars(crdInstance *instanaV1Beta1.InstanaAgent) []coreV1.EnvVar {
 				APIVersion: "v1",
 			},
 		}},
+		{Name: "INSTANA_AGENT_KEY", ValueFrom: &coreV1.EnvVarSource{
+			SecretKeyRef: &coreV1.SecretKeySelector{
+				LocalObjectReference: coreV1.LocalObjectReference{
+					Name: AgentSecretName,
+				},
+				Key: "key",
+			},
+		}},
+		{Name: "INSTANA_DOWNLOAD_KEY", ValueFrom: &coreV1.EnvVarSource{
+			SecretKeyRef: &coreV1.SecretKeySelector{
+				LocalObjectReference: coreV1.LocalObjectReference{
+					Name: AgentSecretName,
+				},
+				Key:      "downloadKey",
+				Optional: &optional,
+			},
+		}},
 	}
-	return append(envVars, agentEnvVars...)
+
+	return append(agentEnvVars, envVars...)
 }
 
 func buildVolumeMounts(instance *instanaV1Beta1.InstanaAgent) []coreV1.VolumeMount {

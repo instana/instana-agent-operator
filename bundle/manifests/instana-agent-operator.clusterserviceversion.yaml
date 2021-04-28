@@ -28,7 +28,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v2.0.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.5.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: instana-agent-operator.v0.0.1
   namespace: placeholder
@@ -66,7 +66,7 @@ spec:
         path: clusterRoleName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Configuration files
+      - description: 'Optional: Configuration files'
         displayName: Agent configuration files
         path: configFiles
         x-descriptors:
@@ -77,12 +77,12 @@ spec:
         path: configMapName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: 'Optional: Kubernetes Daemonset Name Defaults to instana-agent-daemonset'
+      - description: 'Optional: Kubernetes Daemonset Name Defaults to instana-agent'
         displayName: Daemon Set Name
         path: daemonSetName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Instana agent download key
+      - description: 'Optional: Instana agent download key Defaults to '''''
         displayName: Download Key
         path: downloadKey
         x-descriptors:
@@ -93,7 +93,7 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:advanced
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Set environment vars
+      - description: 'Optional: Set environment vars'
         displayName: Agent environment variables
         path: env
         x-descriptors:
@@ -151,7 +151,7 @@ spec:
         path: serviceAccountName
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: 'Optional: Set the zone of the host'
+      - description: Set the zone of the host
         displayName: Zone Name
         path: zoneName
         x-descriptors:

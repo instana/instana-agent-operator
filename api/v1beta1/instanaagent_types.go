@@ -27,11 +27,11 @@ type AgentLeaderElector struct {
 // InstanaAgentSpec defines the desired state of the Instana Agent
 // +k8s:openapi-gen=true
 type InstanaAgentSpec struct {
-	// Optional: Set the zone of the host
+	// Set the zone of the host
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ZoneName string `json:"zoneName,omitempty"`
 
-	// Optional: The name of your kubernetes cluster
+	// The name of your kubernetes cluster
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ClusterName string `json:"clusterName,omitempty"`
 
@@ -44,11 +44,11 @@ type InstanaAgentSpec struct {
 	// +kubebuilder:validation:Required
 	Endpoint *InstanaAgentEndpoint `json:"endpoint,omitempty"`
 
-	// Set environment vars
+	// Optional: Set environment vars
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent environment variables",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Configuration files
+	// Optional: Configuration files
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Agent configuration files",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigFiles map[string]string `json:"configFiles,omitempty"`
 
@@ -77,7 +77,7 @@ type InstanaAgentSpec struct {
 	SecretName string `json:"secretName,omitempty"`
 
 	// Optional: Kubernetes Daemonset Name
-	// Defaults to instana-agent-daemonset
+	// Defaults to instana-agent
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	// +kubebuilder:default:instana-agent
 	DaemonSetName string `json:"daemonSetName,omitempty"`
@@ -108,7 +108,8 @@ type InstanaAgentSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:com.tectonic.ui:advanced","urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Instana agent download key
+	// Optional: Instana agent download key
+	// Defaults to ''
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
 	DownloadKey string `json:"downloadKey,omitempty"`
 

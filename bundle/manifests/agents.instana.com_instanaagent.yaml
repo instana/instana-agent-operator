@@ -44,16 +44,16 @@ spec:
               configFiles:
                 additionalProperties:
                   type: string
-                description: Configuration files
+                description: 'Optional: Configuration files'
                 type: object
               configMapName:
                 description: 'Optional: Kubernetes ConfigMap Name Defaults to instana-agent'
                 type: string
               daemonSetName:
-                description: 'Optional: Kubernetes Daemonset Name Defaults to instana-agent-daemonset'
+                description: 'Optional: Kubernetes Daemonset Name Defaults to instana-agent'
                 type: string
               downloadKey:
-                description: Instana agent download key
+                description: 'Optional: Instana agent download key Defaults to '''''
                 type: string
               endpoint:
                 description: Set agent's endpoint
@@ -64,7 +64,7 @@ spec:
                     type: string
                 type: object
               env:
-                description: Set environment vars
+                description: 'Optional: Set environment vars'
                 items:
                   description: EnvVar represents an environment variable present in a Container.
                   properties:
@@ -200,7 +200,7 @@ spec:
                 description: 'Optional: Kubernetes Service Account Name Defaults to instana-agent'
                 type: string
               zoneName:
-                description: 'Optional: Set the zone of the host'
+                description: Set the zone of the host
                 type: string
             type: object
           status:
