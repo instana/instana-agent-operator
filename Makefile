@@ -158,6 +158,7 @@ curl -LO $(2)/$(3) ;\
 curl -LO $(2)/checksums.txt ;\
 grep $(3) checksums.txt | sha256sum -c - ;\
 chmod +x $(3) ;\
+mkdir -p $$(dirname $(1)) ;\
 mv $(3) $(1) ;\
 rm -rf $$TMP_DIR ;\
 }
