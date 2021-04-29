@@ -15,6 +15,7 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Instana agent controller", func() {
@@ -64,12 +65,10 @@ var _ = Describe("Instana agent controller", func() {
 			Expect(k8sClient.Create(ctx, agentCRD)).Should(Succeed())
 
 			agentCRDLookupKey := types.NamespacedName{Name: InstanaAgentName, Namespace: InstanaAgentNamespace}
-			createdAgentCRDInstance := &instanaV1Beta1.InstanaAgent{}
 
 			// We'll need to retry getting this newly created InstanaAgent, given that creation may not immediately happen.
 			Eventually(func() bool {
-				// fetchCrdInstance()
-				err := k8sClient.Get(ctx, agentCRDLookupKey, createdAgentCRDInstance)
+				_, err := instanaAgentReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: agentCRDLookupKey})
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			// we can add checking for validated fields here

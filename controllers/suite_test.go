@@ -30,6 +30,7 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
+var instanaAgentReconciler *InstanaAgentReconciler
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -62,11 +63,13 @@ var _ = BeforeSuite(func(done Done) {
 		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())
-
-	err = (&InstanaAgentReconciler{
+	k8sManager.GetConfig()
+	instanaAgentReconciler = &InstanaAgentReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("InstanaAgent"),
-	}).SetupWithManager(k8sManager)
+	}
+
+	err = (instanaAgentReconciler).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
