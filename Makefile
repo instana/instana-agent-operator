@@ -151,7 +151,7 @@ define curl-get-tool
 set -e ;\
 TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
-ARCH=$$((((case $$(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $$(uname -m) ;; esac) ;\
+ARCH=`case $$(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $$(uname -m) ;; esac` ;\
 OS=$$(uname | awk '{print tolower($$0)}') ;\
 echo "Downloading $(2)/$(3)" ;\
 curl -LO $(2)/$(3) ;\
