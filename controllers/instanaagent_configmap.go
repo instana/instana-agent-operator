@@ -9,8 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"io/ioutil"
-
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	coreV1 "k8s.io/api/core/v1"
@@ -40,14 +38,6 @@ func newConfigMapForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logge
 		},
 		Data: data,
 	}
-}
-
-func readFile(filename string, Log logr.Logger) string {
-	content, err := ioutil.ReadFile("config/" + filename)
-	if err != nil {
-		Log.Error(err, "failed to read configuration.yaml")
-	}
-	return string(content)
 }
 
 func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
