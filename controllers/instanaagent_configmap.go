@@ -20,16 +20,25 @@ import (
 )
 
 func newConfigMapForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) *coreV1.ConfigMap {
+	data := map[string]string{
+		"configuration.yaml": "",
+	}
+	if len(crdInstance.Spec.ClusterName) > 0 {
+		data["cluster_name"] = crdInstance.Spec.ClusterName
+	}
+	if len(crdInstance.Spec.ConfigFiles) > 0 {
+		confFiles := crdInstance.Spec.ConfigFiles
+		if val, ok := confFiles["configuration.yaml"]; ok {
+			data["configuration.yaml"] = val
+		}
+	}
 	return &coreV1.ConfigMap{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:      AppName,
 			Namespace: AgentNameSpace,
 			Labels:    buildLabels(),
 		},
-		Data: map[string]string{
-			"cluster_name":       crdInstance.Spec.ClusterName,
-			"configuration.yaml": readFile("configuration.yaml", Log),
-		},
+		Data: data,
 	}
 }
 
@@ -48,7 +57,7 @@ func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInst
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent configMap deployed before, creating new one")
 			configMap := newConfigMapForCRD(crdInstance, r.Log)
-			if err := r.Create(ctx, configMap); err != nil {
+			if err = r.Create(ctx, configMap); err != nil {
 				r.Log.Error(err, "Failed to create configMap")
 			} else {
 				r.Log.Info(fmt.Sprintf("%s configMap created successfully", AppName))

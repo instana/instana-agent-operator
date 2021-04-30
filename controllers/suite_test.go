@@ -6,6 +6,7 @@
 package controllers
 
 import (
+	"flag"
 	"path/filepath"
 	"testing"
 
@@ -59,9 +60,24 @@ var _ = BeforeSuite(func(done Done) {
 
 	//+kubebuilder:scaffold:scheme
 
+	var metricsAddr string
+	var probeAddr string
+	var enableLeaderElection bool
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
+		Namespace:              "instana-agent",
+		Scheme:                 scheme.Scheme,
+		MetricsBindAddress:     metricsAddr,
+		Port:                   9443,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "819a9291.instana.com",
 	})
+
 	Expect(err).ToNot(HaveOccurred())
 	k8sManager.GetConfig()
 	instanaAgentReconciler = &InstanaAgentReconciler{

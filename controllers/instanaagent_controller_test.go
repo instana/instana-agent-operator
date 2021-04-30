@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
@@ -15,15 +16,14 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Instana agent controller", func() {
 
 	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
-		InstanaAgentName      = "test-instana-agent"
-		InstanaAgentNamespace = "test-instana-agent-namespace"
+		InstanaAgentName      = "instana-agent"
+		InstanaAgentNamespace = "instana-agent"
 
 		timeout = time.Second * 10
 		// duration = time.Second * 10
@@ -65,15 +65,27 @@ var _ = Describe("Instana agent controller", func() {
 			Expect(k8sClient.Create(ctx, agentCRD)).Should(Succeed())
 
 			agentCRDLookupKey := types.NamespacedName{Name: InstanaAgentName, Namespace: InstanaAgentNamespace}
-
-			// We'll need to retry getting this newly created InstanaAgent, given that creation may not immediately happen.
 			Eventually(func() bool {
-				_, err := instanaAgentReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: agentCRDLookupKey})
+				newCrd := &instanaV1Beta1.InstanaAgent{}
+				err := k8sClient.Get(ctx, agentCRDLookupKey, newCrd)
+				fmt.Println(newCrd)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
-			// we can add checking for validated fields here
-			// Expect(createdAgentCRDInstance.Spec.Env).Should(Equal(""))
 
+			// We'll need to retry getting this newly created InstanaAgent, given that creation may not immediately happen.
+			// Eventually(func() bool {
+			// Expect(instanaAgentReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: agentCRDLookupKey})).Should(BeTrue())
+
+			// // }, timeout, interval).Should(BeTrue())
+			// Eventually(func() bool {
+			// 	secret := coreV1.Secret{}
+			// 	err := k8sClient.Get(ctx, agentCRDLookupKey, &secret)
+			// 	fmt.Println(secret)
+			// 	return err == nil
+			// }, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				return false
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 

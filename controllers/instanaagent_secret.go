@@ -46,7 +46,7 @@ func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstan
 			if secret, err = newSecretForCRD(crdInstance); err != nil {
 				return err
 			}
-			if err := r.Create(ctx, secret); err == nil {
+			if err = r.Create(ctx, secret); err == nil {
 				r.Log.Info(fmt.Sprintf("%s secret created successfully", AgentSecretName))
 				return nil
 			} else {
