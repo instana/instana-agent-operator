@@ -138,10 +138,10 @@ type InstanaAgentStatus struct {
 	ConfigStatusses []appsv1.DeploymentStatus `json:"configStatusses,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // Defines the desired specs and states for instana agent deployment.
+// +kubebuilder:object:root=true
 // +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=instanaagent,scope=Namespaced,categories=instana
 // +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
 type InstanaAgent struct {

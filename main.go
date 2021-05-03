@@ -42,8 +42,6 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-//var globalLog = logf.Log.WithName("global")
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool

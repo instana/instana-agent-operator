@@ -16,6 +16,7 @@ import (
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // returns a Daemonset object with the data hold in instanaAgent crd instance
@@ -253,6 +254,10 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No daemonset deployed before, creating new one")
 			daemonset = newDaemonsetForCRD(crdInstance)
+			if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
+				return err
+			}
+
 			if err = r.Create(ctx, daemonset); err == nil {
 				r.Log.Info(fmt.Sprintf("%s daemonSet created successfully", AppName))
 				return nil

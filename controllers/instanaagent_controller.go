@@ -47,8 +47,6 @@ type InstanaAgentReconciler struct {
 //+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,namespace=instana-agent,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,namespace=instana-agent,resources=pods,verbs=get;list;
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("instanaagent", req.NamespacedName)
@@ -96,8 +94,7 @@ func (r *InstanaAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanaV1Beta1.InstanaAgent{}).
 		Owns(&appV1.DaemonSet{}).
-		Owns(&coreV1.Secret{}).
-		Owns(&coreV1.Pod{}).
+		Owns(&coreV1.ConfigMap{}).
 		Complete(r)
 }
 
