@@ -14,6 +14,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func newServiceAccountForCRD() *coreV1.ServiceAccount {
@@ -32,6 +33,9 @@ func (r *InstanaAgentReconciler) reconcileServiceAccounts(ctx context.Context, c
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent service account deployed before, creating new one")
 			serviceAcc = newServiceAccountForCRD()
+			if err = controllerutil.SetControllerReference(crdInstance, serviceAcc, r.Scheme); err != nil {
+				return err
+			}
 			if err = r.Create(ctx, serviceAcc); err == nil {
 				r.Log.Info(fmt.Sprintf("%s service account created successfully", AgentServiceAccountName))
 				return nil

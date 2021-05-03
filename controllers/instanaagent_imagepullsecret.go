@@ -18,6 +18,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func newImagePullSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) *coreV1.Secret {
@@ -75,6 +76,9 @@ func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, 
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent Image pull secret deployed before, creating new one")
 			pullSecret := newImagePullSecretForCRD(crdInstance, r.Log)
+			if err = controllerutil.SetControllerReference(crdInstance, pullSecret, r.Scheme); err != nil {
+				return err
+			}
 			if err := r.Create(ctx, pullSecret); err != nil {
 				r.Log.Error(err, "Failed to create Image pull secret")
 			} else {

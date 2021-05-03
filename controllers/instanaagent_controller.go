@@ -94,7 +94,10 @@ func (r *InstanaAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanaV1Beta1.InstanaAgent{}).
 		Owns(&appV1.DaemonSet{}).
+		Owns(&coreV1.Secret{}).
 		Owns(&coreV1.ConfigMap{}).
+		Owns(&coreV1.Service{}).
+		Owns(&coreV1.ServiceAccount{}).
 		Complete(r)
 }
 

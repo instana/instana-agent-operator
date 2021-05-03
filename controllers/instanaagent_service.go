@@ -15,6 +15,7 @@ import (
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func newServiceForCRD() *coreV1.Service {
@@ -51,6 +52,9 @@ func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInsta
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent service deployed before, creating new one")
 			service = newServiceForCRD()
+			if err = controllerutil.SetControllerReference(crdInstance, service, r.Scheme); err != nil {
+				return err
+			}
 			if err = r.Create(ctx, service); err == nil {
 				r.Log.Info(fmt.Sprintf("%s service created successfully", AppName))
 				return nil

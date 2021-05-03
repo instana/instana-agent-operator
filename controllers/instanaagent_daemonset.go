@@ -257,7 +257,6 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 			if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
 				return err
 			}
-
 			if err = r.Create(ctx, daemonset); err == nil {
 				r.Log.Info(fmt.Sprintf("%s daemonSet created successfully", AppName))
 				return nil

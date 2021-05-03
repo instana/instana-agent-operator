@@ -15,6 +15,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func newConfigMapForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) *coreV1.ConfigMap {
@@ -47,6 +48,9 @@ func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInst
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent configMap deployed before, creating new one")
 			configMap := newConfigMapForCRD(crdInstance, r.Log)
+			if err = controllerutil.SetControllerReference(crdInstance, configMap, r.Scheme); err != nil {
+				return err
+			}
 			if err = r.Create(ctx, configMap); err != nil {
 				r.Log.Error(err, "Failed to create configMap")
 			} else {

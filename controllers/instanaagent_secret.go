@@ -15,6 +15,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, error) {
@@ -44,6 +45,9 @@ func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstan
 		if k8sErrors.IsNotFound(err) {
 			r.Log.Info("No InstanaAgent config secret deployed before, creating new one")
 			if secret, err = newSecretForCRD(crdInstance); err != nil {
+				return err
+			}
+			if err = controllerutil.SetControllerReference(crdInstance, secret, r.Scheme); err != nil {
 				return err
 			}
 			if err = r.Create(ctx, secret); err == nil {
