@@ -83,6 +83,7 @@ var _ = BeforeSuite(func(done Done) {
 	instanaAgentReconciler = &InstanaAgentReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("InstanaAgent"),
+		Scheme: scheme.Scheme,
 	}
 
 	err = (instanaAgentReconciler).SetupWithManager(k8sManager)
