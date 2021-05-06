@@ -16,7 +16,9 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 	rbacV1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Instana agent controller", func() {
@@ -50,13 +52,14 @@ var _ = Describe("Instana agent controller", func() {
 					Namespace: AgentNameSpace,
 				},
 				Spec: instanaV1Beta1.InstanaAgentSpec{
-					ZoneName: "my-zone",
-					Key:      "nqtbV5cEQ5ev0MFzOIwskg",
-					Endpoint: &instanaV1Beta1.InstanaAgentEndpoint{
-						Host: "ingress-red-saas.instana.io",
-						Port: "443",
+					Zone: &instanaV1Beta1.Name{Name: "my-zone"},
+					Agent: &instanaV1Beta1.BaseAgentSpec{
+						Key:          "nqtbV5cEQ5ev0MFzOIwskg",
+						EndpointHost: "ingress-red-saas.instana.io",
+						EndpointPort: "443",
+						Env:          map[string]string{},
 					},
-					ClusterName: "testCluster",
+					Cluster: &instanaV1Beta1.Name{Name: "testCluster"},
 				},
 			}
 			Expect(k8sClient.Create(ctx, agentCRD)).Should(Succeed())
@@ -113,8 +116,22 @@ var _ = Describe("Instana agent controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: AppName, Namespace: AgentNameSpace}, daemonset)
-				return err == nil
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: AppName, Namespace: AgentNameSpace}, daemonset); err != nil {
+					return false
+				}
+
+				podList := &coreV1.PodList{}
+				labelSelector := labels.SelectorFromSet(buildLabels())
+				listOps := &client.ListOptions{Namespace: AgentNameSpace, LabelSelector: labelSelector}
+				if err := k8sClient.List(ctx, podList, listOps); err != nil {
+					return false
+				}
+				for _, pod := range podList.Items {
+					if pod.Status.Phase != "Running" {
+						return false
+					}
+				}
+				return true
 			}, timeout, interval).Should(BeTrue())
 
 		})

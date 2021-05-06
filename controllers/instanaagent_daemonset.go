@@ -53,8 +53,8 @@ func newPodSpec(crdInstance *instanaV1Beta1.InstanaAgent) coreV1.PodSpec {
 	}
 
 	AgentImageName := DefaultAgentImageName
-	if len(crdInstance.Spec.Image) > 0 {
-		AgentImageName = crdInstance.Spec.Image
+	if crdInstance.Spec.Agent.Image != nil && len(crdInstance.Spec.Agent.Image.Name) > 0 {
+		AgentImageName = crdInstance.Spec.Agent.Image.Name
 	}
 
 	envVars := buildEnvVars(crdInstance)
@@ -88,14 +88,18 @@ func newPodSpec(crdInstance *instanaV1Beta1.InstanaAgent) coreV1.PodSpec {
 	}
 }
 func buildEnvVars(crdInstance *instanaV1Beta1.InstanaAgent) []coreV1.EnvVar {
-	envVars := crdInstance.Spec.Env
+	userEnvVars := crdInstance.Spec.Agent.Env
+	envVars := []coreV1.EnvVar{}
+	for key, value := range userEnvVars {
+		envVars = append(envVars, coreV1.EnvVar{Name: key, Value: value})
+	}
 	optional := true
 	agentEnvVars := []coreV1.EnvVar{
 		{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"},
-		{Name: "INSTANA_ZONE", Value: crdInstance.Spec.ZoneName},
-		{Name: "INSTANA_KUBERNETES_CLUSTER_NAME", Value: crdInstance.Spec.ClusterName},
-		{Name: "INSTANA_AGENT_ENDPOINT", Value: crdInstance.Spec.Endpoint.Host},
-		{Name: "INSTANA_AGENT_ENDPOINT_PORT", Value: crdInstance.Spec.Endpoint.Port},
+		{Name: "INSTANA_ZONE", Value: crdInstance.Spec.Zone.Name},
+		{Name: "INSTANA_KUBERNETES_CLUSTER_NAME", Value: crdInstance.Spec.Cluster.Name},
+		{Name: "INSTANA_AGENT_ENDPOINT", Value: crdInstance.Spec.Agent.EndpointHost},
+		{Name: "INSTANA_AGENT_ENDPOINT_PORT", Value: crdInstance.Spec.Agent.EndpointPort},
 		{Name: "INSTANA_AGENT_POD_NAME", ValueFrom: &coreV1.EnvVarSource{
 			FieldRef: &coreV1.ObjectFieldSelector{
 				FieldPath:  "metadata.name",

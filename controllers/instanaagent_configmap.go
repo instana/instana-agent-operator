@@ -22,14 +22,11 @@ func newConfigMapForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logge
 	data := map[string]string{
 		"configuration.yaml": "",
 	}
-	if len(crdInstance.Spec.ClusterName) > 0 {
-		data["cluster_name"] = crdInstance.Spec.ClusterName
+	if len(crdInstance.Spec.Cluster.Name) > 0 {
+		data["cluster_name"] = crdInstance.Spec.Cluster.Name
 	}
-	if len(crdInstance.Spec.ConfigFiles) > 0 {
-		confFiles := crdInstance.Spec.ConfigFiles
-		if val, ok := confFiles["configuration.yaml"]; ok {
-			data["configuration.yaml"] = val
-		}
+	if len(crdInstance.Spec.Agent.Configuration_yaml) > 0 {
+		data["configuration.yaml"] = crdInstance.Spec.Agent.Configuration_yaml
 	}
 	return &coreV1.ConfigMap{
 		ObjectMeta: metaV1.ObjectMeta{

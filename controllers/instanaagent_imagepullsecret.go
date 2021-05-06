@@ -43,9 +43,9 @@ func generatePullSecretData(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.L
 	type dockerConfig struct {
 		Auths map[string]auths `json:"auths,omitempty"`
 	}
-	passwordKey := crdInstance.Spec.Key
+	passwordKey := crdInstance.Spec.Agent.Key
 	if len(passwordKey) == 0 {
-		passwordKey = crdInstance.Spec.DownloadKey
+		passwordKey = crdInstance.Spec.Agent.DownloadKey
 	}
 	a := fmt.Sprintf("%s:%s", "_", passwordKey)
 	a = b64.StdEncoding.EncodeToString([]byte(a))

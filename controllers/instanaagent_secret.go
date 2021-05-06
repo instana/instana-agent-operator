@@ -19,8 +19,8 @@ import (
 )
 
 func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, error) {
-	agentKey := crdInstance.Spec.Key
-	agentDownloadKey := crdInstance.Spec.DownloadKey
+	agentKey := crdInstance.Spec.Agent.Key
+	agentDownloadKey := crdInstance.Spec.Agent.DownloadKey
 	if len(agentKey) == 0 {
 		return nil, errors.New("Failed to create agent secrets, please provide an agent key")
 	}
