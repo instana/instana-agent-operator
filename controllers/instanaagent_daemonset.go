@@ -269,6 +269,13 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 			}
 		}
 		return err
+	} else {
+		if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
+			return err
+		}
+		daemonset.Labels = buildLabels()
+		r.Update(ctx, daemonset)
+		r.Log.Info("Set controller reference for daemonset was successfull")
 	}
 	return nil
 }
