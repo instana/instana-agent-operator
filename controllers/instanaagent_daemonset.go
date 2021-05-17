@@ -273,8 +273,11 @@ func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctr
 		if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
 			return err
 		}
-		daemonset.Labels = buildLabels()
-		r.Update(ctx, daemonset)
+		daemonset.Labels["app.kubernetes.io/managed-by"] = "instana-agent"
+		daemonset.Labels["app"] = "instana-agent"
+		if err = r.Update(ctx, daemonset); err != nil {
+			r.Log.Error(err, "Failed to set controller reference for daemonset")
+		}
 		r.Log.Info("Set controller reference for daemonset was successfull")
 	}
 	return nil

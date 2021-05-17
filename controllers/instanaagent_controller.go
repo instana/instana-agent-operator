@@ -74,7 +74,12 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// var reconcilationError = error(nil)
+	if err = installCharts(); err != nil {
+		return ctrl.Result{}, err
+	}
+	log.Println("charts installed successfully")
+
+	var reconcilationError = error(nil)
 
 	// if err = r.reconcileSecrets(ctx, crdInstance); err != nil {
 	// 	reconcilationError = err
@@ -97,13 +102,11 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// if err = r.reconcileClusterRoleBinding(ctx); err != nil {
 	// 	reconcilationError = err
 	// }
-	// if err = r.reconcileDaemonset(ctx, req, crdInstance); err != nil {
-	// 	reconcilationError = err
-	// }
+	if err = r.reconcileDaemonset(ctx, req, crdInstance); err != nil {
+		reconcilationError = err
+	}
 
-	err = installCharts()
-
-	return ctrl.Result{}, err
+	return ctrl.Result{}, reconcilationError
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -155,31 +158,38 @@ func installCharts() error {
 		os.Exit(1)
 	}
 	client := action.NewInstall(actionConfig)
-	valueOpts := &values.Options{}
+	valueOpts := &values.Options{Values: []string{
+		"agent.key='2Zykc2m_RiKJnVE-TNNdrA'",
+		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
+		"cluster.name='docker-desktop'",
+		"zone.name='OhMyHelm'",
+		"agent.logLevel='DEBUG'",
+		"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
+		"agent.image.tag=latest",
+	}}
 	args := []string{
 		"instana-agent",
 		"/Users/yousefabdelhamid/instana/instana-agent-charts/target/helm-charts/v1.99.9/",
 	}
+
 	rel, err := runInstall(args, client, valueOpts, os.Stdout)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
+	log.Println("done installing")
 	log.Println(rel)
 	return nil
 }
 
 func runInstall(args []string, client *action.Install, valueOpts *values.Options, out io.Writer) (*release.Release, error) {
-	log.Printf("Original chart version: %q", client.Version)
-	if client.Version == "" && client.Devel {
-		log.Printf("setting version to >0.0.0-0")
-		client.Version = ">0.0.0-0"
-	}
+	client.Version = AppVersion
 
-	name, chart, err := client.NameAndChart(args)
+	_, chart, err := client.NameAndChart(args)
 	if err != nil {
 		return nil, err
 	}
-	client.ReleaseName = name
+	client.ReleaseName = AppName
 
 	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
 	if err != nil {
@@ -187,11 +197,6 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 	}
 
 	log.Printf("CHART PATH: %s\n", cp)
-	p := getter.All(settings)
-	vals, err := valueOpts.MergeValues(p)
-	if err != nil {
-		return nil, err
-	}
 
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
@@ -199,6 +204,12 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 		return nil, err
 	}
 
+	p := getter.All(settings)
+
+	vals, err := valueOpts.MergeValues(p)
+	if err != nil {
+		return nil, err
+	}
 	if err := checkIfInstallable(chartRequested); err != nil {
 		return nil, err
 	}
@@ -236,7 +247,9 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 		}
 	}
 
-	client.Namespace = settings.Namespace()
+	client.Namespace = "instana-agent"
+	client.CreateNamespace = true
+	// chartRequested.Metadata.Version = AppVersion
 	return client.Run(chartRequested, vals)
 }
 
