@@ -1,7 +1,7 @@
 # Make sure the bash shell is used
 SHELL := /bin/bash
 
-# Current Operator version
+# Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
 VERSION ?= 0.0.1
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
@@ -73,7 +73,7 @@ test: generate fmt vet lint manifests ## Run tests.
 
 ##@ Build
 
-build: generate fmt vet ## Build manager binary.
+build: setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export RUN_LOCAL=true
@@ -177,20 +177,22 @@ bundle: operator-sdk manifests kustomize
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-# Options for "packagemanifests".
-ifneq ($(origin FROM_VERSION), undefined)
-PKG_FROM_VERSION := --from-version=$(FROM_VERSION)
-endif
-ifneq ($(origin CHANNEL), undefined)
-PKG_CHANNELS := --channel=$(CHANNEL)
-endif
-ifeq ($(IS_CHANNEL_DEFAULT), 1)
-PKG_IS_DEFAULT_CHANNEL := --default-channel
-endif
-PKG_MAN_OPTS ?= $(PKG_FROM_VERSION) $(PKG_CHANNELS) $(PKG_IS_DEFAULT_CHANNEL)
-
-# Generate package manifests.
-packagemanifests: kustomize manifests
-	operator-sdk generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests -q --version $(VERSION) $(PKG_MAN_OPTS)
+# Package Manifests are deprecated for the Operator Framework and replaced by using the "Bundle" format.
+#
+## Options for "packagemanifests".
+#ifneq ($(origin FROM_VERSION), undefined)
+#PKG_FROM_VERSION := --from-version=$(FROM_VERSION)
+#endif
+#ifneq ($(origin CHANNEL), undefined)
+#PKG_CHANNELS := --channel=$(CHANNEL)
+#endif
+#ifeq ($(IS_CHANNEL_DEFAULT), 1)
+#PKG_IS_DEFAULT_CHANNEL := --default-channel
+#endif
+#PKG_MAN_OPTS ?= $(PKG_FROM_VERSION) $(PKG_CHANNELS) $(PKG_IS_DEFAULT_CHANNEL)
+#
+## Generate package manifests.
+#packagemanifests: kustomize manifests
+#	operator-sdk generate kustomize manifests -q
+#	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+#	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests -q --version $(VERSION) $(PKG_MAN_OPTS)

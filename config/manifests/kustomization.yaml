@@ -1,4 +1,5 @@
 resources:
+- bases/instana-agent-operator.clusterserviceversion.yaml
 - ../default
 - ../samples
 - ../scorecard

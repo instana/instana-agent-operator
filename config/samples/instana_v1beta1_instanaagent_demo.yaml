@@ -9,7 +9,7 @@ spec:
   cluster:
       name: docker-desktop
   agent:
-    key: nqtbV5cEQ5ev0MFzOIwskg # replace with your Instana agent key
+    key: replace-me # replace with your Instana agent key
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
     env: {}
@@ -19,4 +19,3 @@ spec:
 
 
 
-  
