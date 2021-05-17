@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/go-logr/logr"
@@ -27,10 +28,12 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/cli/output"
 	"helm.sh/helm/v3/pkg/cli/values"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/storage/driver"
 )
 
 const (
@@ -74,7 +77,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if err = installCharts(); err != nil {
+	if err = upgradeInstallCharts(); err != nil {
 		return ctrl.Result{}, err
 	}
 	log.Println("charts installed successfully")
@@ -148,7 +151,115 @@ func buildLabels() map[string]string {
 		"app.kubernetes.io/managed-by": AppName,
 	}
 }
+func upgradeInstallCharts() error {
+	cfg := new(action.Configuration)
+	// You can pass an empty string instead of settings.Namespace() to list
+	// all namespaces
+	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+		log.Printf("%+v", err)
+		os.Exit(1)
+	}
+	client := action.NewUpgrade(cfg)
+	var outfmt output.Format
+	var createNamespace bool
+	client.Namespace = settings.Namespace()
+	client.Install = true
+	valueOpts := &values.Options{Values: []string{
+		"agent.key='2Zykc2m_RiKJnVE-TNNdrA'",
+		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
+		"cluster.name='docker-desktop'",
+		"zone.name='OhMyHelm'",
+		"agent.logLevel='DEBUG'",
+		"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
+		"agent.image.tag=latest",
+	}}
+	args := []string{
+		"instana-agent",
+		"/Users/yousefabdelhamid/instana/instana-agent-charts/target/helm-charts/v1.99.9/",
+	}
 
+	if client.Install {
+		// If a release does not exist, install it.
+		histClient := action.NewHistory(cfg)
+		histClient.Max = 1
+		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
+			// Only print this to stdout for table output
+			if outfmt == output.Table {
+				fmt.Fprintf(os.Stdout, "Release %q does not exist. Installing it now.\n", args[0])
+			}
+			instClient := action.NewInstall(cfg)
+			instClient.CreateNamespace = createNamespace
+			instClient.ChartPathOptions = client.ChartPathOptions
+			instClient.DryRun = client.DryRun
+			instClient.DisableHooks = client.DisableHooks
+			instClient.SkipCRDs = client.SkipCRDs
+			instClient.Timeout = client.Timeout
+			instClient.Wait = client.Wait
+			instClient.WaitForJobs = client.WaitForJobs
+			instClient.Devel = client.Devel
+			instClient.Namespace = client.Namespace
+			instClient.Atomic = client.Atomic
+			instClient.PostRenderer = client.PostRenderer
+			instClient.DisableOpenAPIValidation = client.DisableOpenAPIValidation
+			instClient.SubNotes = client.SubNotes
+			instClient.Description = client.Description
+
+			rel, err := runInstall(args, instClient, valueOpts, os.Stdout)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+			log.Println("done installing")
+			log.Println(rel)
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
+
+	if client.Version == "" && client.Devel {
+		// debug("setting version to >0.0.0-0")
+		client.Version = ">0.0.0-0"
+	}
+
+	chartPath, err := client.ChartPathOptions.LocateChart(args[1], settings)
+	if err != nil {
+		return err
+	}
+
+	vals, err := valueOpts.MergeValues(getter.All(settings))
+	if err != nil {
+		return err
+	}
+
+	// Check chart dependencies to make sure all are present in /charts
+	ch, err := loader.Load(chartPath)
+	if err != nil {
+		return err
+	}
+	if req := ch.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(ch, req); err != nil {
+			return err
+		}
+	}
+
+	if ch.Metadata.Deprecated {
+		log.Println("This chart is deprecated")
+	}
+
+	rel, err := client.Run(args[0], ch, vals)
+	if err != nil {
+		return errors.Wrap(err, "UPGRADE FAILED")
+	}
+
+	if outfmt == output.Table {
+		fmt.Fprintf(os.Stdout, "Release %q has been upgraded. Happy Helming!\n", args[0])
+	}
+	log.Println("done upgrading")
+	log.Println(rel)
+	return nil
+
+}
 func installCharts() error {
 	actionConfig := new(action.Configuration)
 	// You can pass an empty string instead of settings.Namespace() to list
