@@ -7,12 +7,10 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/pkg/errors"
 	coreV1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -39,25 +37,37 @@ func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, 
 }
 
 func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
+	// secret := &coreV1.Secret{}
+	// err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, secret)
+	// if err != nil {
+	// 	if k8sErrors.IsNotFound(err) {
+	// 		r.Log.Info("No InstanaAgent config secret deployed before, creating new one")
+	// 		if secret, err = newSecretForCRD(crdInstance); err != nil {
+	// 			return err
+	// 		}
+	// 		if err = controllerutil.SetControllerReference(crdInstance, secret, r.Scheme); err != nil {
+	// 			return err
+	// 		}
+	// 		if err = r.Create(ctx, secret); err == nil {
+	// 			r.Log.Info(fmt.Sprintf("%s secret created successfully", AgentSecretName))
+	// 			return nil
+	// 		} else {
+	// 			r.Log.Error(err, "failed to create secret")
+	// 		}
+	// 	}
+	// 	return err
+	// }
+	// return nil
 	secret := &coreV1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, secret)
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			r.Log.Info("No InstanaAgent config secret deployed before, creating new one")
-			if secret, err = newSecretForCRD(crdInstance); err != nil {
-				return err
-			}
-			if err = controllerutil.SetControllerReference(crdInstance, secret, r.Scheme); err != nil {
-				return err
-			}
-			if err = r.Create(ctx, secret); err == nil {
-				r.Log.Info(fmt.Sprintf("%s secret created successfully", AgentSecretName))
-				return nil
-			} else {
-				r.Log.Error(err, "failed to create secret")
-			}
+	if err == nil {
+		if err = controllerutil.SetControllerReference(crdInstance, secret, r.Scheme); err != nil {
+			return err
 		}
-		return err
+		if err = r.Update(ctx, secret); err != nil {
+			r.Log.Error(err, "Failed to set controller reference for secret")
+		}
+		r.Log.Info("Set controller reference for secret was successfull")
 	}
-	return nil
+	return err
 }

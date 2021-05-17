@@ -7,12 +7,10 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	coreV1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -39,21 +37,34 @@ func newConfigMapForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logge
 }
 
 func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
+	// configMap := &coreV1.ConfigMap{}
+	// err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, configMap)
+	// if err != nil {
+	// 	if k8sErrors.IsNotFound(err) {
+	// 		r.Log.Info("No InstanaAgent configMap deployed before, creating new one")
+	// 		configMap := newConfigMapForCRD(crdInstance, r.Log)
+	// 		if err = controllerutil.SetControllerReference(crdInstance, configMap, r.Scheme); err != nil {
+	// 			return err
+	// 		}
+	// 		if err = r.Create(ctx, configMap); err != nil {
+	// 			r.Log.Error(err, "Failed to create configMap")
+	// 		} else {
+	// 			r.Log.Info(fmt.Sprintf("%s configMap created successfully", AppName))
+	// 		}
+	// 	}
+	// }
+	// return err
+
 	configMap := &coreV1.ConfigMap{}
-	err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, configMap)
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			r.Log.Info("No InstanaAgent configMap deployed before, creating new one")
-			configMap := newConfigMapForCRD(crdInstance, r.Log)
-			if err = controllerutil.SetControllerReference(crdInstance, configMap, r.Scheme); err != nil {
-				return err
-			}
-			if err = r.Create(ctx, configMap); err != nil {
-				r.Log.Error(err, "Failed to create configMap")
-			} else {
-				r.Log.Info(fmt.Sprintf("%s configMap created successfully", AppName))
-			}
+	err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, configMap)
+	if err == nil {
+		if err = controllerutil.SetControllerReference(crdInstance, configMap, r.Scheme); err != nil {
+			return err
 		}
+		if err = r.Update(ctx, configMap); err != nil {
+			r.Log.Error(err, "Failed to set controller reference for configMap")
+		}
+		r.Log.Info("Set controller reference for configMap was successfull")
 	}
 	return err
 }

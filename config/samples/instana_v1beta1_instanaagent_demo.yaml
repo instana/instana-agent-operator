@@ -5,7 +5,7 @@ metadata:
   namespace: instana-agent
 spec:
   zone:
-    name: my-zone # (optional) name of the zone of the host
+    name: edited-zone # (optional) name of the zone of the host
   cluster:
       name: docker-desktop
   agent:

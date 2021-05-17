@@ -77,39 +77,13 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if err = upgradeInstallCharts(); err != nil {
+	if err = r.upgradeInstallCharts(ctx, req, crdInstance); err != nil {
 		return ctrl.Result{}, err
 	}
 	log.Println("charts installed successfully")
 
-	var reconcilationError = error(nil)
-
-	// if err = r.reconcileSecrets(ctx, crdInstance); err != nil {
-	// 	reconcilationError = err
-	// }
-	// if err = r.reconcileImagePullSecrets(ctx, crdInstance); err != nil {
-	// 	reconcilationError = err
-	// }
-	// if err = r.reconcileServices(ctx, crdInstance); err != nil {
-	// 	reconcilationError = err
-	// }
-	// if err = r.reconcileServiceAccounts(ctx, crdInstance); err != nil {
-	// 	reconcilationError = err
-	// }
-	// if err = r.reconcileConfigMap(ctx, crdInstance); err != nil {
-	// 	reconcilationError = err
-	// }
-	// if err = r.reconcileClusterRole(ctx); err != nil {
-	// 	reconcilationError = err
-	// }
-	// if err = r.reconcileClusterRoleBinding(ctx); err != nil {
-	// 	reconcilationError = err
-	// }
-	if err = r.reconcileDaemonset(ctx, req, crdInstance); err != nil {
-		reconcilationError = err
-	}
-
-	return ctrl.Result{}, reconcilationError
+	log.Println("end of method")
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -151,7 +125,7 @@ func buildLabels() map[string]string {
 		"app.kubernetes.io/managed-by": AppName,
 	}
 }
-func upgradeInstallCharts() error {
+func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	cfg := new(action.Configuration)
 	// You can pass an empty string instead of settings.Namespace() to list
 	// all namespaces
@@ -168,7 +142,7 @@ func upgradeInstallCharts() error {
 		"agent.key='2Zykc2m_RiKJnVE-TNNdrA'",
 		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
 		"cluster.name='docker-desktop'",
-		"zone.name='OhMyHelm'",
+		"zone.name=" + crdInstance.Spec.Zone.Name,
 		"agent.logLevel='DEBUG'",
 		"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
 		"agent.image.tag=latest",
@@ -204,13 +178,17 @@ func upgradeInstallCharts() error {
 			instClient.SubNotes = client.SubNotes
 			instClient.Description = client.Description
 
-			rel, err := runInstall(args, instClient, valueOpts, os.Stdout)
+			_, err := runInstall(args, instClient, valueOpts, os.Stdout)
 			if err != nil {
 				log.Println(err)
 				return err
 			}
+			if err = r.setReferences(ctx, req, crdInstance); err != nil {
+				log.Println(err)
+				return err
+			}
 			log.Println("done installing")
-			log.Println(rel)
+			// log.Println(rel)
 			return nil
 		} else if err != nil {
 			return err
@@ -247,18 +225,47 @@ func upgradeInstallCharts() error {
 		log.Println("This chart is deprecated")
 	}
 
-	rel, err := client.Run(args[0], ch, vals)
+	_, err = client.Run(args[0], ch, vals)
 	if err != nil {
 		return errors.Wrap(err, "UPGRADE FAILED")
 	}
 
-	if outfmt == output.Table {
-		fmt.Fprintf(os.Stdout, "Release %q has been upgraded. Happy Helming!\n", args[0])
-	}
+	// if outfmt == output.Table {
+	// 	fmt.Fprintf(os.Stdout, "Release %q has been upgraded. Happy Helming!\n", args[0])
+	// }
 	log.Println("done upgrading")
-	log.Println(rel)
+	// log.Println(rel)
 	return nil
 
+}
+func (r *InstanaAgentReconciler) setReferences(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
+	var reconcilationError = error(nil)
+	var err error
+	if err = r.reconcileSecrets(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileImagePullSecrets(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileServices(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileServiceAccounts(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileConfigMap(ctx, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileClusterRole(ctx); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileClusterRoleBinding(ctx); err != nil {
+		reconcilationError = err
+	}
+	if err = r.reconcileDaemonset(ctx, req, crdInstance); err != nil {
+		reconcilationError = err
+	}
+	return reconcilationError
 }
 func installCharts() error {
 	actionConfig := new(action.Configuration)
