@@ -36,28 +36,7 @@ func newSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent) (*coreV1.Secret, 
 	}, nil
 }
 
-func (r *InstanaAgentReconciler) reconcileSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	// secret := &coreV1.Secret{}
-	// err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, secret)
-	// if err != nil {
-	// 	if k8sErrors.IsNotFound(err) {
-	// 		r.Log.Info("No InstanaAgent config secret deployed before, creating new one")
-	// 		if secret, err = newSecretForCRD(crdInstance); err != nil {
-	// 			return err
-	// 		}
-	// 		if err = controllerutil.SetControllerReference(crdInstance, secret, r.Scheme); err != nil {
-	// 			return err
-	// 		}
-	// 		if err = r.Create(ctx, secret); err == nil {
-	// 			r.Log.Info(fmt.Sprintf("%s secret created successfully", AgentSecretName))
-	// 			return nil
-	// 		} else {
-	// 			r.Log.Error(err, "failed to create secret")
-	// 		}
-	// 	}
-	// 	return err
-	// }
-	// return nil
+func (r *InstanaAgentReconciler) setSecretsReference(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	secret := &coreV1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, secret)
 	if err == nil {

@@ -6,13 +6,8 @@
 package controllers
 
 import (
-	"context"
-	"fmt"
-
 	rbacV1 "k8s.io/api/rbac/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func newClusterRoleForCRD() *rbacV1.ClusterRole {
@@ -59,23 +54,4 @@ func newClusterRoleForCRD() *rbacV1.ClusterRole {
 			},
 		},
 	}
-}
-
-func (r *InstanaAgentReconciler) reconcileClusterRole(ctx context.Context) error {
-	clusterRole := &rbacV1.ClusterRole{}
-	err := r.Get(ctx, client.ObjectKey{Name: AppName}, clusterRole)
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			r.Log.Info("No InstanaAgent clusterRole deployed before, creating new one")
-			clusterRole = newClusterRoleForCRD()
-			if err = r.Create(ctx, clusterRole); err == nil {
-				r.Log.Info(fmt.Sprintf("%s clusterRole created successfully", AppName))
-				return nil
-			} else {
-				r.Log.Error(err, "Failed to create Instana agent clusterRole")
-			}
-		}
-		return err
-	}
-	return nil
 }

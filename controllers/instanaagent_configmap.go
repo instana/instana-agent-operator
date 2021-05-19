@@ -36,25 +36,7 @@ func newConfigMapForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logge
 	}
 }
 
-func (r *InstanaAgentReconciler) reconcileConfigMap(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	// configMap := &coreV1.ConfigMap{}
-	// err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, configMap)
-	// if err != nil {
-	// 	if k8sErrors.IsNotFound(err) {
-	// 		r.Log.Info("No InstanaAgent configMap deployed before, creating new one")
-	// 		configMap := newConfigMapForCRD(crdInstance, r.Log)
-	// 		if err = controllerutil.SetControllerReference(crdInstance, configMap, r.Scheme); err != nil {
-	// 			return err
-	// 		}
-	// 		if err = r.Create(ctx, configMap); err != nil {
-	// 			r.Log.Error(err, "Failed to create configMap")
-	// 		} else {
-	// 			r.Log.Info(fmt.Sprintf("%s configMap created successfully", AppName))
-	// 		}
-	// 	}
-	// }
-	// return err
-
+func (r *InstanaAgentReconciler) setConfigMapReference(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	configMap := &coreV1.ConfigMap{}
 	err := r.Get(ctx, client.ObjectKey{Name: AgentSecretName, Namespace: AgentNameSpace}, configMap)
 	if err == nil {

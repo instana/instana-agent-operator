@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func newImagePullSecretForCRD(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.Logger) *coreV1.Secret {
@@ -66,35 +68,17 @@ func generatePullSecretData(crdInstance *instanaV1Beta1.InstanaAgent, Log logr.L
 	return map[string][]byte{".dockerconfigjson": j}
 }
 
-func (r *InstanaAgentReconciler) reconcileImagePullSecrets(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	// pullSecret := &coreV1.Secret{}
-	// err := r.Get(ctx, client.ObjectKey{Name: AgentImagePullSecretName, Namespace: AgentNameSpace}, pullSecret)
-	// if err != nil {
-	// 	if k8sErrors.IsNotFound(err) {
-	// 		r.Log.Info("No InstanaAgent Image pull secret deployed before, creating new one")
-	// 		pullSecret := newImagePullSecretForCRD(crdInstance, r.Log)
-	// 		if err = controllerutil.SetControllerReference(crdInstance, pullSecret, r.Scheme); err != nil {
-	// 			return err
-	// 		}
-	// 		if err := r.Create(ctx, pullSecret); err != nil {
-	// 			r.Log.Error(err, "Failed to create Image pull secret")
-	// 		} else {
-	// 			r.Log.Info(fmt.Sprintf("%s image pull secret created successfully", AgentImagePullSecretName))
-	// 		}
-	// 	}
-	// }
-	// return err
-
-	// pullSecret := &coreV1.Secret{}
-	// err := r.Get(ctx, client.ObjectKey{Name: AgentImagePullSecretName, Namespace: AgentNameSpace}, pullSecret)
-	// if err == nil {
-	// 	if err = controllerutil.SetControllerReference(crdInstance, pullSecret, r.Scheme); err != nil {
-	// 		return err
-	// 	}
-	// 	if err = r.Update(ctx, pullSecret); err != nil {
-	// 		r.Log.Error(err, "Failed to set controller reference for pullSecret")
-	// 	}
-	// 	r.Log.Info("Set controller reference for pullSecret was successfull")
-	// }
+func (r *InstanaAgentReconciler) setImagePullSecretsReference(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
+	pullSecret := &coreV1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Name: AgentImagePullSecretName, Namespace: AgentNameSpace}, pullSecret)
+	if err == nil {
+		if err = controllerutil.SetControllerReference(crdInstance, pullSecret, r.Scheme); err != nil {
+			return err
+		}
+		if err = r.Update(ctx, pullSecret); err != nil {
+			r.Log.Error(err, "Failed to set controller reference for pullSecret")
+		}
+		r.Log.Info("Set controller reference for pullSecret was successfull")
+	}
 	return nil
 }

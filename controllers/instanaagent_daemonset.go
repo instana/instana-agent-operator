@@ -249,44 +249,13 @@ func buildVolumes(instance *instanaV1Beta1.InstanaAgent) []coreV1.Volume {
 	}
 }
 
-func (r *InstanaAgentReconciler) reconcileDaemonset(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	// daemonset := &appV1.DaemonSet{}
-	// err := r.Get(ctx, req.NamespacedName, daemonset)
-	// if err != nil {
-	// 	if k8sErrors.IsNotFound(err) {
-	// 		r.Log.Info("No daemonset deployed before, creating new one")
-	// 		daemonset = newDaemonsetForCRD(crdInstance)
-	// 		if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
-	// 			return err
-	// 		}
-	// 		if err = r.Create(ctx, daemonset); err == nil {
-	// 			r.Log.Info(fmt.Sprintf("%s daemonSet created successfully", AppName))
-	// 			return nil
-	// 		} else {
-	// 			r.Log.Error(err, "Failed to create daemonset")
-	// 		}
-	// 	}
-	// 	return err
-	// } else {
-	// 	if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
-	// 		return err
-	// 	}
-	// 	// daemonset.Labels["app.kubernetes.io/managed-by"] = "instana-agent"
-	// 	// daemonset.Labels["app"] = "instana-agent"
-	// 	if err = r.Update(ctx, daemonset); err != nil {
-	// 		r.Log.Error(err, "Failed to set controller reference for daemonset")
-	// 	}
-	// 	r.Log.Info("Set controller reference for daemonset was successfull")
-	// }
-	// return nil
+func (r *InstanaAgentReconciler) setDaemonsetReference(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	daemonset := &appV1.DaemonSet{}
 	err := r.Get(ctx, req.NamespacedName, daemonset)
 	if err == nil {
 		if err = controllerutil.SetControllerReference(crdInstance, daemonset, r.Scheme); err != nil {
 			return err
 		}
-		// daemonset.Labels["app.kubernetes.io/managed-by"] = "instana-agent"
-		// daemonset.Labels["app"] = "instana-agent"
 		if err = r.Update(ctx, daemonset); err != nil {
 			r.Log.Error(err, "Failed to set controller reference for daemonset")
 		}

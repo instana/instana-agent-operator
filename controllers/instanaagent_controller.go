@@ -41,7 +41,7 @@ const (
 	AgentKey                 = "key"
 	AgentDownloadKey         = "downloadKey"
 	DefaultAgentImageName    = "instana/agent"
-	AgentImagePullSecretName = "containers-key"
+	AgentImagePullSecretName = "containers-instana-io"
 	DockerRegistry           = "containers.instana.io"
 
 	AgentPort         = 42699
@@ -241,63 +241,25 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 func (r *InstanaAgentReconciler) setReferences(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	var reconcilationError = error(nil)
 	var err error
-	if err = r.reconcileSecrets(ctx, crdInstance); err != nil {
+	if err = r.setSecretsReference(ctx, crdInstance); err != nil {
 		reconcilationError = err
 	}
-	if err = r.reconcileImagePullSecrets(ctx, crdInstance); err != nil {
+	if err = r.setImagePullSecretsReference(ctx, crdInstance); err != nil {
 		reconcilationError = err
 	}
-	if err = r.reconcileServices(ctx, crdInstance); err != nil {
+	if err = r.setServicesReference(ctx, crdInstance); err != nil {
 		reconcilationError = err
 	}
-	if err = r.reconcileServiceAccounts(ctx, crdInstance); err != nil {
+	if err = r.setServiceAccountsReference(ctx, crdInstance); err != nil {
 		reconcilationError = err
 	}
-	if err = r.reconcileConfigMap(ctx, crdInstance); err != nil {
+	if err = r.setConfigMapReference(ctx, crdInstance); err != nil {
 		reconcilationError = err
 	}
-	if err = r.reconcileClusterRole(ctx); err != nil {
-		reconcilationError = err
-	}
-	if err = r.reconcileClusterRoleBinding(ctx); err != nil {
-		reconcilationError = err
-	}
-	if err = r.reconcileDaemonset(ctx, req, crdInstance); err != nil {
+	if err = r.setDaemonsetReference(ctx, req, crdInstance); err != nil {
 		reconcilationError = err
 	}
 	return reconcilationError
-}
-func installCharts() error {
-	actionConfig := new(action.Configuration)
-	// You can pass an empty string instead of settings.Namespace() to list
-	// all namespaces
-	if err := actionConfig.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
-		log.Printf("%+v", err)
-		os.Exit(1)
-	}
-	client := action.NewInstall(actionConfig)
-	valueOpts := &values.Options{Values: []string{
-		"agent.key='2Zykc2m_RiKJnVE-TNNdrA'",
-		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
-		"cluster.name='docker-desktop'",
-		"zone.name='OhMyHelm'",
-		"agent.logLevel='DEBUG'",
-		"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
-		"agent.image.tag=latest",
-	}}
-	args := []string{
-		"instana-agent",
-		"/Users/yousefabdelhamid/instana/instana-agent-charts/target/helm-charts/v1.99.9/",
-	}
-
-	rel, err := runInstall(args, client, valueOpts, os.Stdout)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	log.Println("done installing")
-	log.Println(rel)
-	return nil
 }
 
 func runInstall(args []string, client *action.Install, valueOpts *values.Options, out io.Writer) (*release.Release, error) {

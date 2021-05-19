@@ -43,27 +43,7 @@ func newServiceForCRD() *coreV1.Service {
 		},
 	}
 }
-func (r *InstanaAgentReconciler) reconcileServices(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	// service := &coreV1.Service{}
-	// err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, service)
-	// if err != nil {
-	// 	if k8sErrors.IsNotFound(err) {
-	// 		r.Log.Info("No InstanaAgent service deployed before, creating new one")
-	// 		service = newServiceForCRD()
-	// 		if err = controllerutil.SetControllerReference(crdInstance, service, r.Scheme); err != nil {
-	// 			return err
-	// 		}
-	// 		if err = r.Create(ctx, service); err == nil {
-	// 			r.Log.Info(fmt.Sprintf("%s service created successfully", AppName))
-	// 			return nil
-	// 		} else {
-	// 			r.Log.Error(err, "Failed to create service")
-	// 		}
-	// 	}
-	// 	return err
-	// }
-	// return nil
-
+func (r *InstanaAgentReconciler) setServicesReference(ctx context.Context, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	service := &coreV1.Service{}
 	err := r.Get(ctx, client.ObjectKey{Name: AppName, Namespace: AgentNameSpace}, service)
 	if err == nil {
