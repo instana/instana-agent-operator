@@ -46,6 +46,7 @@ const (
 
 	AgentPort         = 42699
 	OpenTelemetryPort = 55680
+	helm_repo         = "https://agents.instana.io/helm"
 )
 
 var (
@@ -129,6 +130,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	cfg := new(action.Configuration)
 	// You can pass an empty string instead of settings.Namespace() to list
 	// all namespaces
+	settings.RegistryConfig = helm_repo
 	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		log.Printf("%+v", err)
 		os.Exit(1)
@@ -138,6 +140,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	var createNamespace bool
 	client.Namespace = settings.Namespace()
 	client.Install = true
+	client.RepoURL = helm_repo
 	valueOpts := &values.Options{Values: []string{
 		"agent.key='2Zykc2m_RiKJnVE-TNNdrA'",
 		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
@@ -149,7 +152,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	}}
 	args := []string{
 		"instana-agent",
-		"/Users/yousefabdelhamid/instana/instana-agent-charts/target/helm-charts/v1.99.9/",
+		"instana-agent",
 	}
 
 	if client.Install {
@@ -157,7 +160,6 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 		histClient := action.NewHistory(cfg)
 		histClient.Max = 1
 		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
-			// Only print this to stdout for table output
 			if outfmt == output.Table {
 				fmt.Fprintf(os.Stdout, "Release %q does not exist. Installing it now.\n", args[0])
 			}
@@ -177,7 +179,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 			instClient.DisableOpenAPIValidation = client.DisableOpenAPIValidation
 			instClient.SubNotes = client.SubNotes
 			instClient.Description = client.Description
-
+			instClient.RepoURL = helm_repo
 			_, err := runInstall(args, instClient, valueOpts, os.Stdout)
 			if err != nil {
 				log.Println(err)
@@ -188,7 +190,6 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 				return err
 			}
 			log.Println("done installing")
-			// log.Println(rel)
 			return nil
 		} else if err != nil {
 			return err
@@ -196,7 +197,6 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	}
 
 	if client.Version == "" && client.Devel {
-		// debug("setting version to >0.0.0-0")
 		client.Version = ">0.0.0-0"
 	}
 
@@ -230,11 +230,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 		return errors.Wrap(err, "UPGRADE FAILED")
 	}
 
-	// if outfmt == output.Table {
-	// 	fmt.Fprintf(os.Stdout, "Release %q has been upgraded. Happy Helming!\n", args[0])
-	// }
 	log.Println("done upgrading")
-	// log.Println(rel)
 	return nil
 
 }
@@ -263,7 +259,6 @@ func (r *InstanaAgentReconciler) setReferences(ctx context.Context, req ctrl.Req
 }
 
 func runInstall(args []string, client *action.Install, valueOpts *values.Options, out io.Writer) (*release.Release, error) {
-	client.Version = AppVersion
 
 	_, chart, err := client.NameAndChart(args)
 	if err != nil {
@@ -299,9 +294,6 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 	}
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
-		// If CheckDependencies returns an error, we have unfulfilled dependencies.
-		// As of Helm 2.4.0, this is treated as a stopping condition:
-		// https://github.com/helm/helm/issues/2209
 		if err := action.CheckDependencies(chartRequested, req); err != nil {
 			if client.DependencyUpdate {
 				man := &downloader.Manager{
@@ -329,13 +321,9 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 
 	client.Namespace = "instana-agent"
 	client.CreateNamespace = true
-	// chartRequested.Metadata.Version = AppVersion
 	return client.Run(chartRequested, vals)
 }
 
-// checkIfInstallable validates if a chart can be installed
-//
-// Application chart type is only installable
 func checkIfInstallable(ch *chart.Chart) error {
 	switch ch.Metadata.Type {
 	case "", "application":
