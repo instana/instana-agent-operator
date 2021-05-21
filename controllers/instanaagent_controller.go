@@ -128,9 +128,7 @@ func buildLabels() map[string]string {
 }
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	cfg := new(action.Configuration)
-	// You can pass an empty string instead of settings.Namespace() to list
-	// all namespaces
-	settings.RegistryConfig = helm_repo
+	settings.RepositoryConfig = helm_repo
 	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		log.Printf("%+v", err)
 		os.Exit(1)
@@ -142,7 +140,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	client.Install = true
 	client.RepoURL = helm_repo
 	valueOpts := &values.Options{Values: []string{
-		"agent.key='2Zykc2m_RiKJnVE-TNNdrA'",
+		"agent.key=" + crdInstance.Spec.Agent.Key,
 		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
 		"cluster.name='docker-desktop'",
 		"zone.name=" + crdInstance.Spec.Zone.Name,
