@@ -124,6 +124,19 @@ func (spec *BaseAgentSpec) AdditionalBackendsValues() []string {
 	return values
 }
 
+func (spec *BaseAgentSpec) updateStrategyValues() []string {
+	values := []string{}
+	if spec.UpdateStrategy != nil {
+		if len(spec.UpdateStrategy.Type) != 0 {
+			values = append(values, "agent.updateStrategy.type="+string(spec.UpdateStrategy.Type))
+		}
+		if spec.UpdateStrategy.RollingUpdate != nil {
+			values = append(values, "agent.updateStrategy.rollingUpdate.maxUnavailable="+spec.UpdateStrategy.RollingUpdate.MaxUnavailable.StrVal)
+		}
+	}
+	return values
+}
+
 type AgentPodSpec struct {
 	// agent.pod.annotations are additional annotations to be added to the agent pods.
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -140,6 +153,43 @@ type AgentPodSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	coreV1.ResourceRequirements `json:",inline"`
+}
+
+func (spec *AgentPodSpec) Values() []string {
+	values := []string{}
+	if len(spec.Annotations) != 0 {
+		valuesMap := ""
+		for key, value := range spec.Annotations {
+			if len(valuesMap) != 0 {
+				valuesMap = valuesMap + ","
+			}
+			valuesMap = valuesMap + key + "=" + value
+		}
+		values = append(values, "agent.pod.annotations="+valuesMap)
+	}
+	if len(spec.Tollerations) != 0 {
+		for key, value := range spec.Tollerations {
+			if len(value.Key) != 0 {
+				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].key=%s", key, value.Key))
+			}
+			if len(value.Operator) != 0 {
+				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].operator=%s", key, string(value.Operator)))
+			}
+			if len(value.Value) != 0 {
+				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].value=%s", key, value.Value))
+			}
+			if len(value.Effect) != 0 {
+				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].effect=%s", key, value.Effect))
+			}
+		}
+	}
+	// if spec.Affinity != nil {
+	// 	if spec.Affinity.NodeAffinity != nil {
+	// 		if spec.Affinity
+	// 	}
+	// }
+
+	return values
 }
 
 type ImageSpec struct {

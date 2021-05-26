@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -20,8 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
-	"io"
 	"log"
 
 	"strconv"
@@ -31,7 +32,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/cli/output"
-	"helm.sh/helm/v3/pkg/cli/values"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
@@ -79,8 +79,24 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.Log.Error(errors.New("CRD not found"), "CRD object not found, could have been deleted after reconcile request")
 		return ctrl.Result{}, nil
 	}
+	specJson := []byte{}
+	specYaml := []byte{}
+	if specJson, err = json.Marshal(crdInstance.Spec); err != nil {
+		log.Println(err)
+		return ctrl.Result{}, err
+	}
+	if specYaml, err = yaml.JSONToYAML(specJson); err != nil {
+		log.Println(err)
+		return ctrl.Result{}, err
+	}
 
-	if err = r.upgradeInstallCharts(ctx, req, crdInstance); err != nil {
+	yamlMap := map[string]interface{}{}
+	if err := yaml.Unmarshal(specYaml, &yamlMap); err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "failed to parse yaml")
+	}
+	log.Println(yamlMap)
+
+	if err = r.upgradeInstallCharts(ctx, req, crdInstance, yamlMap); err != nil {
 		return ctrl.Result{}, err
 	}
 	log.Println("charts installed successfully")
@@ -131,7 +147,7 @@ func buildLabels() map[string]string {
 
 func appendValue(values []string, value string, key string) []string {
 	if len(value) != 0 {
-		return append(values, key+"="+value)
+		values = append(values, key+"="+value)
 	}
 	return values
 }
@@ -170,7 +186,7 @@ func mapAgentSpecToValues(spec *instanaV1Beta1.InstanaAgentSpec) []string {
 	values = append(values, spec.Kuberentes.Values()...)
 	return values
 }
-func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
+func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent, yamlMap map[string]interface{}) error {
 	cfg := new(action.Configuration)
 	settings.RepositoryConfig = helm_repo
 	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
@@ -183,7 +199,17 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	client.Namespace = settings.Namespace()
 	client.Install = true
 	client.RepoURL = helm_repo
-	valueOpts := &values.Options{Values: mapAgentSpecToValues(&crdInstance.Spec)}
+	// valueOpts := &values.Options{Values: mapAgentSpecToValues(&crdInstance.Spec)}
+	// valueOpts := &values.Options{Values: []string{
+	// 	"agent.key=" + crdInstance.Spec.Agent.Key,
+	// 	"agent.endpointHost='ingress-pink-saas.instana.rocks'",
+	// 	"cluster.name='docker-desktop'",
+	// 	"zone.name=" + crdInstance.Spec.Zone.Name,
+	// 	"agent.logLevel='DEBUG'",
+	// 	"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
+	// 	"agent.image.tag=latest",
+	// }}
+
 	args := []string{
 		"instana-agent",
 		"instana-agent",
@@ -214,7 +240,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 			instClient.SubNotes = client.SubNotes
 			instClient.Description = client.Description
 			instClient.RepoURL = helm_repo
-			_, err := runInstall(args, instClient, valueOpts, os.Stdout)
+			_, err := runInstall(args, instClient, yamlMap)
 			if err != nil {
 				log.Println(err)
 				return err
@@ -239,11 +265,6 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 		return err
 	}
 
-	vals, err := valueOpts.MergeValues(getter.All(settings))
-	if err != nil {
-		return err
-	}
-
 	// Check chart dependencies to make sure all are present in /charts
 	ch, err := loader.Load(chartPath)
 	if err != nil {
@@ -259,7 +280,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 		log.Println("This chart is deprecated")
 	}
 
-	_, err = client.Run(args[0], ch, vals)
+	_, err = client.Run(args[0], ch, yamlMap)
 	if err != nil {
 		return errors.Wrap(err, "UPGRADE FAILED")
 	}
@@ -292,7 +313,7 @@ func (r *InstanaAgentReconciler) setReferences(ctx context.Context, req ctrl.Req
 	return reconcilationError
 }
 
-func runInstall(args []string, client *action.Install, valueOpts *values.Options, out io.Writer) (*release.Release, error) {
+func runInstall(args []string, client *action.Install, yamlMap map[string]interface{}) (*release.Release, error) {
 
 	_, chart, err := client.NameAndChart(args)
 	if err != nil {
@@ -315,10 +336,6 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 
 	p := getter.All(settings)
 
-	vals, err := valueOpts.MergeValues(p)
-	if err != nil {
-		return nil, err
-	}
 	if err := checkIfInstallable(chartRequested); err != nil {
 		return nil, err
 	}
@@ -331,7 +348,7 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 		if err := action.CheckDependencies(chartRequested, req); err != nil {
 			if client.DependencyUpdate {
 				man := &downloader.Manager{
-					Out:              out,
+					Out:              os.Stdout,
 					ChartPath:        cp,
 					Keyring:          client.ChartPathOptions.Keyring,
 					SkipUpdate:       false,
@@ -355,7 +372,7 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 
 	client.Namespace = "instana-agent"
 	client.CreateNamespace = true
-	return client.Run(chartRequested, vals)
+	return client.Run(chartRequested, yamlMap)
 }
 
 func checkIfInstallable(ch *chart.Chart) error {
