@@ -5,9 +5,6 @@
 package v1beta1
 
 import (
-	"fmt"
-	"strconv"
-
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 )
@@ -105,38 +102,6 @@ type BaseAgentSpec struct {
 	Host *HostSpec `json:"host,omitempty"`
 }
 
-func (spec *BaseAgentSpec) AdditionalBackendsValues() []string {
-	values := []string{}
-	if len(spec.AdditionalBackends) != 0 {
-		for index, backend := range spec.AdditionalBackends {
-			if len(backend.EndpointHost) != 0 {
-				values = append(values, fmt.Sprintf("agent.additionalBackends[%d].endpointHost=%s", index, backend.EndpointHost))
-			}
-			if len(backend.EndpointPort) != 0 {
-				values = append(values, fmt.Sprintf("agent.additionalBackends[%d].endpointPort=%s", index, backend.EndpointPort))
-			}
-			if len(backend.Key) != 0 {
-				values = append(values, fmt.Sprintf("agent.additionalBackends[%d].key=%s", index, backend.Key))
-			}
-		}
-	}
-
-	return values
-}
-
-func (spec *BaseAgentSpec) updateStrategyValues() []string {
-	values := []string{}
-	if spec.UpdateStrategy != nil {
-		if len(spec.UpdateStrategy.Type) != 0 {
-			values = append(values, "agent.updateStrategy.type="+string(spec.UpdateStrategy.Type))
-		}
-		if spec.UpdateStrategy.RollingUpdate != nil {
-			values = append(values, "agent.updateStrategy.rollingUpdate.maxUnavailable="+spec.UpdateStrategy.RollingUpdate.MaxUnavailable.StrVal)
-		}
-	}
-	return values
-}
-
 type AgentPodSpec struct {
 	// agent.pod.annotations are additional annotations to be added to the agent pods.
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -155,43 +120,6 @@ type AgentPodSpec struct {
 	coreV1.ResourceRequirements `json:",inline"`
 }
 
-func (spec *AgentPodSpec) Values() []string {
-	values := []string{}
-	if len(spec.Annotations) != 0 {
-		valuesMap := ""
-		for key, value := range spec.Annotations {
-			if len(valuesMap) != 0 {
-				valuesMap = valuesMap + ","
-			}
-			valuesMap = valuesMap + key + "=" + value
-		}
-		values = append(values, "agent.pod.annotations="+valuesMap)
-	}
-	if len(spec.Tollerations) != 0 {
-		for key, value := range spec.Tollerations {
-			if len(value.Key) != 0 {
-				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].key=%s", key, value.Key))
-			}
-			if len(value.Operator) != 0 {
-				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].operator=%s", key, string(value.Operator)))
-			}
-			if len(value.Value) != 0 {
-				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].value=%s", key, value.Value))
-			}
-			if len(value.Effect) != 0 {
-				values = append(values, fmt.Sprintf("agent.pod.tollerations[%d].effect=%s", key, value.Effect))
-			}
-		}
-	}
-	// if spec.Affinity != nil {
-	// 	if spec.Affinity.NodeAffinity != nil {
-	// 		if spec.Affinity
-	// 	}
-	// }
-
-	return values
-}
-
 type ImageSpec struct {
 	// agent.image.name is the name of the container image of the Instana agent.
 	Name string `json:"name,omitempty"`
@@ -204,30 +132,6 @@ type ImageSpec struct {
 	// agent.image.pullSecrets allows you to override the default pull secret that is created when agent.image.name starts with "containers.instana.io"
 	// Setting agent.image.pullSecrets prevents the creation of the default "containers-instana-io" secret.
 	PullSecrets []PullSecretSpec `json:"pullSecrets,omitempty"`
-}
-
-func (spec *ImageSpec) Values() []string {
-	values := []string{}
-	if len(spec.Name) != 0 {
-		values = append(values, "agent.image.name="+spec.Name)
-	}
-	if len(spec.Digest) != 0 {
-		values = append(values, "agent.image.digest="+spec.Digest)
-	}
-	if len(spec.Tag) != 0 {
-		values = append(values, "agent.image.tag="+spec.Tag)
-	}
-	if len(spec.PullPolicy) != 0 {
-		values = append(values, "agent.image.pullPolicy="+spec.PullPolicy)
-	}
-	if len(spec.PullSecrets) != 0 {
-		for index, secret := range spec.PullSecrets {
-
-			values = append(values, fmt.Sprintf("agent.image.pullSecrets[%d].name=%s", index, secret.Name.Name))
-		}
-	}
-
-	return values
 }
 
 type PullSecretSpec struct {
@@ -256,10 +160,6 @@ type BackendSpec struct {
 	Key          string `json:"key,omitempty"`
 }
 
-func (backendSpec *BackendSpec) toString() {
-
-}
-
 type PodSecurityPolicySpec struct {
 	// Specifies whether a PodSecurityPolicy should be authorized for the Instana Agent pods.
 	// Requires `rbac.create` to be `true` as well.
@@ -277,33 +177,4 @@ type K8sDeploymentSpec struct {
 	Enabled  `json:",inline"`
 	Replicas int                          `json:"replicas,omitempty"`
 	Pod      *coreV1.ResourceRequirements `json:"pod,omitempty"`
-}
-
-func (spec *K8sSpec) Values() []string {
-	values := []string{}
-	if spec.Deployment != nil {
-		values = append(values, "kubernetes.deployment.enabled="+strconv.FormatBool(spec.Deployment.Enabled.Enabled))
-		values = append(values, "kubernetes.deployment.replicas="+strconv.Itoa(spec.Deployment.Replicas))
-		if spec.Deployment.Pod != nil {
-			if spec.Deployment.Pod.Requests != nil {
-				requestList := &spec.Deployment.Pod.Requests
-				if val, ok := (*requestList)["memory"]; ok {
-					values = append(values, "kubernetes.deployment.pod.requests.memory="+val.String())
-				}
-				if val, ok := (*requestList)["cpu"]; ok {
-					values = append(values, "kubernetes.deployment.pod.requests.cpu="+val.String())
-				}
-			}
-			if spec.Deployment.Pod.Limits != nil {
-				limitsList := &spec.Deployment.Pod.Limits
-				if val, ok := (*limitsList)["memory"]; ok {
-					values = append(values, "kubernetes.deployment.pod.limits.memory="+val.String())
-				}
-				if val, ok := (*limitsList)["cpu"]; ok {
-					values = append(values, "kubernetes.deployment.pod.limits.cpu="+val.String())
-				}
-			}
-		}
-	}
-	return values
 }

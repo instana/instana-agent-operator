@@ -7,8 +7,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/go-logr/logr"
@@ -25,13 +23,10 @@ import (
 
 	"log"
 
-	"strconv"
-
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/cli/output"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
@@ -79,29 +74,21 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.Log.Error(errors.New("CRD not found"), "CRD object not found, could have been deleted after reconcile request")
 		return ctrl.Result{}, nil
 	}
-	specJson := []byte{}
-	specYaml := []byte{}
-	if specJson, err = json.Marshal(crdInstance.Spec); err != nil {
-		log.Println(err)
-		return ctrl.Result{}, err
-	}
-	if specYaml, err = yaml.JSONToYAML(specJson); err != nil {
-		log.Println(err)
-		return ctrl.Result{}, err
-	}
 
+	specYaml, err := yaml.Marshal(crdInstance.Spec)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "failed marshaling to yaml")
+	}
 	yamlMap := map[string]interface{}{}
 	if err := yaml.Unmarshal(specYaml, &yamlMap); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to parse yaml")
+		return ctrl.Result{}, err
 	}
 	log.Println(yamlMap)
 
 	if err = r.upgradeInstallCharts(ctx, req, crdInstance, yamlMap); err != nil {
 		return ctrl.Result{}, err
 	}
-	log.Println("charts installed successfully")
-
-	log.Println("end of method")
+	r.Log.Info("Charts installed/upgraded successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -145,84 +132,26 @@ func buildLabels() map[string]string {
 	}
 }
 
-func appendValue(values []string, value string, key string) []string {
-	if len(value) != 0 {
-		values = append(values, key+"="+value)
-	}
-	return values
-}
-
-func mapAgentSpecToValues(spec *instanaV1Beta1.InstanaAgentSpec) []string {
-	values := []string{}
-	values = appendValue(values, string(spec.Agent.Mode), "agent.mode")
-	values = appendValue(values, spec.Agent.Key, "agent.key")
-	values = appendValue(values, spec.Agent.DownloadKey, "agent.downloadKey")
-	values = appendValue(values, spec.Agent.KeysSecret, "agent.keysSecret")
-	values = appendValue(values, spec.Agent.ListenAddress, "agent.listenAddress")
-	values = appendValue(values, spec.Agent.EndpointHost, "agent.endpointHost")
-	values = appendValue(values, spec.Agent.EndpointPort, "agent.endpointPort")
-	values = appendValue(values, spec.Agent.ProxyHost, "agent.proxyHost")
-	values = appendValue(values, spec.Agent.ProxyPort, "agent.proxyPort")
-	values = append(values, spec.Agent.AdditionalBackendsValues()...)
-	values = append(values, spec.Agent.Image.Values()...)
-	values = appendValue(values, spec.Agent.ProxyProtocol, "agent.proxyProtocol")
-	values = appendValue(values, spec.Agent.ProxyUser, "agent.proxyUser")
-	values = appendValue(values, spec.Agent.ProxyPassword, "agent.proxyPassword")
-	values = appendValue(values, strconv.FormatBool(spec.Agent.ProxyUseDNS), "agent.proxyUseDNS")
-	values = appendValue(values, spec.Agent.Configuration_yaml, "agent.configuration_yaml")
-	values = appendValue(values, spec.Agent.RedactKubernetesSecrets, "agent.redactKubernetesSecrets")
-
-	values = appendValue(values, spec.Cluster.Name, "cluster.name")
-	values = appendValue(values, strconv.FormatBool(spec.OpenShift), "openshift")
-	values = appendValue(values, strconv.FormatBool(spec.Rbac.Create), "rbac")
-	values = appendValue(values, strconv.FormatBool(spec.Service.Create), "service")
-	values = appendValue(values, strconv.FormatBool(spec.OpenTelemetry.Enabled), "agent.endpointPort")
-	values = appendValue(values, strconv.FormatBool(spec.Prometheus.RemoteWrite.Enabled), "prometheus.remoteWrite.enabled")
-	values = appendValue(values, strconv.FormatBool(spec.ServiceAccount.Create), "serviceAccount")
-	values = appendValue(values, spec.Zone.Name, "zone.name")
-	values = appendValue(values, strconv.FormatBool(spec.PodSecurityPolicy.Enabled.Enabled), "podSecurityPolicy.enable")
-	values = appendValue(values, spec.PodSecurityPolicy.Name.Name, "podSecurityPolicy.name")
-
-	values = append(values, spec.Kuberentes.Values()...)
-	return values
-}
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent, yamlMap map[string]interface{}) error {
 	cfg := new(action.Configuration)
 	settings.RepositoryConfig = helm_repo
 	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
-		log.Printf("%+v", err)
-		os.Exit(1)
+		return err
 	}
 	client := action.NewUpgrade(cfg)
-	var outfmt output.Format
 	var createNamespace bool
 	client.Namespace = settings.Namespace()
 	client.Install = true
 	client.RepoURL = helm_repo
-	// valueOpts := &values.Options{Values: mapAgentSpecToValues(&crdInstance.Spec)}
-	// valueOpts := &values.Options{Values: []string{
-	// 	"agent.key=" + crdInstance.Spec.Agent.Key,
-	// 	"agent.endpointHost='ingress-pink-saas.instana.rocks'",
-	// 	"cluster.name='docker-desktop'",
-	// 	"zone.name=" + crdInstance.Spec.Zone.Name,
-	// 	"agent.logLevel='DEBUG'",
-	// 	"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
-	// 	"agent.image.tag=latest",
-	// }}
 
-	args := []string{
-		"instana-agent",
-		"instana-agent",
-	}
+	args := []string{AppName, AppName}
 
 	if client.Install {
 		// If a release does not exist, install it.
 		histClient := action.NewHistory(cfg)
 		histClient.Max = 1
 		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
-			if outfmt == output.Table {
-				fmt.Fprintf(os.Stdout, "Release %q does not exist. Installing it now.\n", args[0])
-			}
+			r.Log.Info("Release does not exist. Installing it now.")
 			instClient := action.NewInstall(cfg)
 			instClient.CreateNamespace = createNamespace
 			instClient.ChartPathOptions = client.ChartPathOptions
@@ -242,14 +171,12 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 			instClient.RepoURL = helm_repo
 			_, err := runInstall(args, instClient, yamlMap)
 			if err != nil {
-				log.Println(err)
 				return err
 			}
 			if err = r.setReferences(ctx, req, crdInstance); err != nil {
-				log.Println(err)
 				return err
 			}
-			log.Println("done installing")
+			r.Log.Info("done installing")
 			return nil
 		} else if err != nil {
 			return err
@@ -277,7 +204,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	}
 
 	if ch.Metadata.Deprecated {
-		log.Println("This chart is deprecated")
+		r.Log.Info("This chart is deprecated")
 	}
 
 	_, err = client.Run(args[0], ch, yamlMap)
@@ -285,7 +212,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 		return errors.Wrap(err, "UPGRADE FAILED")
 	}
 
-	log.Println("done upgrading")
+	r.Log.Info("done upgrading")
 	return nil
 
 }
@@ -326,8 +253,6 @@ func runInstall(args []string, client *action.Install, yamlMap map[string]interf
 		return nil, err
 	}
 
-	log.Printf("CHART PATH: %s\n", cp)
-
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
 	if err != nil {
@@ -338,10 +263,6 @@ func runInstall(args []string, client *action.Install, yamlMap map[string]interf
 
 	if err := checkIfInstallable(chartRequested); err != nil {
 		return nil, err
-	}
-
-	if chartRequested.Metadata.Deprecated {
-		log.Printf("This chart is deprecated")
 	}
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
