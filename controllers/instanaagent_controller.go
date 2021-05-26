@@ -24,6 +24,8 @@ import (
 	"io"
 	"log"
 
+	"strconv"
+
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -126,6 +128,48 @@ func buildLabels() map[string]string {
 		"app.kubernetes.io/managed-by": AppName,
 	}
 }
+
+func appendValue(values []string, value string, key string) []string {
+	if len(value) != 0 {
+		return append(values, key+"="+value)
+	}
+	return values
+}
+
+func mapAgentSpecToValues(spec *instanaV1Beta1.InstanaAgentSpec) []string {
+	values := []string{}
+	values = appendValue(values, string(spec.Agent.Mode), "agent.mode")
+	values = appendValue(values, spec.Agent.Key, "agent.key")
+	values = appendValue(values, spec.Agent.DownloadKey, "agent.downloadKey")
+	values = appendValue(values, spec.Agent.KeysSecret, "agent.keysSecret")
+	values = appendValue(values, spec.Agent.ListenAddress, "agent.listenAddress")
+	values = appendValue(values, spec.Agent.EndpointHost, "agent.endpointHost")
+	values = appendValue(values, spec.Agent.EndpointPort, "agent.endpointPort")
+	values = appendValue(values, spec.Agent.ProxyHost, "agent.proxyHost")
+	values = appendValue(values, spec.Agent.ProxyPort, "agent.proxyPort")
+	values = append(values, spec.Agent.AdditionalBackendsValues()...)
+	values = append(values, spec.Agent.Image.Values()...)
+	values = appendValue(values, spec.Agent.ProxyProtocol, "agent.proxyProtocol")
+	values = appendValue(values, spec.Agent.ProxyUser, "agent.proxyUser")
+	values = appendValue(values, spec.Agent.ProxyPassword, "agent.proxyPassword")
+	values = appendValue(values, strconv.FormatBool(spec.Agent.ProxyUseDNS), "agent.proxyUseDNS")
+	values = appendValue(values, spec.Agent.Configuration_yaml, "agent.configuration_yaml")
+	values = appendValue(values, spec.Agent.RedactKubernetesSecrets, "agent.redactKubernetesSecrets")
+
+	values = appendValue(values, spec.Cluster.Name, "cluster.name")
+	values = appendValue(values, strconv.FormatBool(spec.OpenShift), "openshift")
+	values = appendValue(values, strconv.FormatBool(spec.Rbac.Create), "rbac")
+	values = appendValue(values, strconv.FormatBool(spec.Service.Create), "service")
+	values = appendValue(values, strconv.FormatBool(spec.OpenTelemetry.Enabled), "agent.endpointPort")
+	values = appendValue(values, strconv.FormatBool(spec.Prometheus.RemoteWrite.Enabled), "prometheus.remoteWrite.enabled")
+	values = appendValue(values, strconv.FormatBool(spec.ServiceAccount.Create), "serviceAccount")
+	values = appendValue(values, spec.Zone.Name, "zone.name")
+	values = appendValue(values, strconv.FormatBool(spec.PodSecurityPolicy.Enabled.Enabled), "podSecurityPolicy.enable")
+	values = appendValue(values, spec.PodSecurityPolicy.Name.Name, "podSecurityPolicy.name")
+
+	values = append(values, spec.Kuberentes.Values()...)
+	return values
+}
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	cfg := new(action.Configuration)
 	settings.RepositoryConfig = helm_repo
@@ -139,15 +183,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	client.Namespace = settings.Namespace()
 	client.Install = true
 	client.RepoURL = helm_repo
-	valueOpts := &values.Options{Values: []string{
-		"agent.key=" + crdInstance.Spec.Agent.Key,
-		"agent.endpointHost='ingress-pink-saas.instana.rocks'",
-		"cluster.name='docker-desktop'",
-		"zone.name=" + crdInstance.Spec.Zone.Name,
-		"agent.logLevel='DEBUG'",
-		"agent.image.name=gcr.io/instana-agent-qa/instana/agent/dev",
-		"agent.image.tag=latest",
-	}}
+	valueOpts := &values.Options{Values: mapAgentSpecToValues(&crdInstance.Spec)}
 	args := []string{
 		"instana-agent",
 		"instana-agent",
