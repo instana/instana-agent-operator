@@ -6,6 +6,7 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"os"
 
@@ -16,7 +17,9 @@ import (
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -52,6 +55,7 @@ var (
 	AgentSecretName         = AppName
 	AgentServiceAccountName = AppName
 	settings                = cli.New()
+	helmCfg                 = new(action.Configuration)
 )
 
 type InstanaAgentReconciler struct {
@@ -132,27 +136,82 @@ func buildLabels() map[string]string {
 	}
 }
 
+func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
+	resourceList, err := helmCfg.KubeClient.Build(in, false)
+	if err != nil {
+		return nil, err
+	}
+	out := bytes.Buffer{}
+	log.Println("rendered manifests")
+	err = resourceList.Visit(func(r *resource.Info, err error) error {
+
+		if err != nil {
+			return err
+		}
+
+		objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(r.Object)
+		if err != nil {
+			return err
+		}
+		if r.ObjectName() == "daemonsets/instana-agent" {
+			var ds = &appV1.DaemonSet{}
+			runtime.DefaultUnstructuredConverter.FromUnstructured(objMap, ds)
+			containerList := ds.Spec.Template.Spec.Containers
+			for i, container := range containerList {
+				if container.Name == "leader-elector" {
+					containerList = append(containerList[:i], containerList[i+1:]...)
+					break
+				}
+			}
+			ds.Spec.Template.Spec.Containers = containerList
+			outData, err := yaml.Marshal(ds)
+			if err != nil {
+				return err
+			}
+			if _, err := out.WriteString("---\n" + string(outData)); err != nil {
+				return err
+			}
+		} else {
+			u := &unstructured.Unstructured{Object: objMap}
+
+			outData, err := yaml.Marshal(u.Object)
+			if err != nil {
+				return err
+			}
+			if _, err := out.WriteString("---\n" + string(outData)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent, yamlMap map[string]interface{}) error {
-	cfg := new(action.Configuration)
+	// cfg := new(action.Configuration)
 	settings.RepositoryConfig = helm_repo
-	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := helmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return err
 	}
-	client := action.NewUpgrade(cfg)
+	client := action.NewUpgrade(helmCfg)
 	var createNamespace bool
 	client.Namespace = settings.Namespace()
 	client.Install = true
 	client.RepoURL = helm_repo
+	client.PostRenderer = r
 
 	args := []string{AppName, AppName}
 
 	if client.Install {
 		// If a release does not exist, install it.
-		histClient := action.NewHistory(cfg)
+		histClient := action.NewHistory(helmCfg)
 		histClient.Max = 1
 		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
 			r.Log.Info("Release does not exist. Installing it now.")
-			instClient := action.NewInstall(cfg)
+			instClient := action.NewInstall(helmCfg)
 			instClient.CreateNamespace = createNamespace
 			instClient.ChartPathOptions = client.ChartPathOptions
 			instClient.DryRun = client.DryRun
