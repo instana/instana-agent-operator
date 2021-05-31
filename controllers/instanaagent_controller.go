@@ -164,21 +164,13 @@ func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 				}
 			}
 			ds.Spec.Template.Spec.Containers = containerList
-			outData, err := yaml.Marshal(ds)
-			if err != nil {
-				return err
-			}
-			if _, err := out.WriteString("---\n" + string(outData)); err != nil {
+			if err = writeToOutBuffer(ds, &out); err != nil {
 				return err
 			}
 		} else {
 			u := &unstructured.Unstructured{Object: objMap}
 
-			outData, err := yaml.Marshal(u.Object)
-			if err != nil {
-				return err
-			}
-			if _, err := out.WriteString("---\n" + string(outData)); err != nil {
+			if err = writeToOutBuffer(u.Object, &out); err != nil {
 				return err
 			}
 		}
@@ -188,6 +180,17 @@ func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	return &out, nil
+}
+
+func writeToOutBuffer(modifiedResource interface{}, out *bytes.Buffer) error {
+	outData, err := yaml.Marshal(modifiedResource)
+	if err != nil {
+		return err
+	}
+	if _, err := out.WriteString("---\n" + string(outData)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent, yamlMap map[string]interface{}) error {
