@@ -36,6 +36,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -49,6 +50,8 @@ const (
 	AgentPort         = 42699
 	OpenTelemetryPort = 55680
 	helm_repo         = "https://agents.instana.io/helm"
+
+	instanaAgentFinalizer = "agent.instana.com/finalizer"
 )
 
 var (
@@ -75,10 +78,39 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	crdInstance, err := r.fetchCrdInstance(ctx, req)
 	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			r.Log.Info("CRD object not found, could have been deleted after reconcile request")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
-	} else if crdInstance == nil {
-		r.Log.Error(errors.New("CRD not found"), "CRD object not found, could have been deleted after reconcile request")
+	}
+
+	isInstanaAgentDeleted := crdInstance.GetDeletionTimestamp() != nil
+
+	if isInstanaAgentDeleted {
+		if controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
+			if err := r.finalizeAgent(crdInstance); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			controllerutil.RemoveFinalizer(crdInstance, instanaAgentFinalizer)
+			err := r.Update(ctx, crdInstance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
+		controllerutil.AddFinalizer(crdInstance, instanaAgentFinalizer)
+		err = r.Update(ctx, crdInstance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	if err = r.upgradeInstallCharts(ctx, req, crdInstance); err != nil {
@@ -86,6 +118,12 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	r.Log.Info("Charts installed/upgraded successfully")
 	return ctrl.Result{}, nil
+}
+
+func (r *InstanaAgentReconciler) finalizeAgent(crdInstance *instanaV1Beta1.InstanaAgent) error {
+	r.uninstallCharts(crdInstance)
+	r.Log.Info("Successfully finalized instana agent")
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -104,13 +142,6 @@ func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.
 	crdInstance := &instanaV1Beta1.InstanaAgent{}
 	err := r.Get(ctx, req.NamespacedName, crdInstance)
 	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			return nil, nil
-		}
-		// Error reading the object - requeue the request.
 		return nil, err
 	}
 	r.Log.Info("Reconciling Instana CRD")
@@ -200,6 +231,18 @@ func getApiVersions() (*chartutil.VersionSet, error) {
 		}
 	}
 	return &apiVersions, err
+}
+
+func (r *InstanaAgentReconciler) uninstallCharts(crdInstance *instanaV1Beta1.InstanaAgent) error {
+	client := action.NewUninstall(helmCfg)
+
+	res, err := client.Run(AppName)
+	if err != nil {
+		return err
+	}
+	log.Println(res)
+	r.Log.Info("Release uninstalled")
+	return nil
 }
 
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {

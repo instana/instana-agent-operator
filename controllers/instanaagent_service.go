@@ -55,5 +55,5 @@ func (r *InstanaAgentReconciler) setServicesReference(ctx context.Context, crdIn
 		}
 		r.Log.Info("Set controller reference for service was successfull")
 	}
-	return err
+	return nil
 }
