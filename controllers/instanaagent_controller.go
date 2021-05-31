@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -29,6 +30,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
@@ -79,17 +81,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	specYaml, err := yaml.Marshal(crdInstance.Spec)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed marshaling to yaml")
-	}
-	yamlMap := map[string]interface{}{}
-	if err := yaml.Unmarshal(specYaml, &yamlMap); err != nil {
-		return ctrl.Result{}, err
-	}
-	log.Println(yamlMap)
-
-	if err = r.upgradeInstallCharts(ctx, req, crdInstance, yamlMap); err != nil {
+	if err = r.upgradeInstallCharts(ctx, req, crdInstance); err != nil {
 		return ctrl.Result{}, err
 	}
 	r.Log.Info("Charts installed/upgraded successfully")
@@ -127,22 +119,12 @@ func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.
 	return crdInstance, err
 }
 
-func buildLabels() map[string]string {
-	return map[string]string{
-		"app":                          AppName,
-		"app.kubernetes.io/name":       AppName,
-		"app.kubernetes.io/version":    AppVersion,
-		"app.kubernetes.io/managed-by": AppName,
-	}
-}
-
 func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 	resourceList, err := helmCfg.KubeClient.Build(in, false)
 	if err != nil {
 		return nil, err
 	}
 	out := bytes.Buffer{}
-	log.Println("rendered manifests")
 	err = resourceList.Visit(func(r *resource.Info, err error) error {
 
 		if err != nil {
@@ -193,7 +175,34 @@ func writeToOutBuffer(modifiedResource interface{}, out *bytes.Buffer) error {
 	return nil
 }
 
-func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent, yamlMap map[string]interface{}) error {
+func getApiVersions() (*chartutil.VersionSet, error) {
+	if helmCfg.Capabilities != nil {
+		return &helmCfg.Capabilities.APIVersions, nil
+	}
+	dc, err := helmCfg.RESTClientGetter.ToDiscoveryClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get Kubernetes discovery client")
+	}
+	// force a discovery cache invalidation to always fetch the latest server version/capabilities.
+	dc.Invalidate()
+	// Issue #6361:
+	// Client-Go emits an error when an API service is registered but unimplemented.
+	// We trap that error here and print a warning. But since the discovery client continues
+	// building the API object, it is correctly populated with all valid APIs.
+	// See https://github.com/kubernetes/kubernetes/issues/72051#issuecomment-521157642
+	apiVersions, err := action.GetVersionSet(dc)
+	if err != nil {
+		if discovery.IsGroupDiscoveryFailedError(err) {
+			helmCfg.Log("WARNING: The Kubernetes server has an orphaned API service. Server reports: %s", err)
+			helmCfg.Log("WARNING: To fix this, kubectl delete apiservice <service-name>")
+		} else {
+			return nil, errors.Wrap(err, "could not get apiVersions from Kubernetes")
+		}
+	}
+	return &apiVersions, err
+}
+
+func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	// cfg := new(action.Configuration)
 	settings.RepositoryConfig = helm_repo
 	if err := helmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
@@ -207,6 +216,21 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	client.PostRenderer = r
 
 	args := []string{AppName, AppName}
+
+	versionSet, err := getApiVersions()
+	if err != nil {
+		return err
+	}
+	if versionSet.Has("apps.openshift.io/v1") {
+		crdInstance.Spec.OpenShift = true
+	} else {
+		crdInstance.Spec.OpenShift = false
+	}
+
+	yamlMap, err := mapCRDToYaml(crdInstance)
+	if err != nil {
+		return err
+	}
 
 	if client.Install {
 		// If a release does not exist, install it.
@@ -277,6 +301,14 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	r.Log.Info("done upgrading")
 	return nil
 
+}
+func buildLabels() map[string]string {
+	return map[string]string{
+		"app":                          AppName,
+		"app.kubernetes.io/name":       AppName,
+		"app.kubernetes.io/version":    AppVersion,
+		"app.kubernetes.io/managed-by": AppName,
+	}
 }
 func (r *InstanaAgentReconciler) setReferences(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	var reconcilationError = error(nil)
@@ -364,4 +396,16 @@ func checkIfInstallable(ch *chart.Chart) error {
 		return nil
 	}
 	return errors.Errorf("%s charts are not installable", ch.Metadata.Type)
+}
+
+func mapCRDToYaml(crdInstance *instanaV1Beta1.InstanaAgent) (map[string]interface{}, error) {
+	specYaml, err := yaml.Marshal(crdInstance.Spec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed marshaling to yaml")
+	}
+	yamlMap := map[string]interface{}{}
+	if err := yaml.Unmarshal(specYaml, &yamlMap); err != nil {
+		return nil, err
+	}
+	return yamlMap, nil
 }
