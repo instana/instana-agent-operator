@@ -264,7 +264,6 @@ func (r *InstanaAgentReconciler) uninstallCharts(crdInstance *instanaV1Beta1.Ins
 }
 
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	// cfg := new(action.Configuration)
 	settings.RepositoryConfig = helm_repo
 	if err := helmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return err
@@ -320,9 +319,6 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 			if err != nil {
 				return err
 			}
-			if err = r.setReferences(ctx, req, crdInstance); err != nil {
-				return err
-			}
 			r.Log.Info("done installing")
 			return nil
 		} else if err != nil {
@@ -370,29 +366,6 @@ func buildLabels() map[string]string {
 		"app.kubernetes.io/version":    AppVersion,
 		"app.kubernetes.io/managed-by": AppName,
 	}
-}
-func (r *InstanaAgentReconciler) setReferences(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	var reconcilationError = error(nil)
-	var err error
-	if err = r.setSecretsReference(ctx, crdInstance); err != nil {
-		reconcilationError = err
-	}
-	if err = r.setImagePullSecretsReference(ctx, crdInstance); err != nil {
-		reconcilationError = err
-	}
-	if err = r.setServicesReference(ctx, crdInstance); err != nil {
-		reconcilationError = err
-	}
-	if err = r.setServiceAccountsReference(ctx, crdInstance); err != nil {
-		reconcilationError = err
-	}
-	if err = r.setConfigMapReference(ctx, crdInstance); err != nil {
-		reconcilationError = err
-	}
-	if err = r.setDaemonsetReference(ctx, req, crdInstance); err != nil {
-		reconcilationError = err
-	}
-	return reconcilationError
 }
 
 func runInstall(args []string, client *action.Install, yamlMap map[string]interface{}) (*release.Release, error) {
@@ -446,7 +419,7 @@ func runInstall(args []string, client *action.Install, yamlMap map[string]interf
 		}
 	}
 
-	client.Namespace = "instana-agent"
+	client.Namespace = AgentNameSpace
 	client.CreateNamespace = true
 	return client.Run(chartRequested, yamlMap)
 }
