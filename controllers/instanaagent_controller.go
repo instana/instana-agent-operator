@@ -8,6 +8,7 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/go-logr/logr"
@@ -67,6 +68,14 @@ type InstanaAgentReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+}
+
+type AgentPostRenderer struct {
+	client.Client
+	ctx         context.Context
+	scheme      *runtime.Scheme
+	Log         logr.Logger
+	crdInstance *instanaV1Beta1.InstanaAgent
 }
 
 //+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
@@ -150,7 +159,7 @@ func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.
 	return crdInstance, err
 }
 
-func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
+func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 	resourceList, err := helmCfg.KubeClient.Build(in, false)
 	if err != nil {
 		return nil, err
@@ -166,9 +175,11 @@ func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 		if err != nil {
 			return err
 		}
+
 		if r.ObjectName() == "daemonsets/instana-agent" {
 			var ds = &appV1.DaemonSet{}
 			runtime.DefaultUnstructuredConverter.FromUnstructured(objMap, ds)
+
 			containerList := ds.Spec.Template.Spec.Containers
 			for i, container := range containerList {
 				if container.Name == "leader-elector" {
@@ -177,15 +188,22 @@ func (r *InstanaAgentReconciler) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 				}
 			}
 			ds.Spec.Template.Spec.Containers = containerList
-			if err = writeToOutBuffer(ds, &out); err != nil {
-				return err
-			}
-		} else {
-			u := &unstructured.Unstructured{Object: objMap}
 
-			if err = writeToOutBuffer(u.Object, &out); err != nil {
+			objMap, err = runtime.DefaultUnstructuredConverter.ToUnstructured(ds)
+			if err != nil {
 				return err
 			}
+		}
+		u := &unstructured.Unstructured{Object: objMap}
+		if !(r.ObjectName() == "clusterroles/instana-agent" || r.ObjectName() == "clusterrolebindings/instana-agent") {
+			if err = controllerutil.SetControllerReference(p.crdInstance, u, p.scheme); err != nil {
+				return err
+			}
+		}
+		p.Log.Info(fmt.Sprintf("Set controller reference for %s was successfull", r.ObjectName()))
+
+		if err = writeToOutBuffer(u.Object, &out); err != nil {
+			return err
 		}
 		return nil
 	})
@@ -256,7 +274,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	client.Namespace = settings.Namespace()
 	client.Install = true
 	client.RepoURL = helm_repo
-	client.PostRenderer = r
+	client.PostRenderer = &AgentPostRenderer{ctx: ctx, scheme: r.Scheme, crdInstance: crdInstance, Client: r.Client, Log: r.Log}
 
 	args := []string{AppName, AppName}
 
