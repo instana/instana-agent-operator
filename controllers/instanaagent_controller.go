@@ -200,7 +200,7 @@ func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 				return err
 			}
 		}
-		p.Log.Info(fmt.Sprintf("Set controller reference for %s was successfull", r.ObjectName()))
+		p.Log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
 
 		if err = writeToOutBuffer(u.Object, &out); err != nil {
 			return err
@@ -358,14 +358,6 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	r.Log.Info("done upgrading")
 	return nil
 
-}
-func buildLabels() map[string]string {
-	return map[string]string{
-		"app":                          AppName,
-		"app.kubernetes.io/name":       AppName,
-		"app.kubernetes.io/version":    AppVersion,
-		"app.kubernetes.io/managed-by": AppName,
-	}
 }
 
 func runInstall(args []string, client *action.Install, yamlMap map[string]interface{}) (*release.Release, error) {
