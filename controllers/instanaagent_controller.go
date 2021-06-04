@@ -274,7 +274,7 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 	client.Install = true
 	client.RepoURL = helm_repo
 	client.PostRenderer = &AgentPostRenderer{ctx: ctx, scheme: r.Scheme, crdInstance: crdInstance, Client: r.Client, Log: r.Log}
-
+	client.MaxHistory = 1
 	args := []string{AppName, AppName}
 
 	versionSet, err := getApiVersions()
