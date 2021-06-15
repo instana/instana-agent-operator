@@ -1,0 +1,38 @@
+#
+# (c) Copyright IBM Corp. 2021
+# (c) Copyright Instana Inc.
+#
+#
+# This Dockerfile is used by AWS CodeBuild to build multi-arch docker images.
+# The build gets triggered from the Instana/IBM internal Concourse CI instance.
+#
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+ARG VERSION=dev
+ARG BUILD=1
+ARG DATE=
+
+LABEL name="instana-agent-operator" \
+      vendor="Instana Inc., an IBM company" \
+      maintainer="Instana Inc., an IBM company" \
+      version=$VERSION \
+      release=$VERSION \
+      build=$BUILD \
+      build-date=$DATE \
+      summary="Beta version of the Kubernetes Operator for the Instana APM Agent." \
+      description="This operator will deploy a daemon set to run the Instana APM Agent on each cluster node." \
+      url="https://hub.docker.com/r/instana/instana-agent-operator" \
+      io.k8s.display-name="Instana Agent Operator" \
+      io.openshift.tags="" \
+      io.k8s.description="" \
+      com.redhat.build-host="" \
+      com.redhat.component="" \
+      vcs-ref="" \
+      vcs-type=""
+
+RUN microdnf install java-11-openjdk-headless && microdnf clean all
+COPY licenses /licenses
+COPY lib/* /deployments/lib/
+COPY instana-agent-operator-${VERSION}-runner.jar /deployments/app.jar
+ENTRYPOINT [ "java", "-jar", "/deployments/app.jar" ]

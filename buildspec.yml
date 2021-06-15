@@ -1,0 +1,36 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_CLI_EXPERIMENTAL: enabled
+    DOCKERHUB_USER: _
+    DOCKERHUB_PASSWORD: _
+    IMAGE_REPO_NAME: gcr.io/instana-agent-qa/instana-agent-operator
+    TARGETPLATFORM: _
+    ARCH: _
+    VERSION: _
+    COMMIT_SHA: _
+
+phases:
+  build:
+    commands:
+      - export IMAGE_TAG="${COMMIT_SHA}-${VERSION}-${ARCH}"
+      - export DATE=`date`
+      - docker --version
+      - yum -y install qemu-user-static
+      - wget -nv https://github.com/docker/buildx/releases/download/v0.5.1/buildx-v0.5.1.linux-amd64
+      - chmod a+x buildx-v0.5.1.linux-amd64
+      - mkdir -p ~/.docker/cli-plugins
+      - mv buildx-v0.5.1.linux-amd64 ~/.docker/cli-plugins/docker-buildx
+      - echo Build started on `date` with tag `echo $IMAGE_TAG`
+      - echo "${IMAGE_TAG}" > tag
+      - docker buildx create --name rosetta
+      - docker buildx use rosetta
+      - docker buildx inspect --bootstrap
+      - docker buildx build -f src/main/docker/Dockerfile.codebuild --load --platform ${TARGETPLATFORM} --build-arg "TARGETPLATFORM=${TARGETPLATFORM}" --build-arg VERSION=$VERSION --build-arg BUILD=$COMMIT_SHA --build-arg DATE="$DATE" -t "${IMAGE_REPO_NAME}:${IMAGE_TAG}" .
+      - docker save "${IMAGE_REPO_NAME}:${IMAGE_TAG}" > image.tar
+artifacts:
+  name: ${IMAGE_TAG}
+  files:
+    - 'tag'
+    - 'image.tar'
