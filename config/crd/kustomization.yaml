@@ -5,7 +5,7 @@ resources:
 - bases/agents.instana.com_instanaagent.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
-patchesStrategicMerge:
+patchesStrategicMerge: []
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.
 configurations:

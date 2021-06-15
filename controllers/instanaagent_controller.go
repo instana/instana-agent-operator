@@ -15,6 +15,7 @@ import (
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/pkg/errors"
 
+	"helm.sh/helm/v3/pkg/repo"
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -78,9 +79,11 @@ type AgentPostRenderer struct {
 	crdInstance *instanaV1Beta1.InstanaAgent
 }
 
-//+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=agents.instana.com,namespace=instana-agent,resources=instanaagent/finalizers,verbs=update
+//+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent/finalizers,verbs=update
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("instanaagent", req.NamespacedName)
@@ -199,9 +202,8 @@ func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 			if err = controllerutil.SetControllerReference(p.crdInstance, u, p.scheme); err != nil {
 				return err
 			}
+			p.Log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
 		}
-		p.Log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
-
 		if err = writeToOutBuffer(u.Object, &out); err != nil {
 			return err
 		}
@@ -360,6 +362,19 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 
 }
 
+func repoUpdate() error {
+	entry := &repo.Entry{Name: AppName, URL: helm_repo}
+	r, err := repo.NewChartRepository(entry, getter.All(settings))
+	if err != nil {
+		return err
+	}
+	if _, err := r.DownloadIndexFile(); err != nil {
+		log.Println(fmt.Sprintf("...Unable to get an update from the %q chart repository (%s):\n\t%s\n", r.Config.Name, r.Config.URL, err))
+	} else {
+		log.Println(fmt.Sprintf("...Successfully got an update from the %q chart repository\n", r.Config.Name))
+	}
+	return nil
+}
 func runInstall(args []string, client *action.Install, yamlMap map[string]interface{}) (*release.Release, error) {
 
 	_, chart, err := client.NameAndChart(args)
@@ -370,9 +385,10 @@ func runInstall(args []string, client *action.Install, yamlMap map[string]interf
 
 	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
 	if err != nil {
-		return nil, err
+		if err = repoUpdate(); err != nil {
+			return nil, err
+		}
 	}
-
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
 	if err != nil {
@@ -380,7 +396,6 @@ func runInstall(args []string, client *action.Install, yamlMap map[string]interf
 	}
 
 	p := getter.All(settings)
-
 	if err := checkIfInstallable(chartRequested); err != nil {
 		return nil, err
 	}
