@@ -133,7 +133,9 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *InstanaAgentReconciler) finalizeAgent(crdInstance *instanaV1Beta1.InstanaAgent) error {
-	r.uninstallCharts(crdInstance)
+	if err := r.uninstallCharts(crdInstance); err != nil {
+		return err
+	}
 	r.Log.Info("Successfully finalized instana agent")
 	return nil
 }
