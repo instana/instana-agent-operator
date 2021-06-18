@@ -36,7 +36,7 @@ func (log AgentLogger) Error(err error, msg string, keysAndValues ...interface{}
 	log.errorLogger.Error(err, msg, keysAndValues...)
 }
 
-func (log AgentLogger) V(level int) logr.InfoLogger {
+func (log AgentLogger) V(level int) logr.Logger {
 	return log.errorLogger.V(level)
 }
 

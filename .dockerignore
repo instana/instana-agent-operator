@@ -1,8 +1,5 @@
-*
-!src/main/docker/lib/libsunec.so
-!licenses
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!olm/
-!deploy/
+# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
+# Ignore all files which are not go type
+!**/*.go
+!**/*.mod
+!**/*.sum

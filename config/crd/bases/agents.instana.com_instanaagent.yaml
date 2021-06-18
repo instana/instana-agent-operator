@@ -934,8 +934,6 @@ spec:
                           or "OnDelete". Default is RollingUpdate.
                         type: string
                     type: object
-                required:
-                - env
                 type: object
               cluster:
                 description: cluster.name represents the name that will be assigned

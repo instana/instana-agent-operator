@@ -90,7 +90,7 @@ type BaseAgentSpec struct {
 	// for example:
 	//  env:
 	//   INSTANA_AGENT_TAGS: dev
-	Env map[string]string `json:"env,omitEmpty"`
+	Env map[string]string `json:"env,omitempty"`
 
 	Configuration      *ConfigurationSpec `json:"configuration,omitempty"`
 	Configuration_yaml string             `json:"configuration_yaml,omitempty"`

@@ -541,8 +541,6 @@ spec:
                         description: Type of daemon set update. Can be "RollingUpdate" or "OnDelete". Default is RollingUpdate.
                         type: string
                     type: object
-                required:
-                - env
                 type: object
               cluster:
                 description: cluster.name represents the name that will be assigned to this cluster in Instana

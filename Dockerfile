@@ -3,32 +3,29 @@
 # (c) Copyright Instana Inc.
 #
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.3
-MAINTAINER Instana, support@instana.com
+# Build the manager binary
+FROM golang:1.15 as builder
 
-ARG VERSION=dev
-ARG BUILD=1
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
 
-LABEL name="instana-agent-operator" \
-      vendor="Instana Inc" \
-      maintainer="Instana Inc" \
-      version=$VERSION \
-      build=$BUILD \
-      summary="Kubernetes / OpenShift Operator for the Instana APM Agent" \
-      description="This operator will deploy a daemon set to run the Instana APM Agent on each cluster node."
-
-ENV OPERATOR=instana-agent-operator \
-    USER_UID=1001 \
-    USER_NAME=instana-agent-operator
-
-RUN  microdnf install unzip && microdnf clean all
-COPY LICENSE /licenses/
-COPY build/_output/bin /usr/local/bin
-COPY build/bin /usr/local/bin
-RUN  /usr/local/bin/user_setup
-
-EXPOSE 8080
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
-
-USER ${USER_UID}
+# Copy the go source
+COPY main.go main.go
+COPY api/ api/
+COPY version/ version/
+COPY logger/ logger/
+COPY controllers/ controllers/
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+WORKDIR /
+COPY --from=builder /workspace/manager .
+RUN mkdir -p .cache/helm/repository/
+RUN chmod 777 .cache/helm/repository/
+USER 65532:65532
+ENTRYPOINT ["/manager"]

@@ -5,7 +5,7 @@ metadata:
   name: instanaagent-viewer-role
 rules:
 - apiGroups:
-  - instana.instana.com
+  - agents.instana.com
   resources:
   - instanaagents
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - instana.instana.com
+  - agents.instana.com
   resources:
   - instanaagents/status
   verbs:
