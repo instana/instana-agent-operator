@@ -6,7 +6,6 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -19,9 +18,7 @@ import (
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,21 +59,16 @@ var (
 	AgentSecretName         = AppName
 	AgentServiceAccountName = AppName
 	settings                = cli.New()
-	helmCfg                 = new(action.Configuration)
+	HelmCfg                 = new(action.Configuration)
+	IsLeaderElecting        = false
+	leaderElector           *LeaderElector
 )
 
 type InstanaAgentReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
-}
-
-type AgentPostRenderer struct {
-	client.Client
-	ctx         context.Context
-	scheme      *runtime.Scheme
-	Log         logr.Logger
-	crdInstance *instanaV1Beta1.InstanaAgent
+	ApiReader client.Reader
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
@@ -129,6 +121,16 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 	r.Log.Info("Charts installed/upgraded successfully")
+
+	if !IsLeaderElecting {
+		leaderElector = &LeaderElector{
+			Ctx:       ctx,
+			ApiReader: r.ApiReader,
+			Scheme:    r.Scheme,
+		}
+		leaderElector.StartCoordination()
+	}
+	r.Log.Info("Charts installed/upgraded successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -145,6 +147,7 @@ func (r *InstanaAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanaV1Beta1.InstanaAgent{}).
 		Owns(&appV1.DaemonSet{}).
+		Owns(&coreV1.Pod{}).
 		Owns(&coreV1.Secret{}).
 		Owns(&coreV1.ConfigMap{}).
 		Owns(&coreV1.Service{}).
@@ -164,75 +167,11 @@ func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.
 	return crdInstance, err
 }
 
-func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
-	resourceList, err := helmCfg.KubeClient.Build(in, false)
-	if err != nil {
-		return nil, err
-	}
-	out := bytes.Buffer{}
-	err = resourceList.Visit(func(r *resource.Info, err error) error {
-
-		if err != nil {
-			return err
-		}
-
-		objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(r.Object)
-		if err != nil {
-			return err
-		}
-
-		if r.ObjectName() == "daemonsets/instana-agent" {
-			var ds = &appV1.DaemonSet{}
-			runtime.DefaultUnstructuredConverter.FromUnstructured(objMap, ds)
-
-			containerList := ds.Spec.Template.Spec.Containers
-			for i, container := range containerList {
-				if container.Name == "leader-elector" {
-					containerList = append(containerList[:i], containerList[i+1:]...)
-					break
-				}
-			}
-			ds.Spec.Template.Spec.Containers = containerList
-
-			objMap, err = runtime.DefaultUnstructuredConverter.ToUnstructured(ds)
-			if err != nil {
-				return err
-			}
-		}
-		u := &unstructured.Unstructured{Object: objMap}
-		if !(r.ObjectName() == "clusterroles/instana-agent" || r.ObjectName() == "clusterrolebindings/instana-agent") {
-			if err = controllerutil.SetControllerReference(p.crdInstance, u, p.scheme); err != nil {
-				return err
-			}
-			p.Log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
-		}
-		if err = writeToOutBuffer(u.Object, &out); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-func writeToOutBuffer(modifiedResource interface{}, out *bytes.Buffer) error {
-	outData, err := yaml.Marshal(modifiedResource)
-	if err != nil {
-		return err
-	}
-	if _, err := out.WriteString("---\n" + string(outData)); err != nil {
-		return err
-	}
-	return nil
-}
-
 func getApiVersions() (*chartutil.VersionSet, error) {
-	if helmCfg.Capabilities != nil {
-		return &helmCfg.Capabilities.APIVersions, nil
+	if HelmCfg.Capabilities != nil {
+		return &HelmCfg.Capabilities.APIVersions, nil
 	}
-	dc, err := helmCfg.RESTClientGetter.ToDiscoveryClient()
+	dc, err := HelmCfg.RESTClientGetter.ToDiscoveryClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Kubernetes discovery client")
 	}
@@ -246,8 +185,8 @@ func getApiVersions() (*chartutil.VersionSet, error) {
 	apiVersions, err := action.GetVersionSet(dc)
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
-			helmCfg.Log("WARNING: The Kubernetes server has an orphaned API service. Server reports: %s", err)
-			helmCfg.Log("WARNING: To fix this, kubectl delete apiservice <service-name>")
+			HelmCfg.Log("WARNING: The Kubernetes server has an orphaned API service. Server reports: %s", err)
+			HelmCfg.Log("WARNING: To fix this, kubectl delete apiservice <service-name>")
 		} else {
 			return nil, errors.Wrap(err, "could not get apiVersions from Kubernetes")
 		}
@@ -256,28 +195,32 @@ func getApiVersions() (*chartutil.VersionSet, error) {
 }
 
 func (r *InstanaAgentReconciler) uninstallCharts(crdInstance *instanaV1Beta1.InstanaAgent) error {
-	client := action.NewUninstall(helmCfg)
+	client := action.NewUninstall(HelmCfg)
 
-	res, err := client.Run(AppName)
+	_, err := client.Run(AppName)
 	if err != nil {
 		return err
 	}
-	log.Println(res)
 	r.Log.Info("Release uninstalled")
+	leaderElector.CancelLeaderElection()
 	return nil
 }
 
 func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
 	settings.RepositoryConfig = helm_repo
-	if err := helmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return err
 	}
-	client := action.NewUpgrade(helmCfg)
+	client := action.NewUpgrade(HelmCfg)
 	var createNamespace bool
 	client.Namespace = settings.Namespace()
 	client.Install = true
 	client.RepoURL = helm_repo
-	client.PostRenderer = &AgentPostRenderer{ctx: ctx, scheme: r.Scheme, crdInstance: crdInstance, Client: r.Client, Log: r.Log}
+	client.PostRenderer = &AgentPostRenderer{
+		Scheme:      r.Scheme,
+		CrdInstance: crdInstance,
+		Client:      r.Client,
+	}
 	client.MaxHistory = 1
 	args := []string{AppName, AppName}
 
@@ -298,11 +241,11 @@ func (r *InstanaAgentReconciler) upgradeInstallCharts(ctx context.Context, req c
 
 	if client.Install {
 		// If a release does not exist, install it.
-		histClient := action.NewHistory(helmCfg)
+		histClient := action.NewHistory(HelmCfg)
 		histClient.Max = 1
 		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
 			r.Log.Info("Release does not exist. Installing it now.")
-			instClient := action.NewInstall(helmCfg)
+			instClient := action.NewInstall(HelmCfg)
 			instClient.CreateNamespace = createNamespace
 			instClient.ChartPathOptions = client.ChartPathOptions
 			instClient.DryRun = client.DryRun
