@@ -66,9 +66,8 @@ var (
 
 type InstanaAgentReconciler struct {
 	client.Client
-	ApiReader client.Reader
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
@@ -124,9 +123,9 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if !IsLeaderElecting {
 		leaderElector = &LeaderElector{
-			Ctx:       ctx,
-			ApiReader: r.ApiReader,
-			Scheme:    r.Scheme,
+			Ctx:    ctx,
+			Client: r.Client,
+			Scheme: r.Scheme,
 		}
 		leaderElector.StartCoordination()
 	}

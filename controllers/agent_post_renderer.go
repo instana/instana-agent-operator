@@ -13,6 +13,7 @@ import (
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 
 	appV1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -48,7 +49,7 @@ func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 		}
 
 		if r.ObjectName() == "daemonsets/instana-agent" {
-			objMap, err = p.removeLeaderElectorContainer(objMap)
+			objMap, err = p.adjustDaemonsetForLeaderElection(objMap)
 			if err != nil {
 				return err
 			}
@@ -71,11 +72,26 @@ func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 	return &out, nil
 }
 
-func (p *AgentPostRenderer) removeLeaderElectorContainer(objMap map[string]interface{}) (map[string]interface{}, error) {
+func (p *AgentPostRenderer) adjustDaemonsetForLeaderElection(objMap map[string]interface{}) (map[string]interface{}, error) {
 	var ds = &appV1.DaemonSet{}
 	runtime.DefaultUnstructuredConverter.FromUnstructured(objMap, ds)
 
 	containerList := ds.Spec.Template.Spec.Containers
+	ds.Spec.Template.Spec.Containers = p.removeLeaderElectorContainer(containerList)
+	envList := ds.Spec.Template.Spec.Containers[0].Env
+	ds.Spec.Template.Spec.Containers[0].Env = p.replaceLeaderElectorEnvVar(envList)
+	return runtime.DefaultUnstructuredConverter.ToUnstructured(ds)
+}
+
+func (p *AgentPostRenderer) replaceLeaderElectorEnvVar(envList []v1.EnvVar) []v1.EnvVar {
+	for i, envVar := range envList {
+		if envVar.Name == "INSTANA_AGENT_LEADER_ELECTOR_PORT" {
+			envList[i] = v1.EnvVar{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"}
+		}
+	}
+	return envList
+}
+func (p *AgentPostRenderer) removeLeaderElectorContainer(containerList []v1.Container) []v1.Container {
 	for i, container := range containerList {
 		if container.Name == "leader-elector" {
 			containerList = append(containerList[:i], containerList[i+1:]...)
@@ -83,9 +99,7 @@ func (p *AgentPostRenderer) removeLeaderElectorContainer(objMap map[string]inter
 			break
 		}
 	}
-	ds.Spec.Template.Spec.Containers = containerList
-
-	return runtime.DefaultUnstructuredConverter.ToUnstructured(ds)
+	return containerList
 }
 func (p *AgentPostRenderer) writeToOutBuffer(modifiedResource interface{}, out *bytes.Buffer) error {
 	outData, err := yaml.Marshal(modifiedResource)

@@ -25,10 +25,10 @@ var (
 )
 
 type LeaderElector struct {
-	Ctx       context.Context
-	ApiReader client.Reader
-	Scheme    *runtime.Scheme
-	Log       logr.Logger
+	Ctx    context.Context
+	Client client.Client
+	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 func (l *LeaderElector) StartCoordination() error {
@@ -68,7 +68,7 @@ func (l *LeaderElector) fetchPods() error {
 	}
 	labelSelector := labels.SelectorFromSet(lbs)
 	listOps := &client.ListOptions{Namespace: AgentNameSpace, LabelSelector: labelSelector}
-	if err := l.ApiReader.List(l.Ctx, podList, listOps); err != nil {
+	if err := l.Client.List(l.Ctx, podList, listOps); err != nil {
 		return err
 	}
 
