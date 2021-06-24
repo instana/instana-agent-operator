@@ -31,18 +31,21 @@ type LeaderElector struct {
 	Log    logr.Logger
 }
 
+type CoordinationRecord struct {
+	Requested []string `json:"requested,omitempty"`
+	Assigned  []string `json:"assigned,omitempty"`
+}
+
 func (l *LeaderElector) StartCoordination() error {
 	l.Log = ctrl.Log.WithName("leaderelector").WithName("InstanaAgent")
 
 	taskScheduler := chrono.NewDefaultTaskScheduler()
 	LeaderElectionTask, err := taskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
-		// We can replace this step by actively form the active pod list through predicate filters, otherwise we need to fetch the active pods
-		// using client.Reader instead of client.Client to avoid get cached pods.
 		if err := l.fetchPods(); err != nil {
 			l.Log.Error(err, "Unable to fetch agent pods for doing election")
 			return
 		}
-		// l.pollAgentsAndAssignLeaders()
+		l.pollAgentsAndAssignLeaders(agentPods)
 
 		time.Sleep(5 * time.Second)
 	}, 5*time.Second)
@@ -78,8 +81,33 @@ func (l *LeaderElector) fetchPods() error {
 	return nil
 }
 
-// func (l *LeaderElector) pollAgentsAndAssignLeaders() error {
-// 	activePods := agentPods
-// 	failedPods := []string{}
+func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) error {
+	// activePods := agentPods
+	// failedPods := []string{}
+	l.pollLeadershipStatus(pods)
+	return nil
+}
 
-// }
+func (l *LeaderElector) pollLeadershipStatus(pods map[string]coreV1.Pod) error {
+	resourcesByPod := make(map[string]CoordinationRecord)
+	coordinationApi := PodCoordinationHttpClient{}
+	for uid, pod := range pods {
+		if pod.Status.Phase == coreV1.PodRunning {
+			coordinationRecord, err := coordinationApi.pollPod(pod)
+			if err != nil {
+				return err
+			}
+			resourcesByPod[uid] = *coordinationRecord
+			log.Println(coordinationRecord)
+		}
+	}
+	return nil
+}
+
+type LeadershipStatus struct {
+	Status map[string]CoordinationRecord
+}
+
+func (s *LeadershipStatus) getResourceRequests() map[string][]string {
+	return nil
+}

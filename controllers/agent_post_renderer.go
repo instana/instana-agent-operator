@@ -84,9 +84,10 @@ func (p *AgentPostRenderer) adjustDaemonsetForLeaderElection(objMap map[string]i
 }
 
 func (p *AgentPostRenderer) replaceLeaderElectorEnvVar(envList []v1.EnvVar) []v1.EnvVar {
+	envList = append(envList, v1.EnvVar{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"})
 	for i, envVar := range envList {
 		if envVar.Name == "INSTANA_AGENT_LEADER_ELECTOR_PORT" {
-			envList[i] = v1.EnvVar{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"}
+			envList = append(envList[:i], envList[i+1:]...)
 		}
 	}
 	return envList

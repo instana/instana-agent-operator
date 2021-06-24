@@ -21,7 +21,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/yaml"
 
 	"log"
@@ -129,7 +132,6 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		leaderElector.StartCoordination()
 	}
-	r.Log.Info("Charts installed/upgraded successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -145,13 +147,25 @@ func (r *InstanaAgentReconciler) finalizeAgent(crdInstance *instanaV1Beta1.Insta
 func (r *InstanaAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanaV1Beta1.InstanaAgent{}).
-		Owns(&appV1.DaemonSet{}).
+		Owns(&appV1.DaemonSet{}, builder.WithPredicates(filterPredicate())).
 		Owns(&coreV1.Pod{}).
 		Owns(&coreV1.Secret{}).
 		Owns(&coreV1.ConfigMap{}).
 		Owns(&coreV1.Service{}).
 		Owns(&coreV1.ServiceAccount{}).
 		Complete(r)
+}
+
+func filterPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			// Evaluates to false if the object has been confirmed deleted.
+			return !e.DeleteStateUnknown
+		},
+	}
 }
 
 func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.Request) (*instanaV1Beta1.InstanaAgent, error) {
