@@ -3,7 +3,7 @@
  * (c) Copyright Instana Inc. 2021
  */
 
-package controllers
+package coordination_api
 
 import (
 	"encoding/json"
@@ -15,15 +15,13 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 )
 
-type PodCoordinationApi interface {
-	assign(pod coreV1.Pod, assignment []string) error
-	pollPod(pod coreV1.Pod) (CoordinationRecord, error)
-}
-
 type PodCoordinationHttpClient struct {
 }
 
-func (c *PodCoordinationHttpClient) pollPod(pod coreV1.Pod) (*CoordinationRecord, error) {
+func (c *PodCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) error {
+	return errors.New("")
+}
+func (c *PodCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord, error) {
 	coordinationRecord := &CoordinationRecord{}
 	url := c.getBaseUrl(pod)
 	resp, err := http.Get(url)

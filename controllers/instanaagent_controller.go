@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	"github.com/instana/instana-agent-operator/controllers/leaderelection"
 	"github.com/pkg/errors"
 
 	"helm.sh/helm/v3/pkg/repo"
@@ -20,6 +21,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,8 +65,7 @@ var (
 	AgentServiceAccountName = AppName
 	settings                = cli.New()
 	HelmCfg                 = new(action.Configuration)
-	IsLeaderElecting        = false
-	leaderElector           *LeaderElector
+	leaderElector           *leaderelection.LeaderElector
 )
 
 type InstanaAgentReconciler struct {
@@ -124,13 +125,13 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	r.Log.Info("Charts installed/upgraded successfully")
 
-	if !IsLeaderElecting {
-		leaderElector = &LeaderElector{
+	if !leaderelection.IsLeaderElecting {
+		leaderElector = &leaderelection.LeaderElector{
 			Ctx:    ctx,
 			Client: r.Client,
 			Scheme: r.Scheme,
 		}
-		leaderElector.StartCoordination()
+		leaderElector.StartCoordination(AgentNameSpace)
 	}
 	return ctrl.Result{}, nil
 }
