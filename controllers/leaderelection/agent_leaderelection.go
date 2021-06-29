@@ -7,7 +7,6 @@ package leaderelection
 
 import (
 	"context"
-	"log"
 	"math/rand"
 	"time"
 
@@ -85,19 +84,35 @@ func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod,
 }
 
 func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) error {
-	leadershipStatus, err := l.pollLeadershipStatus(pods)
-	if err != nil {
-		return err
-	}
-	if len(leadershipStatus.Status) > 0 {
+	for {
+		leadershipStatus, err := l.pollLeadershipStatus(pods)
+		if err != nil {
+			return err
+		}
+		if len(leadershipStatus.Status) == 0 {
+			return nil
+		}
+
 		desiredPod := l.calculateAssignedPod(leadershipStatus)
-		log.Println(desiredPod)
+
+		if result := l.assign(pods, leadershipStatus, desiredPod); result {
+			break
+		}
 	}
 
 	return nil
 }
 
-func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatus LeadershipStatus, desiredPod string) {
+func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatus *LeadershipStatus, desiredPod string) bool {
+	if desiredPod != leadershipStatus.getCurrentLeaderPod() {
+		pod := activePods[desiredPod]
+		if err := coordinationApi.Assign(pod, []string{KubernetesLeaderResourceId}); err != nil {
+			l.Log.Info("Failed to assign leadership to pod: " + desiredPod + " - " + err.Error())
+			return false
+		}
+		l.Log.Info("Assigned leadership of " + KubernetesLeaderResourceId + " to " + desiredPod)
+	}
+	return true
 }
 
 func (l *LeaderElector) pollLeadershipStatus(pods map[string]coreV1.Pod) (*LeadershipStatus, error) {
