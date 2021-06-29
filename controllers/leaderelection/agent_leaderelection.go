@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	LeaderElectionTask         chrono.ScheduledTask
-	IsLeaderElecting           = false
-	KubernetesLeaderResourceId = "com.instana.plugin.kubernetes.leader"
+	LeaderElectionTask          chrono.ScheduledTask
+	LeaderElectionTaskScheduler = chrono.NewDefaultTaskScheduler()
+	KubernetesLeaderResourceId  = "com.instana.plugin.kubernetes.leader"
 
 	coordinationApi = coordination_api.New()
 )
@@ -38,8 +38,8 @@ type LeaderElector struct {
 func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 	l.Log = ctrl.Log.WithName("leaderelector").WithName("InstanaAgent")
 
-	taskScheduler := chrono.NewDefaultTaskScheduler()
-	_, err := taskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
+	var err error
+	LeaderElectionTask, err = LeaderElectionTaskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
 		var activePods map[string]coreV1.Pod
 		var err error
 		if activePods, err = l.fetchPods(agentNameSpace); err != nil {
@@ -50,17 +50,17 @@ func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 
 		time.Sleep(5 * time.Second)
 	}, 5*time.Second)
-
 	if err == nil {
 		l.Log.Info("Task has been scheduled successfully.")
-		IsLeaderElecting = true
 	}
 	return err
 }
 
 func (l *LeaderElector) CancelLeaderElection() {
-	LeaderElectionTask.Cancel()
-	IsLeaderElecting = false
+	if LeaderElectionTask != nil && !LeaderElectionTask.IsCancelled() {
+		LeaderElectionTask.Cancel()
+	}
+	LeaderElectionTaskScheduler.Shutdown()
 }
 
 func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod, error) {
@@ -83,24 +83,25 @@ func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod,
 	return activePods, nil
 }
 
-func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) error {
+func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) {
 	for {
 		leadershipStatus, err := l.pollLeadershipStatus(pods)
 		if err != nil {
-			return err
+			l.Log.Info("Unable to poll leadership status : " + err.Error())
+			return
 		}
 		if len(leadershipStatus.Status) == 0 {
-			return nil
+			return
 		}
 
 		desiredPod := l.calculateAssignedPod(leadershipStatus)
 
 		if result := l.assign(pods, leadershipStatus, desiredPod); result {
 			break
+		} else {
+			delete(pods, desiredPod)
 		}
 	}
-
-	return nil
 }
 
 func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatus *LeadershipStatus, desiredPod string) bool {

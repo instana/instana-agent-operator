@@ -125,7 +125,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	r.Log.Info("Charts installed/upgraded successfully")
 
-	if !leaderelection.IsLeaderElecting {
+	if leaderelection.LeaderElectionTask == nil || leaderelection.LeaderElectionTask.IsCancelled() || leaderelection.LeaderElectionTaskScheduler.IsShutdown() {
 		leaderElector = &leaderelection.LeaderElector{
 			Ctx:    ctx,
 			Client: r.Client,
@@ -209,6 +209,10 @@ func getApiVersions() (*chartutil.VersionSet, error) {
 }
 
 func (r *InstanaAgentReconciler) uninstallCharts(crdInstance *instanaV1Beta1.InstanaAgent) error {
+	settings.RepositoryConfig = helm_repo
+	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+		return err
+	}
 	client := action.NewUninstall(HelmCfg)
 
 	_, err := client.Run(AppName)

@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	coreV1 "k8s.io/api/core/v1"
@@ -24,20 +23,18 @@ func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) 
 	url := c.getBaseUrl(pod) + "/assigned"
 	body, err := json.Marshal(assignment)
 	if err != nil {
-		return err
+		return errors.New("Error marshaling assignment list for " + pod.GetObjectMeta().GetName() + ": " + err.Error())
 	}
 
 	request, err := http.NewRequest("PUT", url, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return errors.New("Invalid Http request for assigning leadership to " + pod.GetObjectMeta().GetName() + ": " + err.Error())
 	}
 	request.Header.Add("content-type", "application/json")
-	resp, err := http.DefaultClient.Do(request)
+	_, err = http.DefaultClient.Do(request)
 	if err != nil {
-		return err
+		return errors.New("Unsuccessful request assigning leadership to " + pod.GetObjectMeta().GetName() + ": " + err.Error())
 	}
-	log.Println("assing response :")
-	log.Println(resp)
 
 	return nil
 }
