@@ -15,13 +15,13 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 )
 
-type PodCoordinationHttpClient struct {
+type podCoordinationHttpClient struct {
 }
 
-func (c *PodCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) error {
+func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) error {
 	return errors.New("")
 }
-func (c *PodCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord, error) {
+func (c *podCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord, error) {
 	coordinationRecord := &CoordinationRecord{}
 	url := c.getBaseUrl(pod)
 	resp, err := http.Get(url)
@@ -45,7 +45,7 @@ func (c *PodCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord
 	return coordinationRecord, nil
 }
 
-func (c *PodCoordinationHttpClient) getBaseUrl(pod coreV1.Pod) string {
+func (c *podCoordinationHttpClient) getBaseUrl(pod coreV1.Pod) string {
 	ip := pod.Status.HostIP
 	return "http://" + ip + ":" + fmt.Sprint(AgentPort) + "/coordination"
 }

@@ -22,5 +22,5 @@ type CoordinationRecord struct {
 }
 
 func New() PodCoordinationApi {
-	return &PodCoordinationHttpClient{}
+	return &podCoordinationHttpClient{}
 }

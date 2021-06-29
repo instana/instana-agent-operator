@@ -8,6 +8,7 @@ package leaderelection
 import (
 	"context"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -21,9 +22,9 @@ import (
 )
 
 var (
-	LeaderElectionTask chrono.ScheduledTask
-	agentPods          = make(map[string]coreV1.Pod)
-	IsLeaderElecting   = false
+	LeaderElectionTask         chrono.ScheduledTask
+	IsLeaderElecting           = false
+	KubernetesLeaderResourceId = "com.instana.plugin.kubernetes.leader"
 
 	coordinationApi = coordination_api.New()
 )
@@ -40,11 +41,13 @@ func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 
 	taskScheduler := chrono.NewDefaultTaskScheduler()
 	_, err := taskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
-		if err := l.fetchPods(agentNameSpace); err != nil {
+		var activePods map[string]coreV1.Pod
+		var err error
+		if activePods, err = l.fetchPods(agentNameSpace); err != nil {
 			l.Log.Error(err, "Unable to fetch agent pods for doing election")
 			return
 		}
-		l.pollAgentsAndAssignLeaders(agentPods)
+		l.pollAgentsAndAssignLeaders(activePods)
 
 		time.Sleep(5 * time.Second)
 	}, 5*time.Second)
@@ -61,57 +64,102 @@ func (l *LeaderElector) CancelLeaderElection() {
 	IsLeaderElecting = false
 }
 
-func (l *LeaderElector) fetchPods(agentNameSpace string) error {
+func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod, error) {
 	podList := &coreV1.PodList{}
+	activePods := make(map[string]coreV1.Pod)
 	lbs := map[string]string{
 		"app.kubernetes.io/name": "instana-agent",
 	}
 	labelSelector := labels.SelectorFromSet(lbs)
 	listOps := &client.ListOptions{Namespace: agentNameSpace, LabelSelector: labelSelector}
 	if err := l.Client.List(l.Ctx, podList, listOps); err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, pod := range podList.Items {
-		agentPods[string(pod.GetObjectMeta().GetUID())] = pod
+		if pod.Status.Phase == coreV1.PodRunning {
+			activePods[string(pod.GetObjectMeta().GetUID())] = pod
+		}
 	}
-	return nil
+	return activePods, nil
 }
 
 func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) error {
-	// activePods := agentPods
-	// failedPods := []string{}
 	leadershipStatus, err := l.pollLeadershipStatus(pods)
 	if err != nil {
 		return err
 	}
-	log.Println(leadershipStatus)
+	if len(leadershipStatus.Status) > 0 {
+		desiredPod := l.calculateAssignedPod(leadershipStatus)
+		log.Println(desiredPod)
+	}
 
 	return nil
 }
 
+func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatus LeadershipStatus, desiredPod string) {
+}
+
 func (l *LeaderElector) pollLeadershipStatus(pods map[string]coreV1.Pod) (*LeadershipStatus, error) {
-	resourcesByPod := make(map[string]coordination_api.CoordinationRecord)
+	resourcesByPod := make(map[string]Coordination)
 	for uid, pod := range pods {
-		if pod.Status.Phase == coreV1.PodRunning {
-			coordinationRecord, err := coordinationApi.PollPod(pod)
-			if err != nil {
-				return nil, err
-			}
-			resourcesByPod[uid] = *coordinationRecord
-			log.Println(coordinationRecord)
+		coordinationRecord, err := coordinationApi.PollPod(pod)
+		if err != nil {
+			return nil, err
+		}
+		var requested, assigned string
+		if coordinationRecord.Requested != nil && len(coordinationRecord.Requested) > 0 {
+			requested = coordinationRecord.Requested[0]
+		}
+		if coordinationRecord.Assigned != nil && len(coordinationRecord.Assigned) > 0 {
+			assigned = coordinationRecord.Assigned[0]
+		}
+		resourcesByPod[uid] = Coordination{
+			Requested: requested,
+			Assigned:  assigned,
 		}
 	}
 	return &LeadershipStatus{Status: resourcesByPod}, nil
 }
 
-type LeadershipStatus struct {
-	Status map[string]coordination_api.CoordinationRecord
+func (l *LeaderElector) calculateAssignedPod(leadershipStatus *LeadershipStatus) string {
+	requestedPods := leadershipStatus.getRequestedPods()
+	desired := leadershipStatus.getCurrentLeaderPod()
+	if len(desired) == 0 {
+		desired = l.selectRandomPod(requestedPods)
+	}
+	return desired
 }
 
-// func (s *LeadershipStatus) getResourceRequests() map[string][]string {
-// 	resourceRequests := make(map[string][]string)
+func (l *LeaderElector) selectRandomPod(requestedPods []string) string {
+	return requestedPods[rand.Intn(len(requestedPods))]
+}
 
-// 	for
-// 	return nil
-// }
+type LeadershipStatus struct {
+	Status map[string]Coordination
+}
+
+func (s *LeadershipStatus) getRequestedPods() []string {
+	var requestedPods []string
+
+	for podUid, coordination := range s.Status {
+		if len(coordination.Requested) > 0 && coordination.Requested == KubernetesLeaderResourceId {
+			requestedPods = append(requestedPods, podUid)
+		}
+	}
+	return requestedPods
+}
+
+func (s *LeadershipStatus) getCurrentLeaderPod() string {
+	for podUid, podStatus := range s.Status {
+		if podStatus.Assigned == KubernetesLeaderResourceId {
+			return podUid
+		}
+	}
+	return ""
+}
+
+type Coordination struct {
+	Requested string
+	Assigned  string
+}
