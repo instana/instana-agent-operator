@@ -111,7 +111,7 @@ func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatu
 			l.Log.Info("Failed to assign leadership to pod: " + desiredPod + " - " + err.Error())
 			return false
 		}
-		l.Log.Info("Assigned leadership of " + KubernetesLeaderResourceId + " to " + desiredPod)
+		l.Log.Info("Assigned leadership of " + KubernetesLeaderResourceId + " to " + pod.GetObjectMeta().GetName())
 	}
 	return true
 }
