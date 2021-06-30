@@ -22,7 +22,7 @@ import (
 
 var (
 	LeaderElectionTask          chrono.ScheduledTask
-	LeaderElectionTaskScheduler = chrono.NewDefaultTaskScheduler()
+	LeaderElectionTaskScheduler chrono.TaskScheduler
 	KubernetesLeaderResourceId  = "com.instana.plugin.kubernetes.leader"
 
 	coordinationApi = coordination_api.New()
@@ -37,7 +37,7 @@ type LeaderElector struct {
 
 func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 	l.Log = ctrl.Log.WithName("leaderelector").WithName("InstanaAgent")
-
+	LeaderElectionTaskScheduler = chrono.NewDefaultTaskScheduler()
 	var err error
 	LeaderElectionTask, err = LeaderElectionTaskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
 		var activePods map[string]coreV1.Pod
