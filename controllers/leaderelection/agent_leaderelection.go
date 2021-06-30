@@ -85,11 +85,8 @@ func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod,
 
 func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) {
 	for {
-		leadershipStatus, err := l.pollLeadershipStatus(pods)
-		if err != nil {
-			l.Log.Info("Unable to poll leadership status : " + err.Error())
-			return
-		}
+		leadershipStatus := l.pollLeadershipStatus(pods)
+
 		if len(leadershipStatus.Status) == 0 {
 			return
 		}
@@ -116,26 +113,29 @@ func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatu
 	return true
 }
 
-func (l *LeaderElector) pollLeadershipStatus(pods map[string]coreV1.Pod) (*LeadershipStatus, error) {
+func (l *LeaderElector) pollLeadershipStatus(pods map[string]coreV1.Pod) *LeadershipStatus {
 	resourcesByPod := make(map[string]Coordination)
 	for uid, pod := range pods {
 		coordinationRecord, err := coordinationApi.PollPod(pod)
 		if err != nil {
-			return nil, err
+			l.Log.Info("Unable to poll leadership status : " + err.Error())
+		} else {
+			l.Log.Info("Leadership status was successfully polled for : " + pod.GetObjectMeta().GetName())
+			var requested, assigned string
+			if coordinationRecord.Requested != nil && len(coordinationRecord.Requested) > 0 {
+				requested = coordinationRecord.Requested[0]
+			}
+			if coordinationRecord.Assigned != nil && len(coordinationRecord.Assigned) > 0 {
+				assigned = coordinationRecord.Assigned[0]
+			}
+			resourcesByPod[uid] = Coordination{
+				Requested: requested,
+				Assigned:  assigned,
+			}
 		}
-		var requested, assigned string
-		if coordinationRecord.Requested != nil && len(coordinationRecord.Requested) > 0 {
-			requested = coordinationRecord.Requested[0]
-		}
-		if coordinationRecord.Assigned != nil && len(coordinationRecord.Assigned) > 0 {
-			assigned = coordinationRecord.Assigned[0]
-		}
-		resourcesByPod[uid] = Coordination{
-			Requested: requested,
-			Assigned:  assigned,
-		}
+
 	}
-	return &LeadershipStatus{Status: resourcesByPod}, nil
+	return &LeadershipStatus{Status: resourcesByPod}
 }
 
 func (l *LeaderElector) calculateAssignedPod(leadershipStatus *LeadershipStatus) string {
