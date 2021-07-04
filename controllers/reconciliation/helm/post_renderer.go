@@ -3,7 +3,7 @@
  * (c) Copyright Instana Inc. 2021
  */
 
-package controllers
+package helm
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	"helm.sh/helm/v3/pkg/action"
 
 	appV1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -28,11 +29,12 @@ type AgentPostRenderer struct {
 	Scheme      *runtime.Scheme
 	Log         logr.Logger
 	CrdInstance *instanaV1Beta1.InstanaAgent
+	HelmCfg     action.Configuration
 }
 
 func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 	p.Log = ctrl.Log.WithName("postrenderer").WithName("InstanaAgent")
-	resourceList, err := HelmCfg.KubeClient.Build(in, false)
+	resourceList, err := p.HelmCfg.KubeClient.Build(in, false)
 	if err != nil {
 		return nil, err
 	}
