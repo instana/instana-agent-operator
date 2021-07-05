@@ -47,13 +47,14 @@ func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 			return
 		}
 		l.pollAgentsAndAssignLeaders(activePods)
-
-		time.Sleep(5 * time.Second)
 	}, 5*time.Second)
-	if err == nil {
-		l.Log.Info("Task has been scheduled successfully.")
+	if err != nil {
+		l.Log.Error(err, "Task scheduler failed to start.")
+		return err
 	}
-	return err
+	l.Log.Info("Task has been scheduled successfully.")
+
+	return nil
 }
 
 func (l *LeaderElector) CancelLeaderElection() {
@@ -86,7 +87,8 @@ func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod,
 func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) {
 	for {
 		leadershipStatus := l.pollLeadershipStatus(pods)
-
+		// if leadershipStatus.Status is empty list that means we were not able to get leadershipstatus for any pod
+		// so we can't proceed with leadership assigning process and we should return
 		if len(leadershipStatus.Status) == 0 {
 			return
 		}
