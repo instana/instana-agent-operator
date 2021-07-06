@@ -15,6 +15,7 @@ import (
 
 	agentoperatorv1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/instana/instana-agent-operator/controllers"
+	"github.com/instana/instana-agent-operator/controllers/reconciliation"
 	"github.com/instana/instana-agent-operator/logger"
 	"github.com/instana/instana-agent-operator/version"
 
@@ -75,10 +76,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	client := mgr.GetClient()
+	scheme := mgr.GetScheme()
+	log := ctrl.Log.WithName("controllers").WithName("InstanaAgent")
 	if err = (&controllers.InstanaAgentReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("InstanaAgent"),
-		Scheme: mgr.GetScheme(),
+		Client:         client,
+		Log:            log,
+		Scheme:         scheme,
+		Reconciliation: reconciliation.New(client, scheme, log),
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "unable to create controller", "controller", "InstanaAgent")
 		os.Exit(1)
