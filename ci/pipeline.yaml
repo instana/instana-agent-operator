@@ -457,7 +457,7 @@ jobs:
 
                 # For public releases, also create the appropriate github release:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
-                if [[ $VERSION =~ $RELEASE_REGEX ]]; then 
+                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then 
                   echo "**** Public release, create github.com release $VERSION. ****"
                   ./olm/operator-resources/create-github-release.sh $VERSION $GH_API_TOKEN
                 fi
