@@ -377,8 +377,8 @@ jobs:
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin https://scan.connect.redhat.com/v1/
                 export RED_HAT_REGISTRY="scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator"
 
+                export EXISTS=0
                 docker manifest inspect $RED_HAT_REGISTRY:${OPERATOR_DOCKER_VERSION} || export EXISTS=$?
-
                 if [ $EXISTS -eq 0 ]
                 then
                   echo "Manifest $RED_HAT_REGISTRY:${OPERATOR_DOCKER_VERSION} is already present on Red Hat Container Registry, skipping publish."
@@ -546,6 +546,7 @@ jobs:
           outputs:
             - name: message
           params:
+            DOCKER_CLI_EXPERIMENTAL: enabled
             VERSION: ((.:operator-version))
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-ospid-5fc350a1-9257-4291-9f2a-df9257b9e791.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-ospid-5fc350a1-9257-4291-9f2a-df9257b9e791.user))
@@ -572,6 +573,14 @@ jobs:
 
                 echo "$RED_HAT_REGISTRY_PASSWORD" | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin https://scan.connect.redhat.com/v1/
                 export RED_HAT_REGISTRY_OLM="scan.connect.redhat.com/ospid-5fc350a1-9257-4291-9f2a-df9257b9e791/instana-agent-operator-bundle"
+
+                export EXISTS=0
+                docker manifest inspect $RED_HAT_REGISTRY_OLM:${OPERATOR_DOCKER_VERSION} || export EXISTS=$?
+                if [ $EXISTS -eq 0 ]
+                then
+                  echo "Manifest $RED_HAT_REGISTRY_OLM:${OPERATOR_DOCKER_VERSION} is already present on Red Hat Container Registry, skipping publish."
+                  exit 0
+                fi
 
                 docker load < image/image.tar
                 docker tag $(cat image/digest) $RED_HAT_REGISTRY_OLM:$OPERATOR_DOCKER_VERSION
