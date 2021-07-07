@@ -1,4 +1,6 @@
 *
+!instana-agent-operator-*-runner.jar
+!lib
 !src/main/docker/lib/libsunec.so
 !licenses
 !target/*-runner
