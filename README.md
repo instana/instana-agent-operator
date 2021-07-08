@@ -31,3 +31,19 @@ There are two ways to install the operator:
 
 Please see the guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+### Local Development
+
+The Instana Agent Operator can be developed and tested easily against a local Minikube cluster or any other configured
+Kubernetes cluster. Therefore, follow the below steps:
+
+1. Create a copy of the file `config/samples/instana_v1beta1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instanaagent_demo.yaml`
+2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
+3. Build the Operator image: `make docker-build`
+4. For deploying on Minikube, there's a convenient target `make deploy-minikube`. For any other environment you would
+   need to first push the Docker image to a valid repository using `make docker-push`, then do the deployment
+   using `make deploy` to deploy the Operator to the cluster configured for `kubectl`.
+5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instanaagent_demo.yaml`
+
+Now you should have a successful running Operator.
+To remove the Operator again, run `make undeploy`.
+

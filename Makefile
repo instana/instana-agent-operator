@@ -22,7 +22,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= instana-agent-operator:latest
+IMG ?= instana/instana-agent-operator:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -83,7 +83,7 @@ run: generate fmt vet manifests ## Run against the configured Kubernetes cluster
 	go run ./
 
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build --build-arg VERSION=${VERSION} -t ${IMG} .
 
 docker-push: ## Push the docker image with the manager.
 	docker push ${IMG}
@@ -100,6 +100,13 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+deploy-minikube: ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
+	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
+	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	# Make certain we don't try to pull images from somewhere else
+	$(KUSTOMIZE) build config/default | sed -e 's|\(imagePullPolicy:\s*\)Always|\1Never|' | kubectl apply -f -
 
 undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
@@ -165,34 +172,16 @@ rm -rf $$TMP_DIR ;\
 endef
 
 
+##@ OLM
+
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize
+bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	$(OPERATOR_SDK) bundle validate ./bundle
 
-.PHONY: bundle-build ## Build the bundle image.
-bundle-build:
+.PHONY: bundle-build
+bundle-build: ## Build the bundle image for OLM.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-
-# Package Manifests are deprecated for the Operator Framework and replaced by using the "Bundle" format.
-#
-## Options for "packagemanifests".
-#ifneq ($(origin FROM_VERSION), undefined)
-#PKG_FROM_VERSION := --from-version=$(FROM_VERSION)
-#endif
-#ifneq ($(origin CHANNEL), undefined)
-#PKG_CHANNELS := --channel=$(CHANNEL)
-#endif
-#ifeq ($(IS_CHANNEL_DEFAULT), 1)
-#PKG_IS_DEFAULT_CHANNEL := --default-channel
-#endif
-#PKG_MAN_OPTS ?= $(PKG_FROM_VERSION) $(PKG_CHANNELS) $(PKG_IS_DEFAULT_CHANNEL)
-#
-## Generate package manifests.
-#packagemanifests: kustomize manifests
-#	operator-sdk generate kustomize manifests -q
-#	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-#	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests -q --version $(VERSION) $(PKG_MAN_OPTS)

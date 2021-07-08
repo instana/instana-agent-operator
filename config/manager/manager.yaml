@@ -16,7 +16,7 @@ spec:
   selector:
     matchLabels:
       control-plane: controller-manager
-  replicas: 3
+  replicas: 2
   template:
     metadata:
       labels:
@@ -24,12 +24,13 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1001
       containers:
       - command:
         - /manager
         args:
         - --leader-elect
-        image: controller:latest
+        image: instana/instana-agent-operator:latest
         imagePullPolicy: Always
         name: manager
         securityContext:

@@ -12,24 +12,25 @@ metadata:
             "namespace": "instana-agent"
           },
           "spec": {
-            "clusterName": "replace-me",
-            "configFiles": {
-              "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n"
+            "agent": {
+              "configuration_yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n",
+              "endpointHost": "ingress-red-saas.instana.io",
+              "endpointPort": "443",
+              "env": {},
+              "key": "replace-key"
             },
-            "downloadKey": "replace-me",
-            "endpoint": {
-              "host": "ingress-red-saas.instana.io",
-              "port": "443"
+            "cluster": {
+              "name": "my-cluster"
             },
-            "env": [],
-            "key": "replace-me",
-            "zoneName": "my-zone"
+            "zone": {
+              "name": "edited-zone"
+            }
           }
         }
       ]
     capabilities: Basic Install
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    operators.operatorframework.io/builder: operator-sdk-v1.5.0
+    operators.operatorframework.io/builder: operator-sdk-v2.0.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -305,7 +306,7 @@ spec:
       deployments:
       - name: controller-manager
         spec:
-          replicas: 1
+          replicas: 2
           selector:
             matchLabels:
               control-plane: controller-manager
@@ -320,9 +321,21 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: instana-agent-operator:latest
+                image: instana/instana-agent-operator:latest
                 imagePullPolicy: Always
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
                 name: manager
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
                 resources:
                   limits:
                     cpu: 200m
@@ -334,6 +347,7 @@ spec:
                   allowPrivilegeEscalation: true
               securityContext:
                 runAsNonRoot: true
+                runAsUser: 1001
               serviceAccountName: controller-manager
               terminationGracePeriodSeconds: 10
     strategy: deployment
