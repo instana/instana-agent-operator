@@ -28,16 +28,6 @@ import (
 )
 
 const (
-	AppVersion               = "1.0.0-beta"
-	AgentKey                 = "key"
-	AgentDownloadKey         = "downloadKey"
-	DefaultAgentImageName    = "instana/agent"
-	AgentImagePullSecretName = "containers-instana-io"
-	DockerRegistry           = "containers.instana.io"
-
-	AgentPort         = 42699
-	OpenTelemetryPort = 55680
-
 	instanaAgentFinalizer = "agent.instana.com/finalizer"
 )
 
@@ -80,6 +70,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if isInstanaAgentDeleted {
 		if controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
+			r.Log.Info("Running the finalizer...")
 			if err := r.finalizeAgent(crdInstance); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -121,7 +112,9 @@ func (r *InstanaAgentReconciler) finalizeAgent(crdInstance *instanaV1Beta1.Insta
 	if err := r.Reconciliation.Delete(crdInstance); err != nil {
 		return err
 	}
-	leaderElector.CancelLeaderElection()
+	if leaderElector != nil {
+		leaderElector.CancelLeaderElection()
+	}
 	r.Log.Info("Successfully finalized instana agent")
 	return nil
 }

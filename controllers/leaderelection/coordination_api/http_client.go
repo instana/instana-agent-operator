@@ -43,20 +43,20 @@ func (c *podCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord
 	url := c.getBaseUrl(pod)
 	resp, err := http.Get(url)
 	if err != nil {
-		return &CoordinationRecord{}, errors.New("Unsuccessful request polling " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return nil, errors.New("Unsuccessful request polling " + pod.GetObjectMeta().GetName() + ": " + err.Error())
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return &CoordinationRecord{}, errors.New("Unsuccessful request polling " + pod.GetObjectMeta().GetName() + ": " + fmt.Sprint(resp.StatusCode))
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("Unsuccessful request polling " + pod.GetObjectMeta().GetName() + ": " + fmt.Sprint(resp.StatusCode))
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &CoordinationRecord{}, errors.New("Error reading response of " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return nil, errors.New("Error reading response of " + pod.GetObjectMeta().GetName() + ": " + err.Error())
 	}
 
 	if err := json.Unmarshal(body, coordinationRecord); err != nil {
-		return &CoordinationRecord{}, errors.New("Error Unmarshaling response of " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return nil, errors.New("Error Unmarshalling response of " + pod.GetObjectMeta().GetName() + ": " + err.Error())
 	}
 
 	return coordinationRecord, nil

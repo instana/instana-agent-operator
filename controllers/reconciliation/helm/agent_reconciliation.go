@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
@@ -56,14 +57,20 @@ func (h *HelmReconciliation) Delete(crdInstance *instanaV1Beta1.InstanaAgent) er
 	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return err
 	}
-	client := action.NewUninstall(HelmCfg)
 
-	_, err := client.Run(AppName)
+	uninstallAction := action.NewUninstall(HelmCfg)
+	_, err := uninstallAction.Run(AppName)
 	if err != nil {
-		return err
+		// If there was an error because already uninstalled, ignore it
+		// Unfortunately the Helm library doesn't return nice Error types so can only check on message
+		if strings.Contains(err.Error(), "uninstall: Release not loaded") {
+			h.Log.Info("Ignoring error during Instana Agent deletion, Helm resources already removed")
+		} else {
+			return err
+		}
 	}
-	h.Log.Info("Release uninstalled")
 
+	h.Log.Info("Release uninstalled")
 	return nil
 }
 
