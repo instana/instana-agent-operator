@@ -7,7 +7,6 @@ package helm
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -52,9 +51,13 @@ type HelmReconciliation struct {
 	Log    logr.Logger
 }
 
+func (h *HelmReconciliation) DebugLog(format string, v ...interface{}) {
+	h.Log.WithName("helm").V(1).Info(fmt.Sprintf(format, v...))
+}
+
 func (h *HelmReconciliation) Delete(crdInstance *instanaV1Beta1.InstanaAgent) error {
 	settings.RepositoryConfig = helm_repo
-	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), h.DebugLog); err != nil {
 		return err
 	}
 
@@ -75,9 +78,8 @@ func (h *HelmReconciliation) Delete(crdInstance *instanaV1Beta1.InstanaAgent) er
 }
 
 func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	h.Log = ctrl.Log.WithName("helmReconciliation").WithName("InstanaAgent")
 	settings.RepositoryConfig = helm_repo
-	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), h.DebugLog); err != nil {
 		return err
 	}
 	client := action.NewUpgrade(HelmCfg)

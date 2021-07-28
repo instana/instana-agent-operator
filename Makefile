@@ -8,6 +8,9 @@ VERSION ?= 0.0.1
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
 BUNDLE_IMG ?= instana-agent-operator-bundle:$(VERSION)
 
+# Include the latest Git commit SHA, gets injected in code via Docker build (just like VERSION)
+GIT_COMMIT=$(shell git rev-list -1 HEAD)
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 ifneq ($(origin CHANNELS), undefined)
@@ -76,14 +79,12 @@ test: generate fmt vet lint manifests ## Run tests.
 build: setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
-run: export RUN_LOCAL=true
-run: export POD_NAMESPACE=instana-agent
-run: export DEBUG_OPERATOR=true
-run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
+run: export DEBUG_MODE=true
+run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
 docker-build: test ## Build docker image with the manager.
-	docker build --build-arg VERSION=${VERSION} -t ${IMG} .
+	docker build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} -t ${IMG} .
 
 docker-push: ## Push the docker image with the manager.
 	docker push ${IMG}

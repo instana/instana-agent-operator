@@ -72,7 +72,9 @@ func (l *LeaderElector) CancelLeaderElection() {
 	if LeaderElectionTask != nil && !LeaderElectionTask.IsCancelled() {
 		LeaderElectionTask.Cancel()
 	}
-	LeaderElectionTaskScheduler.Shutdown()
+	if !LeaderElectionTaskScheduler.IsShutdown() {
+		LeaderElectionTaskScheduler.Shutdown()
+	}
 }
 
 func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod, error) {
@@ -95,6 +97,9 @@ func (l *LeaderElector) fetchPods(agentNameSpace string) (map[string]coreV1.Pod,
 	return activePods, nil
 }
 
+// pollAgentsAndAssignLeaders will first get all "requested resources" from every Agent Pod. It will then calculate new
+// assignments, prioritizing any Pod that already holds that assignment.
+// The function is executed in a loop, so that should assignments fail for any Pod, determining assignments starts over from scratch.
 func (l *LeaderElector) pollAgentsAndAssignLeaders(pods map[string]coreV1.Pod) {
 outer:
 	for {
@@ -120,6 +125,14 @@ outer:
 				delete(pods, pod)
 				continue outer
 			}
+		}
+
+		// Because of a bug in the Agent code, it could happen we have Pods with _no_ requests but _with_ assignments, clean
+		// these up although we're not interested failures as the Pod might get restarted
+		for _, pod := range leadershipStatus.getPodsWithAssignmentsNoRequests() {
+			l.assign(pods, leadershipStatus, pod, []string{})
+			c := pods[pod]
+			l.Log.Info(fmt.Sprintf("Pod with UID %v has assignments but no requests. Resetting.", c.GetObjectMeta().GetName()))
 		}
 
 		// All assignments finished correctly, so exit
@@ -221,4 +234,17 @@ func (s *LeadershipStatus) getAssignmentsForPod(podUid string) []string {
 	} else {
 		return nil
 	}
+}
+
+func (s *LeadershipStatus) getPodsWithAssignmentsNoRequests() []string {
+	podsWithoutRequests := make([]string, 0, len(s.Status))
+
+	// From a Map with podUid -> [] requested resources, transform to a map of 'requested resource' -> [] podUids
+	for podUid, coordinationRecord := range s.Status {
+		if len(coordinationRecord.Assigned) > 0 && len(coordinationRecord.Requested) == 0 {
+			podsWithoutRequests = append(podsWithoutRequests, podUid)
+		}
+	}
+
+	return podsWithoutRequests
 }

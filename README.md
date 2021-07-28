@@ -31,7 +31,26 @@ There are two ways to install the operator:
 
 Please see the guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Local Development
+## Local Development
+
+Developing (and running) the Operator is possible in two easy ways:
+- Running as Go application outside the Cluster
+- Running as Deployment inside the Cluster
+
+Both are described below.
+
+### Running Go application outside the cluster
+
+1. Create a copy of the file `config/samples/instana_v1beta1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instanaagent_demo.yaml`
+2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
+3. Install the CRD and run the Go application: `make install run`.
+4. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instanaagent_demo.yaml`
+
+To stop, take the following actions:
+- `kubectl delete -f config/samples/instanaagent_demo.yaml`
+- `make uninstall`
+
+### Running Deployment inside the cluster
 
 The Instana Agent Operator can be developed and tested easily against a local Minikube cluster or any other configured
 Kubernetes cluster. Therefore, follow the below steps:
@@ -45,5 +64,7 @@ Kubernetes cluster. Therefore, follow the below steps:
 5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instanaagent_demo.yaml`
 
 Now you should have a successful running Operator.
-To remove the Operator again, run `make undeploy`.
+To remove the Operator again, run:
+- `kubectl delete -f config/samples/instanaagent_demo.yaml`
+- `make undeploy`.
 

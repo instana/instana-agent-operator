@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
@@ -33,7 +32,7 @@ type AgentPostRenderer struct {
 }
 
 func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
-	p.Log = ctrl.Log.WithName("postrenderer").WithName("InstanaAgent")
+	//p.Log = ctrl.Log.WithName("postrenderer").WithName("InstanaAgent")
 	resourceList, err := p.HelmCfg.KubeClient.Build(in, false)
 	if err != nil {
 		return nil, err
