@@ -8,8 +8,8 @@ package coordination_api
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -21,19 +21,30 @@ type podCoordinationHttpClient struct {
 
 func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) error {
 	url := c.getBaseUrl(pod) + "/assigned"
+
 	body, err := json.Marshal(assignment)
 	if err != nil {
-		return errors.New("Error marshaling assignment list for " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return fmt.Errorf("error marshaling assignment list for %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
 
-	request, err := http.NewRequest("PUT", url, bytes.NewReader(body))
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(body))
 	if err != nil {
-		return errors.New("Invalid Http request for assigning leadership to " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return fmt.Errorf("invalid Http request for assigning leadership to %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
 	request.Header.Add("content-type", "application/json")
-	_, err = http.DefaultClient.Do(request)
+
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return errors.New("Unsuccessful request assigning leadership to " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return fmt.Errorf("unsuccessful request assigning leadership to %v: %w", pod.GetObjectMeta().GetName(), err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("leadership assignment request to %v resulted in HTTP error response %v",
+			pod.GetObjectMeta().GetName(), resp.Status)
 	}
 
 	return nil
@@ -41,28 +52,33 @@ func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) 
 func (c *podCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord, error) {
 	coordinationRecord := &CoordinationRecord{}
 	url := c.getBaseUrl(pod)
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, errors.New("Unsuccessful request polling " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return nil, fmt.Errorf("unsuccessful request polling %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
-	defer resp.Body.Close()
+
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("Unsuccessful request polling " + pod.GetObjectMeta().GetName() + ": " + fmt.Sprint(resp.StatusCode))
+		return nil, fmt.Errorf("request polling %v resulted in HTTP error response %v",
+			pod.GetObjectMeta().GetName(), resp.Status)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.New("Error reading response of " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return nil, fmt.Errorf("error reading /coordination response of %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
 
 	if err := json.Unmarshal(body, coordinationRecord); err != nil {
-		return nil, errors.New("Error Unmarshalling response of " + pod.GetObjectMeta().GetName() + ": " + err.Error())
+		return nil, fmt.Errorf("error unmarshalling response of %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
 
 	return coordinationRecord, nil
 }
 
 func (c *podCoordinationHttpClient) getBaseUrl(pod coreV1.Pod) string {
-	ip := pod.Status.HostIP
-	return "http://" + ip + ":" + fmt.Sprint(AgentPort) + "/coordination"
+	return fmt.Sprintf("http://%v:%d/coordination", pod.Status.HostIP, AgentPort)
 }

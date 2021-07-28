@@ -7,6 +7,7 @@ package leaderelection
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -20,12 +21,11 @@ import (
 	"github.com/procyon-projects/chrono"
 	coreV1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
+	// TODO move to struct, should not be exposed externally
 	LeaderElectionTask          chrono.ScheduledTask
 	LeaderElectionTaskScheduler chrono.TaskScheduler
 
@@ -35,11 +35,12 @@ var (
 type LeaderElector struct {
 	Ctx    context.Context
 	Client client.Client
-	Scheme *runtime.Scheme
 	Log    logr.Logger
 }
 
 /*
+	StartCoordination starts scheduling of leader elector coordination between Instana Agents.
+
 	Agent Coordination works by requesting the "resources" for which an Agent would be leader. This could be one or more.
 	Different Agents might request similar or different "resources".
 
@@ -47,23 +48,23 @@ type LeaderElector struct {
 	/coordination/assigned endpoint.
 */
 func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
-	l.Log = ctrl.Log.WithName("leaderelector").WithName("InstanaAgent")
 	LeaderElectionTaskScheduler = chrono.NewDefaultTaskScheduler()
 	var err error
 	LeaderElectionTask, err = LeaderElectionTaskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
-		var activePods map[string]coreV1.Pod
-		var err error
-		if activePods, err = l.fetchPods(agentNameSpace); err != nil {
+
+		activePods, err := l.fetchPods(agentNameSpace)
+		if err != nil {
 			l.Log.Error(err, "Unable to fetch agent pods for doing election")
 			return
 		}
 		l.pollAgentsAndAssignLeaders(activePods)
+
 	}, 5*time.Second)
 	if err != nil {
-		l.Log.Error(err, "Task scheduler failed to start.")
-		return err
+		l.Log.Error(err, "Failure scheduling Leader Elector task")
+		return errors.New("failure starting leader elector coordination")
 	}
-	l.Log.Info("Task has been scheduled successfully.")
+	l.Log.Info("Leader Election task has been scheduled successfully.")
 
 	return nil
 }
@@ -130,9 +131,9 @@ outer:
 		// Because of a bug in the Agent code, it could happen we have Pods with _no_ requests but _with_ assignments, clean
 		// these up although we're not interested failures as the Pod might get restarted
 		for _, pod := range leadershipStatus.getPodsWithAssignmentsNoRequests() {
-			l.assign(pods, leadershipStatus, pod, []string{})
 			c := pods[pod]
 			l.Log.Info(fmt.Sprintf("Pod with UID %v has assignments but no requests. Resetting.", c.GetObjectMeta().GetName()))
+			l.assign(pods, leadershipStatus, pod, []string{})
 		}
 
 		// All assignments finished correctly, so exit
@@ -146,7 +147,7 @@ func (l *LeaderElector) assign(activePods map[string]coreV1.Pod, leadershipStatu
 		// Only need to update if desired assignments are not yet equal to actual assignments
 		pod := activePods[desiredPod]
 		if err := coordinationApi.Assign(pod, assignments); err != nil {
-			l.Log.Info(fmt.Sprintf("Failed to assign leadership (%v) to pod: %v - %v", assignments, pod.GetObjectMeta().GetName(), err.Error()))
+			l.Log.Error(err, fmt.Sprintf("Failed to assign leadership %v to pod: %v", assignments, pod.GetObjectMeta().GetName()))
 			return false
 		}
 		l.Log.Info(fmt.Sprintf("Assigned leadership of %v to pod: %v", assignments, pod.GetObjectMeta().GetName()))
@@ -159,9 +160,10 @@ func (l *LeaderElector) pollLeadershipStatus(pods map[string]coreV1.Pod) *Leader
 	for uid, pod := range pods {
 		coordinationRecord, err := coordinationApi.PollPod(pod)
 		if err != nil {
-			l.Log.Info("Unable to poll coordination status : " + err.Error())
+			// Logging on Info level because could just happen that Pod is not ready
+			l.Log.Info(fmt.Sprintf("Unable to poll coordination status for Pod %v: %v", pod.GetObjectMeta().GetName(), err))
 		} else {
-			l.Log.Info("Coordination status was successfully polled for : " + pod.GetObjectMeta().GetName())
+			l.Log.V(1).Info(fmt.Sprintf("Coordination status was successfully polled for Pod %v", pod.GetObjectMeta().GetName()))
 			resourcesByPod[uid] = coordinationRecord
 		}
 

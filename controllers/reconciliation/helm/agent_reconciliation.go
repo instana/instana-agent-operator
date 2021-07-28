@@ -92,6 +92,7 @@ func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *insta
 		CrdInstance: crdInstance,
 		Client:      h.Client,
 		HelmCfg:     *HelmCfg,
+		Log:         h.Log.WithName("postrender"),
 	}
 	client.MaxHistory = 1
 	args := []string{AppName, AppName}

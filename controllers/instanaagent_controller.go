@@ -157,9 +157,10 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		leaderElector = &leaderelection.LeaderElector{
 			Ctx:    ctx,
 			Client: r.client,
-			Scheme: r.scheme,
+			Log:    r.log.WithName("leaderelector"),
 		}
 		leaderElector.StartCoordination(AgentNameSpace)
+		// TODO handle error if leader election cannot be started? How to exit?
 	}
 	return ctrl.Result{}, nil
 }
