@@ -18,22 +18,28 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 )
 
+func NewAgentPostRenderer(h *HelmReconciliation, crdInstance *instanaV1Beta1.InstanaAgent) *AgentPostRenderer {
+	return &AgentPostRenderer{
+		scheme:      h.scheme,
+		helmCfg:     h.helmCfg,
+		crdInstance: crdInstance,
+		log:         h.log.WithName("postrender"),
+	}
+}
+
 type AgentPostRenderer struct {
-	client.Client
-	Scheme      *runtime.Scheme
-	Log         logr.Logger
-	CrdInstance *instanaV1Beta1.InstanaAgent
-	HelmCfg     action.Configuration
+	scheme      *runtime.Scheme
+	crdInstance *instanaV1Beta1.InstanaAgent
+	helmCfg     *action.Configuration
+	log         logr.Logger
 }
 
 func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
-	//p.Log = ctrl.Log.WithName("postrenderer").WithName("InstanaAgent")
-	resourceList, err := p.HelmCfg.KubeClient.Build(in, false)
+	resourceList, err := p.helmCfg.KubeClient.Build(in, false)
 	if err != nil {
 		return nil, err
 	}
@@ -57,10 +63,10 @@ func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 		}
 		u := &unstructured.Unstructured{Object: objMap}
 		if !(r.ObjectName() == "clusterroles/instana-agent" || r.ObjectName() == "clusterrolebindings/instana-agent") {
-			if err = controllerutil.SetControllerReference(p.CrdInstance, u, p.Scheme); err != nil {
+			if err = controllerutil.SetControllerReference(p.crdInstance, u, p.scheme); err != nil {
 				return err
 			}
-			p.Log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
+			p.log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
 		}
 		if err = p.writeToOutBuffer(u.Object, &out); err != nil {
 			return err
@@ -97,7 +103,7 @@ func (p *AgentPostRenderer) removeLeaderElectorContainer(containerList []v1.Cont
 	for i, container := range containerList {
 		if container.Name == "leader-elector" {
 			containerList = append(containerList[:i], containerList[i+1:]...)
-			p.Log.Info("Leader-elector sidecar container is now removed from daemonset")
+			p.log.Info("Leader-elector sidecar container is now removed from daemonset")
 			break
 		}
 	}

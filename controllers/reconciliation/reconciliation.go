@@ -15,14 +15,18 @@ import (
 )
 
 type Reconciliation interface {
+	// CreateOrUpdate creates a new Agent installation or updates to the latest defined configuration
 	CreateOrUpdate(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error
-	Delete(crdInstance *instanaV1Beta1.InstanaAgent) error
+	// Delete removes the Agent installation from the cluster
+	Delete(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error
 }
 
 func New(client client.Client, scheme *runtime.Scheme, log logr.Logger) Reconciliation {
-	return &helm.HelmReconciliation{
-		Client: client,
-		Scheme: scheme,
-		Log:    log,
+	helmReconciler := helm.NewHelmReconciliation(client, scheme, log)
+	if err := helmReconciler.Init(); err != nil {
+		log.Error(err, "Failure initializing Helm config for reconciliation")
+		return nil
 	}
+
+	return helmReconciler
 }

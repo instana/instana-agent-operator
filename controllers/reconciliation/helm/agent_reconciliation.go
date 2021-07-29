@@ -33,70 +33,80 @@ import (
 )
 
 const (
-	helm_repo = "https://agents.instana.io/helm"
+	helmRepo = "https://agents.instana.io/helm"
 )
 
 var (
-	AppName        = "instana-agent"
-	AgentNameSpace = AppName
-
-	settings = cli.New()
-	HelmCfg  = new(action.Configuration)
+	settings *cli.EnvSettings
 )
 
-type HelmReconciliation struct {
-	Client client.Client
-	Scheme *runtime.Scheme
-	Log    logr.Logger
+func init() {
+	settings = cli.New()
+	settings.RepositoryConfig = helmRepo
 }
 
-func (h *HelmReconciliation) DebugLog(format string, v ...interface{}) {
-	h.Log.WithName("helm").V(1).Info(fmt.Sprintf(format, v...))
-}
-
-func (h *HelmReconciliation) Delete(crdInstance *instanaV1Beta1.InstanaAgent) error {
-	settings.RepositoryConfig = helm_repo
-	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), h.DebugLog); err != nil {
-		return err
+func NewHelmReconciliation(client client.Client, scheme *runtime.Scheme, log logr.Logger) *HelmReconciliation {
+	return &HelmReconciliation{
+		client:         client,
+		scheme:         scheme,
+		log:            log.WithName("reconcile"),
+		appName:        "instana-agent",
+		agentNameSpace: "instana-agent",
 	}
+}
 
-	uninstallAction := action.NewUninstall(HelmCfg)
-	_, err := uninstallAction.Run(AppName)
+type HelmReconciliation struct {
+	client         client.Client
+	scheme         *runtime.Scheme
+	log            logr.Logger
+	appName        string
+	agentNameSpace string
+
+	helmCfg *action.Configuration
+}
+
+// Init initializes some general setup, extracted from the 'constructor' because it might error
+func (h *HelmReconciliation) Init() error {
+	h.helmCfg = new(action.Configuration)
+	if err := h.helmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), h.debugLog); err != nil {
+		return fmt.Errorf("failure initializing Helm configuration: %w", err)
+	}
+	return nil
+}
+
+// debugLog provides a logging function so that the Helm driver will send all output via our logging pipeline
+func (h *HelmReconciliation) debugLog(format string, v ...interface{}) {
+	h.log.WithName("helm").V(1).Info(fmt.Sprintf(format, v...))
+}
+
+func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1Beta1.InstanaAgent) error {
+	uninstallAction := action.NewUninstall(h.helmCfg)
+	_, err := uninstallAction.Run(h.appName)
 	if err != nil {
 		// If there was an error because already uninstalled, ignore it
 		// Unfortunately the Helm library doesn't return nice Error types so can only check on message
 		// TODO verify the error type-check succeeds for all different type of uninstall errors we should ignore.
 		//if strings.Contains(err.Error(), "uninstall: Release not loaded") {
 		if errors.Is(err, driver.ErrReleaseNotFound) {
-			h.Log.Info("Ignoring error during Instana Agent deletion, Helm resources already removed")
+			h.log.Info("Ignoring error during Instana Agent deletion, Helm resources already removed")
 		} else {
 			return err
 		}
 	}
 
-	h.Log.Info("Release uninstalled")
+	h.log.Info("Release uninstalled")
 	return nil
 }
 
-func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	settings.RepositoryConfig = helm_repo
-	if err := HelmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), h.DebugLog); err != nil {
-		return err
-	}
-	client := action.NewUpgrade(HelmCfg)
+func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
+	client := action.NewUpgrade(h.helmCfg)
 	var createNamespace bool
 	client.Namespace = settings.Namespace()
 	client.Install = true
-	client.RepoURL = helm_repo
-	client.PostRenderer = &AgentPostRenderer{
-		Scheme:      h.Scheme,
-		CrdInstance: crdInstance,
-		Client:      h.Client,
-		HelmCfg:     *HelmCfg,
-		Log:         h.Log.WithName("postrender"),
-	}
+	client.RepoURL = helmRepo
+	client.PostRenderer = NewAgentPostRenderer(h, crdInstance)
 	client.MaxHistory = 1
-	args := []string{AppName, AppName}
+	args := []string{h.appName, h.appName}
 
 	versionSet, err := h.getApiVersions()
 	if err != nil {
@@ -115,11 +125,11 @@ func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *insta
 
 	if client.Install {
 		// If a release does not exist, install it.
-		histClient := action.NewHistory(HelmCfg)
+		histClient := action.NewHistory(h.helmCfg)
 		histClient.Max = 1
 		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
-			h.Log.Info("Release does not exist. Installing it now.")
-			instClient := action.NewInstall(HelmCfg)
+			h.log.Info("Release does not exist. Installing it now.")
+			instClient := action.NewInstall(h.helmCfg)
 			instClient.CreateNamespace = createNamespace
 			instClient.ChartPathOptions = client.ChartPathOptions
 			instClient.DryRun = client.DryRun
@@ -135,12 +145,12 @@ func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *insta
 			instClient.DisableOpenAPIValidation = client.DisableOpenAPIValidation
 			instClient.SubNotes = client.SubNotes
 			instClient.Description = client.Description
-			instClient.RepoURL = helm_repo
+			instClient.RepoURL = helmRepo
 			_, err := h.runInstall(args, instClient, yamlMap)
 			if err != nil {
 				return err
 			}
-			h.Log.Info("done installing")
+			h.log.Info("done installing")
 			return nil
 		} else if err != nil {
 			return err
@@ -168,7 +178,7 @@ func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *insta
 	}
 
 	if ch.Metadata.Deprecated {
-		h.Log.Info("This chart is deprecated")
+		h.log.Info("This chart is deprecated")
 	}
 
 	_, err = client.Run(args[0], ch, yamlMap)
@@ -176,21 +186,21 @@ func (h *HelmReconciliation) CreateOrUpdate(req ctrl.Request, crdInstance *insta
 		return errors.Wrap(err, "UPGRADE FAILED")
 	}
 
-	h.Log.Info("done upgrading")
+	h.log.Info("done upgrading")
 	return nil
 
 }
 
 func (h *HelmReconciliation) repoUpdate() error {
-	entry := &repo.Entry{Name: AppName, URL: helm_repo}
+	entry := &repo.Entry{Name: h.appName, URL: helmRepo}
 	r, err := repo.NewChartRepository(entry, getter.All(settings))
 	if err != nil {
 		return err
 	}
 	if _, err := r.DownloadIndexFile(); err != nil {
-		h.Log.Info(fmt.Sprintf("...Unable to get an update from the %q chart repository (%s):\n\t%s\n", r.Config.Name, r.Config.URL, err))
+		h.log.Info(fmt.Sprintf("...Unable to get an update from the %q chart repository (%s):\n\t%s\n", r.Config.Name, r.Config.URL, err))
 	} else {
-		h.Log.Info(fmt.Sprintf("...Successfully got an update from the %q chart repository\n", r.Config.Name))
+		h.log.Info(fmt.Sprintf("...Successfully got an update from the %q chart repository\n", r.Config.Name))
 	}
 	return nil
 }
@@ -200,7 +210,7 @@ func (h *HelmReconciliation) runInstall(args []string, client *action.Install, y
 	if err != nil {
 		return nil, err
 	}
-	client.ReleaseName = AppName
+	client.ReleaseName = h.appName
 
 	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
 	if err != nil {
@@ -245,7 +255,7 @@ func (h *HelmReconciliation) runInstall(args []string, client *action.Install, y
 		}
 	}
 
-	client.Namespace = AgentNameSpace
+	client.Namespace = h.agentNameSpace
 	client.CreateNamespace = true
 	return client.Run(chartRequested, yamlMap)
 }
@@ -270,10 +280,10 @@ func (h *HelmReconciliation) mapCRDToYaml(crdInstance *instanaV1Beta1.InstanaAge
 	return yamlMap, nil
 }
 func (h *HelmReconciliation) getApiVersions() (*chartutil.VersionSet, error) {
-	if HelmCfg.Capabilities != nil {
-		return &HelmCfg.Capabilities.APIVersions, nil
+	if h.helmCfg.Capabilities != nil {
+		return &h.helmCfg.Capabilities.APIVersions, nil
 	}
-	dc, err := HelmCfg.RESTClientGetter.ToDiscoveryClient()
+	dc, err := h.helmCfg.RESTClientGetter.ToDiscoveryClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Kubernetes discovery client")
 	}
@@ -287,8 +297,8 @@ func (h *HelmReconciliation) getApiVersions() (*chartutil.VersionSet, error) {
 	apiVersions, err := action.GetVersionSet(dc)
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
-			h.Log.Error(err, "WARNING: The Kubernetes server has an orphaned API service. Server reports: %s")
-			h.Log.Info("WARNING: To fix this, kubectl delete apiservice <service-name>")
+			h.log.Error(err, "WARNING: The Kubernetes server has an orphaned API service. Server reports: %s")
+			h.log.Info("WARNING: To fix this, kubectl delete apiservice <service-name>")
 		} else {
 			return nil, errors.Wrap(err, "could not get apiVersions from Kubernetes")
 		}

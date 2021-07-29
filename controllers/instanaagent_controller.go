@@ -79,7 +79,7 @@ func NewInstanaAgentReconciler(client client.Client, apiReader client.Reader, sc
 		scheme:              scheme,
 		config:              config,
 		log:                 log,
-		agentReconciliation: reconciliation.New(client, scheme, log.WithName("reconcile")),
+		agentReconciliation: reconciliation.New(client, scheme, log),
 		AppName:             "instana-agent",
 		AgentNameSpace:      "instana-agent",
 	}
@@ -124,7 +124,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if isInstanaAgentDeleted {
 		if controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
 			r.log.Info("Running the finalizer...")
-			if err := r.finalizeAgent(crdInstance); err != nil {
+			if err := r.finalizeAgent(req, crdInstance); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -167,8 +167,8 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-func (r *InstanaAgentReconciler) finalizeAgent(crdInstance *instanaV1Beta1.InstanaAgent) error {
-	if err := r.agentReconciliation.Delete(crdInstance); err != nil {
+func (r *InstanaAgentReconciler) finalizeAgent(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
+	if err := r.agentReconciliation.Delete(req, crdInstance); err != nil {
 		return err
 	}
 	if r.leaderElector != nil {
