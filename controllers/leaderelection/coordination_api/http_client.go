@@ -7,6 +7,7 @@ package coordination_api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,7 +20,7 @@ import (
 type podCoordinationHttpClient struct {
 }
 
-func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) error {
+func (c *podCoordinationHttpClient) Assign(ctx context.Context, pod coreV1.Pod, assignment []string) error {
 	url := c.getBaseUrl(pod) + "/assigned"
 
 	body, err := json.Marshal(assignment)
@@ -33,7 +34,7 @@ func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) 
 	}
 	request.Header.Add("content-type", "application/json")
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := http.DefaultClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("unsuccessful request assigning leadership to %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
@@ -49,11 +50,17 @@ func (c *podCoordinationHttpClient) Assign(pod coreV1.Pod, assignment []string) 
 
 	return nil
 }
-func (c *podCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord, error) {
+
+func (c *podCoordinationHttpClient) PollPod(ctx context.Context, pod coreV1.Pod) (*CoordinationRecord, error) {
 	coordinationRecord := &CoordinationRecord{}
 	url := c.getBaseUrl(pod)
 
-	resp, err := http.Get(url)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Http request for querying leadership to %v: %w", pod.GetObjectMeta().GetName(), err)
+	}
+
+	resp, err := http.DefaultClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("unsuccessful request polling %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
@@ -62,7 +69,7 @@ func (c *podCoordinationHttpClient) PollPod(pod coreV1.Pod) (*CoordinationRecord
 		_ = Body.Close()
 	}(resp.Body)
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, fmt.Errorf("request polling %v resulted in HTTP error response %v",
 			pod.GetObjectMeta().GetName(), resp.Status)
 	}

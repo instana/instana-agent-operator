@@ -104,8 +104,6 @@ type InstanaAgentReconciler struct {
 //+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent/finalizers,verbs=update
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-
 	log := r.log.WithValues("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling Instana Agent")
 
@@ -154,7 +152,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			r.leaderElector.CancelLeaderElection()
 		}
 
-		r.leaderElector = leaderelection.NewLeaderElection(ctx, r.client)
+		r.leaderElector = leaderelection.NewLeaderElection(r.client)
 		if err = r.leaderElector.StartCoordination(r.AgentNameSpace); err != nil {
 			r.log.Error(err, "Failure starting Leader Election Coordination")
 			return ctrl.Result{}, err

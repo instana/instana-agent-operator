@@ -6,14 +6,16 @@
 package coordination_api
 
 import (
+	"context"
+
 	coreV1 "k8s.io/api/core/v1"
 )
 
 const AgentPort = 42699
 
 type PodCoordinationApi interface {
-	Assign(pod coreV1.Pod, assignment []string) error
-	PollPod(pod coreV1.Pod) (*CoordinationRecord, error)
+	Assign(ctx context.Context, pod coreV1.Pod, assignment []string) error
+	PollPod(ctx context.Context, pod coreV1.Pod) (*CoordinationRecord, error)
 }
 
 type CoordinationRecord struct {
