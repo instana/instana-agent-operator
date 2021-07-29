@@ -36,13 +36,6 @@ const (
 	instanaAgentFinalizer = "agent.instana.com/finalizer"
 )
 
-var (
-	AppName        = "instana-agent"
-	AgentNameSpace = AppName
-
-	leaderElector *leaderelection.LeaderElector
-)
-
 // Add will create a new Instana Agent Controller and add this to the Manager for reconciling
 func Add(mgr manager.Manager) error {
 	return add(mgr, NewInstanaAgentReconciler(
@@ -87,6 +80,8 @@ func NewInstanaAgentReconciler(client client.Client, apiReader client.Reader, sc
 		config:              config,
 		log:                 log,
 		agentReconciliation: reconciliation.New(client, scheme, log.WithName("reconcile")),
+		AppName:             "instana-agent",
+		AgentNameSpace:      "instana-agent",
 	}
 }
 
@@ -97,6 +92,10 @@ type InstanaAgentReconciler struct {
 	config              *rest.Config
 	log                 logr.Logger
 	agentReconciliation reconciliation.Reconciliation
+	AppName             string
+	AgentNameSpace      string
+	// Uninitialized variables in NewInstanaAgentReconciler
+	leaderElector *leaderelection.LeaderElector
 }
 
 //+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
@@ -148,20 +147,25 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
+	// First try to start Leader Election Coordination so to return error if we cannot get it started
+	if r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled() {
+		if r.leaderElector != nil {
+			// As we'll replace the Leader Elector instance make sure to properly clean up old one
+			r.leaderElector.CancelLeaderElection()
+		}
+
+		r.leaderElector = leaderelection.NewLeaderElection(ctx, r.client)
+		if err = r.leaderElector.StartCoordination(r.AgentNameSpace); err != nil {
+			r.log.Error(err, "Failure starting Leader Election Coordination")
+			return ctrl.Result{}, err
+		}
+	}
+
 	if err = r.agentReconciliation.CreateOrUpdate(req, crdInstance); err != nil {
 		return ctrl.Result{}, err
 	}
 	r.log.Info("Charts installed/upgraded successfully")
 
-	if leaderelection.LeaderElectionTask == nil || leaderelection.LeaderElectionTask.IsCancelled() || leaderelection.LeaderElectionTaskScheduler.IsShutdown() {
-		leaderElector = &leaderelection.LeaderElector{
-			Ctx:    ctx,
-			Client: r.client,
-			Log:    r.log.WithName("leaderelector"),
-		}
-		leaderElector.StartCoordination(AgentNameSpace)
-		// TODO handle error if leader election cannot be started? How to exit?
-	}
 	return ctrl.Result{}, nil
 }
 
@@ -169,8 +173,8 @@ func (r *InstanaAgentReconciler) finalizeAgent(crdInstance *instanaV1Beta1.Insta
 	if err := r.agentReconciliation.Delete(crdInstance); err != nil {
 		return err
 	}
-	if leaderElector != nil {
-		leaderElector.CancelLeaderElection()
+	if r.leaderElector != nil {
+		r.leaderElector.CancelLeaderElection()
 	}
 	r.log.Info("Successfully finalized instana agent")
 	return nil
@@ -184,7 +188,7 @@ func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.
 		return nil, err
 	}
 	r.log.Info("Reconciling Instana CRD")
-	AppName = crdInstance.Name
-	AgentNameSpace = crdInstance.Namespace
+	r.AppName = crdInstance.Name
+	r.AgentNameSpace = crdInstance.Namespace
 	return crdInstance, err
 }
