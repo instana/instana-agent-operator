@@ -107,7 +107,7 @@ type AgentPodSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// agent.pod.tolerations are tolerations to influence agent pod assignment.
-	Tollerations []coreV1.Toleration `json:"tollerations,omitempty"`
+	Tolerations []coreV1.Toleration `json:"tolerations,omitempty"`
 
 	// agent.pod.affinity are affinities to influence agent pod assignment.
 	// https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/

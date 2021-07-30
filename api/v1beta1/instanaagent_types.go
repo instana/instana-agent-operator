@@ -26,7 +26,7 @@ type InstanaAgentSpec struct {
 	// Note: Requires Kubernetes 1.17+, as it uses topologyKeys
 	Service *Create `json:"service,omitempty"`
 	// If true, it will also apply `service.create=true`
-	OpenTelemetry *Enabled `json:"openTelemetry,omitempty"`
+	OpenTelemetry *Enabled `json:"opentelemetry,omitempty"`
 
 	Prometheus *Prometheus `json:"prometheus,omitempty"`
 	// Specifies whether a ServiceAccount should be created

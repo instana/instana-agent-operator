@@ -479,7 +479,7 @@ spec:
                           x-kubernetes-int-or-string: true
                         description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
-                      tollerations:
+                      tolerations:
                         description: agent.pod.tolerations are tolerations to influence agent pod assignment.
                         items:
                           description: The pod this Toleration is attached to tolerates any taint that matches the triple <key,value,effect> using the matching operator <operator>.
@@ -580,14 +580,14 @@ spec:
                         type: integer
                     type: object
                 type: object
-              openTelemetry:
+              openshift:
+                type: boolean
+              opentelemetry:
                 description: If true, it will also apply `service.create=true`
                 properties:
                   enabled:
                     type: boolean
                 type: object
-              openshift:
-                type: boolean
               podSecurityPolicy:
                 properties:
                   enabled:

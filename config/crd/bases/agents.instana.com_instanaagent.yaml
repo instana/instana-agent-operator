@@ -825,7 +825,7 @@ spec:
                           it defaults to Limits if that is explicitly specified, otherwise
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
-                      tollerations:
+                      tolerations:
                         description: agent.pod.tolerations are tolerations to influence
                           agent pod assignment.
                         items:
@@ -980,14 +980,14 @@ spec:
                         type: integer
                     type: object
                 type: object
-              openTelemetry:
+              openshift:
+                type: boolean
+              opentelemetry:
                 description: If true, it will also apply `service.create=true`
                 properties:
                   enabled:
                     type: boolean
                 type: object
-              openshift:
-                type: boolean
               podSecurityPolicy:
                 properties:
                   enabled:
