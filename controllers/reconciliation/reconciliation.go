@@ -22,11 +22,5 @@ type Reconciliation interface {
 }
 
 func New(client client.Client, scheme *runtime.Scheme, log logr.Logger) Reconciliation {
-	helmReconciler := helm.NewHelmReconciliation(client, scheme, log)
-	if err := helmReconciler.Init(); err != nil {
-		log.Error(err, "Failure initializing Helm config for reconciliation")
-		return nil
-	}
-
-	return helmReconciler
+	return helm.NewHelmReconciliation(client, scheme, log)
 }

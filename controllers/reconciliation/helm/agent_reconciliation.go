@@ -46,13 +46,21 @@ func init() {
 }
 
 func NewHelmReconciliation(client client.Client, scheme *runtime.Scheme, log logr.Logger) *HelmReconciliation {
-	return &HelmReconciliation{
+	h := &HelmReconciliation{
 		client:         client,
 		scheme:         scheme,
 		log:            log.WithName("reconcile"),
 		appName:        "instana-agent",
 		agentNameSpace: "instana-agent",
 	}
+	if err := h.initHelmConfig(); err != nil {
+		// This is a highly unlikely edge-case (the action.Configuration.Init(...) itself only panics) from which we can't
+		// continue.
+		h.log.Error(err, "Failed initializing Helm Reconciliation")
+		panic(fmt.Sprintf("Failed initializing Helm Reconciliation: %v", err))
+	}
+
+	return h
 }
 
 type HelmReconciliation struct {
@@ -65,8 +73,8 @@ type HelmReconciliation struct {
 	helmCfg *action.Configuration
 }
 
-// Init initializes some general setup, extracted from the 'constructor' because it might error
-func (h *HelmReconciliation) Init() error {
+// initHelmConfig initializes some general setup, extracted from the 'constructor' because it might error
+func (h *HelmReconciliation) initHelmConfig() error {
 	h.helmCfg = new(action.Configuration)
 	if err := h.helmCfg.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), h.debugLog); err != nil {
 		return fmt.Errorf("failure initializing Helm configuration: %w", err)
