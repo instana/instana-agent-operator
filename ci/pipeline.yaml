@@ -17,10 +17,10 @@ resources:
     icon: github
     source:
       uri: https://github.com/instana/instana-agent-operator.git
-      branch: main
+      branch: p-pipeline
       #  match release tags like "v1.12.99"
       #  match pre-release tags like "v1.12.100-pre"
-      tag_regex: ^v\d+\.\d+\.\d+.*$
+      #tag_regex: ^v\d+\.\d+\.\d+.*$
       #          ^ beginning of the tag string
       #           ^ all tags start with "v"
       #            ^ ^ any number of digits
@@ -79,6 +79,14 @@ resources:
       region: us-west-2
       access_key_id: ((codebuild-key.key_id))
       secret_access_key: ((codebuild-key.key_secret))
+  - name: codebuild-ppc64le
+    type: codebuild
+    icon: aws
+    source:
+      project: instana-agent-operator-codebuild
+      region: us-west-2
+      access_key_id: ((codebuild-key.key_id))
+      secret_access_key: ((codebuild-key.key_secret))
 
   - name: operator-image-amd64
     type: registry-image
@@ -102,6 +110,14 @@ resources:
     source:
       repository: gcr.io/instana-agent-qa/instana-agent-operator
       tag: latest-s390x
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: operator-image-ppc64le
+    type: registry-image
+    icon: docker
+    source:
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      tag: latest-ppc64le
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -250,6 +266,14 @@ jobs:
                   VERSION: ((.:operator-version))
                   COMMIT_SHA: ((.:commit-sha))
                   TARGETPLATFORM: linux/s390x
+            - put: codebuild-ppc64le
+              params:
+                source_version: ((.:s3-artifact-version))
+                env_var_overrides:
+                  ARCH: ppc64le
+                  VERSION: ((.:operator-version))
+                  COMMIT_SHA: ((.:commit-sha))
+                  TARGETPLATFORM: linux/ppc64le
       # upload the AWS CloudBuild built images to GCR:
       - in_parallel:
           fail_fast: true
@@ -266,6 +290,10 @@ jobs:
               params:
                   image: codebuild-s390x/artifacts/image.tar
                   additional_tags: codebuild-s390x/artifacts/tag
+            - put: operator-image-ppc64le
+              params:
+                  image: codebuild-ppc64le/artifacts/image.tar
+                  additional_tags: codebuild-ppc64le/artifacts/tag
 
   - name: multiarch-operator-manifest-publish
     max_in_flight: 1
@@ -280,6 +308,9 @@ jobs:
         params: { skip_download: true }
         passed: [ multiarch-operator-images-build ]
       - get: operator-image-s390x
+        params: { skip_download: true }
+        passed: [ multiarch-operator-images-build ]
+      - get: operator-image-ppc64le
         params: { skip_download: true }
         passed: [ multiarch-operator-images-build ]
 
@@ -326,16 +357,19 @@ jobs:
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64"
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x"
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64"
+                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le"
 
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-amd64"
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-s390x"
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-arm64"
+                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-ppc64le"
 
                 echo "---> Building multi-architectural manifest"
                 docker manifest create "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION" \
                   --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" \
                   --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" \
-                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64"
+                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" \
+                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le"
 
                 echo "---> Pushing multi-architectural manifest"
                 docker manifest push "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION"
@@ -359,17 +393,20 @@ jobs:
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-amd64"
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-s390x"
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64"
+                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> pushing images to docker.io"
                 docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-amd64"
                 docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-s390x"
                 docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64"
+                docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> Building multi-architectural manifest on docker.io"
                 docker manifest create "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" \
                   --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-amd64" \
                   --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-s390x" \
-                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64"
+                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64" \
+                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> Pushing multi-architectural manifest to docker.io"
                 docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION"
@@ -389,11 +426,13 @@ jobs:
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64"
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x"
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64"
+                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> pushing images to Red Hat Container Registry"
                 docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64"
                 docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x"
                 docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64"
+                docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 # According to this knowledge base article https://access.redhat.com/solutions/5583611 the RH container registry does not support fat manifest lists.
                 # For now we will fall back to just publish the amd64 variant instead:
@@ -404,7 +443,8 @@ jobs:
                 # docker manifest create "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" \
                 #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" \
                 #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" \
-                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64"
+                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64" \
+                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 # echo "---> Pushing multi-architectural manifest to Red Hat Container Registry"
                 # docker manifest push --purge "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
