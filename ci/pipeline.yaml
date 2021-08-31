@@ -17,10 +17,10 @@ resources:
     icon: github
     source:
       uri: https://github.com/instana/instana-agent-operator.git
-      branch: p-pipeline
+      branch: main
       #  match release tags like "v1.12.99"
       #  match pre-release tags like "v1.12.100-pre"
-      #tag_regex: ^v\d+\.\d+\.\d+.*$
+      tag_regex: ^v\d+\.\d+\.\d+.*$
       #          ^ beginning of the tag string
       #           ^ all tags start with "v"
       #            ^ ^ any number of digits
