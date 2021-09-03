@@ -7,6 +7,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/client-go/rest"
 
@@ -20,7 +23,6 @@ import (
 
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -34,6 +36,8 @@ import (
 
 const (
 	instanaAgentFinalizer = "agent.instana.com/finalizer"
+	crExpectedName        = "instana-agent"
+	crExpectedNamespace   = "instana-agent"
 )
 
 // Add will create a new Instana Agent Controller and add this to the Manager for reconciling
@@ -79,9 +83,9 @@ func NewInstanaAgentReconciler(client client.Client, apiReader client.Reader, sc
 		scheme:              scheme,
 		config:              config,
 		log:                 log,
-		agentReconciliation: reconciliation.New(client, scheme, log),
-		AppName:             "instana-agent",
-		AgentNameSpace:      "instana-agent",
+		agentReconciliation: reconciliation.New(client, scheme, log, crExpectedName, crExpectedNamespace),
+		crAppName:           crExpectedName,
+		crAppNamespace:      crExpectedNamespace,
 	}
 }
 
@@ -92,8 +96,8 @@ type InstanaAgentReconciler struct {
 	config              *rest.Config
 	log                 logr.Logger
 	agentReconciliation reconciliation.Reconciliation
-	AppName             string
-	AgentNameSpace      string
+	crAppName           string
+	crAppNamespace      string
 	// Uninitialized variables in NewInstanaAgentReconciler
 	leaderElector *leaderelection.LeaderElector
 }
@@ -107,18 +111,21 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := r.log.WithValues("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling Instana Agent")
 
-	crdInstance, err := r.fetchCrdInstance(ctx, req)
+	crdInstance, err := r.fetchAgentCrdInstance(ctx, req)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			r.log.Info("CRD object not found, could have been deleted after reconcile request")
+			r.log.Info("Instana Agent CRD instance not found, please install the InstanaAgent CustomResource")
 			return ctrl.Result{}, nil
+		} else {
+			r.log.Error(err, "Failed to get Instana Agent CustomResource or invalid")
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
 	}
 
+	// TODO verify the finalizer / cleanup logic
 	isInstanaAgentDeleted := crdInstance.GetDeletionTimestamp() != nil
 
 	if isInstanaAgentDeleted {
@@ -153,7 +160,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		r.leaderElector = leaderelection.NewLeaderElection(r.client)
-		if err = r.leaderElector.StartCoordination(r.AgentNameSpace); err != nil {
+		if err = r.leaderElector.StartCoordination(r.crAppNamespace); err != nil {
 			r.log.Error(err, "Failure starting Leader Election Coordination")
 			return ctrl.Result{}, err
 		}
@@ -178,15 +185,21 @@ func (r *InstanaAgentReconciler) finalizeAgent(req ctrl.Request, crdInstance *in
 	return nil
 }
 
-func (r *InstanaAgentReconciler) fetchCrdInstance(ctx context.Context, req ctrl.Request) (*instanaV1Beta1.InstanaAgent, error) {
+func (r *InstanaAgentReconciler) fetchAgentCrdInstance(ctx context.Context, req ctrl.Request) (*instanaV1Beta1.InstanaAgent, error) {
 	crdInstance := &instanaV1Beta1.InstanaAgent{}
-	// TODO use apiReader??
 	err := r.client.Get(ctx, req.NamespacedName, crdInstance)
 	if err != nil {
 		return nil, err
 	}
-	r.log.Info("Reconciling Instana CRD")
-	r.AppName = crdInstance.Name
-	r.AgentNameSpace = crdInstance.Namespace
+
+	// Verify if the CR has the expected Name / Namespace set. At a later time we could really make this configurable and install
+	// our Agent in the given Namespace. For now, we only support the fixed value.
+	if crExpectedName != crdInstance.Name || crExpectedNamespace != crdInstance.Namespace {
+		err := fmt.Errorf("Instana Agent CustomResource Name (%v) or Namespace (%v) don't match currently mandatory Name='%v' and Namespace='%v'. Please adjust the CustomResource",
+			crdInstance.Name, crdInstance.Namespace, crExpectedName, crExpectedNamespace)
+		return nil, err
+	}
+
+	r.log.V(1).Info(fmt.Sprintf("Found Instana CustomResource: %v", crdInstance))
 	return crdInstance, err
 }

@@ -21,6 +21,6 @@ type Reconciliation interface {
 	Delete(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error
 }
 
-func New(client client.Client, scheme *runtime.Scheme, log logr.Logger) Reconciliation {
-	return helm.NewHelmReconciliation(client, scheme, log)
+func New(client client.Client, scheme *runtime.Scheme, log logr.Logger, crAppName string, crAppNamespace string) Reconciliation {
+	return helm.NewHelmReconciliation(client, scheme, log, crAppName, crAppNamespace)
 }

@@ -45,13 +45,13 @@ func init() {
 	settings.RepositoryConfig = helmRepo
 }
 
-func NewHelmReconciliation(client client.Client, scheme *runtime.Scheme, log logr.Logger) *HelmReconciliation {
+func NewHelmReconciliation(client client.Client, scheme *runtime.Scheme, log logr.Logger, crAppName string, crAppNamespace string) *HelmReconciliation {
 	h := &HelmReconciliation{
 		client:         client,
 		scheme:         scheme,
 		log:            log.WithName("reconcile"),
-		appName:        "instana-agent",
-		agentNameSpace: "instana-agent",
+		crAppName:      crAppName,
+		crAppNamespace: crAppNamespace,
 	}
 	if err := h.initHelmConfig(); err != nil {
 		// This is a highly unlikely edge-case (the action.Configuration.Init(...) itself only panics) from which we can't
@@ -67,8 +67,8 @@ type HelmReconciliation struct {
 	client         client.Client
 	scheme         *runtime.Scheme
 	log            logr.Logger
-	appName        string
-	agentNameSpace string
+	crAppName      string
+	crAppNamespace string
 
 	helmCfg *action.Configuration
 }
@@ -89,7 +89,7 @@ func (h *HelmReconciliation) debugLog(format string, v ...interface{}) {
 
 func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1Beta1.InstanaAgent) error {
 	uninstallAction := action.NewUninstall(h.helmCfg)
-	_, err := uninstallAction.Run(h.appName)
+	_, err := uninstallAction.Run(h.crAppName)
 	if err != nil {
 		// If there was an error because already uninstalled, ignore it
 		// Unfortunately the Helm library doesn't return nice Error types so can only check on message
@@ -114,7 +114,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 	client.RepoURL = helmRepo
 	client.PostRenderer = NewAgentPostRenderer(h, crdInstance)
 	client.MaxHistory = 1
-	args := []string{h.appName, h.appName}
+	args := []string{h.crAppName, h.crAppName}
 
 	versionSet, err := h.getApiVersions()
 	if err != nil {
@@ -200,7 +200,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 }
 
 func (h *HelmReconciliation) repoUpdate() error {
-	entry := &repo.Entry{Name: h.appName, URL: helmRepo}
+	entry := &repo.Entry{Name: h.crAppName, URL: helmRepo}
 	r, err := repo.NewChartRepository(entry, getter.All(settings))
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func (h *HelmReconciliation) runInstall(args []string, client *action.Install, y
 	if err != nil {
 		return nil, err
 	}
-	client.ReleaseName = h.appName
+	client.ReleaseName = h.crAppName
 
 	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
 	if err != nil {
@@ -263,7 +263,7 @@ func (h *HelmReconciliation) runInstall(args []string, client *action.Install, y
 		}
 	}
 
-	client.Namespace = h.agentNameSpace
+	client.Namespace = h.crAppNamespace
 	client.CreateNamespace = true
 	return client.Run(chartRequested, yamlMap)
 }
