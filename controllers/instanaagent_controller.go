@@ -125,31 +125,40 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// TODO verify the finalizer / cleanup logic
 	isInstanaAgentDeleted := crdInstance.GetDeletionTimestamp() != nil
-
 	if isInstanaAgentDeleted {
+		r.log.Info("Instana Agent Operator CustomResource is deleted. Cleanup Agent.")
+
 		if controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
-			r.log.Info("Running the finalizer...")
-			if err := r.finalizeAgent(req, crdInstance); err != nil {
-				return ctrl.Result{}, err
+			// This is a kind of work-around. Normally should just directly execute the clean-up logic. But when the user removes
+			// the entire instana-agent Namespace the Operator runtime will get deleted before having a chance to clean up.
+			// Try to detect this and remove the Finalizer. Otherwise the user needs to manually remove the Finalizer to get
+			// all garbage collected.
+			// The proper way of cleaning up would be:
+			// 1) remove the Operator Custom Resource
+			// 2) remove everything else
+			if instanaNamespace, err := r.fetchInstanaNamespace(ctx); err == nil && instanaNamespace.GetDeletionTimestamp() != nil {
+				r.log.Info("Seems like the Instana namespace got deleted. Skip running the finalizer logic and try to remove finalizer.\n" +
+					" Please delete the Instana Agent Operator CustomResource _first_!")
+			} else {
+				r.log.V(1).Info("Running the finalizer...")
+				if err := r.finalizeAgent(req, crdInstance); err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 
 			controllerutil.RemoveFinalizer(crdInstance, instanaAgentFinalizer)
-			err := r.client.Update(ctx, crdInstance)
-			if err != nil {
+			if err := r.client.Update(ctx, crdInstance); err != nil {
 				return ctrl.Result{}, err
 			}
+			r.log.V(1).Info("Removed Finalizer from Instana Agent Operator CustomResource")
 		}
 		return ctrl.Result{}, nil
 	}
 
-	if !controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
-		controllerutil.AddFinalizer(crdInstance, instanaAgentFinalizer)
-		err = r.client.Update(ctx, crdInstance)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+	r.log.V(1).Info("Injecting finalizer into CRD, for cleanup when CRD gets removed")
+	if err = r.injectFinalizer(ctx, crdInstance); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// First try to start Leader Election Coordination so to return error if we cannot get it started
@@ -185,10 +194,17 @@ func (r *InstanaAgentReconciler) finalizeAgent(req ctrl.Request, crdInstance *in
 	return nil
 }
 
+func (r *InstanaAgentReconciler) injectFinalizer(ctx context.Context, o client.Object) error {
+	if !controllerutil.ContainsFinalizer(o, instanaAgentFinalizer) {
+		controllerutil.AddFinalizer(o, instanaAgentFinalizer)
+		return r.client.Update(ctx, o)
+	}
+	return nil
+}
+
 func (r *InstanaAgentReconciler) fetchAgentCrdInstance(ctx context.Context, req ctrl.Request) (*instanaV1Beta1.InstanaAgent, error) {
 	crdInstance := &instanaV1Beta1.InstanaAgent{}
-	err := r.client.Get(ctx, req.NamespacedName, crdInstance)
-	if err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, crdInstance); err != nil {
 		return nil, err
 	}
 
@@ -201,5 +217,19 @@ func (r *InstanaAgentReconciler) fetchAgentCrdInstance(ctx context.Context, req 
 	}
 
 	r.log.V(1).Info(fmt.Sprintf("Found Instana CustomResource: %v", crdInstance))
-	return crdInstance, err
+	return crdInstance, nil
+}
+
+// fetchInstanaNamespace will get the Namespace instance for ourselves
+func (r *InstanaAgentReconciler) fetchInstanaNamespace(ctx context.Context) (*coreV1.Namespace, error) {
+	instanaNamespace := &coreV1.Namespace{}
+	if err := r.client.Get(ctx, client.ObjectKey{
+		Namespace: "",
+		Name:      crExpectedNamespace,
+	}, instanaNamespace); err != nil {
+		return nil, err
+	}
+
+	r.log.V(1).Info(fmt.Sprintf("Found Instana-Agent Namespace: %v", instanaNamespace))
+	return instanaNamespace, nil
 }

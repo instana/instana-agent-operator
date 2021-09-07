@@ -92,9 +92,6 @@ func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1Beta1.InstanaAge
 	_, err := uninstallAction.Run(h.crAppName)
 	if err != nil {
 		// If there was an error because already uninstalled, ignore it
-		// Unfortunately the Helm library doesn't return nice Error types so can only check on message
-		// TODO verify the error type-check succeeds for all different type of uninstall errors we should ignore.
-		//if strings.Contains(err.Error(), "uninstall: Release not loaded") {
 		if errors.Is(err, driver.ErrReleaseNotFound) {
 			h.log.Info("Ignoring error during Instana Agent deletion, Helm resources already removed")
 		} else {
