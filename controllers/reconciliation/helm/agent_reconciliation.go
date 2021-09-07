@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 
+	"sigs.k8s.io/yaml"
+
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/pkg/errors"
@@ -16,24 +18,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
-	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"sigs.k8s.io/yaml"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
-	helmRepo = "https://agents.instana.io/helm"
+	helmRepo       = "https://agents.instana.io/helm"
+	agentChartName = "instana-agent"
 )
 
 var (
@@ -45,11 +43,10 @@ func init() {
 	settings.RepositoryConfig = helmRepo
 }
 
-func NewHelmReconciliation(client client.Client, scheme *runtime.Scheme, log logr.Logger, crAppName string, crAppNamespace string) *HelmReconciliation {
+func NewHelmReconciliation(scheme *runtime.Scheme, log logr.Logger, crAppName string, crAppNamespace string) *HelmReconciliation {
 	h := &HelmReconciliation{
-		client:         client,
 		scheme:         scheme,
-		log:            log.WithName("reconcile"),
+		log:            log.WithName("helm-reconcile"),
 		crAppName:      crAppName,
 		crAppNamespace: crAppNamespace,
 	}
@@ -61,16 +58,6 @@ func NewHelmReconciliation(client client.Client, scheme *runtime.Scheme, log log
 	}
 
 	return h
-}
-
-type HelmReconciliation struct {
-	client         client.Client
-	scheme         *runtime.Scheme
-	log            logr.Logger
-	crAppName      string
-	crAppNamespace string
-
-	helmCfg *action.Configuration
 }
 
 // initHelmConfig initializes some general setup, extracted from the 'constructor' because it might error
@@ -87,32 +74,32 @@ func (h *HelmReconciliation) debugLog(format string, v ...interface{}) {
 	h.log.WithName("helm").V(1).Info(fmt.Sprintf(format, v...))
 }
 
+type HelmReconciliation struct {
+	helmCfg        *action.Configuration
+	scheme         *runtime.Scheme
+	log            logr.Logger
+	crAppName      string
+	crAppNamespace string
+}
+
 func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1Beta1.InstanaAgent) error {
 	uninstallAction := action.NewUninstall(h.helmCfg)
-	_, err := uninstallAction.Run(h.crAppName)
-	if err != nil {
+	if _, err := uninstallAction.Run(h.crAppName); err != nil {
 		// If there was an error because already uninstalled, ignore it
 		if errors.Is(err, driver.ErrReleaseNotFound) {
 			h.log.Info("Ignoring error during Instana Agent deletion, Helm resources already removed")
+			h.log.V(1).Info("Helm Uninstall error", "error", err)
 		} else {
 			return err
 		}
 	}
 
-	h.log.Info("Release uninstalled")
+	h.log.Info("Release Instana Agent (Charts) uninstalled")
 	return nil
 }
 
 func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
-	client := action.NewUpgrade(h.helmCfg)
-	var createNamespace bool
-	client.Namespace = settings.Namespace()
-	client.Install = true
-	client.RepoURL = helmRepo
-	client.PostRenderer = NewAgentPostRenderer(h, crdInstance)
-	client.MaxHistory = 1
-	args := []string{h.crAppName, h.crAppName}
-
+	// Prepare CRD for Helm Chart installation, converting to YAML (key-value map)
 	versionSet, err := h.getApiVersions()
 	if err != nil {
 		return err
@@ -128,149 +115,61 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 		return err
 	}
 
-	if client.Install {
-		// If a release does not exist, install it.
-		histClient := action.NewHistory(h.helmCfg)
-		histClient.Max = 1
-		if _, err := histClient.Run(args[0]); err == driver.ErrReleaseNotFound {
-			h.log.Info("Release does not exist. Installing it now.")
-			instClient := action.NewInstall(h.helmCfg)
-			instClient.CreateNamespace = createNamespace
-			instClient.ChartPathOptions = client.ChartPathOptions
-			instClient.DryRun = client.DryRun
-			instClient.DisableHooks = client.DisableHooks
-			instClient.SkipCRDs = client.SkipCRDs
-			instClient.Timeout = client.Timeout
-			instClient.Wait = client.Wait
-			instClient.WaitForJobs = client.WaitForJobs
-			instClient.Devel = client.Devel
-			instClient.Namespace = client.Namespace
-			instClient.Atomic = client.Atomic
-			instClient.PostRenderer = client.PostRenderer
-			instClient.DisableOpenAPIValidation = client.DisableOpenAPIValidation
-			instClient.SubNotes = client.SubNotes
-			instClient.Description = client.Description
-			instClient.RepoURL = helmRepo
-			_, err := h.runInstall(args, instClient, yamlMap)
-			if err != nil {
-				return err
-			}
-			h.log.Info("done installing")
-			return nil
-		} else if err != nil {
-			return err
+	// Find out if there's an Agent chart already installed or need a fresh install
+	histClient := action.NewHistory(h.helmCfg)
+	histClient.Max = 1
+	if _, err := histClient.Run(h.crAppName); err == driver.ErrReleaseNotFound {
+		h.log.Info("Instana Agent Chart Release does not exist. Installing it now.")
+
+		installAction := action.NewInstall(h.helmCfg)
+		installAction.CreateNamespace = true // Namespace should already be there (same as Operator), but won't hurt
+		installAction.Namespace = h.crAppNamespace
+		installAction.ReleaseName = h.crAppName
+		installAction.RepoURL = helmRepo
+		installAction.PostRenderer = NewAgentChartPostRenderer(h, crdInstance)
+		installAction.Version = fixChartVersion(installAction.Version, installAction.Devel)
+
+		agentChart, err := h.loadAndValidateChart(installAction.ChartPathOptions, true)
+		if err != nil {
+			h.log.Error(err, "Failure loading or validating Instana Agent Helm Chart, cannot proceed installation")
+			return errors.Wrap(err, "loading Instana Agent Helm Chart failed")
 		}
-	}
 
-	if client.Version == "" && client.Devel {
-		client.Version = ">0.0.0-0"
-	}
-
-	chartPath, err := client.ChartPathOptions.LocateChart(args[1], settings)
-	if err != nil {
-		return err
-	}
-
-	// Check chart dependencies to make sure all are present in /charts
-	ch, err := loader.Load(chartPath)
-	if err != nil {
-		return err
-	}
-	if req := ch.Metadata.Dependencies; req != nil {
-		if err := action.CheckDependencies(ch, req); err != nil {
-			return err
+		_, err = installAction.Run(agentChart, yamlMap)
+		if err != nil {
+			h.log.Error(err, "Failure installing Instana Agent Helm Chart, cannot proceed installation")
+			return errors.Wrap(err, "installation Instana Agent failed")
 		}
-	}
 
-	if ch.Metadata.Deprecated {
-		h.log.Info("This chart is deprecated")
-	}
+	} else if err == nil {
+		h.log.Info("Found existing Instana Agent Chart Release. Upgrade existing installation.")
 
-	_, err = client.Run(args[0], ch, yamlMap)
-	if err != nil {
-		return errors.Wrap(err, "UPGRADE FAILED")
-	}
+		upgradeAction := action.NewUpgrade(h.helmCfg)
+		upgradeAction.Namespace = h.crAppNamespace
+		upgradeAction.RepoURL = helmRepo
+		upgradeAction.MaxHistory = 1
+		upgradeAction.PostRenderer = NewAgentChartPostRenderer(h, crdInstance)
+		upgradeAction.Version = fixChartVersion(upgradeAction.Version, upgradeAction.Devel)
 
-	h.log.Info("done upgrading")
-	return nil
+		agentChart, err := h.loadAndValidateChart(upgradeAction.ChartPathOptions, true)
+		if err != nil {
+			h.log.Error(err, "Failure loading or validating Instana Agent Helm Chart, cannot proceed installation")
+			return errors.Wrap(err, "loading Instana Agent Helm Chart failed")
+		}
 
-}
+		_, err = upgradeAction.Run(h.crAppName, agentChart, yamlMap)
+		if err != nil {
+			h.log.Error(err, "Failure installing Instana Agent Helm Chart, cannot proceed installation")
+			return errors.Wrap(err, "installation Instana Agent failed")
+		}
 
-func (h *HelmReconciliation) repoUpdate() error {
-	entry := &repo.Entry{Name: h.crAppName, URL: helmRepo}
-	r, err := repo.NewChartRepository(entry, getter.All(settings))
-	if err != nil {
-		return err
-	}
-	if _, err := r.DownloadIndexFile(); err != nil {
-		h.log.Info(fmt.Sprintf("...Unable to get an update from the %q chart repository (%s):\n\t%s\n", r.Config.Name, r.Config.URL, err))
 	} else {
-		h.log.Info(fmt.Sprintf("...Successfully got an update from the %q chart repository\n", r.Config.Name))
+		h.log.Error(err, "Unexpected error trying to fetch Instana Agent Chart install history")
+		return err
 	}
+
+	h.log.Info("Done installing / upgrading Instana Agent Helm Chart")
 	return nil
-}
-func (h *HelmReconciliation) runInstall(args []string, client *action.Install, yamlMap map[string]interface{}) (*release.Release, error) {
-
-	_, chart, err := client.NameAndChart(args)
-	if err != nil {
-		return nil, err
-	}
-	client.ReleaseName = h.crAppName
-
-	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
-	if err != nil {
-		if err = h.repoUpdate(); err != nil {
-			return nil, err
-		}
-	}
-	// Check chart dependencies to make sure all are present in /charts
-	chartRequested, err := loader.Load(cp)
-	if err != nil {
-		return nil, err
-	}
-
-	p := getter.All(settings)
-	if err := h.checkIfInstallable(chartRequested); err != nil {
-		return nil, err
-	}
-
-	if req := chartRequested.Metadata.Dependencies; req != nil {
-		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			if client.DependencyUpdate {
-				man := &downloader.Manager{
-					Out:              os.Stdout,
-					ChartPath:        cp,
-					Keyring:          client.ChartPathOptions.Keyring,
-					SkipUpdate:       false,
-					Getters:          p,
-					RepositoryConfig: settings.RepositoryConfig,
-					RepositoryCache:  settings.RepositoryCache,
-					Debug:            settings.Debug,
-				}
-				if err := man.Update(); err != nil {
-					return nil, err
-				}
-				// Reload the chart with the updated Chart.lock file.
-				if chartRequested, err = loader.Load(cp); err != nil {
-					return nil, errors.Wrap(err, "failed reloading chart after repo update")
-				}
-			} else {
-				return nil, err
-			}
-		}
-	}
-
-	client.Namespace = h.crAppNamespace
-	client.CreateNamespace = true
-	return client.Run(chartRequested, yamlMap)
-}
-
-func (h *HelmReconciliation) checkIfInstallable(ch *chart.Chart) error {
-	switch ch.Metadata.Type {
-	case "", "application":
-		return nil
-	}
-	return errors.Errorf("%s charts are not installable", ch.Metadata.Type)
 }
 
 func (h *HelmReconciliation) mapCRDToYaml(crdInstance *instanaV1Beta1.InstanaAgent) (map[string]interface{}, error) {
@@ -284,6 +183,65 @@ func (h *HelmReconciliation) mapCRDToYaml(crdInstance *instanaV1Beta1.InstanaAge
 	}
 	return yamlMap, nil
 }
+
+func fixChartVersion(version string, devel bool) string {
+	if version == "" && devel {
+		return ">0.0.0-0"
+	} else {
+		return version
+	}
+}
+
+func (h *HelmReconciliation) loadAndValidateChart(chartOptions action.ChartPathOptions, isInstall bool) (*chart.Chart, error) {
+	chartPath, err := chartOptions.LocateChart(agentChartName, settings)
+	if err != nil && isInstall {
+		// Since this is an "Install" action the Chart might have never been downloaded. Update the repo and fetch Chart locally
+		if err = h.repoUpdate(); err != nil {
+			return nil, err
+		}
+	}
+
+	agentChart, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if agentChart.Metadata.Deprecated {
+		h.log.Info("NOTE! This chart is deprecated!")
+	}
+
+	if err := h.checkIfInstallable(agentChart); err != nil {
+		return nil, err
+	}
+
+	// NOTE, the 'original' code from the cmd/helm/install.go package contained code to also check and update Chart Dependencies.
+	// Our Agent Chart does not have any dependencies on other Charts, so for simplicity this code is not needed and omitted for now.
+
+	return agentChart, nil
+}
+
+func (h *HelmReconciliation) repoUpdate() error {
+	entry := &repo.Entry{Name: agentChartName, URL: helmRepo}
+	r, err := repo.NewChartRepository(entry, getter.All(settings))
+	if err != nil {
+		return err
+	}
+	if _, err := r.DownloadIndexFile(); err != nil {
+		h.log.Info(fmt.Sprintf("...Unable to get an update from the %q chart repository (%s):\n\t%s\n", r.Config.Name, r.Config.URL, err))
+	} else {
+		h.log.Info(fmt.Sprintf("...Successfully got an update from the %q chart repository\n", r.Config.Name))
+	}
+	return nil
+}
+
+func (h *HelmReconciliation) checkIfInstallable(ch *chart.Chart) error {
+	switch ch.Metadata.Type {
+	case "", "application":
+		return nil
+	}
+	return errors.Errorf("%s charts are not installable", ch.Metadata.Type)
+}
+
 func (h *HelmReconciliation) getApiVersions() (*chartutil.VersionSet, error) {
 	if h.helmCfg.Capabilities != nil {
 		return &h.helmCfg.Capabilities.APIVersions, nil

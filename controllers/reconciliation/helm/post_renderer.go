@@ -7,7 +7,6 @@ package helm
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
@@ -22,94 +21,113 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func NewAgentPostRenderer(h *HelmReconciliation, crdInstance *instanaV1Beta1.InstanaAgent) *AgentPostRenderer {
-	return &AgentPostRenderer{
+func NewAgentChartPostRenderer(h *HelmReconciliation, crdInstance *instanaV1Beta1.InstanaAgent) *AgentChartPostRenderer {
+	return &AgentChartPostRenderer{
 		scheme:      h.scheme,
 		helmCfg:     h.helmCfg,
 		crdInstance: crdInstance,
-		log:         h.log.WithName("postrender"),
+		log:         h.log.WithName("postrenderer"),
 	}
 }
 
-type AgentPostRenderer struct {
+type AgentChartPostRenderer struct {
 	scheme      *runtime.Scheme
 	crdInstance *instanaV1Beta1.InstanaAgent
 	helmCfg     *action.Configuration
 	log         logr.Logger
 }
 
-func (p *AgentPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
+func (p *AgentChartPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 	resourceList, err := p.helmCfg.KubeClient.Build(in, false)
 	if err != nil {
 		return nil, err
 	}
-	out := bytes.Buffer{}
-	err = resourceList.Visit(func(r *resource.Info, err error) error {
 
-		if err != nil {
-			return err
+	out := bytes.Buffer{}
+	if err := resourceList.Visit(func(r *resource.Info, incomingErr error) error {
+		// For any incoming (parsing) errors, return with error to stop processing
+		if incomingErr != nil {
+			return incomingErr
 		}
 
-		objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(r.Object)
-		if err != nil {
+		// Make sure we have Unstructured content (wrapped key-value map) to work with for the necessary modifications
+		var modifiedResource *unstructured.Unstructured
+		if objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(r.Object); err == nil {
+			modifiedResource = &unstructured.Unstructured{Object: objMap}
+		} else {
 			return err
 		}
 
 		if r.ObjectName() == "daemonsets/instana-agent" {
-			objMap, err = p.adjustDaemonsetForLeaderElection(objMap)
-			if err != nil {
+			var err error // Shadow outer "err" because cannot use re-declaration
+			if modifiedResource, err = p.adjustDaemonsetRemoveLeaderElection(modifiedResource); err != nil {
 				return err
 			}
+			p.log.V(1).Info("Removing leader-elector sidecar from DaemonSet was successful")
 		}
-		u := &unstructured.Unstructured{Object: objMap}
+
 		if !(r.ObjectName() == "clusterroles/instana-agent" || r.ObjectName() == "clusterrolebindings/instana-agent") {
-			if err = controllerutil.SetControllerReference(p.crdInstance, u, p.scheme); err != nil {
+			if err := controllerutil.SetControllerReference(p.crdInstance, modifiedResource, p.scheme); err != nil {
 				return err
 			}
-			p.log.Info(fmt.Sprintf("Set controller reference for %s was successful", r.ObjectName()))
+			p.log.V(1).Info("Setting controller reference for Object was successful", "ObjectName", r.ObjectName())
 		}
-		if err = p.writeToOutBuffer(u.Object, &out); err != nil {
+
+		if err := p.writeToOutBuffer(modifiedResource, &out); err != nil {
 			return err
 		}
 		return nil
-	})
-	if err != nil {
+
+	}); err != nil {
 		return nil, err
 	}
+
 	return &out, nil
 }
 
-func (p *AgentPostRenderer) adjustDaemonsetForLeaderElection(objMap map[string]interface{}) (map[string]interface{}, error) {
+func (p *AgentChartPostRenderer) adjustDaemonsetRemoveLeaderElection(unstr *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	// Convert to a structured Go object which is easier to modify in this case
 	var ds = &appV1.DaemonSet{}
-	runtime.DefaultUnstructuredConverter.FromUnstructured(objMap, ds)
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, ds); err != nil {
+		return nil, err
+	}
 
 	containerList := ds.Spec.Template.Spec.Containers
-	ds.Spec.Template.Spec.Containers = p.removeLeaderElectorContainer(containerList)
-	envList := ds.Spec.Template.Spec.Containers[0].Env
-	ds.Spec.Template.Spec.Containers[0].Env = p.replaceLeaderElectorEnvVar(envList)
-	return runtime.DefaultUnstructuredConverter.ToUnstructured(ds)
+	containerList = p.removeLeaderElectorContainer(containerList)
+	for i := range containerList {
+		ds.Spec.Template.Spec.Containers[i].Env = p.replaceLeaderElectorEnvVar(ds.Spec.Template.Spec.Containers[i].Env)
+	}
+	ds.Spec.Template.Spec.Containers = containerList
+
+	if objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ds); err == nil {
+		return &unstructured.Unstructured{Object: objMap}, nil
+	} else {
+		return nil, err
+	}
 }
 
-func (p *AgentPostRenderer) replaceLeaderElectorEnvVar(envList []v1.EnvVar) []v1.EnvVar {
-	envList = append(envList, v1.EnvVar{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"})
+func (p *AgentChartPostRenderer) replaceLeaderElectorEnvVar(envList []v1.EnvVar) []v1.EnvVar {
 	for i, envVar := range envList {
 		if envVar.Name == "INSTANA_AGENT_LEADER_ELECTOR_PORT" {
 			envList = append(envList[:i], envList[i+1:]...)
 		}
 	}
+	envList = append(envList, v1.EnvVar{Name: "INSTANA_OPERATOR_MANAGED", Value: "true"})
 	return envList
 }
-func (p *AgentPostRenderer) removeLeaderElectorContainer(containerList []v1.Container) []v1.Container {
+
+func (p *AgentChartPostRenderer) removeLeaderElectorContainer(containerList []v1.Container) []v1.Container {
 	for i, container := range containerList {
 		if container.Name == "leader-elector" {
-			containerList = append(containerList[:i], containerList[i+1:]...)
-			p.log.Info("Leader-elector sidecar container is now removed from daemonset")
-			break
+			p.log.V(1).Info("Found leader-elector sidecar container", "container", container)
+			// Assume only a single 'leader elector' container so return immediately with the updated slice
+			return append(containerList[:i], containerList[i+1:]...)
 		}
 	}
 	return containerList
 }
-func (p *AgentPostRenderer) writeToOutBuffer(modifiedResource interface{}, out *bytes.Buffer) error {
+
+func (p *AgentChartPostRenderer) writeToOutBuffer(modifiedResource *unstructured.Unstructured, out *bytes.Buffer) error {
 	outData, err := yaml.Marshal(modifiedResource)
 	if err != nil {
 		return err

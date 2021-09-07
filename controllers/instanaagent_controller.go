@@ -83,7 +83,7 @@ func NewInstanaAgentReconciler(client client.Client, apiReader client.Reader, sc
 		scheme:              scheme,
 		config:              config,
 		log:                 log,
-		agentReconciliation: reconciliation.New(client, scheme, log, crExpectedName, crExpectedNamespace),
+		agentReconciliation: reconciliation.New(scheme, log, crExpectedName, crExpectedNamespace),
 		crAppName:           crExpectedName,
 		crAppNamespace:      crExpectedNamespace,
 	}
@@ -178,7 +178,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err = r.agentReconciliation.CreateOrUpdate(req, crdInstance); err != nil {
 		return ctrl.Result{}, err
 	}
-	r.log.Info("Charts installed/upgraded successfully")
+	r.log.Info("Agent installed/upgraded successfully")
 
 	return ctrl.Result{}, nil
 }
