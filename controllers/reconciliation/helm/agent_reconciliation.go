@@ -129,7 +129,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 		installAction.PostRenderer = NewAgentChartPostRenderer(h, crdInstance)
 		installAction.Version = fixChartVersion(installAction.Version, installAction.Devel)
 
-		agentChart, err := h.loadAndValidateChart(installAction.ChartPathOptions, true)
+		agentChart, err := h.loadAndValidateChart(installAction.ChartPathOptions)
 		if err != nil {
 			h.log.Error(err, "Failure loading or validating Instana Agent Helm Chart, cannot proceed installation")
 			return errors.Wrap(err, "loading Instana Agent Helm Chart failed")
@@ -151,7 +151,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 		upgradeAction.PostRenderer = NewAgentChartPostRenderer(h, crdInstance)
 		upgradeAction.Version = fixChartVersion(upgradeAction.Version, upgradeAction.Devel)
 
-		agentChart, err := h.loadAndValidateChart(upgradeAction.ChartPathOptions, true)
+		agentChart, err := h.loadAndValidateChart(upgradeAction.ChartPathOptions)
 		if err != nil {
 			h.log.Error(err, "Failure loading or validating Instana Agent Helm Chart, cannot proceed installation")
 			return errors.Wrap(err, "loading Instana Agent Helm Chart failed")
@@ -192,11 +192,11 @@ func fixChartVersion(version string, devel bool) string {
 	}
 }
 
-func (h *HelmReconciliation) loadAndValidateChart(chartOptions action.ChartPathOptions, isInstall bool) (*chart.Chart, error) {
+func (h *HelmReconciliation) loadAndValidateChart(chartOptions action.ChartPathOptions) (*chart.Chart, error) {
 	chartPath, err := chartOptions.LocateChart(agentChartName, settings)
-	if err != nil && isInstall {
-		// Since this is an "Install" action the Chart might have never been downloaded. Update the repo and fetch Chart locally
-		if err = h.repoUpdate(); err != nil {
+	if err != nil {
+		// The Chart might have never been downloaded or got removed. Update the repo and fetch Chart locally
+		if err := h.repoUpdate(); err != nil {
 			return nil, err
 		}
 	}
