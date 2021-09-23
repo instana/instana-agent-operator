@@ -83,6 +83,12 @@ public class InstanaAgentSpec {
   private String clusterName;
   @JsonProperty(value = "agent.env")
   private Map<String, String> agentEnv;
+  @JsonProperty(value = "agent.tls.secretName")
+  private String agentTlsSecretName;
+  @JsonProperty(value = "agent.tls.certificate")
+  private String agentTlsCertificate;
+  @JsonProperty(value = "agent.tls.key")
+  private String agentTlsKey;
 
   public Map<String, String> getConfigFiles() {
     if (configFiles == null) {
@@ -263,6 +269,30 @@ public class InstanaAgentSpec {
 
   public void setAgentEnv(Map<String, String> env) {
     agentEnv = env;
+  }
+
+  public String getAgentTlsSecretName() {
+    return agentTlsSecretName;
+  }
+
+  public void setAgentTlsSecretName(String agentTlsSecretName) {
+    this.agentTlsSecretName = agentTlsSecretName;
+  }
+
+  public String getAgentTlsCertificate() {
+    return agentTlsCertificate;
+  }
+
+  public void setAgentTlsCertificate(String agentTlsCertificate) {
+    this.agentTlsCertificate = agentTlsCertificate;
+  }
+
+  public String getAgentTlsKey() {
+    return agentTlsKey;
+  }
+
+  public void setAgentTlsKey(String agentTlsKey) {
+    this.agentTlsKey = agentTlsKey;
   }
 
   // We call equals() to check if the Spec was updated.

@@ -334,6 +334,8 @@ public class AgentDeployer {
           .build());
     }
 
+    configureTlsEncryption(container, daemonSet, config);
+
     return daemonSet;
   }
 
@@ -367,6 +369,58 @@ public class AgentDeployer {
     Boolean otelActiveFromCustomResource = config.getAgentOpenTelemetryEnabled();
 
     return otelActiveFromCustomResource || getBoolean(otelActiveFromEnvVar);
+  }
+
+  private void configureTlsEncryption(Container container, DaemonSet daemonSet, InstanaAgentSpec config) {
+    if (isTlsEncryptionConfigured(config)) {
+
+      final String defaultName = "instana-agent-tls";
+      final String secretName = isBlank(config.getAgentTlsSecretName()) ? defaultName : config.getAgentTlsSecretName();
+      final SecretVolumeSource secretVolumeSource = new SecretVolumeSource(0440, new ArrayList<>(), false, secretName);
+
+      if (isBlank(config.getAgentTlsSecretName())) {
+        final Map<String, String> data = new HashMap<String, String>() {{
+          put("tls.crt", config.getAgentTlsCertificate());
+          put("tls.key", config.getAgentTlsKey());
+        }};
+
+        final ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(defaultName);
+        metadata.setNamespace(daemonSet.getMetadata().getNamespace());
+        metadata.setLabels(daemonSet.getMetadata().getLabels());
+
+        // TODO create the secret
+        Secret tlsSecret = new SecretBuilder()
+            .withApiVersion("v1")
+            .withKind("Secret")
+            .withMetadata(metadata)
+            .withType("kubernetes.io/tls")
+            .withData(data)
+            .build();
+
+      }
+      daemonSet
+          .getSpec()
+          .getTemplate()
+          .getSpec()
+          .getVolumes()
+          .add(new VolumeBuilder().withName(defaultName).withSecret(secretVolumeSource).build());
+
+      container
+          .getVolumeMounts()
+          .add(new VolumeMountBuilder()
+              .withName(defaultName)
+              .withReadOnly(true)
+              .withMountPath("/opt/instana/agent/etc/certs")
+              .build());
+    }
+  }
+
+  private boolean isTlsEncryptionConfigured(InstanaAgentSpec config) {
+    if (isBlank(config.getAgentTlsSecretName()) && (isBlank(config.getAgentTlsCertificate()) || isBlank(config.getAgentTlsKey()))) {
+      return false;
+    }
+    return true;
   }
 
   private Quantity mem(int value, String format) {

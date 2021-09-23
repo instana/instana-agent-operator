@@ -10,6 +10,12 @@ spec:
   agent.endpoint.port: 443 # the monitoring ingress endpoint port, wrapped in quotes
   agent.env:
     INSTANA_AGENT_TAGS: example
+  # To enable TLS Encryption provide the secretName of type `kubernetes.io/tls`.
+  # Or provide a certificate and private key as base64 encoded.
+  agent.tls:
+    secretName: '' # The name of the secret of type `kubernetes.io/tls` which contains the TLS relevant data.
+    certificate: '' # The certificate data encoded as base64. Which will be used to create a new secret of type `kubernetes.io/tls`.
+    key: '' # The private key data encoded as base64. Which will be used to create a new secret of type `kubernetes.io/tls`.
   cluster.name: replace-me # replace with the name of your Kubernetes cluster
   config.files:
     configuration.yaml: |
