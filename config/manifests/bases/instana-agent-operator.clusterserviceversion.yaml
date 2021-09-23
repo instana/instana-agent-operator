@@ -51,7 +51,8 @@ spec:
         name: instana-agent
         version: v1
       specDescriptors:
-      - description: agent.key is the secret token which your agent uses to authenticate to Instana's servers.
+      - description: agent.key is the secret token which your agent uses to authenticate
+          to Instana's servers.
         displayName: Agent Key
         path: agent.key
         x-descriptors:

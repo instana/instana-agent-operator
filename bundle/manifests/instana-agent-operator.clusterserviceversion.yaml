@@ -30,7 +30,7 @@ metadata:
       ]
     capabilities: Basic Install
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    operators.operatorframework.io/builder: operator-sdk-v2.0.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -55,7 +55,8 @@ spec:
         name: instana-agent
         version: v1
       specDescriptors:
-      - description: agent.key is the secret token which your agent uses to authenticate to Instana's servers.
+      - description: agent.key is the secret token which your agent uses to authenticate
+          to Instana's servers.
         displayName: Agent Key
         path: agent.key
         x-descriptors:
@@ -207,6 +208,7 @@ spec:
           - configmaps
           - daemonsets
           - namespaces
+          - services
           verbs:
           - create
           - delete

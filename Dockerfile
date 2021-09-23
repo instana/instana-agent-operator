@@ -4,7 +4,7 @@
 #
 
 # Build the manager binary
-FROM golang:1.15 as builder
+FROM golang:1.16 as builder
 
 ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
