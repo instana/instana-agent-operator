@@ -25,6 +25,7 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
+        runAsGroup: 1001
       containers:
       - command:
         - /manager

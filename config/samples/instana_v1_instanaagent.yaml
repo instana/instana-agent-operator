@@ -1,0 +1,18 @@
+apiVersion: instana.io/v1
+kind: InstanaAgent
+metadata:
+  name: instana-agent
+  namespace: instana-agent
+spec:
+  zone:
+    name: edited-zone # (optional) name of the zone of the host
+  cluster:
+      name: my-cluster
+  agent:
+    key: replace-key # replace with your Instana agent key
+    endpointHost: ingress-red-saas.instana.io
+    endpointPort: "443"
+    env: {}
+    configuration_yaml: |
+      # You can leave this empty, or use this to configure your instana agent.
+      # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/

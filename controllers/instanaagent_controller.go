@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 
+	instanaV1 "github.com/instana/instana-agent-operator/api/v1"
+
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/client-go/rest"
@@ -17,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/go-logr/logr"
-	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/instana/instana-agent-operator/controllers/leaderelection"
 	"github.com/instana/instana-agent-operator/controllers/reconciliation"
 
@@ -35,7 +36,7 @@ import (
 )
 
 const (
-	instanaAgentFinalizer = "agent.instana.com/finalizer"
+	instanaAgentFinalizer = "agent.instana.io/finalizer"
 	crExpectedName        = "instana-agent"
 	crExpectedNamespace   = "instana-agent"
 )
@@ -53,7 +54,7 @@ func Add(mgr manager.Manager) error {
 // add sets up the controller with the Manager.
 func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&instanaV1Beta1.InstanaAgent{}).
+		For(&instanaV1.InstanaAgent{}).
 		Owns(&appV1.DaemonSet{}, builder.WithPredicates(filterPredicate())).
 		Owns(&coreV1.Pod{}).
 		Owns(&coreV1.Secret{}).
@@ -183,7 +184,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-func (r *InstanaAgentReconciler) finalizeAgent(req ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
+func (r *InstanaAgentReconciler) finalizeAgent(req ctrl.Request, crdInstance *instanaV1.InstanaAgent) error {
 	if err := r.agentReconciliation.Delete(req, crdInstance); err != nil {
 		return err
 	}
@@ -202,8 +203,8 @@ func (r *InstanaAgentReconciler) injectFinalizer(ctx context.Context, o client.O
 	return nil
 }
 
-func (r *InstanaAgentReconciler) fetchAgentCrdInstance(ctx context.Context, req ctrl.Request) (*instanaV1Beta1.InstanaAgent, error) {
-	crdInstance := &instanaV1Beta1.InstanaAgent{}
+func (r *InstanaAgentReconciler) fetchAgentCrdInstance(ctx context.Context, req ctrl.Request) (*instanaV1.InstanaAgent, error) {
+	crdInstance := &instanaV1.InstanaAgent{}
 	if err := r.client.Get(ctx, req.NamespacedName, crdInstance); err != nil {
 		return nil, err
 	}

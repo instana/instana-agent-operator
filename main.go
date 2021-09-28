@@ -16,7 +16,7 @@ import (
 
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	agentoperatorv1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/version"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
@@ -40,7 +40,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(agentoperatorv1beta1.AddToScheme(scheme))
+	utilruntime.Must(agentoperatorv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

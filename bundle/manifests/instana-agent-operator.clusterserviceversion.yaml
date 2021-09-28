@@ -5,7 +5,7 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "agents.instana.com/v1beta1",
+          "apiVersion": "instana.io/v1",
           "kind": "InstanaAgent",
           "metadata": {
             "name": "instana-agent",
@@ -26,6 +26,27 @@ metadata:
               "name": "edited-zone"
             }
           }
+        },
+        {
+          "apiVersion": "instana.io/v1beta1",
+          "kind": "InstanaAgent",
+          "metadata": {
+            "name": "instana-agent",
+            "namespace": "instana-agent"
+          },
+          "spec": {
+            "agent.endpoint.host": "ingress-red-saas.instana.io",
+            "agent.endpoint.port": 443,
+            "agent.env": {
+              "INSTANA_AGENT_TAGS": "example"
+            },
+            "agent.key": "replace-me",
+            "agent.zone.name": "my-zone",
+            "cluster.name": "replace-me",
+            "config.files": {
+              "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n"
+            }
+          }
         }
       ]
     capabilities: Basic Install
@@ -40,10 +61,10 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Defines the desired specs and states for instana agent deployment.
+    - description: InstanaAgent is the Schema for the agents API
       displayName: Instana Agent
       kind: InstanaAgent
-      name: instanaagent.agents.instana.com
+      name: agents.instana.io
       resources:
       - kind: DaemonSet
         name: instana-agent
@@ -61,6 +82,9 @@ spec:
         path: agent.key
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1
+    - kind: InstanaAgent
+      name: agents.instana.io
       version: v1beta1
   description: |
     # Instana
@@ -170,9 +194,9 @@ spec:
           - create
           - patch
         - apiGroups:
-          - agents.instana.com
+          - instana.io
           resources:
-          - instanaagent
+          - agents
           verbs:
           - create
           - delete
@@ -182,15 +206,15 @@ spec:
           - update
           - watch
         - apiGroups:
-          - agents.instana.com
+          - instana.io
           resources:
-          - instanaagent/finalizers
+          - agents/finalizers
           verbs:
           - update
         - apiGroups:
-          - agents.instana.com
+          - instana.io
           resources:
-          - instanaagent/status
+          - agents/status
           verbs:
           - get
           - patch
@@ -304,6 +328,18 @@ spec:
           verbs:
           - get
           - list
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
         serviceAccountName: controller-manager
       deployments:
       - name: controller-manager
@@ -320,6 +356,20 @@ spec:
             spec:
               containers:
               - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080/
+                - --logtostderr=true
+                - --v=10
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: https
+                  protocol: TCP
+                resources: {}
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
                 - --leader-elect
                 command:
                 - /manager

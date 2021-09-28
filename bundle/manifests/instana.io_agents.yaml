@@ -2,24 +2,26 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.6.1
   creationTimestamp: null
-  name: instanaagent.agents.instana.com
+  name: agents.instana.io
 spec:
-  group: agents.instana.com
+  group: instana.io
   names:
     categories:
     - instana
     kind: InstanaAgent
     listKind: InstanaAgentList
-    plural: instanaagent
-    singular: instanaagent
+    plural: agents
+    shortNames:
+    - ia
+    singular: agent
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - name: v1
     schema:
       openAPIV3Schema:
-        description: Defines the desired specs and states for instana agent deployment.
+        description: InstanaAgent is the Schema for the agents API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -1427,9 +1429,209 @@ spec:
     storage: true
     subresources:
       status: {}
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: InstanaAgent is the Schema for the agents API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: InstanaAgentSpec defines the desired state of the Instana
+              Agent
+            properties:
+              agent.clusterRoleBindingName:
+                type: string
+              agent.clusterRoleName:
+                type: string
+              agent.configMapName:
+                type: string
+              agent.cpuLimit:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.cpuReq:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.daemonSetName:
+                type: string
+              agent.downloadKey:
+                type: string
+              agent.endpoint.host:
+                type: string
+              agent.endpoint.port:
+                type: string
+              agent.env:
+                additionalProperties:
+                  type: string
+                type: object
+              agent.host.repository:
+                type: string
+              agent.image:
+                type: string
+              agent.imagePullPolicy:
+                type: string
+              agent.key:
+                type: string
+              agent.memLimit:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.memReq:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.rbac.create:
+                type: boolean
+              agent.secretName:
+                type: string
+              agent.serviceAccountName:
+                type: string
+              agent.zone.name:
+                type: string
+              cluster.name:
+                type: string
+              config.files:
+                properties:
+                  autoMountConfigEntries:
+                    description: When setting this to true, the Helm chart will automatically
+                      look up the entries of the default instana-agent ConfigMap,
+                      and mount as agent configuration files under /opt/instana/agent/etc/instana
+                      all entries with keys that match the 'configuration-*.yaml'
+                      scheme
+                    type: boolean
+                type: object
+              opentelemetry.enabled:
+                type: boolean
+            type: object
+          status:
+            description: InstanaAgentStatus defines the observed state of InstanaAgent
+            properties:
+              configStatusses:
+                description: Status of each config
+                items:
+                  description: DaemonSetStatus represents the current status of a
+                    daemon set.
+                  properties:
+                    collisionCount:
+                      description: Count of hash collisions for the DaemonSet. The
+                        DaemonSet controller uses this field as a collision avoidance
+                        mechanism when it needs to create the name for the newest
+                        ControllerRevision.
+                      format: int32
+                      type: integer
+                    conditions:
+                      description: Represents the latest available observations of
+                        a DaemonSet's current state.
+                      items:
+                        description: DaemonSetCondition describes the state of a DaemonSet
+                          at a certain point.
+                        properties:
+                          lastTransitionTime:
+                            description: Last time the condition transitioned from
+                              one status to another.
+                            format: date-time
+                            type: string
+                          message:
+                            description: A human readable message indicating details
+                              about the transition.
+                            type: string
+                          reason:
+                            description: The reason for the condition's last transition.
+                            type: string
+                          status:
+                            description: Status of the condition, one of True, False,
+                              Unknown.
+                            type: string
+                          type:
+                            description: Type of DaemonSet condition.
+                            type: string
+                        required:
+                        - status
+                        - type
+                        type: object
+                      type: array
+                    currentNumberScheduled:
+                      description: 'The number of nodes that are running at least
+                        1 daemon pod and are supposed to run the daemon pod. More
+                        info: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/'
+                      format: int32
+                      type: integer
+                    desiredNumberScheduled:
+                      description: 'The total number of nodes that should be running
+                        the daemon pod (including nodes correctly running the daemon
+                        pod). More info: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/'
+                      format: int32
+                      type: integer
+                    numberAvailable:
+                      description: The number of nodes that should be running the
+                        daemon pod and have one or more of the daemon pod running
+                        and available (ready for at least spec.minReadySeconds)
+                      format: int32
+                      type: integer
+                    numberMisscheduled:
+                      description: 'The number of nodes that are running the daemon
+                        pod, but are not supposed to run the daemon pod. More info:
+                        https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/'
+                      format: int32
+                      type: integer
+                    numberReady:
+                      description: The number of nodes that should be running the
+                        daemon pod and have one or more of the daemon pod running
+                        and ready.
+                      format: int32
+                      type: integer
+                    numberUnavailable:
+                      description: The number of nodes that should be running the
+                        daemon pod and have none of the daemon pod running and available
+                        (ready for at least spec.minReadySeconds)
+                      format: int32
+                      type: integer
+                    observedGeneration:
+                      description: The most recent generation observed by the daemon
+                        set controller.
+                      format: int64
+                      type: integer
+                    updatedNumberScheduled:
+                      description: The total number of nodes that are running updated
+                        daemon pod
+                      format: int32
+                      type: integer
+                  required:
+                  - currentNumberScheduled
+                  - desiredNumberScheduled
+                  - numberMisscheduled
+                  - numberReady
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
 status:
   acceptedNames:
-    kind: ''
-    plural: ''
+    kind: ""
+    plural: ""
   conditions: []
   storedVersions: []

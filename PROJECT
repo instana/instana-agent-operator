@@ -10,9 +10,9 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: instana.com
-  group: agents
+  domain: instana.io
+  plural: agents
   kind: InstanaAgent
-  path: github.com/instana/instana-agent-operator/api/v1beta1
-  version: v1beta1
+  path: github.com/instana/instana-agent-operator/api/v1
+  version: v1
 version: "3"

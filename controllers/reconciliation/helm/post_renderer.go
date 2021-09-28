@@ -9,7 +9,7 @@ import (
 	"bytes"
 
 	"github.com/go-logr/logr"
-	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	instanaV1 "github.com/instana/instana-agent-operator/api/v1"
 	"helm.sh/helm/v3/pkg/action"
 
 	appV1 "k8s.io/api/apps/v1"
@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func NewAgentChartPostRenderer(h *HelmReconciliation, crdInstance *instanaV1Beta1.InstanaAgent) *AgentChartPostRenderer {
+func NewAgentChartPostRenderer(h *HelmReconciliation, crdInstance *instanaV1.InstanaAgent) *AgentChartPostRenderer {
 	return &AgentChartPostRenderer{
 		scheme:      h.scheme,
 		helmCfg:     h.helmCfg,
@@ -32,7 +32,7 @@ func NewAgentChartPostRenderer(h *HelmReconciliation, crdInstance *instanaV1Beta
 
 type AgentChartPostRenderer struct {
 	scheme      *runtime.Scheme
-	crdInstance *instanaV1Beta1.InstanaAgent
+	crdInstance *instanaV1.InstanaAgent
 	helmCfg     *action.Configuration
 	log         logr.Logger
 }

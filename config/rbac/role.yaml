@@ -6,9 +6,9 @@ metadata:
   namespace: instana-agent
 rules:
 - apiGroups:
-  - agents.instana.com
+  - instana.io
   resources:
-  - instanaagent
+  - agents
   verbs:
   - create
   - delete
@@ -18,15 +18,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - agents.instana.com
+  - instana.io
   resources:
-  - instanaagent/finalizers
+  - agents/finalizers
   verbs:
   - update
 - apiGroups:
-  - agents.instana.com
+  - instana.io
   resources:
-  - instanaagent/status
+  - agents/status
   verbs:
   - get
   - patch

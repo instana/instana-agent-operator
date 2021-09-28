@@ -41,13 +41,13 @@ Both are described below.
 
 ### Running Go application outside the cluster
 
-1. Create a copy of the file `config/samples/instana_v1beta1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instanaagent_demo.yaml`
+1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
 3. Install the CRD and run the Go application: `make install run`.
-4. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instanaagent_demo.yaml`
+4. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 
 To stop, take the following actions:
-- `kubectl delete -f config/samples/instanaagent_demo.yaml`
+- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 - `make uninstall`
 
 ### Running Deployment inside the cluster
@@ -55,16 +55,16 @@ To stop, take the following actions:
 The Instana Agent Operator can be developed and tested easily against a local Minikube cluster or any other configured
 Kubernetes cluster. Therefore, follow the below steps:
 
-1. Create a copy of the file `config/samples/instana_v1beta1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instanaagent_demo.yaml`
+1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
 3. Build the Operator image: `make docker-build`
 4. For deploying on Minikube, there's a convenient target `make deploy-minikube`. For any other environment you would
    need to first push the Docker image to a valid repository using `make docker-push`, then do the deployment
    using `make deploy` to deploy the Operator to the cluster configured for `kubectl`.
-5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instanaagent_demo.yaml`
+5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 
 Now you should have a successful running Operator.
 To remove the Operator again, run:
-- `kubectl delete -f config/samples/instanaagent_demo.yaml`
+- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 - `make undeploy`.
 

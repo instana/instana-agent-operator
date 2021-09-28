@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/go-logr/logr"
-	instanaV1Beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
+	instanaV1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/pkg/errors"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,7 +82,7 @@ type HelmReconciliation struct {
 	crAppNamespace string
 }
 
-func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1Beta1.InstanaAgent) error {
+func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1.InstanaAgent) error {
 	uninstallAction := action.NewUninstall(h.helmCfg)
 	if _, err := uninstallAction.Run(h.crAppName); err != nil {
 		// If there was an error because already uninstalled, ignore it
@@ -98,7 +98,7 @@ func (h *HelmReconciliation) Delete(_ ctrl.Request, _ *instanaV1Beta1.InstanaAge
 	return nil
 }
 
-func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instanaV1Beta1.InstanaAgent) error {
+func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instanaV1.InstanaAgent) error {
 	// Prepare CRD for Helm Chart installation, converting to YAML (key-value map)
 	versionSet, err := h.getApiVersions()
 	if err != nil {
@@ -172,7 +172,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 	return nil
 }
 
-func (h *HelmReconciliation) mapCRDToYaml(crdInstance *instanaV1Beta1.InstanaAgent) (map[string]interface{}, error) {
+func (h *HelmReconciliation) mapCRDToYaml(crdInstance *instanaV1.InstanaAgent) (map[string]interface{}, error) {
 	specYaml, err := yaml.Marshal(crdInstance.Spec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed marshaling to yaml")

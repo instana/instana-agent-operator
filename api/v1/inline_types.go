@@ -2,7 +2,7 @@
  * (c) Copyright IBM Corp. 2021
  * (c) Copyright Instana Inc. 2021
  */
-package v1beta1
+package v1
 
 import (
 	appV1 "k8s.io/api/apps/v1"
@@ -92,8 +92,8 @@ type BaseAgentSpec struct {
 	//   INSTANA_AGENT_TAGS: dev
 	Env map[string]string `json:"env,omitempty"`
 
-	Configuration      *ConfigurationSpec `json:"configuration,omitempty"`
-	Configuration_yaml string             `json:"configuration_yaml,omitempty"`
+	Configuration     *ConfigurationSpec `json:"configuration,omitempty"`
+	ConfigurationYaml string             `json:"configuration_yaml,omitempty"`
 
 	// agent.redactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS environment variable.
 	RedactKubernetesSecrets string `json:"redactKubernetesSecrets,omitempty"`
