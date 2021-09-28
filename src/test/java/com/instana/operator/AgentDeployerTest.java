@@ -5,12 +5,13 @@
 package com.instana.operator;
 
 import com.google.common.collect.ImmutableMap;
+import com.instana.operator.cache.Cache;
+import com.instana.operator.cache.CacheService;
+import com.instana.operator.cache.StubCache;
 import com.instana.operator.customresource.InstanaAgent;
 import com.instana.operator.customresource.InstanaAgentSpec;
 import com.instana.operator.env.Environment;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.client.Config;
@@ -33,6 +34,9 @@ import static java.util.Collections.emptyMap;
 import static okhttp3.TlsVersion.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class AgentDeployerTest {
 
@@ -193,6 +197,38 @@ public class AgentDeployerTest {
     deployer.setEnvironment(singleVar(RELATED_IMAGE_INSTANA_AGENT, "other/image:some-tag"));
 
     agentSpec.setAgentTlsSecretName("secret-name");
+
+    InstanaAgent customResource = new InstanaAgent();
+    customResource.setSpec(agentSpec);
+
+    DaemonSet daemonSet = deployer.newDaemonSet(
+        customResource,
+        client.inNamespace("instana-agent").apps().daemonSets());
+
+    Container agentContainer = getAgentContainer(daemonSet);
+
+    Optional<VolumeMount> certsVolumeMount = agentContainer.getVolumeMounts().stream().filter(vm -> vm.getName().equals("instana-agent-tls")).findFirst();
+    assertThat(certsVolumeMount.isPresent(), is(true));
+    assertThat(certsVolumeMount.get().getReadOnly(), is(true));
+  }
+
+  @Test
+  public void daemonset_must_include_tls_mount_if_certificate_and_key_are_provided() {
+    AgentDeployer deployer = new AgentDeployer();
+    deployer.setDefaultClient(client);
+
+    Cache<Secret, SecretList> cacheMock = new StubCache<>();
+    CacheService cacheServiceMock = mock(CacheService.class);
+    when(cacheServiceMock.newCache(eq(Secret.class), eq(SecretList.class)))
+        .thenReturn(cacheMock);
+
+    deployer.cacheService = cacheServiceMock;
+
+    InstanaAgentSpec agentSpec = new InstanaAgentSpec();
+    deployer.setEnvironment(singleVar(RELATED_IMAGE_INSTANA_AGENT, "other/image:some-tag"));
+
+    agentSpec.setAgentTlsCertificate("some-certificate");
+    agentSpec.setAgentTlsKey("some-key");
 
     InstanaAgent customResource = new InstanaAgent();
     customResource.setSpec(agentSpec);
