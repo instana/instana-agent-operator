@@ -49,6 +49,9 @@ public class AgentDeployer {
 
   private static final String DAEMON_SET_NAME = "instana-agent";
   private static final String VERSION_LABEL = "app.kubernetes.io/version";
+  private static final String PPC_ARCH_PART = "ppc"; // e.g. ppc64le, ppc64el
+  static final int DEFAULT_AGENT_MEM_REQ_ON_PPC = 576;
+  static final int DEFAULT_AGENT_MEM_LIMIT_ON_PPC = 672;
 
   @Inject
   DefaultKubernetesClient defaultClient;
@@ -300,14 +303,15 @@ public class AgentDeployer {
       container.setResources(new ResourceRequirements());
     }
 
+    final String arch = getArchFromNodeInfo(owner.getMetadata().getNamespace());
     Map<String, Quantity> requests = new HashMap<>();
     requests.put("cpu", cpu(config.getAgentCpuReq()));
-    requests.put("memory", mem(config.getAgentMemReq(), "Mi"));
+    requests.put("memory", getAgentMemReq(arch, config.getAgentMemReq()));
     container.getResources().setRequests(requests);
 
     Map<String, Quantity> limits = new HashMap<>();
     limits.put("cpu", cpu(config.getAgentCpuLimit()));
-    limits.put("memory", mem(config.getAgentMemLimit(), "Mi"));
+    limits.put("memory", getAgentMemLimit(arch, config.getAgentMemLimit()));
     container.getResources().setLimits(limits);
 
     List<VolumeMount> volumeMounts = container.getVolumeMounts();
@@ -335,6 +339,30 @@ public class AgentDeployer {
     }
 
     return daemonSet;
+  }
+
+  private Quantity getAgentMemReq(final String arch, int configuredMemReq){
+    if (arch.toLowerCase(Locale.getDefault()).contains(PPC_ARCH_PART) && configuredMemReq < DEFAULT_AGENT_MEM_REQ_ON_PPC){
+      return mem(DEFAULT_AGENT_MEM_REQ_ON_PPC, "Mi");
+    }
+    return mem(configuredMemReq, "Mi");
+  }
+
+  private Quantity getAgentMemLimit(final String arch, int configuredMemLimit){
+    if (arch.toLowerCase(Locale.getDefault()).contains(PPC_ARCH_PART) && configuredMemLimit < DEFAULT_AGENT_MEM_LIMIT_ON_PPC){
+      return mem(DEFAULT_AGENT_MEM_LIMIT_ON_PPC, "Mi");
+    }
+    return mem(configuredMemLimit, "Mi");
+  }
+
+  private String getArchFromNodeInfo(final String targetNamespace){
+    NamespacedKubernetesClient kubernetesClient = defaultClient.inNamespace(targetNamespace);
+    try {
+      return kubernetesClient.nodes().list().getItems().get(0).getStatus().getNodeInfo().getArchitecture();
+    } catch (Exception exception){
+      LOGGER.debug("Can not access architecture of node info", exception);
+    }
+    return "ARCH_UNKNOWN";
   }
 
   private void configureAgentImagePullPolicy(InstanaAgentSpec config, Container container) {
