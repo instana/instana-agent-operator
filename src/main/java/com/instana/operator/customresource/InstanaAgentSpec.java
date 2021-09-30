@@ -83,11 +83,11 @@ public class InstanaAgentSpec {
   private String clusterName;
   @JsonProperty(value = "agent.env")
   private Map<String, String> agentEnv;
-  @JsonProperty(value = "agent.tls.secretName", defaultValue = "")
+  @JsonProperty(value = "agent.tls.secretName")
   private String agentTlsSecretName;
-  @JsonProperty(value = "agent.tls.certificate", defaultValue = "")
+  @JsonProperty(value = "agent.tls.certificate")
   private String agentTlsCertificate;
-  @JsonProperty(value = "agent.tls.key", defaultValue = "")
+  @JsonProperty(value = "agent.tls.key")
   private String agentTlsKey;
 
   public Map<String, String> getConfigFiles() {

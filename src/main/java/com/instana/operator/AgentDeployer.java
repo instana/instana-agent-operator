@@ -101,6 +101,12 @@ public class AgentDeployer {
         create(DaemonSet.class, DaemonSetList.class, this::newDaemonSet, c.apps().daemonSets()),
         watchDaemonSets(targetNamespace)
     };
+
+    // additional watcher only exists if TLS is configured with certificate and private key
+    // if TLS is configured with an existing secret, it does not have to create a new secret
+    if (isTlsEncryptionConfigured(owner.getSpec()) && isBlank(owner.getSpec().getAgentTlsSecretName())) {
+      tlsSecretWatcher = create(Secret.class, SecretList.class, this::createTlsSecret, c.secrets());
+    }
   }
 
   void customResourceDeleted() {
@@ -111,7 +117,7 @@ public class AgentDeployer {
     }
     watchers = null;
 
-    if (tlsSecretWatcher != null){
+    if (tlsSecretWatcher != null) {
       tlsSecretWatcher.dispose();
     }
     tlsSecretWatcher = null;
@@ -381,12 +387,7 @@ public class AgentDeployer {
 
   private void configureTlsEncryption(Container container, InstanaAgent owner, DaemonSet daemonSet, InstanaAgentSpec config) {
     if (isTlsEncryptionConfigured(config)) {
-
-      if(isBlank(config.getAgentTlsSecretName()) && tlsSecretWatcher == null){
-        String targetNamespace = owner.getMetadata().getNamespace();
-        NamespacedKubernetesClient c = defaultClient.inNamespace(targetNamespace);
-        tlsSecretWatcher = create(Secret.class, SecretList.class, this::createTlsSecret, c.secrets());
-      }
+      LOGGER.debug("Configure TLS encryption");
       final String secretName = isBlank(config.getAgentTlsSecretName()) ? DEFAULT_NAME_TLS : config.getAgentTlsSecretName();
       final SecretVolumeSource secretVolumeSource = new SecretVolumeSource(0440, new ArrayList<>(), false, secretName);
 
@@ -416,27 +417,17 @@ public class AgentDeployer {
 
   private Secret createTlsSecret(InstanaAgent owner,
                                  MixedOperation<Secret, SecretList, DoneableSecret, Resource<Secret, DoneableSecret>> op) {
+    final InstanaAgentSpec config = owner.getSpec();
 
-    if (isBlank(owner.getSpec().getAgentTlsSecretName())) {
-      final Map<String, String> data = new HashMap<String, String>() {{
-        put("tls.crt", owner.getSpec().getAgentTlsCertificate());
-        put("tls.key", owner.getSpec().getAgentTlsKey());
-      }};
+    LOGGER.debug("Create TLS secret with provided certificate and private key");
+    Secret secret = load("instana-agent-tls.secret.yaml", owner, op);
+    final Map<String, String> data = new HashMap<String, String>() {{
+      put("tls.crt", config.getAgentTlsCertificate());
+      put("tls.key", config.getAgentTlsKey());
+    }};
+    secret.setData(data);
+    return secret;
 
-      final ObjectMeta metadata = new ObjectMeta();
-      metadata.setName(DEFAULT_NAME_TLS);
-      metadata.setNamespace(owner.getMetadata().getNamespace());
-      metadata.setLabels(owner.getMetadata().getLabels());
-
-      return new SecretBuilder()
-          .withApiVersion("v1")
-          .withKind("Secret")
-          .withMetadata(metadata)
-          .withType("kubernetes.io/tls")
-          .withData(data)
-          .build();
-    }
-    return null;
   }
 
   private Quantity mem(int value, String format) {
