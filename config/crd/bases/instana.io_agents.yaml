@@ -9,7 +9,8 @@ spec:
   group: instana.io
   names:
     categories:
-    - instana
+    - monitoring
+    - openshift-optional
     kind: InstanaAgent
     listKind: InstanaAgentList
     plural: agents
@@ -1226,12 +1227,80 @@ spec:
                         type: string
                     type: object
                 type: object
+              agent.clusterRoleBindingName:
+                type: string
+              agent.clusterRoleName:
+                type: string
+              agent.configMapName:
+                type: string
+              agent.cpuLimit:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.cpuReq:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.daemonSetName:
+                type: string
+              agent.downloadKey:
+                type: string
+              agent.endpoint.host:
+                type: string
+              agent.endpoint.port:
+                type: integer
+              agent.env:
+                additionalProperties:
+                  type: string
+                type: object
+              agent.host.repository:
+                type: string
+              agent.image:
+                type: string
+              agent.imagePullPolicy:
+                type: string
+              agent.key:
+                type: string
+              agent.memLimit:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.memReq:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              agent.rbac.create:
+                type: boolean
+              agent.secretName:
+                type: string
+              agent.serviceAccountName:
+                type: string
+              agent.zone.name:
+                type: string
               cluster:
                 description: cluster.name represents the name that will be assigned
                   to this cluster in Instana
                 properties:
                   name:
                     type: string
+                type: object
+              cluster.name:
+                type: string
+              config.files:
+                additionalProperties:
+                  type: string
+                description: OLD v1beta1 spec which, by including temporarily, we
+                  can provide backwards compatibility for the v1beta1 spec as served
+                  by the Java Operator. Prevents having to modify the CR outside the
+                  Operator.
                 type: object
               kubernetes:
                 properties:
@@ -1279,6 +1348,8 @@ spec:
                   enabled:
                     type: boolean
                 type: object
+              opentelemetry.enabled:
+                type: boolean
               podSecurityPolicy:
                 properties:
                   enabled:

@@ -27,6 +27,8 @@ metadata:
           }
       ]
     capabilities: Basic Install
+    categories: Monitoring,OpenShift Optional
+    certified: "false"
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -311,7 +313,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: instana/instana-agent-operator:1.0.4
+                image: instana/instana-agent-operator:0.0.0
                 imagePullPolicy: Always
                 name: instana-agent-operator
                 ports:
@@ -342,4 +344,5 @@ spec:
   minKubeVersion: 1.11.0
   provider:
     name: Instana
+  replaces: instana-agent-operator.v0.0.0
   version: 0.0.0

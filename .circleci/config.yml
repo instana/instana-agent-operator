@@ -51,6 +51,3 @@ workflows:
       - build:
           name: "go1.16"
           go_version: "1.16"
-      - build:
-          name: "go1.15"
-          go_version: "1.15"

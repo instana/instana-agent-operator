@@ -50,6 +50,8 @@ metadata:
         }
       ]
     capabilities: Basic Install
+    categories: Monitoring,OpenShift Optional
+    certified: "false"
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
@@ -328,18 +330,6 @@ spec:
           verbs:
           - get
           - list
-        - apiGroups:
-          - authentication.k8s.io
-          resources:
-          - tokenreviews
-          verbs:
-          - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          verbs:
-          - create
         serviceAccountName: controller-manager
       deployments:
       - name: controller-manager
@@ -356,20 +346,6 @@ spec:
             spec:
               containers:
               - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=10
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                  protocol: TCP
-                resources: {}
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
                 - --leader-elect
                 command:
                 - /manager
@@ -398,6 +374,7 @@ spec:
                 securityContext:
                   allowPrivilegeEscalation: true
               securityContext:
+                runAsGroup: 1001
                 runAsNonRoot: true
                 runAsUser: 1001
               serviceAccountName: controller-manager
@@ -426,4 +403,5 @@ spec:
   minKubeVersion: 1.11.0
   provider:
     name: Instana
+  replaces: instana-agent-operator.v0.0.0
   version: 0.0.1
