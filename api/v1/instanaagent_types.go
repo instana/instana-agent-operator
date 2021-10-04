@@ -6,13 +6,13 @@
 package v1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+//+k8s:openapi-gen=true
+
 // InstanaAgentSpec defines the desired state of the Instana Agent
-// +k8s:openapi-gen=true
 type InstanaAgentSpec struct {
 	Agent *BaseAgentSpec `json:"agent,omitempty"`
 
@@ -40,7 +40,7 @@ type InstanaAgentSpec struct {
 
 	Zone *Name `json:"zone,omitempty"`
 
-	Kuberentes *K8sSpec `json:"kubernetes,omitempty"`
+	Kubernetes *K8sSpec `json:"kubernetes,omitempty"`
 
 	//
 	// OLD v1beta1 spec which, by including temporarily, we can provide backwards compatibility for the v1beta1 spec as served
@@ -72,20 +72,31 @@ type InstanaAgentSpec struct {
 	// END of OLD spec
 }
 
-// InstanaAgentStatus defines the observed state of InstanaAgent
-// +k8s:openapi-gen=true
-type InstanaAgentStatus struct {
-	//Status of each config
-	ConfigStatusses []appsv1.DaemonSetStatus `json:"configStatusses,omitempty"`
+//+k8s:openapi-gen=true
+
+// ResourceInfo holds Name and UID to given object
+type ResourceInfo struct {
+	Name string `json:"name"`
+	UID  string `json:"uid"`
 }
 
+//+k8s:openapi-gen=true
+
+// InstanaAgentStatus defines the observed state of InstanaAgent
+type InstanaAgentStatus struct {
+	ConfigMap       ResourceInfo `json:"configmap,omitempty"`
+	DaemonSet       ResourceInfo `json:"daemonset,omitempty"`
+	LeadingAgentPod ResourceInfo `json:"leadingAgentPod,omitempty"`
+}
+
+//+kubebuilder:object:root=true
+//+k8s:openapi-gen=true
+//+kubebuilder:subresource:status
+//+kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
+//+kubebuilder:storageversion
+//+operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
+
 // InstanaAgent is the Schema for the agents API
-// +kubebuilder:object:root=true
-// +k8s:openapi-gen=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
-// +kubebuilder:storageversion
-// +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
 type InstanaAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -94,7 +105,7 @@ type InstanaAgent struct {
 	Status InstanaAgentStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // InstanaAgentList contains a list of InstanaAgent
 type InstanaAgentList struct {

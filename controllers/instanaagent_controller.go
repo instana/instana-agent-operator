@@ -103,11 +103,11 @@ type InstanaAgentReconciler struct {
 	leaderElector *leaderelection.LeaderElector
 }
 
-//+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=agents.instana.com,resources=instanaagent/finalizers,verbs=update
+//+kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling Instana Agent")
@@ -125,6 +125,13 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
+
+	//crdInstance.Status.
+	//err = r.client.Update(ctx, crdInstance)
+	//if err != nil {
+	//	log.Error(err, "Failed to update Memcached status")
+	//	return ctrl.Result{}, err
+	//}
 
 	isInstanaAgentDeleted := crdInstance.GetDeletionTimestamp() != nil
 	if isInstanaAgentDeleted {

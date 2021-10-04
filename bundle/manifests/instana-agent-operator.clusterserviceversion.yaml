@@ -85,8 +85,20 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1
-    - kind: InstanaAgent
+    - description: InstanaAgent is the Schema for the agents API
+      displayName: Instana Agent
+      kind: InstanaAgent
       name: agents.instana.io
+      resources:
+      - kind: DaemonSet
+        name: instana-agent
+        version: v1
+      - kind: Pod
+        name: instana-agent
+        version: v1
+      - kind: Secret
+        name: instana-agent
+        version: v1
       version: v1beta1
   description: |
     # Instana

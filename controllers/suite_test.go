@@ -75,7 +75,7 @@ var _ = BeforeSuite(func() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "819a9291.instana.com",
+		LeaderElectionID:       "819a9291.instana.io",
 	})
 
 	Expect(err).ToNot(HaveOccurred())

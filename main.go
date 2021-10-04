@@ -16,9 +16,10 @@ import (
 
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/version"
-	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -77,7 +78,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "819a9291.instana.com",
+		LeaderElectionID:       "819a9291.instana.io",
 	})
 	if err != nil {
 		log.Error(err, "Unable to start manager")
