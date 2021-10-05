@@ -85,6 +85,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Register our Conversion Webhook to translate v1beta1 to v1 versions
+	if err = (&agentoperatorv1.InstanaAgent{}).SetupWebhookWithManager(mgr); err != nil {
+		log.Error(err, "unable to create webhook", "webhook", "InstanaAgent")
+		os.Exit(1)
+	}
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Error(err, "Unable to set up health check")
 		os.Exit(1)
