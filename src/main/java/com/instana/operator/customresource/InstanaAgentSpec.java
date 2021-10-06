@@ -31,8 +31,8 @@ public class InstanaAgentSpec {
   static final String DEFAULT_AGENT_RBAC_CREATE = "true";
   static final String DEFAULT_AGENT_CPU_REQ = "0.5";
   static final String DEFAULT_AGENT_CPU_LIMIT = "1.5";
-  static final String DEFAULT_AGENT_MEM_REQ = "512";
-  static final String DEFAULT_AGENT_MEM_LIMIT = "512";
+  static final String DEFAULT_AGENT_MEM_REQ = "576";
+  static final String DEFAULT_AGENT_MEM_LIMIT = "768";
   static final String DEFAULT_AGENT_IMAGE_PULLPOLICY = "Always";
   static final String DEFAULT_AGENT_OTEL_ACTIVE = "false";
   static final Integer DEFAULT_AGENT_OTEL_PORT = 55680;

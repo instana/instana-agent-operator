@@ -273,7 +273,6 @@ public class AgentDeployer {
     env.add(createEnvVar("INSTANA_ZONE", config.getAgentZoneName()));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT", config.getAgentEndpointHost()));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", "" + config.getAgentEndpointPort()));
-    env.add(createEnvVar("JAVA_OPTS", "-Xmx" + config.getAgentMemLimit() / 3 + "M -XX:+ExitOnOutOfMemoryError"));
 
     if (!isBlank(config.getAgentDownloadKey())) {
       env.add(new EnvVarBuilder()
