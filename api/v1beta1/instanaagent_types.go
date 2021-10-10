@@ -34,6 +34,9 @@ type InstanaAgentSpec struct {
 	AgentMemLim                 resource.Quantity `json:"agent.memLimit,omitempty"`
 	AgentDownloadKey            string            `json:"agent.downloadKey,omitempty"`
 	AgentRepository             string            `json:"agent.host.repository,omitempty"`
+	AgentTlsSecretName          string            `json:"agent.tls.secretName,omitempty"`
+	AgentTlsCertificate         string            `json:"agent.tls.certificate,omitempty"`
+	AgentTlsKey                 string            `json:"agent.tls.key,omitempty"`
 	OpenTelemetryEnabled        bool              `json:"opentelemetry.enabled,omitempty"`
 	ClusterName                 string            `json:"cluster.name,omitempty"`
 	AgentEnv                    map[string]string `json:"agent.env,omitempty"`

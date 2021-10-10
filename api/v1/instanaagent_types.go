@@ -14,38 +14,39 @@ import (
 
 // InstanaAgentSpec defines the desired state of the Instana Agent
 type InstanaAgentSpec struct {
-	Agent *BaseAgentSpec `json:"agent,omitempty"`
+	Agent BaseAgentSpec `json:"agent,omitempty"`
 
 	// cluster.name represents the name that will be assigned to this cluster in Instana
-	Cluster *Name `json:"cluster,omitempty"`
+	Cluster Name `json:"cluster,omitempty"`
 
 	OpenShift bool `json:"openshift,omitempty"`
 
 	// Specifies whether RBAC resources should be created
-	Rbac *Create `json:"rbac,omitempty"`
+	Rbac Create `json:"rbac,omitempty"`
 	// Specifies whether to create the instana-agent service to expose within the cluster the Prometheus remote-write, OpenTelemetry GRCP endpoint and other APIs
 	// Note: Requires Kubernetes 1.17+, as it uses topologyKeys
-	Service *Create `json:"service,omitempty"`
+	Service Create `json:"service,omitempty"`
 	// If true, it will also apply `service.create=true`
-	OpenTelemetry *Enabled `json:"opentelemetry,omitempty"`
+	OpenTelemetry Enabled `json:"opentelemetry,omitempty"`
 
-	Prometheus *Prometheus `json:"prometheus,omitempty"`
+	Prometheus `json:"prometheus,omitempty"`
 	// Specifies whether a ServiceAccount should be created
 	// The name of the ServiceAccount to use.
 	// If not set and `create` is true, a name is generated using the fullname template
 	// name: instana-agent
-	ServiceAccount *Create `json:"serviceAccount,omitempty"`
+	ServiceAccount Create `json:"serviceAccount,omitempty"`
 
-	PodSecurityPolicy *PodSecurityPolicySpec `json:"podSecurityPolicy,omitempty"`
+	PodSecurityPolicySpec `json:"podSecurityPolicy,omitempty"`
 
-	Zone *Name `json:"zone,omitempty"`
+	Zone Name `json:"zone,omitempty"`
 
-	Kubernetes *K8sSpec `json:"kubernetes,omitempty"`
+	KubernetesSpec `json:"kubernetes,omitempty"`
 
 	//
 	// OLD v1beta1 spec which, by including temporarily, we can provide backwards compatibility for the v1beta1 spec as served
 	// by the Java Operator. Prevents having to modify the CR outside the Operator.
 	//
+
 	ConfigurationFiles          map[string]string `json:"config.files,omitempty"`
 	AgentZoneName               string            `json:"agent.zone.name,omitempty"`
 	AgentKey                    string            `json:"agent.key,omitempty"`
@@ -66,6 +67,9 @@ type InstanaAgentSpec struct {
 	AgentMemLim                 resource.Quantity `json:"agent.memLimit,omitempty"`
 	AgentDownloadKey            string            `json:"agent.downloadKey,omitempty"`
 	AgentRepository             string            `json:"agent.host.repository,omitempty"`
+	AgentTlsSecretName          string            `json:"agent.tls.secretName,omitempty"`
+	AgentTlsCertificate         string            `json:"agent.tls.certificate,omitempty"`
+	AgentTlsKey                 string            `json:"agent.tls.key,omitempty"`
 	OpenTelemetryEnabled        bool              `json:"opentelemetry.enabled,omitempty"`
 	ClusterName                 string            `json:"cluster.name,omitempty"`
 	AgentEnv                    map[string]string `json:"agent.env,omitempty"`
@@ -87,6 +91,14 @@ type InstanaAgentStatus struct {
 	ConfigMap       ResourceInfo `json:"configmap,omitempty"`
 	DaemonSet       ResourceInfo `json:"daemonset,omitempty"`
 	LeadingAgentPod ResourceInfo `json:"leadingAgentPod,omitempty"`
+
+	// Other Status fields that need to be included for backwards compatibility (Conversion WebHook needs to result in same CR
+	// when converting back and forth)
+
+	ServiceAccount     ResourceInfo `json:"serviceaccount,omitempty"`
+	ClusterRole        ResourceInfo `json:"clusterrole,omitempty"`
+	ClusterRoleBinding ResourceInfo `json:"clusterrolebinding,omitempty"`
+	Secret             ResourceInfo `json:"secret,omitempty"`
 }
 
 //+kubebuilder:object:root=true

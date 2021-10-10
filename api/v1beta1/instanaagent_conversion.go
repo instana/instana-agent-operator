@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
@@ -18,21 +20,33 @@ import (
 func (src *InstanaAgent) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*v1.InstanaAgent)
 
-	// Helm charts don't support multiple configuration files so merge them assuming it's all the configuration.yaml
-	var sb strings.Builder
-	for _, configFile := range src.Spec.ConfigurationFiles {
-		sb.WriteString(configFile)
-		sb.WriteString("\n")
-	}
-	dst.Spec.Agent.ConfigurationYaml = sb.String()
+	src.convertInternalSpecTo(dst)
+	dst.ObjectMeta = src.ObjectMeta
+	src.convertStatusTo(&dst.Status)
 
-	dst.Spec.Zone.Name = src.Spec.AgentZoneName
-	dst.Spec.Cluster.Name = src.Spec.ClusterName
-	dst.Spec.Agent.Key = src.Spec.AgentKey
-	dst.Spec.Agent.DownloadKey = src.Spec.AgentDownloadKey
-	dst.Spec.Agent.EndpointHost = src.Spec.AgentEndpointHost
-	dst.Spec.Agent.EndpointPort = strconv.FormatUint(uint64(src.Spec.AgentEndpointPort), 10)
-	dst.Spec.Agent.Host.Repository = src.Spec.AgentRepository
+	return nil
+}
+
+func (src *InstanaAgent) convertInternalSpecTo(dst *v1.InstanaAgent) {
+	srcSpec := src.Spec
+
+	// Helm charts don't support multiple configuration files so merge them assuming it's all the configuration.yaml
+	if len(srcSpec.ConfigurationFiles) > 0 {
+		var sb strings.Builder
+		for _, configFile := range srcSpec.ConfigurationFiles {
+			sb.WriteString(configFile)
+			sb.WriteString("\n")
+		}
+		dst.Spec.Agent.ConfigurationYaml = sb.String()
+	}
+
+	dst.Spec.Zone.Name = srcSpec.AgentZoneName
+	dst.Spec.Cluster.Name = srcSpec.ClusterName
+	dst.Spec.Agent.Key = srcSpec.AgentKey
+	dst.Spec.Agent.DownloadKey = srcSpec.AgentDownloadKey
+	dst.Spec.Agent.EndpointHost = srcSpec.AgentEndpointHost
+	dst.Spec.Agent.EndpointPort = strconv.FormatUint(uint64(srcSpec.AgentEndpointPort), 10)
+	dst.Spec.Agent.Host.Repository = srcSpec.AgentRepository
 
 	// Cannot specify names for e.g. ClusterRole and ServiceAccount in Helm, so omit those
 	//AgentClusterRoleName        string            `json:"agent.clusterRoleName,omitempty"`
@@ -42,38 +56,55 @@ func (src *InstanaAgent) ConvertTo(dstRaw conversion.Hub) error {
 	//AgentDaemonSetName          string            `json:"agent.daemonSetName,omitempty"`
 	//AgentConfigMapName          string            `json:"agent.configMapName,omitempty"`
 
-	lastIndex := strings.LastIndex(src.Spec.AgentImageName, ":")
-	if lastIndex > 0 {
-		dst.Spec.Agent.Image.Name = src.Spec.AgentImageName[:lastIndex]
-		dst.Spec.Agent.Image.Tag = src.Spec.AgentImageName[lastIndex+1:]
-	} else {
-		// No separator for Tag found, assume only name
-		dst.Spec.Agent.Image.Name = src.Spec.AgentImageName
+	if len(srcSpec.AgentImageName) > 0 {
+		lastIndex := strings.LastIndex(srcSpec.AgentImageName, ":")
+		if lastIndex > 0 {
+			dst.Spec.Agent.ImageSpec.Name = srcSpec.AgentImageName[:lastIndex]
+			dst.Spec.Agent.ImageSpec.Tag = srcSpec.AgentImageName[lastIndex+1:]
+		} else {
+			// No separator for Tag found, assume only name
+			dst.Spec.Agent.ImageSpec.Name = srcSpec.AgentImageName
+		}
 	}
 
-	dst.Spec.Agent.Image.PullPolicy = src.Spec.AgentImagePullPolicy
+	dst.Spec.Agent.ImageSpec.PullPolicy = srcSpec.AgentImagePullPolicy
 
-	dst.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceCPU] = src.Spec.AgentCpuReq
-	dst.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceMemory] = src.Spec.AgentMemReq
-	dst.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceCPU] = src.Spec.AgentCpuLim
-	dst.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceMemory] = src.Spec.AgentMemLim
+	// Build up the object, so we can directly store Quantity values as long as they're not 0
+	dst.Spec.Agent.Pod.ResourceRequirements = corev1.ResourceRequirements{
+		Requests: make(map[corev1.ResourceName]resource.Quantity),
+		Limits:   make(map[corev1.ResourceName]resource.Quantity),
+	}
+	if !srcSpec.AgentCpuReq.IsZero() {
+		dst.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceCPU] = srcSpec.AgentCpuReq
+	}
+	if !srcSpec.AgentMemReq.IsZero() {
+		dst.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceMemory] = srcSpec.AgentMemReq
+	}
+	if !srcSpec.AgentCpuLim.IsZero() {
+		dst.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceCPU] = srcSpec.AgentCpuLim
+	}
+	if !srcSpec.AgentMemLim.IsZero() {
+		dst.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceMemory] = srcSpec.AgentMemLim
+	}
 
-	dst.Spec.Rbac.Create = src.Spec.AgentRbacCreate
-	dst.Spec.OpenTelemetry.Enabled = src.Spec.OpenTelemetryEnabled
+	dst.Spec.Rbac.Create = srcSpec.AgentRbacCreate
+	dst.Spec.OpenTelemetry.Enabled = srcSpec.OpenTelemetryEnabled
 
-	dst.Spec.Agent.Env = src.Spec.AgentEnv
+	dst.Spec.Agent.TlsSpec.SecretName = srcSpec.AgentTlsSecretName
+	dst.Spec.Agent.TlsSpec.Certificate = srcSpec.AgentTlsCertificate
+	dst.Spec.Agent.TlsSpec.Key = srcSpec.AgentTlsKey
 
-	dst.ObjectMeta = src.ObjectMeta
-
-	err := src.convertStatusTo(dst.Status)
-	return err
+	dst.Spec.Agent.Env = srcSpec.AgentEnv
 }
 
-func (src *InstanaAgent) convertStatusTo(dstStatus v1.InstanaAgentStatus) error {
+func (src *InstanaAgent) convertStatusTo(dstStatus *v1.InstanaAgentStatus) {
 	dstStatus.ConfigMap = convertResourceInfoTo(src.Status.ConfigMap)
 	dstStatus.DaemonSet = convertResourceInfoTo(src.Status.DaemonSet)
 	dstStatus.LeadingAgentPod = convertResourceInfoTo(src.Status.LeadingAgentPod)
-	return nil
+	dstStatus.ServiceAccount = convertResourceInfoTo(src.Status.ServiceAccount)
+	dstStatus.ClusterRole = convertResourceInfoTo(src.Status.ClusterRoleBinding)
+	dstStatus.ClusterRoleBinding = convertResourceInfoTo(src.Status.ClusterRoleBinding)
+	dstStatus.Secret = convertResourceInfoTo(src.Status.Secret)
 }
 
 func convertResourceInfoTo(src ResourceInfo) v1.ResourceInfo {
@@ -98,10 +129,12 @@ func (dst *InstanaAgent) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.AgentKey = src.Spec.Agent.Key
 	dst.Spec.AgentDownloadKey = src.Spec.Agent.DownloadKey
 	dst.Spec.AgentEndpointHost = src.Spec.Agent.EndpointHost
-	if u, err := strconv.ParseUint(src.Spec.Agent.EndpointPort, 10, 16); err == nil {
-		dst.Spec.AgentEndpointPort = uint16(u)
-	} else {
-		return err
+	if len(src.Spec.Agent.EndpointPort) > 0 {
+		if u, err := strconv.ParseUint(src.Spec.Agent.EndpointPort, 10, 16); err == nil {
+			dst.Spec.AgentEndpointPort = uint16(u)
+		} else {
+			return err
+		}
 	}
 	dst.Spec.AgentRepository = src.Spec.Agent.Host.Repository
 
@@ -113,43 +146,50 @@ func (dst *InstanaAgent) ConvertFrom(srcRaw conversion.Hub) error {
 	//AgentDaemonSetName          string            `json:"agent.daemonSetName,omitempty"`
 	//AgentConfigMapName          string            `json:"agent.configMapName,omitempty"`
 
-	if len(src.Spec.Agent.Image.Tag) > 0 {
-		dst.Spec.AgentImageName = src.Spec.Agent.Image.Name + ":" + src.Spec.Agent.Image.Tag
+	if len(src.Spec.Agent.ImageSpec.Tag) > 0 {
+		dst.Spec.AgentImageName = src.Spec.Agent.ImageSpec.Name + ":" + src.Spec.Agent.ImageSpec.Tag
 	} else {
-		dst.Spec.AgentImageName = src.Spec.Agent.Image.Name
+		dst.Spec.AgentImageName = src.Spec.Agent.ImageSpec.Name
 	}
 
-	dst.Spec.AgentImagePullPolicy = src.Spec.Agent.Image.PullPolicy
+	dst.Spec.AgentImagePullPolicy = src.Spec.Agent.ImageSpec.PullPolicy
 
-	if _, ok := src.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceCPU]; ok {
-		dst.Spec.AgentCpuReq = src.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceCPU]
+	if value, ok := src.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceCPU]; ok {
+		dst.Spec.AgentCpuReq = value
 	}
-	if _, ok := src.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceMemory]; ok {
-		dst.Spec.AgentMemReq = src.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceMemory]
+	if value, ok := src.Spec.Agent.Pod.ResourceRequirements.Requests[corev1.ResourceMemory]; ok {
+		dst.Spec.AgentMemReq = value
 	}
-	if _, ok := src.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceCPU]; ok {
-		dst.Spec.AgentCpuLim = src.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceCPU]
+	if value, ok := src.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceCPU]; ok {
+		dst.Spec.AgentCpuLim = value
 	}
-	if _, ok := src.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceMemory]; ok {
-		dst.Spec.AgentMemLim = src.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceMemory]
+	if value, ok := src.Spec.Agent.Pod.ResourceRequirements.Limits[corev1.ResourceMemory]; ok {
+		dst.Spec.AgentMemLim = value
 	}
 
 	dst.Spec.AgentRbacCreate = src.Spec.Rbac.Create
 	dst.Spec.OpenTelemetryEnabled = src.Spec.OpenTelemetry.Enabled
 
+	dst.Spec.AgentTlsSecretName = src.Spec.Agent.TlsSpec.SecretName
+	dst.Spec.AgentTlsCertificate = src.Spec.Agent.TlsSpec.Certificate
+	dst.Spec.AgentTlsKey = src.Spec.Agent.TlsSpec.Key
+
 	dst.Spec.AgentEnv = src.Spec.Agent.Env
 
 	dst.ObjectMeta = src.ObjectMeta
+	dst.convertStatusFrom(src.Status)
 
-	err := dst.convertStatusFrom(src.Status)
-	return err
+	return nil
 }
 
-func (dst *InstanaAgent) convertStatusFrom(srcStatus v1.InstanaAgentStatus) error {
+func (dst *InstanaAgent) convertStatusFrom(srcStatus v1.InstanaAgentStatus) {
 	dst.Status.ConfigMap = convertResourceInfoFrom(srcStatus.ConfigMap)
 	dst.Status.DaemonSet = convertResourceInfoFrom(srcStatus.DaemonSet)
 	dst.Status.LeadingAgentPod = convertResourceInfoFrom(srcStatus.LeadingAgentPod)
-	return nil
+	dst.Status.ServiceAccount = convertResourceInfoFrom(srcStatus.ServiceAccount)
+	dst.Status.ClusterRole = convertResourceInfoFrom(srcStatus.ClusterRoleBinding)
+	dst.Status.ClusterRoleBinding = convertResourceInfoFrom(srcStatus.ClusterRoleBinding)
+	dst.Status.Secret = convertResourceInfoFrom(srcStatus.Secret)
 }
 
 func convertResourceInfoFrom(src v1.ResourceInfo) ResourceInfo {

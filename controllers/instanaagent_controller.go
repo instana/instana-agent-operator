@@ -126,13 +126,6 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	//crdInstance.Status.
-	//err = r.client.Update(ctx, crdInstance)
-	//if err != nil {
-	//	log.Error(err, "Failed to update Memcached status")
-	//	return ctrl.Result{}, err
-	//}
-
 	isInstanaAgentDeleted := crdInstance.GetDeletionTimestamp() != nil
 	if isInstanaAgentDeleted {
 		r.log.Info("Instana Agent Operator CustomResource is deleted. Cleanup Agent.")
@@ -164,10 +157,21 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	r.log.V(1).Info("Injecting finalizer into CRD, for cleanup when CRD gets removed")
-	if err = r.injectFinalizer(ctx, crdInstance); err != nil {
+	if err = r.getAndDeleteOldOperator(ctx); err != nil {
+		r.log.Error(err, "Unrecoverable error updating the old Operator spec. Cannot continue Agent installation")
 		return ctrl.Result{}, err
 	}
+
+	r.log.V(1).Info("Validating the CRD")
+	if err = r.validateAgentCrd(crdInstance); err != nil {
+		r.log.Error(err, "Unrecoverable error validating and converting the Instana Agent CRD for deployment")
+		return ctrl.Result{}, err
+	}
+
+	//r.log.V(1).Info("Injecting finalizer into CRD, for cleanup when CRD gets removed")
+	//if err = r.injectFinalizer(ctx, crdInstance); err != nil {
+	//	return ctrl.Result{}, err
+	//}
 
 	// First try to start Leader Election Coordination so to return error if we cannot get it started
 	if r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled() {
@@ -182,6 +186,13 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
+
+	//crdInstance.Status.
+	//err = r.client.Update(ctx, crdInstance)
+	//if err != nil {
+	//	log.Error(err, "Failed to update Memcached status")
+	//	return ctrl.Result{}, err
+	//}
 
 	if err = r.agentReconciliation.CreateOrUpdate(req, crdInstance); err != nil {
 		return ctrl.Result{}, err
@@ -240,4 +251,61 @@ func (r *InstanaAgentReconciler) fetchInstanaNamespace(ctx context.Context) (*co
 
 	r.log.V(1).Info(fmt.Sprintf("Found Instana-Agent Namespace: %v", instanaNamespace))
 	return instanaNamespace, nil
+}
+
+func (r *InstanaAgentReconciler) getAndDeleteOldOperator(ctx context.Context) error {
+	oldOperatorDeployment := &appV1.Deployment{}
+	if err := r.client.Get(ctx, client.ObjectKey{
+		Namespace: "instana-agent",
+		Name:      "instana-agent-operator",
+	}, oldOperatorDeployment); err != nil {
+		if k8sErrors.IsNotFound(err) {
+			r.log.V(1).Info("No old Operator Deployment found, not necessary to delete")
+			return nil
+		} else {
+			r.log.Error(err, "Failure looking for old Operator Deployment")
+			return err
+		}
+	}
+
+	r.log.V(1).Info(fmt.Sprintf("Found old Operator Deployment and will try to delete: %v", oldOperatorDeployment))
+	if err := r.client.Delete(ctx, oldOperatorDeployment); err != nil {
+		r.log.Error(err, "Failure deleting old Operator Deployment")
+		return err
+	}
+
+	return nil
+}
+
+// validateAgentCrd does some basic validation as otherwise Helm may not deploy the Agent DaemonSet but silently skip it if
+// certain fields are omitted. In the future we should prevent this by adding a Validation WebHook.
+func (r *InstanaAgentReconciler) validateAgentCrd(crd *instanaV1.InstanaAgent) error {
+	if len(crd.Spec.Agent.EndpointHost) == 0 || len(crd.Spec.Agent.EndpointPort) == 0 || crd.Spec.Agent.EndpointPort == "0" {
+		r.log.Info(`
+##############################################################################
+####    ERROR: You did not specify a correct Endpoint (host and/or port)  ####
+##############################################################################
+`)
+		return fmt.Errorf("CRD Agent Spec should contain valid EndpointHost and EndpointPort")
+	}
+
+	if len(crd.Spec.Cluster.Name) == 0 && len(crd.Spec.Zone.Name) == 0 {
+		r.log.Info(`
+##############################################################################
+####    ERROR: You did not specify a zone or name for this cluster.       ####
+##############################################################################
+`)
+		return fmt.Errorf("CRD Agent Spec should contain either Zone or Cluster name")
+	}
+
+	if len(crd.Spec.Agent.Key) == 0 && len(crd.Spec.Agent.KeysSecret) == 0 {
+		r.log.Info(`
+##############################################################################
+####    ERROR: You did not specify your secret agent key.                 ####
+##############################################################################
+`)
+		return fmt.Errorf("CRD Agent Spec should contain either Key or KeySecret")
+	}
+
+	return nil
 }

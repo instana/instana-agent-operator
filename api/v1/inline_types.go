@@ -67,11 +67,16 @@ type BaseAgentSpec struct {
 	// the one configured via the `agent.endpointHost`, `agent.endpointPort` and `agent.key` setting
 	AdditionalBackends []BackendSpec `json:"additionalBackends,omitempty"`
 
-	Image *ImageSpec `json:"image,omitempty"`
+	// TLS for end-to-end encryption between Instana agent and clients accessing the agent.
+	// The Instana agent does not yet allow enforcing TLS encryption.
+	// TLS is only enabled on a connection when requested by the client.
+	TlsSpec `json:"tls,omitempty"`
 
-	UpdateStrategy *appV1.DaemonSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	ImageSpec `json:"image,omitempty"`
 
-	Pod *AgentPodSpec `json:"pod,omitempty"`
+	UpdateStrategy appV1.DaemonSetUpdateStrategy `json:"updateStrategy,omitempty"`
+
+	Pod AgentPodSpec `json:"pod,omitempty"`
 
 	// agent.proxyHost sets the INSTANA_AGENT_PROXY_HOST environment variable.
 	ProxyHost string `json:"proxyHost,omitempty"`
@@ -92,32 +97,48 @@ type BaseAgentSpec struct {
 	//   INSTANA_AGENT_TAGS: dev
 	Env map[string]string `json:"env,omitempty"`
 
-	Configuration     *ConfigurationSpec `json:"configuration,omitempty"`
-	ConfigurationYaml string             `json:"configuration_yaml,omitempty"`
+	Configuration     ConfigurationSpec `json:"configuration,omitempty"`
+	ConfigurationYaml string            `json:"configuration_yaml,omitempty"`
 
 	// agent.redactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS environment variable.
 	RedactKubernetesSecrets string `json:"redactKubernetesSecrets,omitempty"`
 
 	// agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
-	Host *HostSpec `json:"host,omitempty"`
+	Host HostSpec `json:"host,omitempty"`
+
+	// Override for the Maven repository URL when the Agent needs to connect to a locally provided Maven repository 'proxy'
+	// Alternative to 'host.repository' for referencing a different Maven repo.
+	MvnRepoUrl string `json:"instanaMvnRepoUrl,omitempty"`
 }
 
 type AgentPodSpec struct {
 	// agent.pod.annotations are additional annotations to be added to the agent pods.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
+	// agent.pod.labels are additional labels to be added to the agent pods.
+	Labels map[string]string `json:"labels,omitempty"`
+
 	// agent.pod.tolerations are tolerations to influence agent pod assignment.
 	Tolerations []coreV1.Toleration `json:"tolerations,omitempty"`
 
 	// agent.pod.affinity are affinities to influence agent pod assignment.
 	// https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
-	Affinity *coreV1.Affinity `json:"affinity,omitempty"`
+	Affinity coreV1.Affinity `json:"affinity,omitempty"`
 
 	// agent.pod.priorityClassName is the name of an existing PriorityClass that should be set on the agent pods
 	// https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	coreV1.ResourceRequirements `json:",inline"`
+}
+
+type TlsSpec struct {
+	// secretName is the name of the secret that has the relevant files.
+	SecretName string `json:"secretName,omitempty"`
+	// certificate (together with key) is the alternative to an existing Secret. Must be base64 encoded.
+	Certificate string `json:"certificate,omitempty"`
+	// key (together with certificate) is the alternative to an existing Secret. Must be base64 encoded.
+	Key string `json:"key,omitempty"`
 }
 
 type ImageSpec struct {
@@ -151,7 +172,7 @@ type ConfigurationSpec struct {
 }
 
 type Prometheus struct {
-	RemoteWrite *Enabled `json:"remoteWrite,omitempty"`
+	RemoteWrite Enabled `json:"remoteWrite,omitempty"`
 }
 
 type BackendSpec struct {
@@ -169,12 +190,12 @@ type PodSecurityPolicySpec struct {
 	Name `json:",inline"`
 }
 
-type K8sSpec struct {
-	Deployment *K8sDeploymentSpec `json:"deployment,omitempty"`
+type KubernetesSpec struct {
+	DeploymentSpec KubernetesDeploymentSpec `json:"deployment,omitempty"`
 }
 
-type K8sDeploymentSpec struct {
+type KubernetesDeploymentSpec struct {
 	Enabled  `json:",inline"`
-	Replicas int                          `json:"replicas,omitempty"`
-	Pod      *coreV1.ResourceRequirements `json:"pod,omitempty"`
+	Replicas int                         `json:"replicas,omitempty"`
+	Pod      coreV1.ResourceRequirements `json:"pod,omitempty"`
 }

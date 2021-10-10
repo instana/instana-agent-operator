@@ -19,6 +19,7 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
+	agentoperatorv1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/instana/instana-agent-operator/version"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -41,6 +42,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+	utilruntime.Must(agentoperatorv1beta1.AddToScheme(scheme))
 	utilruntime.Must(agentoperatorv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -59,6 +61,8 @@ func main() {
 
 	// When running in debug-mode, include some more logging etc
 	debugMode, _ := strconv.ParseBool(os.Getenv("DEBUG_MODE"))
+	// For local dev mode, make it possible to override the Certificate Path where certificates might get stored
+	certificatePath := os.Getenv("CERTIFICATE_PATH")
 
 	opts := zap.Options{
 		Development: debugMode,
@@ -79,6 +83,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "819a9291.instana.io",
+		CertDir:                certificatePath,
 	})
 	if err != nil {
 		log.Error(err, "Unable to start manager")
@@ -86,9 +91,12 @@ func main() {
 	}
 
 	// Register our Conversion Webhook to translate v1beta1 to v1 versions
-	if err = (&agentoperatorv1.InstanaAgent{}).SetupWebhookWithManager(mgr); err != nil {
-		log.Error(err, "unable to create webhook", "webhook", "InstanaAgent")
-		os.Exit(1)
+	// WebHooks are by default enabled, so "empty" variable should not be interpreted as "false"
+	if enableWebhooks, err := strconv.ParseBool(os.Getenv("ENABLE_WEBHOOKS")); enableWebhooks || err != nil {
+		if err = (&agentoperatorv1.InstanaAgent{}).SetupWebhookWithManager(mgr); err != nil {
+			log.Error(err, "unable to create webhook", "webhook", "InstanaAgent")
+			os.Exit(1)
+		}
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

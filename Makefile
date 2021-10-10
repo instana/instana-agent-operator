@@ -85,6 +85,7 @@ build: setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export DEBUG_MODE=true
+run: export CERTIFICATE_PATH=testcerts
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
@@ -98,11 +99,20 @@ docker-push: ## Push the docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	kubectl create ns instana-agent
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
+	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
+	# Install the Operator Manager and CRD resources
+	kubectl create ns instana-agent || true
+	$(KUSTOMIZE) build config/local_development | sed -e "s|localhost|$$(ip route get 1 | awk '{print $$(NF-2);exit}')|" | kubectl apply -f -
+	# Wait until the Secret with certificates is available
+	while ! kubectl get secret webhook-server-cert -n instana-agent; do echo "...Waiting for Certs to be created" && sleep 2; done
+	# Download generated certificates to local, because for WebHooks TLS is mandatory
+	kubectl get secret webhook-server-cert -n instana-agent --template='{{index .data "ca.crt" | base64decode}}' > testcerts/ca.crt
+	kubectl get secret webhook-server-cert -n instana-agent --template='{{index .data "tls.crt" | base64decode}}' > testcerts/tls.crt
+	kubectl get secret webhook-server-cert -n instana-agent --template='{{index .data "tls.key" | base64decode}}' > testcerts/tls.key
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/local_development | kubectl delete -f -
 	kubectl delete ns instana-agent
 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config

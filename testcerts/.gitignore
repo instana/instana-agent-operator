@@ -1,0 +1,4 @@
+# Ignore all files in this directory except for the .gitignore file so that Git re-creates this empty dir
+
+*
+!.gitignore

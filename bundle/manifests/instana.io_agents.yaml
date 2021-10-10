@@ -142,6 +142,12 @@ spec:
                           property is ignored.
                         type: string
                     type: object
+                  instanaMvnRepoUrl:
+                    description: Override for the Maven repository URL when the Agent
+                      needs to connect to a locally provided Maven repository 'proxy'
+                      Alternative to 'host.repository' for referencing a different
+                      Maven repo.
+                    type: string
                   key:
                     description: agent.key is the secret token which your agent uses
                       to authenticate to Instana's servers.
@@ -1073,6 +1079,12 @@ spec:
                         description: agent.pod.annotations are additional annotations
                           to be added to the agent pods.
                         type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: agent.pod.labels are additional labels to be
+                          added to the agent pods.
+                        type: object
                       limits:
                         additionalProperties:
                           anyOf:
@@ -1172,6 +1184,25 @@ spec:
                     description: agent.redactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS
                       environment variable.
                     type: string
+                  tls:
+                    description: TLS for end-to-end encryption between Instana agent
+                      and clients accessing the agent. The Instana agent does not
+                      yet allow enforcing TLS encryption. TLS is only enabled on a
+                      connection when requested by the client.
+                    properties:
+                      certificate:
+                        description: certificate (together with key) is the alternative
+                          to an existing Secret. Must be base64 encoded.
+                        type: string
+                      key:
+                        description: key (together with certificate) is the alternative
+                          to an existing Secret. Must be base64 encoded.
+                        type: string
+                      secretName:
+                        description: secretName is the name of the secret that has
+                          the relevant files.
+                        type: string
+                    type: object
                   updateStrategy:
                     description: DaemonSetUpdateStrategy is a struct used to control
                       the update strategy for a DaemonSet.
@@ -1295,6 +1326,12 @@ spec:
                 type: string
               agent.serviceAccountName:
                 type: string
+              agent.tls.certificate:
+                type: string
+              agent.tls.key:
+                type: string
+              agent.tls.secretName:
+                type: string
               agent.zone.name:
                 type: string
               cluster:
@@ -1309,10 +1346,6 @@ spec:
               config.files:
                 additionalProperties:
                   type: string
-                description: OLD v1beta1 spec which, by including temporarily, we
-                  can provide backwards compatibility for the v1beta1 spec as served
-                  by the Java Operator. Prevents having to modify the CR outside the
-                  Operator.
                 type: object
               kubernetes:
                 properties:
@@ -1409,6 +1442,28 @@ spec:
           status:
             description: InstanaAgentStatus defines the observed state of InstanaAgent
             properties:
+              clusterrole:
+                description: ResourceInfo holds Name and UID to given object
+                properties:
+                  name:
+                    type: string
+                  uid:
+                    type: string
+                required:
+                - name
+                - uid
+                type: object
+              clusterrolebinding:
+                description: ResourceInfo holds Name and UID to given object
+                properties:
+                  name:
+                    type: string
+                  uid:
+                    type: string
+                required:
+                - name
+                - uid
+                type: object
               configmap:
                 description: ResourceInfo holds Name and UID to given object
                 properties:
@@ -1432,6 +1487,28 @@ spec:
                 - uid
                 type: object
               leadingAgentPod:
+                description: ResourceInfo holds Name and UID to given object
+                properties:
+                  name:
+                    type: string
+                  uid:
+                    type: string
+                required:
+                - name
+                - uid
+                type: object
+              secret:
+                description: ResourceInfo holds Name and UID to given object
+                properties:
+                  name:
+                    type: string
+                  uid:
+                    type: string
+                required:
+                - name
+                - uid
+                type: object
+              serviceaccount:
                 description: ResourceInfo holds Name and UID to given object
                 properties:
                   name:
@@ -1524,6 +1601,12 @@ spec:
               agent.secretName:
                 type: string
               agent.serviceAccountName:
+                type: string
+              agent.tls.certificate:
+                type: string
+              agent.tls.key:
+                type: string
+              agent.tls.secretName:
                 type: string
               agent.zone.name:
                 type: string
