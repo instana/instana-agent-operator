@@ -18,3 +18,7 @@ LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 COPY bundle/manifests /manifests/
 COPY bundle/metadata /metadata/
 COPY bundle/tests/scorecard /tests/scorecard/
+
+# Allow bundle to be published on 4.8 and beyond
+LABEL com.redhat.openshift.versions="v4.8"
+LABEL com.redhat.delivery.operator.bundle=true

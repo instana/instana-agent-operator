@@ -13,6 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+
+	instanaV1 "github.com/instana/instana-agent-operator/api/v1"
+
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -27,12 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewLeaderElection(client client.Client) *LeaderElector {
+func NewLeaderElection(client client.Client, namespacedName types.NamespacedName) *LeaderElector {
 	return &LeaderElector{
 		client:                      client,
 		log:                         logf.Log.WithName("agent.leaderelector"),
 		coordinationApi:             coordination_api.New(),
 		leaderElectionTaskScheduler: chrono.NewDefaultTaskScheduler(),
+		namespacedName:              namespacedName,
 	}
 }
 
@@ -41,6 +46,7 @@ type LeaderElector struct {
 	log                         logr.Logger
 	coordinationApi             coordination_api.PodCoordinationApi
 	leaderElectionTaskScheduler chrono.TaskScheduler
+	namespacedName              types.NamespacedName
 	// Uninitialized fields from NewLeaderElection
 	leaderElectionTask chrono.ScheduledTask
 }
@@ -71,9 +77,13 @@ func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 
 		assignCtx, cancelFunc := context.WithTimeout(ctx, 20*time.Second)
 		defer cancelFunc()
-		l.pollAgentsAndAssignLeaders(assignCtx, activePods)
+		leaders := l.pollAgentsAndAssignLeaders(assignCtx, activePods)
 
-	}, 5*time.Second); err != nil {
+		if leaders != nil {
+			l.updateLeaderStatusInCustomResource(leaders, activePods)
+		}
+
+	}, 10*time.Second); err != nil {
 		return fmt.Errorf("failure scheduling leader elector coordination task: %w", err)
 	} else {
 		l.leaderElectionTask = task
@@ -100,7 +110,7 @@ func (l *LeaderElector) fetchPods(ctx context.Context, agentNameSpace string) (m
 	podList := &coreV1.PodList{}
 	activePods := make(map[string]coreV1.Pod)
 	lbs := map[string]string{
-		"app.kubernetes.io/name": "instana-agent",
+		"app.kubernetes.io/name": l.namespacedName.Namespace,
 	}
 	labelSelector := labels.SelectorFromSet(lbs)
 	listOps := &client.ListOptions{Namespace: agentNameSpace, LabelSelector: labelSelector}
@@ -119,19 +129,19 @@ func (l *LeaderElector) fetchPods(ctx context.Context, agentNameSpace string) (m
 // pollAgentsAndAssignLeaders will first get all "requested resources" from every Agent Pod. It will then calculate new
 // assignments, prioritizing any Pod that already holds that assignment.
 // The function is executed in a loop, so that should assignments fail for any Pod, determining assignments starts over from scratch.
-func (l *LeaderElector) pollAgentsAndAssignLeaders(ctx context.Context, pods map[string]coreV1.Pod) {
+func (l *LeaderElector) pollAgentsAndAssignLeaders(ctx context.Context, pods map[string]coreV1.Pod) map[string][]string {
 outer:
 	for {
 		// Safeguard to prevent infinite loop should we fail to assign all pods
 		if len(pods) == 0 {
-			return
+			return nil
 		}
 
 		leadershipStatus := l.pollLeadershipStatus(ctx, pods)
 		// if leadershipStatus.Status is empty list that means we were not able to get leadership status for any pod
 		// so we can't proceed with leadership assigning process and we should return
 		if len(leadershipStatus.Status) == 0 {
-			return
+			return nil
 		}
 
 		desiredPodWithAssignments := l.calculateDesiredAssignments(leadershipStatus)
@@ -155,7 +165,7 @@ outer:
 		}
 
 		// All assignments finished correctly, so exit
-		return
+		return desiredPodWithAssignments
 	}
 }
 
@@ -223,6 +233,45 @@ func (l *LeaderElector) calculateDesiredAssignments(leadershipStatus *Leadership
 	}
 
 	return desiredPodWithAssignments
+}
+
+func (l *LeaderElector) updateLeaderStatusInCustomResource(leaders map[string][]string, pods map[string]coreV1.Pod) {
+	// Don't do any error handling. Updating the Status field is not critical ATM and will be retried each cycle
+
+	// Convert from map pods -> statuses to status -> ResourceInfo(pod)
+	leadershipStatus := make(map[string]instanaV1.ResourceInfo, len(leaders))
+	for podUID, leaderTypes := range leaders {
+		for _, leaderType := range leaderTypes {
+
+			var podName string
+			if pod, ok := pods[podUID]; ok {
+				podName = pod.Name
+			} else {
+				podName = "<unknown>"
+			}
+
+			leadershipStatus[leaderType] = instanaV1.ResourceInfo{
+				Name: podName,
+				UID:  podUID,
+			}
+		}
+	}
+
+	crdInstance := &instanaV1.InstanaAgent{}
+	if err := l.client.Get(context.Background(), l.namespacedName, crdInstance); err != nil {
+		l.log.Error(err, "Failure querying InstanaAgent CR to update LeaderShip Status field")
+		return
+	}
+
+	// Only update the CR if anything actually changed
+	less := func(a, b string) bool { return a < b }
+	if crdInstance.Status.LeadingAgentPod == nil || !cmp.Equal(leadershipStatus, crdInstance.Status.LeadingAgentPod, cmpopts.SortSlices(less)) {
+
+		crdInstance.Status.LeadingAgentPod = leadershipStatus
+		if err := l.client.Status().Update(context.Background(), crdInstance); err != nil {
+			l.log.Error(err, "Failed updating CR with LeaderShip Status")
+		}
+	}
 }
 
 type LeadershipStatus struct {

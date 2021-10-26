@@ -1475,16 +1475,20 @@ spec:
                 - uid
                 type: object
               leadingAgentPod:
-                description: ResourceInfo holds Name and UID to given object
-                properties:
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - name
-                - uid
+                additionalProperties:
+                  description: ResourceInfo holds Name and UID to given object
+                  properties:
+                    name:
+                      type: string
+                    uid:
+                      type: string
+                  required:
+                  - name
+                  - uid
+                  type: object
                 type: object
+              oldVersionsUpdated:
+                type: boolean
               secret:
                 description: ResourceInfo holds Name and UID to given object
                 properties:

@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
+const (
+	DefaultLeaderKey = "com.instana.plugin.kubernetes.leader"
+)
+
 // ConvertTo converts this InstanaAgent to the Hub version (v1).
 func (src *InstanaAgent) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*v1.InstanaAgent)
@@ -100,11 +104,14 @@ func (src *InstanaAgent) convertInternalSpecTo(dst *v1.InstanaAgent) {
 func (src *InstanaAgent) convertStatusTo(dstStatus *v1.InstanaAgentStatus) {
 	dstStatus.ConfigMap = convertResourceInfoTo(src.Status.ConfigMap)
 	dstStatus.DaemonSet = convertResourceInfoTo(src.Status.DaemonSet)
-	dstStatus.LeadingAgentPod = convertResourceInfoTo(src.Status.LeadingAgentPod)
 	dstStatus.ServiceAccount = convertResourceInfoTo(src.Status.ServiceAccount)
 	dstStatus.ClusterRole = convertResourceInfoTo(src.Status.ClusterRoleBinding)
 	dstStatus.ClusterRoleBinding = convertResourceInfoTo(src.Status.ClusterRoleBinding)
 	dstStatus.Secret = convertResourceInfoTo(src.Status.Secret)
+	if dstStatus.LeadingAgentPod == nil {
+		dstStatus.LeadingAgentPod = make(map[string]v1.ResourceInfo, 1)
+	}
+	dstStatus.LeadingAgentPod[DefaultLeaderKey] = convertResourceInfoTo(src.Status.LeadingAgentPod)
 }
 
 func convertResourceInfoTo(src ResourceInfo) v1.ResourceInfo {
@@ -185,11 +192,18 @@ func (dst *InstanaAgent) ConvertFrom(srcRaw conversion.Hub) error {
 func (dst *InstanaAgent) convertStatusFrom(srcStatus v1.InstanaAgentStatus) {
 	dst.Status.ConfigMap = convertResourceInfoFrom(srcStatus.ConfigMap)
 	dst.Status.DaemonSet = convertResourceInfoFrom(srcStatus.DaemonSet)
-	dst.Status.LeadingAgentPod = convertResourceInfoFrom(srcStatus.LeadingAgentPod)
 	dst.Status.ServiceAccount = convertResourceInfoFrom(srcStatus.ServiceAccount)
 	dst.Status.ClusterRole = convertResourceInfoFrom(srcStatus.ClusterRoleBinding)
 	dst.Status.ClusterRoleBinding = convertResourceInfoFrom(srcStatus.ClusterRoleBinding)
 	dst.Status.Secret = convertResourceInfoFrom(srcStatus.Secret)
+	if leader, ok := srcStatus.LeadingAgentPod[DefaultLeaderKey]; ok {
+		dst.Status.LeadingAgentPod = convertResourceInfoFrom(leader)
+	} else {
+		// If the expected key is not there, pick just the first value we find
+		for _, value := range srcStatus.LeadingAgentPod {
+			dst.Status.LeadingAgentPod = convertResourceInfoFrom(value)
+		}
+	}
 }
 
 func convertResourceInfoFrom(src v1.ResourceInfo) ResourceInfo {

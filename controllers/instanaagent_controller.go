@@ -9,10 +9,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
+
 	instanaV1 "github.com/instana/instana-agent-operator/api/v1"
 
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/client-go/rest"
 
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -157,21 +158,47 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if err = r.getAndDeleteOldOperator(ctx); err != nil {
-		r.log.Error(err, "Unrecoverable error updating the old Operator spec. Cannot continue Agent installation")
-		return ctrl.Result{}, err
-	}
-
+	// Validate the Custom Resource object (configuration) before we're taking any other actions
 	r.log.V(1).Info("Validating the CRD")
-	if err = r.validateAgentCrd(crdInstance); err != nil {
+	if err := r.validateAgentCrd(crdInstance); err != nil {
 		r.log.Error(err, "Unrecoverable error validating and converting the Instana Agent CRD for deployment")
 		return ctrl.Result{}, err
 	}
 
-	//r.log.V(1).Info("Injecting finalizer into CRD, for cleanup when CRD gets removed")
-	//if err = r.injectFinalizer(ctx, crdInstance); err != nil {
-	//	return ctrl.Result{}, err
-	//}
+	if !crdInstance.Status.OldVersionsUpdated {
+		r.log.V(1).Info("Checking for old Agent Operator installations and purging / upgrading them")
+
+		// If something got deleted, give the Operator another reconcile loop to clean up before continuing. So return immediately
+
+		if deleted, err := r.getAndDeleteOldOperator(ctx); err != nil {
+			r.log.Error(err, "Unrecoverable error updating the old Operator spec. Cannot continue Agent installation")
+			return ctrl.Result{}, err
+		} else if deleted {
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		if deleted, err := r.getAndDeleteOldOperatorResources(ctx); err != nil {
+			r.log.Error(err, "Unrecoverable error updating old resources for Helm-based installation. Cannot continue Agent installation")
+			return ctrl.Result{}, err
+		} else if deleted {
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		crdInstance.Status.OldVersionsUpdated = true
+		if err := r.client.Status().Update(ctx, crdInstance); err != nil {
+			// Ignore any update issues as they're not severe enough to trip over
+			log.Error(err, "Failed to update Instana Agent CRD status, ignoring")
+		}
+	}
+
+	//
+	// Potential Old Operator resources removed, start installation of (new) Operator
+	//
+
+	r.log.V(1).Info("Injecting finalizer into CRD, for cleanup when CRD gets removed")
+	if err := r.injectFinalizer(ctx, crdInstance); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// First try to start Leader Election Coordination so to return error if we cannot get it started
 	if r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled() {
@@ -180,24 +207,22 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			r.leaderElector.CancelLeaderElection()
 		}
 
-		r.leaderElector = leaderelection.NewLeaderElection(r.client)
-		if err = r.leaderElector.StartCoordination(r.crAppNamespace); err != nil {
+		r.leaderElector = leaderelection.NewLeaderElection(r.client, req.NamespacedName)
+		if err := r.leaderElector.StartCoordination(r.crAppNamespace); err != nil {
 			r.log.Error(err, "Failure starting Leader Election Coordination")
 			return ctrl.Result{}, err
 		}
 	}
 
-	//crdInstance.Status.
-	//err = r.client.Update(ctx, crdInstance)
-	//if err != nil {
-	//	log.Error(err, "Failed to update Memcached status")
-	//	return ctrl.Result{}, err
-	//}
-
-	if err = r.agentReconciliation.CreateOrUpdate(req, crdInstance); err != nil {
+	if err := r.agentReconciliation.CreateOrUpdate(req, crdInstance); err != nil {
 		return ctrl.Result{}, err
 	}
 	r.log.Info("Agent installed/upgraded successfully")
+
+	if err := r.updateStatusFields(ctx, crdInstance); err != nil {
+		// Ignore any update issues as they're not severe enough to trip over
+		r.log.Error(err, "Failure updating Instana Agent CustomResource Status fields, ignoring")
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -253,30 +278,6 @@ func (r *InstanaAgentReconciler) fetchInstanaNamespace(ctx context.Context) (*co
 	return instanaNamespace, nil
 }
 
-func (r *InstanaAgentReconciler) getAndDeleteOldOperator(ctx context.Context) error {
-	oldOperatorDeployment := &appV1.Deployment{}
-	if err := r.client.Get(ctx, client.ObjectKey{
-		Namespace: "instana-agent",
-		Name:      "instana-agent-operator",
-	}, oldOperatorDeployment); err != nil {
-		if k8sErrors.IsNotFound(err) {
-			r.log.V(1).Info("No old Operator Deployment found, not necessary to delete")
-			return nil
-		} else {
-			r.log.Error(err, "Failure looking for old Operator Deployment")
-			return err
-		}
-	}
-
-	r.log.V(1).Info(fmt.Sprintf("Found old Operator Deployment and will try to delete: %v", oldOperatorDeployment))
-	if err := r.client.Delete(ctx, oldOperatorDeployment); err != nil {
-		r.log.Error(err, "Failure deleting old Operator Deployment")
-		return err
-	}
-
-	return nil
-}
-
 // validateAgentCrd does some basic validation as otherwise Helm may not deploy the Agent DaemonSet but silently skip it if
 // certain fields are omitted. In the future we should prevent this by adding a Validation WebHook.
 func (r *InstanaAgentReconciler) validateAgentCrd(crd *instanaV1.InstanaAgent) error {
@@ -305,6 +306,50 @@ func (r *InstanaAgentReconciler) validateAgentCrd(crd *instanaV1.InstanaAgent) e
 ##############################################################################
 `)
 		return fmt.Errorf("CRD Agent Spec should contain either Key or KeySecret")
+	}
+
+	return nil
+}
+
+func (r *InstanaAgentReconciler) updateStatusFields(ctx context.Context, crdInstance *instanaV1.InstanaAgent) error {
+	configMaps := &coreV1.ConfigMapList{}
+	if err := r.client.List(ctx, configMaps, client.InNamespace(r.crAppNamespace)); err != nil {
+		r.log.Error(err, "Failed getting ConfigMap to update Instana Agent CRD Status field")
+		return err
+	}
+	var configMapResource instanaV1.ResourceInfo
+	for _, val := range configMaps.Items {
+		if val.Name == "instana-agent" {
+			configMapResource = instanaV1.ResourceInfo{
+				Name: val.Name,
+				UID:  string(val.UID),
+			}
+		}
+	}
+
+	daemonSets := &appV1.DaemonSetList{}
+	if err := r.client.List(ctx, daemonSets, client.InNamespace(r.crAppNamespace)); err != nil {
+		r.log.Error(err, "Failed getting DaemonSet to update Instana Agent CRD Status field")
+		return err
+	}
+	var daemonSetResource instanaV1.ResourceInfo
+	for _, val := range daemonSets.Items {
+		if val.Name == "instana-agent" {
+			daemonSetResource = instanaV1.ResourceInfo{
+				Name: val.Name,
+				UID:  string(val.UID),
+			}
+		}
+	}
+
+	if !cmp.Equal(configMapResource, crdInstance.Status.ConfigMap) && !cmp.Equal(daemonSetResource, crdInstance.Status.DaemonSet) {
+		crdInstance.Status.ConfigMap = configMapResource
+		crdInstance.Status.DaemonSet = daemonSetResource
+
+		if err := r.client.Status().Update(ctx, crdInstance); err != nil {
+			r.log.Error(err, "Failed to update Instana Agent CRD Status field")
+			return err
+		}
 	}
 
 	return nil

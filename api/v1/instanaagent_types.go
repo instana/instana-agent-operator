@@ -88,9 +88,11 @@ type ResourceInfo struct {
 
 // InstanaAgentStatus defines the observed state of InstanaAgent
 type InstanaAgentStatus struct {
-	ConfigMap       ResourceInfo `json:"configmap,omitempty"`
-	DaemonSet       ResourceInfo `json:"daemonset,omitempty"`
-	LeadingAgentPod ResourceInfo `json:"leadingAgentPod,omitempty"`
+	OldVersionsUpdated bool `json:"oldVersionsUpdated,omitempty"`
+
+	ConfigMap       ResourceInfo            `json:"configmap,omitempty"`
+	DaemonSet       ResourceInfo            `json:"daemonset,omitempty"`
+	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
 
 	// Other Status fields that need to be included for backwards compatibility (Conversion WebHook needs to result in same CR
 	// when converting back and forth)
