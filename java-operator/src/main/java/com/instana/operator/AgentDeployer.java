@@ -47,6 +47,7 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
 @ApplicationScoped
 public class AgentDeployer {
 
+  private static final String DEFAULT_NAME_TLS = "instana-agent-tls";
   private static final String DAEMON_SET_NAME = "instana-agent";
   private static final String VERSION_LABEL = "app.kubernetes.io/version";
 
@@ -77,6 +78,7 @@ public class AgentDeployer {
 
   // We will watch all created resources so that we can re-create them if they are deleted.
   private Disposable[] watchers = null;
+  private Disposable tlsSecretWatcher = null;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentDeployer.class);
 
@@ -99,6 +101,12 @@ public class AgentDeployer {
         create(DaemonSet.class, DaemonSetList.class, this::newDaemonSet, c.apps().daemonSets()),
         watchDaemonSets(targetNamespace)
     };
+
+    // additional watcher only exists if TLS is configured with certificate and private key
+    // if TLS is configured with an existing secret, it does not have to create a new secret
+    if (isTlsEncryptionConfigured(owner.getSpec()) && isBlank(owner.getSpec().getAgentTlsSecretName())) {
+      tlsSecretWatcher = create(Secret.class, SecretList.class, this::createTlsSecret, c.secrets());
+    }
   }
 
   void customResourceDeleted() {
@@ -108,6 +116,12 @@ public class AgentDeployer {
       }
     }
     watchers = null;
+
+    if (tlsSecretWatcher != null) {
+      tlsSecretWatcher.dispose();
+    }
+    tlsSecretWatcher = null;
+
     owner = null;
     daemonSetDeletedEvent.fireAsync(new DaemonSetDeleted(), asyncSerial)
         .exceptionally(fatalErrorHandler::logAndExit);
@@ -273,7 +287,6 @@ public class AgentDeployer {
     env.add(createEnvVar("INSTANA_ZONE", config.getAgentZoneName()));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT", config.getAgentEndpointHost()));
     env.add(createEnvVar("INSTANA_AGENT_ENDPOINT_PORT", "" + config.getAgentEndpointPort()));
-    env.add(createEnvVar("JAVA_OPTS", "-Xmx" + config.getAgentMemLimit() / 3 + "M -XX:+ExitOnOutOfMemoryError"));
 
     if (!isBlank(config.getAgentDownloadKey())) {
       env.add(new EnvVarBuilder()
@@ -334,6 +347,8 @@ public class AgentDeployer {
           .build());
     }
 
+    configureTlsEncryption(container, owner, daemonSet, config);
+
     return daemonSet;
   }
 
@@ -367,6 +382,51 @@ public class AgentDeployer {
     Boolean otelActiveFromCustomResource = config.getAgentOpenTelemetryEnabled();
 
     return otelActiveFromCustomResource || getBoolean(otelActiveFromEnvVar);
+  }
+
+  private void configureTlsEncryption(Container container, InstanaAgent owner, DaemonSet daemonSet, InstanaAgentSpec config) {
+    if (isTlsEncryptionConfigured(config)) {
+      LOGGER.debug("Configure TLS encryption");
+      final String secretName = isBlank(config.getAgentTlsSecretName()) ? DEFAULT_NAME_TLS : config.getAgentTlsSecretName();
+      final SecretVolumeSource secretVolumeSource = new SecretVolumeSource(0440, new ArrayList<>(), false, secretName);
+
+      daemonSet
+          .getSpec()
+          .getTemplate()
+          .getSpec()
+          .getVolumes()
+          .add(new VolumeBuilder().withName(DEFAULT_NAME_TLS).withSecret(secretVolumeSource).build());
+
+      container
+          .getVolumeMounts()
+          .add(new VolumeMountBuilder()
+              .withName(DEFAULT_NAME_TLS)
+              .withReadOnly(true)
+              .withMountPath("/opt/instana/agent/etc/certs")
+              .build());
+    }
+  }
+
+  private boolean isTlsEncryptionConfigured(InstanaAgentSpec config) {
+    if (isBlank(config.getAgentTlsSecretName()) && (isBlank(config.getAgentTlsCertificate()) || isBlank(config.getAgentTlsKey()))) {
+      return false;
+    }
+    return true;
+  }
+
+  private Secret createTlsSecret(InstanaAgent owner,
+                                 MixedOperation<Secret, SecretList, DoneableSecret, Resource<Secret, DoneableSecret>> op) {
+    final InstanaAgentSpec config = owner.getSpec();
+
+    LOGGER.debug("Create TLS secret with provided certificate and private key");
+    Secret secret = load("instana-agent-tls.secret.yaml", owner, op);
+    final Map<String, String> data = new HashMap<String, String>() {{
+      put("tls.crt", config.getAgentTlsCertificate());
+      put("tls.key", config.getAgentTlsKey());
+    }};
+    secret.setData(data);
+    return secret;
+
   }
 
   private Quantity mem(int value, String format) {
