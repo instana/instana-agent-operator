@@ -13,15 +13,17 @@ BUNDLE_ANNOTATIONS="$ROOT/bundle/metadata/annotations.yaml"
 # Patch Dockerfile
 cat <<EOF >> $BUNDLE_DOCKERFILE
 
-# Allow bundle to be published on 4.8 and beyond
-LABEL com.redhat.openshift.versions="v4.8"
+# Allow bundle to be published on 4.5 and beyond
+LABEL com.redhat.openshift.versions="v4.5-v4.9"
 LABEL com.redhat.delivery.operator.bundle=true
+LABEL com.redhat.delivery.backport=false
 EOF
 
 # Patch Dockerfile
 cat <<EOF >> $BUNDLE_ANNOTATIONS
 
-  # Allow bundle to be published on 4.8 and beyond
-  com.redhat.openshift.versions: "v4.8"
+  # Allow bundle to be published on 4.5 and beyond
+  com.redhat.openshift.versions: "v4.5-v4.9"
   com.redhat.delivery.operator.bundle: true
+  com.redhat.delivery.backport: false
 EOF

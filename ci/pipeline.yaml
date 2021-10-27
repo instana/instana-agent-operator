@@ -42,19 +42,6 @@ resources:
       region_name: us-west-2
       skip_download: true
 
-  - name: operator-build-repository
-    type: google-cloud-storage
-    source:
-      bucket: agent-operator-ci
-      json_key: ((gcloud-agent-ci-account-key))
-      regexp: operator-(.*).tgz
-  - name: olm-build-repository
-    type: google-cloud-storage
-    source:
-      bucket: agent-operator-ci
-      json_key: ((gcloud-agent-ci-account-key))
-      regexp: olm-(.*).tgz
-  
   - name: codebuild-amd64
     type: codebuild
     icon: aws
@@ -137,59 +124,13 @@ jobs:
       trigger: true
     - set_pipeline: self
       file: agent-operator-release-source/ci/pipeline.yaml
-  - name: java-build
-    plan:
-    - get: agent-operator-release-source
-      trigger: true
-      passed: [self-update]
-    - load_var: operator-version
-      file: agent-operator-release-source/.git/ref
-      #file: agent-operator-release-source/version
-      reveal: true
-    - task: build
-      privileged: true
-      config:
-        platform: linux
-        image_resource:
-          type: registry-image
-          source:
-            repository: gcr.io/k8s-brewery/instana/concourse-dind
-            tag: mvn3-jdk8
-            username: _json_key
-            password: ((gcloud-agent-ci-account-key))
-        inputs:
-          - name: agent-operator-release-source
-        outputs:
-          - name: build
-        params:
-          VERSION: ((.:operator-version))
-        run:
-          path: entrypoint.sh
-          args:
-            - |
-              pushd agent-operator-release-source
 
-              export MAVEN_CONFIG=
-              ./mvnw versions:set -DnewVersion=$VERSION
-              ./mvnw -C -B clean verify
-
-              export TIMESTAMP=`date +"%Y%m%d%H%S"`
-              export TARGET=operator-$VERSION-$TIMESTAMP.tgz
-              tar cvzf ${TARGET} --directory=target lib instana-agent-operator-$VERSION-runner.jar
-              popd
-              mv agent-operator-release-source/${TARGET} build/
-    - put: operator-build-repository
-      params:
-        file: build/operator*.tgz
-  
   - name: prepare-build-bundle
     max_in_flight: 1
     plan:
-      - get: operator-build-repository
-        trigger: true
-        passed: [ java-build ]
       - get: agent-operator-release-source
-        passed: [ java-build ]
+        trigger: true
+        passed: [self-update]
       - task: package-build-bundle
         config:
           platform: linux
@@ -201,7 +142,6 @@ jobs:
           inputs:
             - name: agent-operator-release-source
               path: .
-            - name: operator-build-repository
           run:
             path: bash
             args:
@@ -210,8 +150,7 @@ jobs:
                 date
                 apt update
                 apt install -yqq zip unzip tar
-                tar xzvf operator-build-repository/operator*.tgz
-                zip --exclude '*operator-build-repository*' -r target/context.zip .
+                zip -r target/context.zip .
           outputs:
             - name: target
       - put: build-bundle
@@ -359,11 +298,6 @@ jobs:
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64"
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le"
 
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-amd64"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-s390x"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-arm64"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:latest-ppc64le"
-
                 echo "---> Building multi-architectural manifest"
                 docker manifest create "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION" \
                   --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" \
@@ -449,7 +383,7 @@ jobs:
                 # echo "---> Pushing multi-architectural manifest to Red Hat Container Registry"
                 # docker manifest push --purge "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
 
-  - name: olm-build
+  - name: operator-olm-github-release
     max_in_flight: 1
     plan:
       - get: agent-operator-release-source
@@ -479,46 +413,47 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install tar python3-devel wget git golang zip jq
-                python3 -m pip install pyyaml
-                python3 -m pip install requests
-                python3 -m pip install semver
-                go get github.com/google/go-jsonnet/cmd/jsonnet
-                ln /root/go/bin/jsonnet /bin/jsonnet
+                microdnf install make python3-devel golang git tar zip curl jq
 
                 pushd agent-operator-release-source
 
+                # Create a place to store our output for packaging up
+                mkdir -p target
+
                 # strip the leading "v" from the operator version for github artefacts and release:
                 export PREFIX="v"
-                export VERSION=${VERSION#"$PREFIX"}
+                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
-                ./olm/create-artifacts.sh $VERSION olm
-                ./olm/create-artifacts.sh $VERSION redhat
+                # get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://raw.githubusercontent.com/instana/community-operators/main/operators/instana-agent/instana-agent.package.yaml \
+                 | grep -i "currentCSV" \
+                 | sed 's/.*instana-agent-operator\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                # Create bundle for public operator with image: instana/instana-agent-operator:<version>
+                make IMG="instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" PREV_VERSION="${PREV_VERSION}" bundle
+
+                pushd bundle
+                zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
+                popd
+
+                # Create the YAML for installing the Agent Operator, which we want to package with the release
+                make IMG="instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
 
                 # For public releases, also create the appropriate github release:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
-                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then 
-                  echo "**** Public release, create github.com release $VERSION. ****"
-                  ./olm/operator-resources/create-github-release.sh $VERSION $GH_API_TOKEN
+                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
+                  echo "---> **** Internal release, GitHub release creation skipped. ****"
+                  exit 0
                 fi
 
-                export TIMESTAMP=`date +"%Y%m%d%H%S"`
-                export TARGET=olm-$VERSION-$TIMESTAMP.tgz
-                tar cvzf ${TARGET} --directory=target redhat-$VERSION.zip olm-$VERSION.zip operator-resources
-                popd
-                mv agent-operator-release-source/${TARGET} build/
-      - put: olm-build-repository
-        params:
-          file: build/olm*.tgz
+                echo "**** Public release, create github.com release $VERSION. ****"
+                ./ci/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
 
-  - name: olm-image-build
+  - name: redhat-olm-image
     max_in_flight: 1
     plan:
-      - get: olm-build-repository
-        trigger: true
-        passed: [ olm-build ]
       - get: agent-operator-release-source
-        passed: [ olm-build ]
+        passed: [ operator-olm-github-release ]
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         #file: agent-operator-release-source/version
@@ -530,8 +465,6 @@ jobs:
             type: registry-image
             source:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
-          inputs:
-            - name: olm-build-repository
           outputs:
             - name: context
           params:
@@ -541,15 +474,27 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install tar gzip unzip
+                microdnf install make python3-devel golang git tar zip curl
+
+                pushd agent-operator-release-source
 
                 # strip the leading "v" from the operator version for github artefacts and release:
                 export PREFIX="v"
-                export VERSION=${VERSION#"$PREFIX"}
+                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
-                tar xzvf olm-build-repository/olm*.tgz
-                unzip redhat-$VERSION.zip -d context
-                echo $VERSION > context/version
+                # get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://raw.githubusercontent.com/instana/community-operators/main/operators/instana-agent/instana-agent.package.yaml \
+                 | grep -i "currentCSV" \
+                 | sed 's/.*instana-agent-operator\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                # Create separate bundle for RedHat with different image: registry.connect.redhat.com/instana/instana-agent-operator:1.0.9
+                make IMG="registry.connect.redhat.com/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" PREV_VERSION="${PREV_VERSION}" bundle
+
+                popd
+
+                # Copy necessary files to the context for building the container image in the next step
+                cp -r agent-operator-release-source/bundle context/
+                echo $OLM_RELEASE_VERSION > context/version
       - task: olm-image-build
         privileged: true
         config:
@@ -565,7 +510,7 @@ jobs:
             - name: image
           params:
             CONTEXT: context
-            DOCKERFILE: agent-operator-release-source/olm/Dockerfile.bundle
+            DOCKERFILE: agent-operator-release-source/bundle.Dockerfile
           run:
             path: build
       - put: olm-image-gcr

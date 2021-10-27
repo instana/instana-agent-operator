@@ -13,6 +13,7 @@ GIT_COMMIT=$(shell git rev-list -1 HEAD)
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
+CHANNELS ?= "stable"
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
 endif
@@ -90,7 +91,7 @@ run: generate fmt vet manifests ## Run against the configured Kubernetes cluster
 	go run ./
 
 docker-build: test ## Build docker image with the manager.
-	docker build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} -t ${IMG} .
+	docker build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg DATE="$$(date)" -t ${IMG} .
 
 docker-push: ## Push the docker image with the manager.
 	docker push ${IMG}
@@ -100,7 +101,7 @@ docker-push: ## Push the docker image with the manager.
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
-	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
+	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager
 	# Install the Operator Manager and CRD resources
 	kubectl create ns instana-agent || true
 	$(KUSTOMIZE) build config/local_development | sed -e "s|localhost|$$(ip route get 1 | awk '{print $$(NF-2);exit}')|" | kubectl apply -f -
@@ -123,7 +124,7 @@ deploy-minikube: ## Convenience target to push the docker image to a local runni
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
 	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
 	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
-	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
+	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager
 	# Update correct Controller Manager image to be used
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	# Make certain we don't try to pull images from somewhere else
@@ -151,7 +152,7 @@ ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 endif
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0)
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1)
 
 OPERATOR_SDK = $(shell command -v operator-sdk 2>/dev/null || echo "operator-sdk")
 # Test if operator-sdk is available on the system, otherwise download locally
@@ -211,3 +212,8 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image for OLM.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.SILENT:
+controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default

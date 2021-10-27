@@ -27,7 +27,7 @@ phases:
       - docker buildx create --name rosetta
       - docker buildx use rosetta
       - docker buildx inspect --bootstrap
-      - docker buildx build -f src/main/docker/Dockerfile.codebuild --load --platform ${TARGETPLATFORM} --build-arg "TARGETPLATFORM=${TARGETPLATFORM}" --build-arg VERSION=$VERSION --build-arg BUILD=$COMMIT_SHA --build-arg DATE="$DATE" -t "${IMAGE_REPO_NAME}:${IMAGE_TAG}" .
+      - docker buildx build -f Dockerfile --load --platform ${TARGETPLATFORM} --build-arg "TARGETPLATFORM=${TARGETPLATFORM}" --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${COMMIT_SHA} --build-arg BUILD=${COMMIT_SHA} --build-arg DATE="${DATE}" -t "${IMAGE_REPO_NAME}:${IMAGE_TAG}" .
       - docker save "${IMAGE_REPO_NAME}:${IMAGE_TAG}" > image.tar
 artifacts:
   name: ${IMAGE_TAG}
