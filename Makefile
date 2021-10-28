@@ -9,7 +9,7 @@ PREV_VERSION ?= 0.0.0
 BUNDLE_IMG ?= instana-agent-operator-bundle:$(VERSION)
 
 # Include the latest Git commit SHA, gets injected in code via Docker build (just like VERSION)
-GIT_COMMIT=$(shell git rev-list -1 HEAD)
+GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -44,6 +44,15 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+# Some commands work on Linux but not on MacOS and vice versa. Create variables for them so to run the proper command.
+uname := $(shell uname)
+ifeq ($(uname), Linux)
+get_ip_addr := ip route get 1 | awk '{print $$(NF-2);exit}'
+endif
+ifeq ($(uname), Darwin)
+get_ip_addr := ipconfig getifaddr en0
+endif
 
 
 all: build
@@ -101,10 +110,10 @@ docker-push: ## Push the docker image with the manager.
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
-	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager
+	[[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2> /dev/null) == "true" ]] || (kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager)
 	# Install the Operator Manager and CRD resources
 	kubectl create ns instana-agent || true
-	$(KUSTOMIZE) build config/local_development | sed -e "s|localhost|$$(ip route get 1 | awk '{print $$(NF-2);exit}')|" | kubectl apply -f -
+	$(KUSTOMIZE) build config/local_development | sed -e "s|localhost|$$($(get_ip_addr))|" | kubectl apply -f -
 	# Wait until the Secret with certificates is available
 	while ! kubectl get secret webhook-server-cert -n instana-agent; do echo "...Waiting for Certs to be created" && sleep 2; done
 	# Download generated certificates to local, because for WebHooks TLS is mandatory
@@ -124,7 +133,7 @@ deploy-minikube: ## Convenience target to push the docker image to a local runni
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
 	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
 	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
-	[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}') == "true" ] || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager
+	[[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2> /dev/null) == "true" ]] || (kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager)
 	# Update correct Controller Manager image to be used
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	# Make certain we don't try to pull images from somewhere else
