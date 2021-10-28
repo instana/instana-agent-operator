@@ -1,9 +1,0 @@
-#!/usr/bin/env python3
-
-import sys, yaml, json, datetime
-
-def DateEncoder(obj):
-  if isinstance(obj, (datetime.datetime, datetime.date)):
-      return obj.isoformat()
-
-json.dump(list(yaml.load_all(sys.stdin, Loader=yaml.SafeLoader)), sys.stdout, indent=4, default=DateEncoder)
