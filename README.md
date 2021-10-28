@@ -44,15 +44,15 @@ Developing (and running) the Operator is possible in two easy ways:
 
 Both are described below.
 
-### Running Go application outside the cluster
+### Running Go Operator locally against a K8s cluster
 
 1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
 3. Install the CRD and run the Go application: `make install run`.
-4. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+4. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml`
 
 To stop, take the following actions:
-- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml`
 - `make uninstall`
 
 ### Running Deployment inside the cluster
