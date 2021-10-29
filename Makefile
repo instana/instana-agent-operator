@@ -129,7 +129,7 @@ deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cl
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-deploy-minikube: ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
+deploy-minikube: manifests kustomize ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
 	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
 	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook

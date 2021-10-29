@@ -20,9 +20,7 @@ import (
 )
 
 const (
-	ManagedByLabelKey       = "app.kubernetes.io/managed-by"
-	HelmReleaseNameKey      = "meta.helm.sh/release-name"
-	HelmReleaseNamespaceKey = "meta.helm.sh/release-namespace"
+	ManagedByLabelKey = "app.kubernetes.io/managed-by"
 )
 
 func (r *InstanaAgentReconciler) getAndDeleteOldOperator(ctx context.Context) (bool, error) {

@@ -8,6 +8,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -161,33 +162,28 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Validate the Custom Resource object (configuration) before we're taking any other actions
 	r.log.V(1).Info("Validating the CRD")
 	if err := r.validateAgentCrd(crdInstance); err != nil {
-		r.log.Error(err, "Unrecoverable error validating and converting the Instana Agent CRD for deployment")
+		r.log.Error(err, "Unrecoverable error validating the Instana Agent CRD for deployment")
 		return ctrl.Result{}, err
 	}
 
 	if !crdInstance.Status.OldVersionsUpdated {
-		r.log.V(1).Info("Checking for old Agent Operator installations and purging / upgrading them")
-
 		// If something got deleted, give the Operator another reconcile loop to clean up before continuing. So return immediately
-
-		if deleted, err := r.getAndDeleteOldOperator(ctx); err != nil {
-			r.log.Error(err, "Unrecoverable error updating the old Operator spec. Cannot continue Agent installation")
+		if deleted, err := r.purgeOldResources(ctx); err != nil {
 			return ctrl.Result{}, err
 		} else if deleted {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: time.Second * 1}, nil
 		}
 
-		if deleted, err := r.getAndDeleteOldOperatorResources(ctx); err != nil {
-			r.log.Error(err, "Unrecoverable error updating old resources for Helm-based installation. Cannot continue Agent installation")
+		if err := r.upsertCrdStatusFields(ctx, req, func(status *instanaV1.InstanaAgentStatus) instanaV1.InstanaAgentStatus {
+			status.OldVersionsUpdated = true
+			return *status
+		}); err != nil {
+			if k8sErrors.IsConflict(err) {
+				// do manual retry without error
+				return ctrl.Result{RequeueAfter: time.Second * 1}, nil
+			}
+			r.log.Error(err, "Failed to update Instana Agent CRD Status field - old versions purged")
 			return ctrl.Result{}, err
-		} else if deleted {
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		crdInstance.Status.OldVersionsUpdated = true
-		if err := r.client.Status().Update(ctx, crdInstance); err != nil {
-			// Ignore any update issues as they're not severe enough to trip over
-			log.Error(err, "Failed to update Instana Agent CRD status, ignoring")
 		}
 	}
 
@@ -196,7 +192,12 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	//
 
 	r.log.V(1).Info("Injecting finalizer into CRD, for cleanup when CRD gets removed")
-	if err := r.injectFinalizer(ctx, crdInstance); err != nil {
+	if err := r.injectFinalizer(ctx, req, crdInstance); err != nil {
+		if k8sErrors.IsConflict(err) {
+			// do manual retry without error
+			return ctrl.Result{RequeueAfter: time.Second * 1}, nil
+		}
+		r.log.Error(err, "Failure adding finalizer into CRD")
 		return ctrl.Result{}, err
 	}
 
@@ -219,9 +220,13 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	r.log.Info("Agent installed/upgraded successfully")
 
-	if err := r.updateStatusFields(ctx, crdInstance); err != nil {
-		// Ignore any update issues as they're not severe enough to trip over
-		r.log.Error(err, "Failure updating Instana Agent CustomResource Status fields, ignoring")
+	if err := r.updateStatusFields(ctx, req, crdInstance); err != nil {
+		if k8sErrors.IsConflict(err) {
+			// do manual retry without error
+			return ctrl.Result{RequeueAfter: time.Second * 1}, nil
+		}
+		r.log.Error(err, "Failed to update Instana Agent CRD Status field - resource references")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -238,10 +243,15 @@ func (r *InstanaAgentReconciler) finalizeAgent(req ctrl.Request, crdInstance *in
 	return nil
 }
 
-func (r *InstanaAgentReconciler) injectFinalizer(ctx context.Context, o client.Object) error {
-	if !controllerutil.ContainsFinalizer(o, instanaAgentFinalizer) {
-		controllerutil.AddFinalizer(o, instanaAgentFinalizer)
-		return r.client.Update(ctx, o)
+func (r *InstanaAgentReconciler) injectFinalizer(ctx context.Context, req ctrl.Request, crdInstance *instanaV1.InstanaAgent) error {
+	if !controllerutil.ContainsFinalizer(crdInstance, instanaAgentFinalizer) {
+		// Pull the CR object again, so we're sure to have the latest version including changes
+		if err := r.client.Get(ctx, req.NamespacedName, crdInstance); err != nil {
+			return err
+		}
+
+		controllerutil.AddFinalizer(crdInstance, instanaAgentFinalizer)
+		return r.client.Update(ctx, crdInstance)
 	}
 	return nil
 }
@@ -311,7 +321,41 @@ func (r *InstanaAgentReconciler) validateAgentCrd(crd *instanaV1.InstanaAgent) e
 	return nil
 }
 
-func (r *InstanaAgentReconciler) updateStatusFields(ctx context.Context, crdInstance *instanaV1.InstanaAgent) error {
+func (r *InstanaAgentReconciler) purgeOldResources(ctx context.Context) (bool, error) {
+	r.log.V(1).Info("Checking for old Agent Operator installations and purging / upgrading them")
+
+	if deleted, err := r.getAndDeleteOldOperator(ctx); err != nil {
+		r.log.Error(err, "Unrecoverable error removing the old Operator Deployment spec. Cannot continue Agent installation")
+		return false, err
+	} else if deleted {
+		return true, nil
+	}
+
+	if deleted, err := r.getAndDeleteOldOperatorResources(ctx); err != nil {
+		r.log.Error(err, "Unrecoverable error updating old resources for Helm-based installation. Cannot continue Agent installation")
+		return false, err
+	} else if deleted {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *InstanaAgentReconciler) upsertCrdStatusFields(ctx context.Context, req ctrl.Request, statusFn func(status *instanaV1.InstanaAgentStatus) instanaV1.InstanaAgentStatus) error {
+	// Pull the CR object again, so we're sure to have the latest version including changes
+	crdInstance := &instanaV1.InstanaAgent{}
+	if err := r.client.Get(ctx, req.NamespacedName, crdInstance); err != nil {
+		return err
+	}
+
+	crdInstance.Status = statusFn(&crdInstance.Status)
+
+	return r.client.Status().Update(ctx, crdInstance)
+}
+
+func (r *InstanaAgentReconciler) updateStatusFields(ctx context.Context, req ctrl.Request, crdInstance *instanaV1.InstanaAgent) error {
+	r.log.V(1).Info("Updating Agent CRD Status field with references to DaemonSet and ConfigMap")
+
 	configMaps := &coreV1.ConfigMapList{}
 	if err := r.client.List(ctx, configMaps, client.InNamespace(r.crAppNamespace)); err != nil {
 		r.log.Error(err, "Failed getting ConfigMap to update Instana Agent CRD Status field")
@@ -342,14 +386,19 @@ func (r *InstanaAgentReconciler) updateStatusFields(ctx context.Context, crdInst
 		}
 	}
 
-	if !cmp.Equal(configMapResource, crdInstance.Status.ConfigMap) && !cmp.Equal(daemonSetResource, crdInstance.Status.DaemonSet) {
-		crdInstance.Status.ConfigMap = configMapResource
-		crdInstance.Status.DaemonSet = daemonSetResource
+	if !cmp.Equal(configMapResource, crdInstance.Status.ConfigMap) ||
+		!cmp.Equal(daemonSetResource, crdInstance.Status.DaemonSet) {
 
-		if err := r.client.Status().Update(ctx, crdInstance); err != nil {
-			r.log.Error(err, "Failed to update Instana Agent CRD Status field")
-			return err
-		}
+		return r.upsertCrdStatusFields(ctx, req, func(status *instanaV1.InstanaAgentStatus) instanaV1.InstanaAgentStatus {
+			status.ConfigMap = configMapResource
+			status.DaemonSet = daemonSetResource
+			// Reset other statuses because we don't use them for the v1 Agent
+			status.Secret = instanaV1.ResourceInfo{}
+			status.ClusterRole = instanaV1.ResourceInfo{}
+			status.ClusterRoleBinding = instanaV1.ResourceInfo{}
+			status.ServiceAccount = instanaV1.ResourceInfo{}
+			return *status
+		})
 	}
 
 	return nil
