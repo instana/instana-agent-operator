@@ -1,0 +1,31 @@
+
+# This Kustomization makes some changes to allow for local development, running the Operator (controller-manager) and
+# WebHook(s) locally outside the cluster.
+
+namespace: instana-agent
+
+bases:
+- ../crd
+- ../certmanager
+
+
+patchesStrategicMerge:
+- webhook_service_patch.yaml
+- certificate_patch.yaml
+
+vars:
+# [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER' prefix.
+- name: CERTIFICATE_NAMESPACE # namespace of the certificate CR
+  objref:
+    kind: Certificate
+    group: cert-manager.io
+    version: v1
+    name: serving-cert # this name should match the one in certificate.yaml
+  fieldref:
+    fieldpath: metadata.namespace
+- name: CERTIFICATE_NAME
+  objref:
+    kind: Certificate
+    group: cert-manager.io
+    version: v1
+    name: serving-cert # this name should match the one in certificate.yaml

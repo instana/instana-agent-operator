@@ -1,0 +1,31 @@
+domain: instana.io
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v3: {}
+  scorecard.sdk.operatorframework.io/v3: {}
+projectName: instana-agent-operator
+repo: github.com/instana/instana-agent-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instana.io
+  kind: InstanaAgent
+  path: github.com/instana/instana-agent-operator/api/v1beta1
+  plural: agents
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instana.io
+  kind: InstanaAgent
+  path: github.com/instana/instana-agent-operator/api/v1
+  plural: agents
+  version: v1
+  webhooks:
+    conversion: true
+    webhookVersion: v1
+version: "3"

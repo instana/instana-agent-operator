@@ -1,25 +1,53 @@
-version: 2
+version: 2.1
+
 jobs:
   build:
+    description: "Run Go unit and integration tests using make targets"
+    parameters:
+      go_version:
+        description: "Go version to use (1.x)"
+        type: string
+      go111module:
+        description: "GO111MODULE= env var value"
+        default: "auto"
+        type: enum
+        enum: ["on", "off", "auto"]
     docker:
-    - image: circleci/openjdk:11
-
+      - image: circleci/golang:<< parameters.go_version >>
+    working_directory: /go/src/github.com/instana/instana-agent-operator
     steps:
-    - checkout
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+      - run:
+          name: Install Python3
+          command: |
+            sudo apt-get -y -qq update
+            sudo apt-get install --no-install-recommends python3 python3-pip
+            sudo pip3 install pyyaml
+      - run:
+          name: Run the build
+          command: make build
+          environment:
+            GO111MODULE: << parameters.go111module >>
+      - run:
+          name: Run unit tests
+          command: make test
+          environment:
+            GO111MODULE: << parameters.go111module >>
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
 
-    - restore_cache:
-        keys:
-          - m2-{{ checksum "pom.xml" }}
-          - m2-
-
-    - run: ./mvnw -C -B clean verify
-
-    - setup_remote_docker:
-        version: 18.06.0-ce
-
-    - run: docker build -f src/main/docker/Dockerfile.jvm .
-
-    - save_cache:
-        key: m2-{{ checksum "pom.xml" }}
-        paths:
-          - ~/.m2
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build:
+          name: "latest"
+          go_version: "latest"
+      - build:
+          name: "go1.16"
+          go_version: "1.16"

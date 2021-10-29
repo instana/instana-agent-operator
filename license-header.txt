@@ -1,2 +1,0 @@
-(c) Copyright IBM Corp. ${currentYear}
-(c) Copyright Instana Inc. ${fileCreationYear}

@@ -1,30 +1,19 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-# Pre-commit script to ensure the required IBM/Instana
-# license headers are added to the relevant source files.
-# Note that if you bypass this pre-commit git hook and didn't
-# run the maven command mentioned below to add the license headers
-# to new files, the build will fail.
+STATUS=0
 
-echo
-echo Running "${BASH_SOURCE[0]}"
-echo
-
-command_exists () {
-  command -v "$1" >/dev/null 2>&1
-}
-
-command_exists mvn || {
-	echo >&2 "Can't find 'mvn' in PATH. Please ensure you have installed Maven."
-	exit 1
-}
-
-echo "Checking license headers..."
-echo "==========================="
-
-if mvn --quiet validate license:check; then
-	echo "All license headers are in place."
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    against=HEAD
 else
-	echo "Some license headers are missing. Please run 'mvn validate license:format' to add them." >&2
-	exit 1
+    against=$(git hash-object -t tree /dev/null)
 fi
+
+# Select all changed files, by name only, filter deleted files
+for f in $(git diff --relative --cached --name-only --diff-filter=d $against | grep '\.\(go\|sh\)$'); do
+  if ! `head -n4 "${f}" | grep -q '(c) Copyright IBM Corp.'`; then
+	echo "Missing copyright header in \"$f\""
+	STATUS=1
+  fi
+done
+
+exit $STATUS
