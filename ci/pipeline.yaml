@@ -413,7 +413,20 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install make python3-devel golang git tar zip curl jq
+                microdnf install make python3-devel git tar gzip zip curl jq
+
+                # ubi8 still bundles Go 1.15 but we rely on 1.16, so install manually
+                export PATH="$PATH:/usr/local/go/bin"
+                export GOPATH=/go
+                export GO_VERSION=1.16.6
+                export GO_SHA256="be333ef18b3016e9d7cb7b1ff1fdb0cac800ca0be4cf2290fe613b3d069dfe0d go${GO_VERSION}.linux-amd64.tar.gz"
+
+                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && echo "${GO_SHA256}" | sha256sum --check \
+                && rm -rf /usr/local/go \
+                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && mkdir -p "${GOPATH}" \
+                && go version
 
                 pushd agent-operator-release-source
 
@@ -474,7 +487,20 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install make python3-devel golang git tar zip curl
+                microdnf install make python3-devel git tar gzip zip curl
+
+                # ubi8 still bundles Go 1.15 but we rely on 1.16, so install manually
+                export PATH="$PATH:/usr/local/go/bin"
+                export GOPATH=/go
+                export GO_VERSION=1.16.6
+                export GO_SHA256="be333ef18b3016e9d7cb7b1ff1fdb0cac800ca0be4cf2290fe613b3d069dfe0d go${GO_VERSION}.linux-amd64.tar.gz"
+
+                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && echo "${GO_SHA256}" | sha256sum --check \
+                && rm -rf /usr/local/go \
+                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && mkdir -p "${GOPATH}" \
+                && go version
 
                 pushd agent-operator-release-source
 
