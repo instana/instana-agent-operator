@@ -480,6 +480,8 @@ jobs:
             type: registry-image
             source:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: agent-operator-release-source
           outputs:
             - name: context
           params:
