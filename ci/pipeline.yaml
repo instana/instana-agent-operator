@@ -468,6 +468,7 @@ jobs:
     plan:
       - get: agent-operator-release-source
         passed: [ operator-olm-github-release ]
+        trigger: true
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         #file: agent-operator-release-source/version
