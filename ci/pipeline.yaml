@@ -185,6 +185,8 @@ jobs:
               params:
                 source_version: ((.:s3-artifact-version))
                 env_var_overrides:
+                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
+                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
                   ARCH: amd64
                   VERSION: ((.:operator-version))
                   COMMIT_SHA: ((.:commit-sha))
@@ -193,6 +195,8 @@ jobs:
               params:
                 source_version: ((.:s3-artifact-version))
                 env_var_overrides:
+                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
+                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
                   ARCH: arm64
                   VERSION: ((.:operator-version))
                   COMMIT_SHA: ((.:commit-sha))
@@ -201,6 +205,8 @@ jobs:
               params:
                 source_version: ((.:s3-artifact-version))
                 env_var_overrides:
+                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
+                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
                   ARCH: s390x
                   VERSION: ((.:operator-version))
                   COMMIT_SHA: ((.:commit-sha))
@@ -209,6 +215,8 @@ jobs:
               params:
                 source_version: ((.:s3-artifact-version))
                 env_var_overrides:
+                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
+                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
                   ARCH: ppc64le
                   VERSION: ((.:operator-version))
                   COMMIT_SHA: ((.:commit-sha))

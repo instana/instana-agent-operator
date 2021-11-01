@@ -3,8 +3,8 @@ version: 0.2
 env:
   variables:
     DOCKER_CLI_EXPERIMENTAL: enabled
-    DOCKERHUB_USER: _
-    DOCKERHUB_PASSWORD: _
+    DOCKER_HUB_USERNAME: _
+    DOCKER_HUB_PASSWORD: _
     IMAGE_REPO_NAME: gcr.io/instana-agent-qa/instana-agent-operator
     TARGETPLATFORM: _
     ARCH: _
@@ -27,6 +27,7 @@ phases:
       - docker buildx create --name rosetta
       - docker buildx use rosetta
       - docker buildx inspect --bootstrap
+      - echo "$DOCKER_HUB_PASSWORD" | docker login -u $DOCKER_HUB_USERNAME --password-stdin https://index.docker.io/v1/
       - docker buildx build -f Dockerfile --load --platform ${TARGETPLATFORM} --build-arg "TARGETPLATFORM=${TARGETPLATFORM}" --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${COMMIT_SHA} --build-arg BUILD=${COMMIT_SHA} --build-arg DATE="${DATE}" -t "${IMAGE_REPO_NAME}:${IMAGE_TAG}" .
       - docker save "${IMAGE_REPO_NAME}:${IMAGE_TAG}" > image.tar
 artifacts:
