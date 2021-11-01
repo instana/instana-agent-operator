@@ -414,6 +414,7 @@ jobs:
               - -ceu
               - |
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
+                pip3 install pyyaml
 
                 # ubi8 still bundles Go 1.15 but we rely on 1.16, so install manually
                 export PATH="$PATH:/usr/local/go/bin"
@@ -488,6 +489,7 @@ jobs:
               - -ceu
               - |
                 microdnf install make python3-devel gcc git tar gzip zip curl
+                pip3 install pyyaml
 
                 # ubi8 still bundles Go 1.15 but we rely on 1.16, so install manually
                 export PATH="$PATH:/usr/local/go/bin"
