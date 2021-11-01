@@ -222,7 +222,6 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 bundle-build: ## Build the bundle image for OLM.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-.SILENT:
-controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release
+controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default
