@@ -135,7 +135,7 @@ deploy-minikube: manifests kustomize ## Convenience target to push the docker im
 	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
 	[[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2> /dev/null) == "true" ]] || (kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager)
 	# Update correct Controller Manager image to be used
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	# Make certain we don't try to pull images from somewhere else
 	$(KUSTOMIZE) build config/default | sed -e 's|\(imagePullPolicy:\s*\)Always|\1Never|' | kubectl apply -f -
 
@@ -213,7 +213,7 @@ endef
 .PHONY: bundle
 bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/manifests | sed -e 's|\(replaces:.*v\)0.0.0|\1$(PREV_VERSION)|' | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
 	$(OPERATOR_SDK) bundle validate ./bundle
@@ -223,5 +223,5 @@ bundle-build: ## Build the bundle image for OLM.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/default
