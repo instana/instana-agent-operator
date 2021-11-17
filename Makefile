@@ -214,7 +214,7 @@ endef
 bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
-	$(KUSTOMIZE) build config/manifests | sed -e 's|\(replaces:.*v\)0.0.0|\1$(PREV_VERSION)|' | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | sed -e 's|\(replaces:.*v\)0.0.0|\1$(PREV_VERSION)|' | sed -e 's|\(containerImage:[[:space:]]*\).*|\1$(IMG)|' | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
 	$(OPERATOR_SDK) bundle validate ./bundle
 

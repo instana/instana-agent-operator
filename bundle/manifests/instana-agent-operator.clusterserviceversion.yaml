@@ -52,6 +52,7 @@ metadata:
     capabilities: Basic Install
     categories: Monitoring,OpenShift Optional
     certified: "false"
+    containerImage: instana/instana-agent-operator:latest
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     olm.skipRange: <2.0.0
     operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
