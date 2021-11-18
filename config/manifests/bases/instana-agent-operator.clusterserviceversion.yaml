@@ -31,7 +31,6 @@ metadata:
     certified: "false"
     containerImage: instana/instana-agent-operator:0.0.0
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    olm.skipRange: <2.0.0
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
   name: instana-agent-operator.v0.0.0
@@ -339,6 +338,5 @@ spec:
   minKubeVersion: 1.11.0
   provider:
     name: Instana
-  # "replaces" can't be used as the Operator got removed from OpenShift repository. Use "skipsRange" and reinstate later
-  #  replaces: instana-agent-operator.v0.0.0
+  replaces: instana-agent-operator.v0.0.0
   version: 0.0.0
