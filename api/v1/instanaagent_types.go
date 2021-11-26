@@ -14,32 +14,51 @@ import (
 
 // InstanaAgentSpec defines the desired state of the Instana Agent
 type InstanaAgentSpec struct {
-	Agent BaseAgentSpec `json:"agent,omitempty"`
+	// Agent deployment specific fields.
+	// +kubebuilder:validation:Required
+	Agent BaseAgentSpec `json:"agent"`
 
-	// cluster.name represents the name that will be assigned to this cluster in Instana
+	// Name of the cluster, that will be assigned to this cluster in Instana. Either specifying the 'cluster.name' or 'zone.name'
+	// is mandatory.
 	Cluster Name `json:"cluster,omitempty"`
 
-	OpenShift bool `json:"openshift,omitempty"`
-
-	// Specifies whether RBAC resources should be created
-	Rbac Create `json:"rbac,omitempty"`
-	// Specifies whether to create the instana-agent service to expose within the cluster the Prometheus remote-write, OpenTelemetry GRCP endpoint and other APIs
-	// Note: Requires Kubernetes 1.17+, as it uses topologyKeys
-	Service Create `json:"service,omitempty"`
-	// If true, it will also apply `service.create=true`
-	OpenTelemetry Enabled `json:"opentelemetry,omitempty"`
-
-	Prometheus `json:"prometheus,omitempty"`
-	// Specifies whether a ServiceAccount should be created
-	// The name of the ServiceAccount to use.
-	// If not set and `create` is true, a name is generated using the fullname template
-	// name: instana-agent
-	ServiceAccount Create `json:"serviceAccount,omitempty"`
-
-	PodSecurityPolicySpec `json:"podSecurityPolicy,omitempty"`
-
+	// Name of the zone in which the host(s) will be displayed on the map. Optional, but then 'cluster.name' must be specified.
 	Zone Name `json:"zone,omitempty"`
 
+	// Set to `True` to indicate the Operator is being deployed in a OpenShift cluster. Provides a hint so that RBAC etc is
+	// configured correctly.
+	// +kubebuilder:validation:Optional
+	OpenShift bool `json:"openshift,omitempty"`
+
+	// Specifies whether RBAC resources should be created.
+	// +kubebuilder:validation:Optional
+	Rbac Create `json:"rbac,omitempty"`
+
+	// Specifies whether to create the instana-agent `Service` to expose within the cluster. The Service can then be used e.g.
+	// for the Prometheus remote-write, OpenTelemetry GRCP endpoint and other APIs.
+	// Note: Requires Kubernetes 1.17+, as it uses topologyKeys.
+	// +kubebuilder:validation:Optional
+	Service Create `json:"service,omitempty"`
+
+	// Enables the OpenTelemetry gRPC endpoint on the Agent. If true, it will also apply `service.create: true`.
+	// +kubebuilder:validation:Optional
+	OpenTelemetry Enabled `json:"opentelemetry,omitempty"`
+
+	// Enables the Prometheus endpoint on the Agent. If true, it will also apply `service.create: true`.
+	// +kubebuilder:validation:Optional
+	Prometheus `json:"prometheus,omitempty"`
+
+	// Specifies whether a ServiceAccount should be created (default `true`), and possibly the name to use.
+	// +kubebuilder:validation:Optional
+	ServiceAccountSpec `json:"serviceAccount,omitempty"`
+
+	// Specify a PodSecurityPolicy for the Instana Agent Pods. If enabled requires `rbac.create: true`.
+	// +kubebuilder:validation:Optional
+	PodSecurityPolicySpec `json:"podSecurityPolicy,omitempty"`
+
+	// Allows for installment of the Kubernetes Sensor as separate pod. Which allows for better tailored resource settings
+	// (mainly memory) both for the Agent pods and the Kubernetes Sensor pod.
+	// +kubebuilder:validation:Optional
 	KubernetesSpec `json:"kubernetes,omitempty"`
 
 	//

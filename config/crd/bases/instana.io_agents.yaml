@@ -41,13 +41,12 @@ spec:
               Agent
             properties:
               agent:
-                description: BaseAgentSpec defines the desired state info related
-                  to the running Agent
+                description: Agent deployment specific fields.
                 properties:
                   additionalBackends:
                     description: These are additional backends the Instana agent will
                       report to besides the one configured via the `agent.endpointHost`,
-                      `agent.endpointPort` and `agent.key` setting
+                      `agent.endpointPort` and `agent.key` setting.
                     items:
                       properties:
                         endpointHost:
@@ -56,9 +55,15 @@ spec:
                           type: string
                         key:
                           type: string
+                      required:
+                      - endpointHost
+                      - endpointPort
+                      - key
                       type: object
                     type: array
                   configuration:
+                    description: Mount in a ConfigMap with Agent configuration. Alternative
+                      to the `configuration_yaml` field.
                     properties:
                       autoMountConfigEntries:
                         description: When setting this to true, the Helm chart will
@@ -69,53 +74,57 @@ spec:
                         type: boolean
                     type: object
                   configuration_yaml:
+                    description: Supply Agent configuration e.g. for configuring certain
+                      Sensors.
                     type: string
                   downloadKey:
-                    description: agent.downloadKey is key, sometimes known as "sales
-                      key", that allows you to download, software from Instana.
+                    description: The DownloadKey, sometimes known as "sales key",
+                      that allows you to download software from Instana. It might
+                      be needed to specify this in addition to the Key.
                     type: string
                   endpointHost:
-                    description: agent.endpointHost is the hostname of the Instana
-                      server your agents will connect to.
+                    description: EndpointHost is the hostname of the Instana server
+                      your agents will connect to.
                     type: string
                   endpointPort:
-                    description: agent.endpointPort is the port number (as a String)
-                      of the Instana server your agents will connect to.
+                    description: EndpointPort is the port number (as a String) of
+                      the Instana server your agents will connect to.
                     type: string
                   env:
                     additionalProperties:
                       type: string
-                    description: 'use this to set additional environment variables
-                      for the instana agent for example:  env:   INSTANA_AGENT_TAGS:
+                    description: 'Use the `env` field to set additional environment
+                      variables for the Instana Agent, for example: env:   INSTANA_AGENT_TAGS:
                       dev'
                     type: object
                   host:
-                    description: agent.host.repository sets a host path to be mounted
-                      as the agent maven repository (for debugging or development
-                      purposes)
+                    description: '`host.repository` sets a host path to be mounted
+                      as the Agent Maven repository (mainly for debugging or development
+                      purposes)'
                     properties:
                       repository:
                         type: string
                     type: object
                   image:
+                    description: Override the container image used for the Instana
+                      Agent pods.
                     properties:
                       digest:
-                        description: agent.image.digest is the digest (a.k.a. Image
-                          ID) of the agent container image; if specified, it has priority
-                          over agent.image.tag, which will be ignored.
+                        description: Digest (a.k.a. Image ID) of the agent container
+                          image. If specified, it has priority over `agent.image.tag`,
+                          which will then be ignored.
                         type: string
                       name:
-                        description: agent.image.name is the name of the container
-                          image of the Instana agent.
+                        description: Name is the name of the container image of the
+                          Instana agent.
                         type: string
                       pullPolicy:
-                        description: agent.image.pullPolicy specifies when to pull
-                          the image container.
+                        description: PullPolicy specifies when to pull the image container.
                         type: string
                       pullSecrets:
-                        description: agent.image.pullSecrets allows you to override
-                          the default pull secret that is created when agent.image.name
-                          starts with "containers.instana.io" Setting agent.image.pullSecrets
+                        description: PullSecrets allows you to override the default
+                          pull secret that is created when `agent.image.name` starts
+                          with "containers.instana.io". Setting `agent.image.pullSecrets`
                           prevents the creation of the default "containers-instana-io"
                           secret.
                         items:
@@ -125,39 +134,44 @@ spec:
                           type: object
                         type: array
                       tag:
-                        description: agent.image.tag is the tag name of the agent
-                          container image; if agent.image.digest is specified, this
-                          property is ignored.
+                        description: Tag is the name of the agent container image;
+                          if `agent.image.digest` is specified, this property is ignored.
                         type: string
                     type: object
                   instanaMvnRepoUrl:
                     description: Override for the Maven repository URL when the Agent
                       needs to connect to a locally provided Maven repository 'proxy'
-                      Alternative to 'host.repository' for referencing a different
+                      Alternative to `host.repository` for referencing a different
                       Maven repo.
                     type: string
                   key:
-                    description: agent.key is the secret token which your agent uses
-                      to authenticate to Instana's servers.
+                    description: Key is the secret token which your agent uses to
+                      authenticate to Instana's servers.
                     type: string
                   keysSecret:
-                    description: Rather than specifying the agent key and optionally
-                      the download key, you can "bring your own secret" creating it
-                      in the namespace in which you install the `instana-agent` and
-                      specify its name in the `keysSecret` field. The secret you create
-                      must contains a field called `key` and optionally one called
-                      `downloadKey`, which contain, respectively, the values you'd
-                      otherwise set in `.agent.key` and `agent.downloadKey`.
+                    description: Rather than specifying the Key and optionally the
+                      DownloadKey, you can "bring your own secret" creating it in
+                      the namespace in which you install the `instana-agent` and specify
+                      its name in the `KeysSecret` field. The secret you create must
+                      contain a field called `key` and optionally one called `downloadKey`,
+                      which contain, respectively, the values you'd otherwise set
+                      in `.agent.key` and `agent.downloadKey`.
                     type: string
                   listenAddress:
-                    description: agent.listenAddress is the IP address the agent HTTP
-                      server will listen to.
+                    description: 'ListenAddress is the IP addresses the Agent HTTP
+                      server will listen on. Normally this will just be localhost
+                      (`127.0.0.1`), the pod public IP and any container runtime bridge
+                      interfaces. Set `listenAddress: *` for making the Agent listen
+                      on all network interfaces.'
                     type: string
                   mode:
-                    description: agent.mode is used to set agent mode and it can be
-                      APM, INFRASTRUCTURE or AWS
+                    description: 'Set agent mode, possible options are APM, INFRASTRUCTURE
+                      or AWS. KUBERNETES should not be used but instead enabled via
+                      `kubernetes.deployment.enabled: true`.'
                     type: string
                   pod:
+                    description: Override Agent Pod specific settings such as annotations,
+                      labels and resources.
                     properties:
                       affinity:
                         description: agent.pod.affinity are affinities to influence
@@ -1145,38 +1159,39 @@ spec:
                         type: array
                     type: object
                   proxyHost:
-                    description: agent.proxyHost sets the INSTANA_AGENT_PROXY_HOST
-                      environment variable.
+                    description: proxyHost sets the INSTANA_AGENT_PROXY_HOST environment
+                      variable.
                     type: string
                   proxyPassword:
-                    description: agent.proxyPassword sets the INSTANA_AGENT_PROXY_PASSWORD
+                    description: proxyPassword sets the INSTANA_AGENT_PROXY_PASSWORD
                       environment variable.
                     type: string
                   proxyPort:
-                    description: agent.proxyPort sets the INSTANA_AGENT_PROXY_PORT
-                      environment variable.
+                    description: proxyPort sets the INSTANA_AGENT_PROXY_PORT environment
+                      variable.
                     type: string
                   proxyProtocol:
-                    description: agent.proxyProtocol sets the INSTANA_AGENT_PROXY_PROTOCOL
+                    description: proxyProtocol sets the INSTANA_AGENT_PROXY_PROTOCOL
                       environment variable.
                     type: string
                   proxyUseDNS:
-                    description: agent.proxyUseDNS sets the INSTANA_AGENT_PROXY_USE_DNS
+                    description: proxyUseDNS sets the INSTANA_AGENT_PROXY_USE_DNS
                       environment variable.
                     type: boolean
                   proxyUser:
-                    description: agent.proxyUser sets the INSTANA_AGENT_PROXY_USER
-                      environment variable.
+                    description: proxyUser sets the INSTANA_AGENT_PROXY_USER environment
+                      variable.
                     type: string
                   redactKubernetesSecrets:
-                    description: agent.redactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS
+                    description: RedactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS
                       environment variable.
                     type: string
                   tls:
-                    description: TLS for end-to-end encryption between Instana agent
-                      and clients accessing the agent. The Instana agent does not
-                      yet allow enforcing TLS encryption. TLS is only enabled on a
-                      connection when requested by the client.
+                    description: TLS for end-to-end encryption between the Instana
+                      Agent and clients accessing the Agent. The Instana Agent does
+                      not yet allow enforcing TLS encryption, enabling makes it possible
+                      for clients to 'opt-in'. So TLS is only enabled on a connection
+                      when requested by the client.
                     properties:
                       certificate:
                         description: certificate (together with key) is the alternative
@@ -1192,8 +1207,7 @@ spec:
                         type: string
                     type: object
                   updateStrategy:
-                    description: DaemonSetUpdateStrategy is a struct used to control
-                      the update strategy for a DaemonSet.
+                    description: Control how to update the Agent DaemonSet
                     properties:
                       rollingUpdate:
                         description: 'Rolling update config params. Present only if
@@ -1257,6 +1271,9 @@ spec:
                           or "OnDelete". Default is RollingUpdate.
                         type: string
                     type: object
+                required:
+                - endpointHost
+                - endpointPort
                 type: object
               agent.clusterRoleBindingName:
                 type: string
@@ -1323,8 +1340,9 @@ spec:
               agent.zone.name:
                 type: string
               cluster:
-                description: cluster.name represents the name that will be assigned
-                  to this cluster in Instana
+                description: Name of the cluster, that will be assigned to this cluster
+                  in Instana. Either specifying the 'cluster.name' or 'zone.name'
+                  is mandatory.
                 properties:
                   name:
                     type: string
@@ -1336,14 +1354,17 @@ spec:
                   type: string
                 type: object
               kubernetes:
+                description: Allows for installment of the Kubernetes Sensor as separate
+                  pod. Which allows for better tailored resource settings (mainly
+                  memory) both for the Agent pods and the Kubernetes Sensor pod.
                 properties:
                   deployment:
                     properties:
                       enabled:
                         type: boolean
                       pod:
-                        description: ResourceRequirements describes the compute resource
-                          requirements.
+                        description: Override pod resource requirements for the Kubernetes
+                          Sensor pods.
                         properties:
                           limits:
                             additionalProperties:
@@ -1370,13 +1391,19 @@ spec:
                             type: object
                         type: object
                       replicas:
+                        description: Specify the number of replicas for the Kubernetes
+                          Sensor.
                         type: integer
                     type: object
                 type: object
               openshift:
+                description: Set to `True` to indicate the Operator is being deployed
+                  in a OpenShift cluster. Provides a hint so that RBAC etc is configured
+                  correctly.
                 type: boolean
               opentelemetry:
-                description: If true, it will also apply `service.create=true`
+                description: 'Enables the OpenTelemetry gRPC endpoint on the Agent.
+                  If true, it will also apply `service.create: true`.'
                 properties:
                   enabled:
                     type: boolean
@@ -1384,6 +1411,8 @@ spec:
               opentelemetry.enabled:
                 type: boolean
               podSecurityPolicy:
+                description: 'Specify a PodSecurityPolicy for the Instana Agent Pods.
+                  If enabled requires `rbac.create: true`.'
                 properties:
                   enabled:
                     type: boolean
@@ -1391,6 +1420,8 @@ spec:
                     type: string
                 type: object
               prometheus:
+                description: 'Enables the Prometheus endpoint on the Agent. If true,
+                  it will also apply `service.create: true`.'
                 properties:
                   remoteWrite:
                     properties:
@@ -1399,33 +1430,38 @@ spec:
                     type: object
                 type: object
               rbac:
-                description: Specifies whether RBAC resources should be created
+                description: Specifies whether RBAC resources should be created.
                 properties:
                   create:
                     type: boolean
                 type: object
               service:
-                description: 'Specifies whether to create the instana-agent service
-                  to expose within the cluster the Prometheus remote-write, OpenTelemetry
-                  GRCP endpoint and other APIs Note: Requires Kubernetes 1.17+, as
-                  it uses topologyKeys'
+                description: 'Specifies whether to create the instana-agent `Service`
+                  to expose within the cluster. The Service can then be used e.g.
+                  for the Prometheus remote-write, OpenTelemetry GRCP endpoint and
+                  other APIs. Note: Requires Kubernetes 1.17+, as it uses topologyKeys.'
                 properties:
                   create:
                     type: boolean
                 type: object
               serviceAccount:
-                description: 'Specifies whether a ServiceAccount should be created
-                  The name of the ServiceAccount to use. If not set and `create` is
-                  true, a name is generated using the fullname template name: instana-agent'
+                description: Specifies whether a ServiceAccount should be created
+                  (default `true`), and possibly the name to use.
                 properties:
                   create:
                     type: boolean
+                  name:
+                    type: string
                 type: object
               zone:
+                description: Name of the zone in which the host(s) will be displayed
+                  on the map. Optional, but then 'cluster.name' must be specified.
                 properties:
                   name:
                     type: string
                 type: object
+            required:
+            - agent
             type: object
           status:
             description: InstanaAgentStatus defines the observed state of InstanaAgent

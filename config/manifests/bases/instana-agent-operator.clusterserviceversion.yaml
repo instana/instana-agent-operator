@@ -26,8 +26,8 @@ metadata:
               }
           }
       ]
-    capabilities: Basic Install
-    categories: Monitoring,OpenShift Optional
+    capabilities: Full Lifecycle
+    categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
     containerImage: instana/instana-agent-operator:0.0.0
     description: Fully automated Application Performance Monitoring (APM) for microservices.
@@ -54,7 +54,7 @@ spec:
         name: instana-agent
         version: v1
       specDescriptors:
-      - description: agent.key is the secret token which your agent uses to authenticate
+      - description: Key is the secret token which your agent uses to authenticate
           to Instana's servers.
         displayName: Agent Key
         path: agent.key
