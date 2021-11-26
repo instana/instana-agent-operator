@@ -109,10 +109,26 @@ type ResourceInfo struct {
 	UID  string `json:"uid"`
 }
 
+// AgentOperatorState type representing the running state of the Agent Operator itself.
+type AgentOperatorState string
+
+const (
+	// OperatorStateRunning the operator is running properly and all changes applied successfully.
+	OperatorStateRunning AgentOperatorState = "Running"
+	// OperatorStateUpdating the operator is running properly but is currently applying CR changes and getting the Agent in the correct state.
+	OperatorStateUpdating AgentOperatorState = "Updating"
+	// OperatorStateFailed the operator is not running properly and likely there were issues applying the CustomResource correctly.
+	OperatorStateFailed AgentOperatorState = "Failed"
+)
+
 //+k8s:openapi-gen=true
 
 // InstanaAgentStatus defines the observed state of InstanaAgent
 type InstanaAgentStatus struct {
+	Status     AgentOperatorState `json:"status,omitempty"`
+	Reason     string             `json:"reason,omitempty"`
+	LastUpdate metav1.Time        `json:"lastUpdate,omitempty"`
+
 	OldVersionsUpdated bool `json:"oldVersionsUpdated,omitempty"`
 
 	ConfigMap       ResourceInfo            `json:"configmap,omitempty"`

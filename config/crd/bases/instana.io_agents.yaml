@@ -1517,6 +1517,9 @@ spec:
                 - name
                 - uid
                 type: object
+              lastUpdate:
+                format: date-time
+                type: string
               leadingAgentPod:
                 additionalProperties:
                   description: ResourceInfo holds Name and UID to given object
@@ -1532,6 +1535,8 @@ spec:
                 type: object
               oldVersionsUpdated:
                 type: boolean
+              reason:
+                type: string
               secret:
                 description: ResourceInfo holds Name and UID to given object
                 properties:
@@ -1554,6 +1559,10 @@ spec:
                 - name
                 - uid
                 type: object
+              status:
+                description: AgentOperatorState type representing the running state
+                  of the Agent Operator itself.
+                type: string
             type: object
         type: object
     served: true
