@@ -3,11 +3,12 @@ module github.com/instana/instana-agent-operator
 go 1.16
 
 require (
-	github.com/containerd/containerd v1.5.7 // indirect
+	github.com/containerd/containerd v1.5.8 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/google/go-cmp v0.5.5
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
+	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/procyon-projects/chrono v1.0.0
 	helm.sh/helm/v3 v3.7.0
