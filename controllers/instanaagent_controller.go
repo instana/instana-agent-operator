@@ -268,7 +268,7 @@ func (r *InstanaAgentReconciler) handleError(ctx context.Context, req ctrl.Reque
 		retryInterval = time.Second
 	} else {
 		// Already in failure state, base the retry interval on the previous update interval
-		retryInterval = time.Now().Sub(lastUpdate).Round(time.Second)
+		retryInterval = time.Since(lastUpdate).Round(time.Second)
 	}
 
 	r.recorder.Event(crdInstance, "Warning", "ProcessingError", originalErr.Error())
