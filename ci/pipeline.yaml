@@ -289,6 +289,8 @@ jobs:
             DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6.user))
+            ICR_PASSWORD: ((concourse-icr-containers-public.password))
+            ICR_USERNAME: iamapikey
           run:
             path: entrypoint.sh
             args:
@@ -352,6 +354,30 @@ jobs:
 
                 echo "---> Pushing multi-architectural manifest to docker.io"
                 docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION"
+
+                echo "---> re-tagging images for icr.io"
+                echo "$ICR_PASSWORD" | docker login -u $ICR_USERNAME --password-stdin icr.io
+                ICR_REPOSITORY="icr.io/instana/instana-agent-operator"
+                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
+                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
+                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
+                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+
+                echo "---> pushing images to icr.io"
+                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
+                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
+                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
+                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+
+                echo "---> Building multi-architectural manifest on icr.io"
+                docker manifest create "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
+                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
+                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
+                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
+                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+
+                echo "---> Pushing multi-architectural manifest to icr.io"
+                docker manifest push --purge "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION"
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin https://scan.connect.redhat.com/v1/
                 export RED_HAT_REGISTRY="scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator"
