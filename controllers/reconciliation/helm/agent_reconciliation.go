@@ -127,7 +127,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 		installAction.ReleaseName = h.crAppName
 		installAction.RepoURL = helmRepo
 		installAction.PostRenderer = NewAgentChartPostRenderer(h, crdInstance)
-		installAction.Version = fixChartVersion(installAction.Version, installAction.Devel)
+		installAction.Version = fixChartVersion(crdInstance.Spec.PinnedChartVersion, installAction.Devel)
 
 		agentChart, err := h.loadAndValidateChart(installAction.ChartPathOptions)
 		if err != nil {
@@ -149,7 +149,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 		upgradeAction.RepoURL = helmRepo
 		upgradeAction.MaxHistory = 1
 		upgradeAction.PostRenderer = NewAgentChartPostRenderer(h, crdInstance)
-		upgradeAction.Version = fixChartVersion(upgradeAction.Version, upgradeAction.Devel)
+		upgradeAction.Version = fixChartVersion(crdInstance.Spec.PinnedChartVersion, upgradeAction.Devel)
 
 		agentChart, err := h.loadAndValidateChart(upgradeAction.ChartPathOptions)
 		if err != nil {
@@ -185,7 +185,7 @@ func (h *HelmReconciliation) mapCRDToYaml(crdInstance *instanaV1.InstanaAgent) (
 }
 
 func fixChartVersion(version string, devel bool) string {
-	if version == "" && devel {
+	if (len(version) == 0 || version == "") && devel {
 		return ">0.0.0-0"
 	} else {
 		return version

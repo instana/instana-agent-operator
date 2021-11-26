@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blang/semver"
+
 	"github.com/google/go-cmp/cmp"
 
 	instanaV1 "github.com/instana/instana-agent-operator/api/v1"
@@ -41,6 +43,10 @@ const (
 	instanaAgentFinalizer = "agent.instana.io/finalizer"
 	crExpectedName        = "instana-agent"
 	crExpectedNamespace   = "instana-agent"
+)
+
+var (
+	minimumSupportedChartVersion, _ = semver.Parse("1.2.28")
 )
 
 // Add will create a new Instana Agent Controller and add this to the Manager for reconciling
@@ -316,6 +322,26 @@ func (r *InstanaAgentReconciler) validateAgentCrd(crd *instanaV1.InstanaAgent) e
 ##############################################################################
 `)
 		return fmt.Errorf("CRD Agent Spec should contain either Key or KeySecret")
+	}
+
+	if len(crd.Spec.PinnedChartVersion) > 0 {
+		if pinnedChartVersion, err := semver.Parse(crd.Spec.PinnedChartVersion); err != nil {
+			r.log.Info(`
+##############################################################################
+####    ERROR: Invalid Helm Chart version pinned, cannot be parsed.       ####
+##############################################################################
+`)
+			return fmt.Errorf("Helm Chart version pinned but invalid format")
+
+		} else if pinnedChartVersion.Compare(minimumSupportedChartVersion) < 0 {
+			r.log.Info(fmt.Sprintf(`
+##############################################################################
+####    ERROR: Invalid Helm Chart version pinned.                         ####
+####    Pick a version %v or higher.                                  ####
+##############################################################################
+`, minimumSupportedChartVersion))
+			return fmt.Errorf("Helm Chart version pinned but does not meet minimum supported version")
+		}
 	}
 
 	return nil

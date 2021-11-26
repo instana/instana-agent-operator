@@ -1422,6 +1422,13 @@ spec:
                 type: object
               opentelemetry.enabled:
                 type: boolean
+              pinnedChartVersion:
+                description: Specifying the PinnedChartVersion allows for 'pinning'
+                  the Helm Chart used by the Operator for installing the Agent DaemonSet.
+                  Normally the Operator will always install and update to the latest
+                  Helm Chart version. The Operator will check and make sure no 'unsupported'
+                  Chart versions can be selected.
+                type: string
               podSecurityPolicy:
                 description: 'Specify a PodSecurityPolicy for the Instana Agent Pods.
                   If enabled requires `rbac.create: true`.'

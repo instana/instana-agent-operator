@@ -3,6 +3,7 @@ module github.com/instana/instana-agent-operator
 go 1.16
 
 require (
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/containerd/containerd v1.5.8 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/google/go-cmp v0.5.5
