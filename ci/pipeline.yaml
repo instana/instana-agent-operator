@@ -479,9 +479,14 @@ jobs:
                 export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
                 # get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
-                export PREV_VERSION=$(curl --silent --fail --show-error -L https://raw.githubusercontent.com/instana/community-operators/main/operators/instana-agent/instana-agent.package.yaml \
-                 | grep -i "currentCSV" \
-                 | sed 's/.*instana-agent-operator\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+                 | jq ".[1].name" \
+                 | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                if [[ "x${PREV_VERSION}" = "x" ]]; then
+                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+                  exit 1
+                fi
 
                 # Create bundle for public operator with image: instana/instana-agent-operator:<version>
                 make IMG="instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" PREV_VERSION="${PREV_VERSION}" bundle
@@ -554,9 +559,14 @@ jobs:
                 export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
                 # get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
-                export PREV_VERSION=$(curl --silent --fail --show-error -L https://raw.githubusercontent.com/instana/community-operators/main/operators/instana-agent/instana-agent.package.yaml \
-                 | grep -i "currentCSV" \
-                 | sed 's/.*instana-agent-operator\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+                 | jq ".[1].name" \
+                 | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                if [[ "x${PREV_VERSION}" = "x" ]]; then
+                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+                  exit 1
+                fi
 
                 # Create separate bundle for RedHat with different image: registry.connect.redhat.com/instana/instana-agent-operator:1.0.9
                 make IMG="registry.connect.redhat.com/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" PREV_VERSION="${PREV_VERSION}" bundle
