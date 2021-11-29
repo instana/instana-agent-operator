@@ -12,6 +12,13 @@ resource_types:
       tag: "0.1.14"
 
 resources:
+  - name: agent-operator-pipeline-source
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: main
+
   - name: agent-operator-release-source
     type: git
     icon: github
@@ -30,7 +37,7 @@ resources:
       #                      ^ ^ any number of digits
       #                         ^^ any prefix (denoting a non-release tag)
       #                           ^ end of the tag string
-  
+
   - name: build-bundle
     type: s3
     icon: zip-disk
@@ -120,17 +127,16 @@ resources:
 jobs:
   - name: self-update
     plan:
-    - get: agent-operator-release-source
+    - get: agent-operator-pipeline-source
       trigger: true
     - set_pipeline: self
-      file: agent-operator-release-source/ci/pipeline.yaml
+      file: agent-operator-pipeline-source/ci/pipeline.yaml
 
   - name: prepare-build-bundle
     max_in_flight: 1
     plan:
       - get: agent-operator-release-source
         trigger: true
-        passed: [self-update]
       - task: package-build-bundle
         config:
           platform: linux
@@ -176,7 +182,7 @@ jobs:
         file: agent-operator-release-source/.git/HEAD
         reveal: true
 
-      # spin off AWS CloudBuild jobs to build operator 
+      # spin off AWS CloudBuild jobs to build operator
       # images for the different target platforms:
       - in_parallel:
           fail_fast: true
@@ -320,7 +326,7 @@ jobs:
 
                 # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
-                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then 
+                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
                   echo "---> **** Internal release, publishing to docker hub & Red Hat container registry skipped. ****"
                   exit 0
                 fi
@@ -370,14 +376,14 @@ jobs:
                 docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> Building multi-architectural manifest on icr.io"
-                docker manifest create "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
-                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
-                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
-                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
-                  --amend "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+                docker manifest create "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
+                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
+                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
+                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
+                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> Pushing multi-architectural manifest to icr.io"
-                docker manifest push --purge "ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION"
+                docker manifest push --purge "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION"
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin https://scan.connect.redhat.com/v1/
                 export RED_HAT_REGISTRY="scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator"
@@ -610,7 +616,7 @@ jobs:
 
                 # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
-                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then 
+                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
                   echo "---> **** Internal release, publishing OLM to Red Hat container registry skipped. ****"
                   exit 0
                 fi
@@ -634,6 +640,6 @@ jobs:
 
                 docker load < image/image.tar
                 docker tag $(cat image/digest) $RED_HAT_REGISTRY_OLM:$OPERATOR_DOCKER_VERSION
-                
+
                 echo "---> pushing images to Red Hat Container Registry"
                 docker push $RED_HAT_REGISTRY_OLM:$OPERATOR_DOCKER_VERSION
