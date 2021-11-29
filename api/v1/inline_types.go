@@ -131,12 +131,12 @@ type BaseAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	RedactKubernetesSecrets string `json:"redactKubernetesSecrets,omitempty"`
 
-	// `host.repository` sets a host path to be mounted as the Agent Maven repository (mainly for debugging or development purposes)
+	// Host sets a host path to be mounted as the Agent Maven repository (mainly for debugging or development purposes)
 	// +kubebuilder:validation:Optional
 	Host HostSpec `json:"host,omitempty"`
 
 	// Override for the Maven repository URL when the Agent needs to connect to a locally provided Maven repository 'proxy'
-	// Alternative to `host.repository` for referencing a different Maven repo.
+	// Alternative to `Host` for referencing a different Maven repo.
 	// +kubebuilder:validation:Optional
 	MvnRepoUrl string `json:"instanaMvnRepoUrl,omitempty"`
 }
