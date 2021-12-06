@@ -20,6 +20,7 @@ endif
 
 # DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
+DEFAULT_CHANNEL ?= "stable"
 ifneq ($(origin DEFAULT_CHANNEL), undefined)
 BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
@@ -27,6 +28,10 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
 IMG ?= instana/instana-agent-operator:latest
+
+# Image URL for the Instana Agent, as listed in the 'relatedImages' field in the CSV
+AGENT_IMG ?= instana/agent:latest
+
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -126,7 +131,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	kubectl delete ns instana-agent
 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 deploy-minikube: manifests kustomize ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
@@ -214,7 +219,12 @@ endef
 bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
-	$(KUSTOMIZE) build config/manifests | sed -e 's|\(replaces:.*v\)0.0.0|\1$(PREV_VERSION)|' | sed -e 's|\(containerImage:[[:space:]]*\).*|\1$(IMG)|' | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests \
+		| sed -e 's|\(replaces:.*v\)0.0.0|\1$(PREV_VERSION)|' \
+		| sed -e 's|\(containerImage:[[:space:]]*\).*|\1$(IMG)|' \
+		| sed -e 's|\(image:[[:space:]]*\).*instana-agent-operator:0.0.0|\1$(IMG)|' \
+		| sed -e 's|\(image:[[:space:]]*\).*agent:latest|\1$(AGENT_IMG)|' \
+		| $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
 	$(OPERATOR_SDK) bundle validate ./bundle
 

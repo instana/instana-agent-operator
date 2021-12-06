@@ -110,9 +110,8 @@ spec:
                       dev'
                     type: object
                   host:
-                    description: '`host.repository` sets a host path to be mounted
-                      as the Agent Maven repository (mainly for debugging or development
-                      purposes)'
+                    description: Host sets a host path to be mounted as the Agent
+                      Maven repository (mainly for debugging or development purposes)
                     properties:
                       repository:
                         type: string
@@ -153,8 +152,7 @@ spec:
                   instanaMvnRepoUrl:
                     description: Override for the Maven repository URL when the Agent
                       needs to connect to a locally provided Maven repository 'proxy'
-                      Alternative to `host.repository` for referencing a different
-                      Maven repo.
+                      Alternative to `Host` for referencing a different Maven repo.
                     type: string
                   key:
                     description: Key is the secret token which your agent uses to

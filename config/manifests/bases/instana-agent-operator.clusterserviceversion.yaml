@@ -334,9 +334,14 @@ spec:
   maintainers:
   - email: support@instana.com
     name: Instana
-  maturity: beta
+  maturity: stable
   minKubeVersion: 1.11.0
   provider:
     name: Instana
+  relatedImages:
+  - image: instana/instana-agent-operator:0.0.0
+    name: instana-agent-operator
+  - image: instana/agent:latest
+    name: instana-agent
   replaces: instana-agent-operator.v0.0.0
   version: 0.0.0

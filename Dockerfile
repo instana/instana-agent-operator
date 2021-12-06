@@ -68,6 +68,7 @@ COPY LICENSE /licenses/
 
 RUN mkdir -p .cache/helm/repository/
 RUN chown -R ${USER_UID}:${USER_UID} .cache
+RUN chmod -R 777 .cache
 
 USER ${USER_UID}:${USER_UID}
 ENTRYPOINT ["/manager"]
