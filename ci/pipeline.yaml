@@ -9,6 +9,10 @@ resource_types:
     source:
       repository: cedricziel/concourse-codebuild-resource
       tag: "0.1.14"
+  - name: key-value
+    type: registry-image
+    source:
+      repository: gstack/keyval-resource
 
 resources:
   - name: agent-operator-pipeline-source
@@ -114,14 +118,9 @@ resources:
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
-  - name: olm-image-gcr
-    type: registry-image
-    icon: docker
-    source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator-bundle
-      tag: latest
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: latest-operator-image-manifest-sha
+    type: key-value
+    icon: zip-disk
 
   - name: latest-agent-image-manifest
     type: registry-image
@@ -294,7 +293,7 @@ jobs:
             - name: agent-operator-release-source
           outputs:
             - name: message
-            - name: operator-image-manifest-sha
+            - name: latest-operator-image-manifest-sha
           params:
             DOCKER_CLI_EXPERIMENTAL: enabled
             COMMIT_SHA: ((.:commit-sha))
@@ -367,11 +366,15 @@ jobs:
                   --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64" \
                   --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
 
-                # Store the SHA of the manifest in a variable for use in the next pipeline task
-                docker images --no-trunc --quiet "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" > operator-image-manifest-sha/sha
-
+                # Store the SHA of the manifest in a variable for use in the next pipeline task. Can only retrieve it while pushing
                 echo "---> Pushing multi-architectural manifest to docker.io"
-                docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION"
+                docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
+                
+                # Validate the SHA to be sure we captured something
+                if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
+                  echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"
+                  exit 1
+                fi
 
                 echo "---> re-tagging images for icr.io"
                 echo "$ICR_PASSWORD" | docker login -u $ICR_USERNAME --password-stdin icr.io
@@ -434,12 +437,17 @@ jobs:
 
                 # echo "---> Pushing multi-architectural manifest to Red Hat Container Registry"
                 # docker manifest push --purge "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
+      - put: latest-operator-image-manifest-sha
+        params:
+          directory: latest-operator-image-manifest-sha
 
   - name: operator-olm-github-release
     max_in_flight: 1
     plan:
       - get: agent-operator-release-source
         trigger: true
+        passed: [ multiarch-operator-manifest-publish ]
+      - get: latest-operator-image-manifest-sha
         passed: [ multiarch-operator-manifest-publish ]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
@@ -460,7 +468,7 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: agent-operator-release-source
-            - name: operator-image-manifest-sha
+            - name: latest-operator-image-manifest-sha
           outputs:
             - name: build
           params:
@@ -488,8 +496,13 @@ jobs:
                 && mkdir -p "${GOPATH}" \
                 && go version
 
-                if [[ -f "operator-image-manifest-sha/sha" ]]; then
-                  export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "operator-image-manifest-sha/sha")
+                if [[ -f "latest-operator-image-manifest-sha/sha-${VERSION}" ]]; then
+                  export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "latest-operator-image-manifest-sha/sha-${VERSION}")
+                  echo "Found SHA for latest Operator Manifest: ${OPERATOR_IMAGE_MANIFEST_SHA}"
+                else
+                  echo "No SHA found for latest Operator Manifest. Might be pre-release version"
+                  ls -la latest-operator-image-manifest-sha/
+                  exit 1
                 fi
 
                 pushd agent-operator-release-source
@@ -501,9 +514,10 @@ jobs:
                 export PREFIX="v"
                 export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
-                # get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                # Uses jq to filter out non-release versions
                 export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
-                 | jq ".[1].name" \
+                 | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
                  | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 
                 if [[ "x${PREV_VERSION}" = "x" ]]; then
