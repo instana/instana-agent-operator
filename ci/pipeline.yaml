@@ -1,4 +1,3 @@
-
 ---
 resource_types:
   - name: google-cloud-storage
@@ -123,6 +122,15 @@ resources:
       tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+
+  - name: latest-agent-image-manifest
+    type: registry-image
+    icon: docker
+    source:
+      repository: docker.io/instana/agent
+      tag: latest
+      username: ((dockerhub-instanacicd.user))
+      password: ((dockerhub-instanacicd.password))
 
 jobs:
   - name: self-update
@@ -286,6 +294,7 @@ jobs:
             - name: agent-operator-release-source
           outputs:
             - name: message
+            - name: operator-image-manifest-sha
           params:
             DOCKER_CLI_EXPERIMENTAL: enabled
             COMMIT_SHA: ((.:commit-sha))
@@ -358,6 +367,9 @@ jobs:
                   --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64" \
                   --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
 
+                # Store the SHA of the manifest in a variable for use in the next pipeline task
+                docker images --no-trunc --quiet "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" > operator-image-manifest-sha/sha
+
                 echo "---> Pushing multi-architectural manifest to docker.io"
                 docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION"
 
@@ -429,9 +441,14 @@ jobs:
       - get: agent-operator-release-source
         trigger: true
         passed: [ multiarch-operator-manifest-publish ]
+      - get: latest-agent-image-manifest
+        params: { skip_download: true }
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         #file: agent-operator-release-source/version
+        reveal: true
+      - load_var: agent-image-digest
+        file: latest-agent-image-manifest/digest
         reveal: true
       - task: build
         privileged: true
@@ -443,10 +460,12 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: agent-operator-release-source
+            - name: operator-image-manifest-sha
           outputs:
             - name: build
           params:
             VERSION: ((.:operator-version))
+            AGENT_IMG_DIGEST: ((.:agent-image-digest))
             GH_API_TOKEN: ((instanacd-github-api-token))
           run:
             path: bash
@@ -469,6 +488,10 @@ jobs:
                 && mkdir -p "${GOPATH}" \
                 && go version
 
+                if [[ -f "operator-image-manifest-sha/sha" ]]; then
+                  export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "operator-image-manifest-sha/sha")
+                fi
+
                 pushd agent-operator-release-source
 
                 # Create a place to store our output for packaging up
@@ -488,8 +511,20 @@ jobs:
                   exit 1
                 fi
 
+                if [[ "x${OPERATOR_IMAGE_MANIFEST_SHA}" = "x" ]]; then
+                  echo "No Operator manifest SHA found, using version ${OLM_RELEASE_VERSION} for Operator image"
+                  export OPERATOR_IMAGE="instana/instana-agent-operator:${OLM_RELEASE_VERSION}"
+                else
+                  echo "Operator manifest SHA found, using digest ${OPERATOR_IMAGE_MANIFEST_SHA} for Operator image"
+                  export OPERATOR_IMAGE="instana/instana-agent-operator@${OPERATOR_IMAGE_MANIFEST_SHA}"
+                fi
+
                 # Create bundle for public operator with image: instana/instana-agent-operator:<version>
-                make IMG="instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" PREV_VERSION="${PREV_VERSION}" bundle
+                make IMG="${OPERATOR_IMAGE}" \
+                  VERSION="${OLM_RELEASE_VERSION}" \
+                  PREV_VERSION="${PREV_VERSION}" \
+                  AGENT_IMG="instana/agent@${AGENT_IMG_DIGEST}" \
+                  bundle
 
                 pushd bundle
                 zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
@@ -507,149 +542,3 @@ jobs:
 
                 echo "**** Public release, create github.com release $VERSION. ****"
                 ./ci/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
-
-  - name: redhat-olm-image
-    max_in_flight: 1
-    plan:
-      - get: agent-operator-release-source
-        passed: [ operator-olm-github-release ]
-        trigger: true
-      - load_var: operator-version
-        file: agent-operator-release-source/.git/ref
-        #file: agent-operator-release-source/version
-        reveal: true
-      - task: prepare-context
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
-          inputs:
-            - name: agent-operator-release-source
-          outputs:
-            - name: context
-          params:
-            VERSION: ((.:operator-version))
-          run:
-            path: bash
-            args:
-              - -ceu
-              - |
-                microdnf install make python3-devel gcc git tar gzip zip curl
-                pip3 install pyyaml
-
-                # ubi8 still bundles Go 1.15 but we rely on 1.16, so install manually
-                export PATH="$PATH:/usr/local/go/bin"
-                export GOPATH=/go
-                export GO_VERSION=1.16.6
-                export GO_SHA256="be333ef18b3016e9d7cb7b1ff1fdb0cac800ca0be4cf2290fe613b3d069dfe0d go${GO_VERSION}.linux-amd64.tar.gz"
-
-                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && echo "${GO_SHA256}" | sha256sum --check \
-                && rm -rf /usr/local/go \
-                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && mkdir -p "${GOPATH}" \
-                && go version
-
-                pushd agent-operator-release-source
-
-                # strip the leading "v" from the operator version for github artefacts and release:
-                export PREFIX="v"
-                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
-
-                # get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
-                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
-                 | jq ".[1].name" \
-                 | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-
-                if [[ "x${PREV_VERSION}" = "x" ]]; then
-                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
-                  exit 1
-                fi
-
-                # Create separate bundle for RedHat with different image: registry.connect.redhat.com/instana/instana-agent-operator:1.0.9
-                make IMG="registry.connect.redhat.com/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" PREV_VERSION="${PREV_VERSION}" bundle
-
-                popd
-
-                # Copy necessary files to the context for building the container image in the next step
-                cp -r agent-operator-release-source/bundle context/
-                echo $OLM_RELEASE_VERSION > context/version
-      - task: olm-image-build
-        privileged: true
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: concourse/oci-build-task
-          inputs:
-            - name: agent-operator-release-source
-            - name: context
-          outputs:
-            - name: image
-          params:
-            CONTEXT: context
-            DOCKERFILE: agent-operator-release-source/bundle.Dockerfile
-          run:
-            path: build
-      - put: olm-image-gcr
-        params:
-          image: image/image.tar
-          additional_tags: context/version
-      - task: olm-image-redhat-publish
-        privileged: true
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: karlkfi/concourse-dcind
-          inputs:
-            - name: image
-            - name: context
-          outputs:
-            - name: message
-          params:
-            DOCKER_CLI_EXPERIMENTAL: enabled
-            VERSION: ((.:operator-version))
-            RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-ospid-5fc350a1-9257-4291-9f2a-df9257b9e791.password))
-            RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-ospid-5fc350a1-9257-4291-9f2a-df9257b9e791.user))
-          run:
-            path: entrypoint.sh
-            args:
-              - bash
-              - -ceu
-              - |
-                set -e
-
-                # For non-public releases we are done:
-                export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
-                if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
-                  echo "---> **** Internal release, publishing OLM to Red Hat container registry skipped. ****"
-                  exit 0
-                fi
-
-                echo "---> **** Public release, publishing OLM to Red Hat container registry. ****"
-
-                # strip the leading "v" from the operator version for docker.io release:
-                export PREFIX="v"
-                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
-
-                echo "$RED_HAT_REGISTRY_PASSWORD" | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin https://scan.connect.redhat.com/v1/
-                export RED_HAT_REGISTRY_OLM="scan.connect.redhat.com/ospid-5fc350a1-9257-4291-9f2a-df9257b9e791/instana-agent-operator-bundle"
-
-                export EXISTS=0
-                docker manifest inspect $RED_HAT_REGISTRY_OLM:${OPERATOR_DOCKER_VERSION} || export EXISTS=$?
-                if [ $EXISTS -eq 0 ]
-                then
-                  echo "Manifest $RED_HAT_REGISTRY_OLM:${OPERATOR_DOCKER_VERSION} is already present on Red Hat Container Registry, skipping publish."
-                  exit 0
-                fi
-
-                docker load < image/image.tar
-                docker tag $(cat image/digest) $RED_HAT_REGISTRY_OLM:$OPERATOR_DOCKER_VERSION
-
-                echo "---> pushing images to Red Hat Container Registry"
-                docker push $RED_HAT_REGISTRY_OLM:$OPERATOR_DOCKER_VERSION
