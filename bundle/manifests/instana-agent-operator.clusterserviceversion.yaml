@@ -412,7 +412,7 @@ spec:
   maintainers:
   - email: support@instana.com
     name: Instana
-  maturity: beta
+  maturity: stable
   minKubeVersion: 1.11.0
   provider:
     name: Instana
