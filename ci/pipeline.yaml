@@ -114,15 +114,6 @@ resources:
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
-  - name: olm-image-gcr
-    type: registry-image
-    icon: docker
-    source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator-bundle
-      tag: latest
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
-
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
