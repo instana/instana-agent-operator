@@ -81,6 +81,11 @@ rules:
 # Below are the permissions are for the agent.
 # The operator needs these permissions to create the agent's cluster role.
 # -------------------------------------------------------------------------
+- nonResourceURLs:
+  - '/version'
+  - '/healthz'
+  verbs:
+  - 'get'
 - apiGroups:
   - ''
   resources:
@@ -146,10 +151,18 @@ rules:
     - 'list'
     - 'watch'
 - apiGroups:
-  - "apps.openshift.io"
+  - 'apps.openshift.io'
   resources:
-  - "deploymentconfigs"
+  - 'deploymentconfigs'
   verbs:
-  - "get"
-  - "list"
-  - "watch"
+  - 'get'
+  - 'list'
+  - 'watch'
+- apiGroups:
+  - 'security.openshift.io'
+  resourceNames:
+  - 'privileged'
+  resources:
+  - 'securitycontextconstraints'
+  verbs:
+  - 'use'
