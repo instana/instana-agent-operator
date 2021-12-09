@@ -15,10 +15,10 @@ There are two ways to install the operator:
 * [Creating the required resources manually](https://www.instana.com/docs/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually)
 * [Using the Operator Lifecycle Manager (OLM)](https://www.instana.com/docs/setup_and_manage/host_agent/on/openshift/#install-operator-via-olm)
 
-**NOTE** For the conversion Mutating WebHook, converting older `v1beta1` Specs to `v1` Spec, the Cert-Manager needs to
+**IMPORTANT NOTE** For the conversion Mutating WebHook, converting older `v1beta1` Specs to `v1` Spec, the Cert-Manager needs to
 be installed (unless using OLM). See the [Cert Manager docs](https://cert-manager.io/docs/installation/) for how to
-install and configure the Cert-Manager properly. Or comment out all sections with `[WEBHOOK]` and `[CERTMANAGER]`
-prefixes.
+install and configure the Cert-Manager properly.
+Alternatively, every release will include the [instana-agent-operator-no-conversion-webhook.yaml](https://github.com/instana/instana-agent-operator/releases/download/latest/instana-agent-operator-no-conversion-webhook.yaml) variant for easily installing the Operator without the conversion WebHook.
 
 ### Configuration
 
