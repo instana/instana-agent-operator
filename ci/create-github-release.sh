@@ -18,7 +18,7 @@ fi
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )/.."
 TARGET_DIR="$ROOT_DIR/target"
 OPERATOR_RESOURCE_FILENAME="instana-agent-operator.yaml"
-PATH_TO_OPERATOR_RESOURCE="${TARGET_DIR}/${OPERATOR_RESOURCE_FILENAME}"
+OPERATOR_NO_WEBHOOK_RESOURCE_FILENAME="instana-agent-operator-no-conversion-webhook.yaml"
 GITHUB_RELEASES_URL="https://api.github.com/repos/instana/instana-agent-operator/releases"
 
 printf "%s\n" "Checking if release v${VERSION} exists..."
@@ -57,5 +57,6 @@ upload_github_asset() {
   fi
 }
 
-upload_github_asset ${PATH_TO_OPERATOR_RESOURCE} ${OPERATOR_RESOURCE_FILENAME}
+upload_github_asset "${TARGET_DIR}/${OPERATOR_RESOURCE_FILENAME}" "${OPERATOR_RESOURCE_FILENAME}"
+upload_github_asset "${TARGET_DIR}/${OPERATOR_NO_WEBHOOK_RESOURCE_FILENAME}" "${OPERATOR_NO_WEBHOOK_RESOURCE_FILENAME}"
 upload_github_asset "${TARGET_DIR}/olm-$VERSION.zip" "olm-$VERSION.zip"

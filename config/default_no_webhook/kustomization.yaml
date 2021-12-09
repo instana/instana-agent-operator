@@ -1,0 +1,12 @@
+# Adds namespace to all resources.
+namespace: instana-agent
+
+# Copy of the "default" kustomization, but leaving out the conversion WebHook
+
+bases:
+- ../crd
+- ../rbac
+- ../manager
+
+patchesStrategicMerge:
+  - webhook_removal_patch.yaml
