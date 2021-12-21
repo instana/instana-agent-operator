@@ -369,7 +369,7 @@ jobs:
                 # Store the SHA of the manifest in a variable for use in the next pipeline task. Can only retrieve it while pushing
                 echo "---> Pushing multi-architectural manifest to docker.io"
                 docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
-                
+
                 # Validate the SHA to be sure we captured something
                 if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
                   echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"

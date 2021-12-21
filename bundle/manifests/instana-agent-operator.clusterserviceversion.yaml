@@ -272,6 +272,11 @@ spec:
           - events
           verbs:
           - create
+        - nonResourceURLs:
+          - /version
+          - /healthz
+          verbs:
+          - get
         - apiGroups:
           - ""
           resources:
@@ -343,6 +348,15 @@ spec:
           verbs:
           - get
           - list
+          - watch
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
         serviceAccountName: controller-manager
       deployments:
       - name: controller-manager
