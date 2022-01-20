@@ -104,7 +104,7 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 	if err != nil {
 		return err
 	}
-	if versionSet.Has("apps.openshift.io/v1") {
+	if crdInstance.Spec.OpenShift || versionSet.Has("apps.openshift.io/v1") {
 		crdInstance.Spec.OpenShift = true
 	} else {
 		crdInstance.Spec.OpenShift = false
