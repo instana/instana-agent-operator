@@ -54,7 +54,7 @@ metadata:
     certified: "false"
     containerImage: instana/instana-agent-operator:latest
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.16.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
