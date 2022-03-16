@@ -88,7 +88,7 @@ vet: ## Run go vet against code
 	go vet ./...
 
 lint: golangci-lint ## Run the golang-ci linter
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run --timeout 5m
 
 test: manifests generate fmt vet lint envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
