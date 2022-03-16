@@ -51,7 +51,7 @@ LABEL name="instana-agent-operator" \
       git-commit=$GIT_COMMIT \
       summary="Kubernetes / OpenShift Operator for the Instana APM Agent" \
       description="This operator will deploy a daemon set to run the Instana APM Agent on each cluster node." \
-      url="https://hub.docker.com/r/instana/instana-agent-operator" \
+      url="https://catalog.redhat.com/software/containers/instana/instana-agent-operator/5cd2efc469aea3638b0fcff3" \
       io.k8s.display-name="Instana Agent Operator" \
       io.openshift.tags="" \
       io.k8s.description="" \
@@ -61,6 +61,11 @@ LABEL name="instana-agent-operator" \
 ENV OPERATOR=instana-agent-operator \
     USER_UID=1001 \
     USER_NAME=instana-agent-operator
+
+RUN microdnf install yum \
+  && yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical \
+  && yum clean all \
+  && microdnf clean all
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
