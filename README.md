@@ -12,8 +12,8 @@ This repository contains the Kubernetes Operator to install and manage the Insta
 
 There are two ways to install the operator:
 
-* [Creating the required resources manually](https://www.instana.com/docs/setup_and_manage/host_agent/on/kubernetes/#install-operator-manually)
-* [Using the Operator Lifecycle Manager (OLM)](https://www.instana.com/docs/setup_and_manage/host_agent/on/openshift/#install-operator-via-olm)
+* [Creating the required resources manually](https://www.ibm.com/docs/en/obi/current?topic=requirements-installing-host-agent-kubernetes#install-operator-manually)
+* [Using the Operator Lifecycle Manager (OLM)](https://www.ibm.com/docs/en/obi/current?topic=requirements-installing-host-agent-openshift#install-operator-via-olm)
 
 **IMPORTANT NOTE** For the conversion Mutating WebHook, converting older `v1beta1` Specs to `v1` Spec, the Cert-Manager needs to
 be installed (unless using OLM). See the [Cert Manager docs](https://cert-manager.io/docs/installation/) for how to
@@ -22,7 +22,7 @@ Alternatively, every release will include the [instana-agent-operator-no-convers
 
 ### Configuration
 
-[This documentation section](https://www.instana.com/docs/setup_and_manage/host_agent/on/kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
+[This documentation section](https://www.ibm.com/docs/en/obi/current?topic=requirements-installing-host-agent-kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
 
 ### Building
 

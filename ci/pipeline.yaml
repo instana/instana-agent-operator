@@ -126,10 +126,10 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: docker.io/instana/agent
+      repository: icr.io/instana/agent
       tag: latest
-      username: ((dockerhub-instanacicd.user))
-      password: ((dockerhub-instanacicd.password))
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
 
 jobs:
   - name: self-update
@@ -299,8 +299,6 @@ jobs:
             COMMIT_SHA: ((.:commit-sha))
             VERSION: ((.:operator-version))
             JSON_KEY: ((project-berlin-tests-gcp-instana-qa))
-            DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
-            DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
@@ -335,46 +333,15 @@ jobs:
                 # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
                 if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
-                  echo "---> **** Internal release, publishing to docker hub & Red Hat container registry skipped. ****"
+                  echo "---> **** Internal release, publishing to icr.io & Red Hat container registry skipped. ****"
                   exit 0
                 fi
 
-                echo "---> **** Public release, publishing to docker hub & Red Hat container registry. ****"
+                echo "---> **** Public release, publishing to icr.io & Red Hat container registry. ****"
 
-                # strip the leading "v" from the operator version for docker.io release:
+                # strip the leading "v" from the operator version for release:
                 export PREFIX="v"
                 export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
-
-                echo "$DOCKER_HUB_PASSWORD" | docker login -u $DOCKER_HUB_USERNAME --password-stdin https://index.docker.io/v1/
-
-                echo "---> re-tagging images for docker.io"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-amd64"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-s390x"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                echo "---> pushing images to docker.io"
-                docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-amd64"
-                docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-s390x"
-                docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64"
-                docker push "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                echo "---> Building multi-architectural manifest on docker.io"
-                docker manifest create "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" \
-                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-amd64" \
-                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-s390x" \
-                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-arm64" \
-                  --amend "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                # Store the SHA of the manifest in a variable for use in the next pipeline task. Can only retrieve it while pushing
-                echo "---> Pushing multi-architectural manifest to docker.io"
-                docker manifest push --purge "docker.io/instana/instana-agent-operator:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
-
-                # Validate the SHA to be sure we captured something
-                if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
-                  echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"
-                  exit 1
-                fi
 
                 echo "---> re-tagging images for icr.io"
                 echo "$ICR_PASSWORD" | docker login -u $ICR_USERNAME --password-stdin icr.io
@@ -398,7 +365,13 @@ jobs:
                   --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
 
                 echo "---> Pushing multi-architectural manifest to icr.io"
-                docker manifest push --purge "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION"
+                docker manifest push --purge "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
+                
+                # Validate the SHA to be sure we captured something
+                if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
+                  echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"
+                  exit 1
+                fi
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin https://scan.connect.redhat.com/v1/
                 export RED_HAT_REGISTRY="scan.connect.redhat.com/ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6/instana-agent-operator"
