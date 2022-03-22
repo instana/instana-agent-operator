@@ -4,7 +4,7 @@
 #
 
 # Build the manager binary, always build on amd64 platform
-FROM --platform=linux/amd64 golang:1.16 as builder
+FROM --platform=linux/amd64 golang:1.18 as builder
 
 ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
@@ -39,7 +39,7 @@ ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
 ARG BUILD=1
 ARG GIT_COMMIT=unspecified
-ARG DATE=
+ARG DATE=""
 
 LABEL name="instana-agent-operator" \
       vendor="Instana Inc" \
@@ -62,9 +62,7 @@ ENV OPERATOR=instana-agent-operator \
     USER_UID=1001 \
     USER_NAME=instana-agent-operator
 
-RUN microdnf install yum \
-  && yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical \
-  && yum clean all \
+RUN microdnf update \
   && microdnf clean all
 
 WORKDIR /

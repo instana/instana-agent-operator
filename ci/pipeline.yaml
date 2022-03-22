@@ -500,17 +500,17 @@ jobs:
 
                 if [[ "x${OPERATOR_IMAGE_MANIFEST_SHA}" = "x" ]]; then
                   echo "No Operator manifest SHA found, using version ${OLM_RELEASE_VERSION} for Operator image"
-                  export OPERATOR_IMAGE="instana/instana-agent-operator:${OLM_RELEASE_VERSION}"
+                  export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}"
                 else
                   echo "Operator manifest SHA found, using digest ${OPERATOR_IMAGE_MANIFEST_SHA} for Operator image"
-                  export OPERATOR_IMAGE="instana/instana-agent-operator@${OPERATOR_IMAGE_MANIFEST_SHA}"
+                  export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator@${OPERATOR_IMAGE_MANIFEST_SHA}"
                 fi
 
-                # Create bundle for public operator with image: instana/instana-agent-operator:<version>
+                # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
                 make IMG="${OPERATOR_IMAGE}" \
                   VERSION="${OLM_RELEASE_VERSION}" \
                   PREV_VERSION="${PREV_VERSION}" \
-                  AGENT_IMG="instana/agent@${AGENT_IMG_DIGEST}" \
+                  AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
                   bundle
 
                 pushd bundle
@@ -518,9 +518,9 @@ jobs:
                 popd
 
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
-                make --silent IMG="instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
                 # Create the YAML for installing the Agent Operator, which we want to package with the release (WITHOUT WEBHOOK)
-                make --silent IMG="instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml-no-webhook > target/instana-agent-operator-no-conversion-webhook.yaml
+                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml-no-webhook > target/instana-agent-operator-no-conversion-webhook.yaml
 
                 # For public releases, also create the appropriate github release:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
