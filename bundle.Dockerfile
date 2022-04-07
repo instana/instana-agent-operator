@@ -20,7 +20,7 @@ COPY bundle/manifests /manifests/
 COPY bundle/metadata /metadata/
 COPY bundle/tests/scorecard /tests/scorecard/
 
-# Allow bundle to be published on 4.5 and beyond
-LABEL com.redhat.openshift.versions="v4.5"
+# Allow bundle to be published on 4.6 and beyond
+LABEL com.redhat.openshift.versions="v4.6"
 LABEL com.redhat.delivery.operator.bundle=true
 LABEL com.redhat.delivery.backport=false
