@@ -1,5 +1,5 @@
 # MAINTAINERS
 
+Felix Marx   - @FelixMarxIBM
 Henning Treu - @htreu
-Miel Donkers - @mdonkers
 Torsten Kohn - @tkohn
