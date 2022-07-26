@@ -67,10 +67,10 @@ Kubernetes cluster. Therefore, follow the below steps:
 4. For deploying on Minikube, there's a convenient target `make deploy-minikube`. For any other environment you would
    need to first push the Docker image to a valid repository using `make docker-push`, then do the deployment
    using `make deploy` to deploy the Operator to the cluster configured for `kubectl`.
-5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml`
 
 Now you should have a successful running Operator.
 To remove the Operator again, run:
-- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml`
 - `make undeploy`.
 
