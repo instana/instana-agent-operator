@@ -49,5 +49,5 @@ workflows:
           name: "latest"
           go_version: "latest"
       - build:
-          name: "go1.16"
-          go_version: "1.16"
+          name: "go1.18"
+          go_version: "1.18"
