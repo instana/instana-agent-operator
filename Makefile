@@ -150,15 +150,15 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.5)
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 
 GOLANGCI_LINT = $(shell go env GOPATH)/bin/golangci-lint
 # Test if golangci-lint is available in the GOPATH, if not, set to local and download if needed
@@ -166,7 +166,7 @@ ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 endif
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1)
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.47.1)
 
 OPERATOR_SDK = $(shell command -v operator-sdk 2>/dev/null || echo "operator-sdk")
 # Test if operator-sdk is available on the system, otherwise download locally
@@ -177,16 +177,16 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0,operator-sdk_$${OS}_$${ARCH})
 
 
-# go-get-tool will 'go get' any package $2 and install it to $1.
+# go-install-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
+define go-install-tool
 @[ -f $(1) ] || { \
 set -e ;\
 TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef

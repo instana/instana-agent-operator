@@ -29,7 +29,7 @@ metadata:
     capabilities: Full Lifecycle
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
-    containerImage:  icr.io/instana/instana-agent-operator:0.0.0
+    containerImage: icr.io/instana/instana-agent-operator:0.0.0
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -307,7 +307,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image:  icr.io/instana/instana-agent-operator:0.0.0
+                image: icr.io/instana/instana-agent-operator:0.0.0
                 imagePullPolicy: Always
                 name: instana-agent-operator
                 ports:
@@ -316,11 +316,11 @@ spec:
               serviceAccountName: instana-agent-operator
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
-  - supported: false
+  - supported: true
     type: SingleNamespace
-  - supported: false
+  - supported: true
     type: MultiNamespace
   - supported: true
     type: AllNamespaces
@@ -339,7 +339,7 @@ spec:
   provider:
     name: Instana
   relatedImages:
-  - image:  icr.io/instana/instana-agent-operator:0.0.0
+  - image: icr.io/instana/instana-agent-operator:0.0.0
     name: instana-agent-operator
   - image: icr.io/instana/agent:latest
     name: instana-agent

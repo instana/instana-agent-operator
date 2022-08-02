@@ -10,7 +10,7 @@ fi
 
 # Select all changed files, by name only, filter deleted files
 for f in $(git diff --relative --cached --name-only --diff-filter=d $against | grep '\.\(go\|sh\)$'); do
-  if ! `head -n4 "${f}" | grep -q '(c) Copyright IBM Corp.'`; then
+  if ! `head -n5 "${f}" | grep -q '(c) Copyright IBM Corp.'`; then
 	echo "Missing copyright header in \"$f\""
 	STATUS=1
   fi

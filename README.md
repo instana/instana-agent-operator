@@ -46,7 +46,7 @@ Both are described below.
 
 ### Running Go Operator locally against a (Minikube) cluster
 
-1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
 3. Install the CRD: `make install`.
 4. Run the Go application, either from your IDE, or from command-line: `make run`.
@@ -61,16 +61,16 @@ To stop, take the following actions:
 The Instana Agent Operator can be developed and tested easily against a local Minikube cluster or any other configured
 Kubernetes cluster. Therefore, follow the below steps:
 
-1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
 3. Build the Operator image: `make docker-build`
 4. For deploying on Minikube, there's a convenient target `make deploy-minikube`. For any other environment you would
    need to first push the Docker image to a valid repository using `make docker-push`, then do the deployment
    using `make deploy` to deploy the Operator to the cluster configured for `kubectl`.
-5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml`
 
 Now you should have a successful running Operator.
 To remove the Operator again, run:
-- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml.yaml`
+- `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml`
 - `make undeploy`.
 

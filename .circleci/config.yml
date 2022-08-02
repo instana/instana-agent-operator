@@ -13,8 +13,7 @@ jobs:
         type: enum
         enum: ["on", "off", "auto"]
     docker:
-      - image: circleci/golang:<< parameters.go_version >>
-    working_directory: /go/src/github.com/instana/instana-agent-operator
+      - image: cimg/go:<< parameters.go_version >>
     steps:
       - checkout
       - restore_cache:
@@ -46,8 +45,5 @@ workflows:
   build:
     jobs:
       - build:
-          name: "latest"
-          go_version: "latest"
-      - build:
-          name: "go1.16"
-          go_version: "1.16"
+          name: "go1.18"
+          go_version: "1.18"
