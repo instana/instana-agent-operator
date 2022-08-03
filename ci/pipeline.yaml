@@ -462,11 +462,11 @@ jobs:
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
                 pip3 install pyyaml
 
-                # ubi8 still bundles Go 1.15 but we rely on 1.16, so install manually
+                # ubi8 still bundles Go 1.15 but we rely on 1.18, so install manually
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
-                export GO_VERSION=1.16.6
-                export GO_SHA256="be333ef18b3016e9d7cb7b1ff1fdb0cac800ca0be4cf2290fe613b3d069dfe0d go${GO_VERSION}.linux-amd64.tar.gz"
+                export GO_VERSION=1.18.5
+                export GO_SHA256="9e5de37f9c49942c601b191ac5fba404b868bfc21d446d6960acc12283d6e5f2 go${GO_VERSION}.linux-amd64.tar.gz"
 
                 curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && echo "${GO_SHA256}" | sha256sum --check \
