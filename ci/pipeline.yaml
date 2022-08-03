@@ -13,6 +13,11 @@ resource_types:
     type: registry-image
     source:
       repository: gstack/keyval-resource
+  - name: git
+    type: docker-image
+    source:
+      repository: concourse/git-resource
+      tag: "1.14.5" 
 
 resources:
   - name: agent-operator-pipeline-source
@@ -27,10 +32,11 @@ resources:
     icon: github
     source:
       uri: https://github.com/instana/instana-agent-operator.git
+      fetch_tags: true
       branch: main
       #  match release tags like "v1.12.99"
       #  match pre-release tags like "v1.12.100-pre"
-      tag_regex: ^v\d+\.\d+\.\d+.*$
+      tag_regex: '^v\d+\.\d+\.\d+.*$'
       #          ^ beginning of the tag string
       #           ^ all tags start with "v"
       #            ^ ^ any number of digits
