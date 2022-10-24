@@ -315,6 +315,10 @@ jobs:
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
             ICR_USERNAME: iamapikey
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
+            ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
+            ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
           run:
             path: entrypoint.sh
             args:
@@ -383,6 +387,37 @@ jobs:
                 if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
                   echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"
                   exit 1
+                fi
+                
+                echo "$ARTIFACTORY_PASSWORD" | docker login -u $ARTIFACTORY_USERNAME --password-stdin ${ARTIFACTORY_BASE_URL}
+                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
+                
+                export artifactory_exists=0
+                docker manifest inspect $ARTIFACTORY_REPOSITORY:${OPERATOR_DOCKER_VERSION} || export artifactory_exists=$?
+                if [ $artifactory_exists -eq 0 ]; then
+                  echo "Manifest $ARTIFACTORY_REPOSITORY:${OPERATOR_DOCKER_VERSION} is already present on Artifactory, skipping publish."
+                else
+                  echo "---> re-tagging images for artifactory"
+                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
+                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
+                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
+                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+  
+                  echo "---> pushing images to artifactory"
+                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
+                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
+                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
+                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+  
+                  echo "---> Building multi-architectural manifest on artifactory"
+                  docker manifest create "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
+                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
+                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
+                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
+                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
+  
+                  echo "---> Pushing multi-architectural manifest to artifactory"
+                  docker manifest push --purge "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
                 fi
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin quay.io
