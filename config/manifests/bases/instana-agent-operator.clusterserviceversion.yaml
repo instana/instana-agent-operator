@@ -33,8 +33,14 @@ metadata:
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
+  labels:
+    operatorframework.io/os.linux: supported
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.ppc64le: supported
+    operatorframework.io/arch.s390x: supported
   name: instana-agent-operator.v0.0.0
   namespace: placeholder
+
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
@@ -316,12 +322,6 @@ spec:
               serviceAccountName: instana-agent-operator
     strategy: deployment
   installModes:
-  - supported: true
-    type: OwnNamespace
-  - supported: true
-    type: SingleNamespace
-  - supported: true
-    type: MultiNamespace
   - supported: true
     type: AllNamespaces
   keywords:
