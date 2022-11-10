@@ -305,8 +305,8 @@ jobs:
             COMMIT_SHA: ((.:commit-sha))
             VERSION: ((.:operator-version))
             JSON_KEY: ((project-berlin-tests-gcp-instana-qa))
-            RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6.password))
-            RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-ospid-6da7e6aa-00e1-4355-9c15-21d63fb091b6.user))
+            RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
+            RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
             ICR_USERNAME: iamapikey
           run:
@@ -380,7 +380,7 @@ jobs:
                 fi
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin quay.io
-                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf/instana-agent-operator"
+                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
 
                 export EXISTS=0
                 docker manifest inspect $RED_HAT_REGISTRY:${OPERATOR_DOCKER_VERSION} || export EXISTS=$?
