@@ -319,6 +319,7 @@ jobs:
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
             ICR_USERNAME: iamapikey
+            RED_HAT_API_TOKEN: ((redhat-container-registry-5e9612d87512796c24e4aeef.api-token))
           run:
             path: entrypoint.sh
             args:
