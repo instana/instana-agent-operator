@@ -18,10 +18,6 @@ resource_types:
     source:
       repository: concourse/git-resource
       tag: "1.14.5"
-  - name: github-release
-    type: docker-image
-    source:
-      repository: concourse/github-release-resource
 
 resources:
   - name: agent-operator-pipeline-source
