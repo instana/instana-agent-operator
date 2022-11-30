@@ -17,7 +17,11 @@ resource_types:
     type: docker-image
     source:
       repository: concourse/git-resource
-      tag: "1.14.5" 
+      tag: "1.14.5"
+  - name: github-release
+    type: docker-image
+    source:
+      repository: concourse/github-release-resource
 
 resources:
   - name: agent-operator-pipeline-source
@@ -136,6 +140,11 @@ resources:
       tag: latest
       username: iamapikey
       password: ((concourse-icr-containers-public.password))
+  - name: preflight
+    type: github-release
+    source:
+      owner: redhat-openshift-ecosystem
+      repository: openshift-preflight
 
 jobs:
   - name: self-update
@@ -279,6 +288,10 @@ jobs:
       - get: operator-image-ppc64le
         params: { skip_download: true }
         passed: [ multiarch-operator-images-build ]
+      - get: preflight
+        params:
+          globs:
+            - preflight-linux-amd64
 
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
@@ -297,6 +310,7 @@ jobs:
               repository: karlkfi/concourse-dcind
           inputs:
             - name: agent-operator-release-source
+            - name: preflight
           outputs:
             - name: message
             - name: latest-operator-image-manifest-sha
@@ -408,13 +422,16 @@ jobs:
                 docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
                 
                 # Run Preflight Image Scans for RH Marketplace
-                curl -fLo preflight https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/1.4.3/preflight-linux-amd64
-                chmod +x preflight
                 
-                rm -rf ~/artifacts && ./preflight check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-                rm -rf ~/artifacts && ./preflight check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-                rm -rf ~/artifacts && ./preflight check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-                rm -rf ~/artifacts && ./preflight check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                pushd preflight
+                chmod +x preflight-linux-amd64
+                
+                rm -rf ~/artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                rm -rf ~/artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                rm -rf ~/artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                rm -rf ~/artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-project-id=5e961c2c93604e02afa9ebdf --docker-config ~/.docker/config.json --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                
+                popd
 
                 # echo "---> Building multi-architectural manifest on Red Hat Container Registry"
                 # docker manifest create "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" \
