@@ -415,7 +415,6 @@ jobs:
                 # For now we will fall back to just publish the amd64 variant instead:
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
                 docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
-                
                 # echo "---> Building multi-architectural manifest on Red Hat Container Registry"
                 # docker manifest create "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" \
                 #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" \
