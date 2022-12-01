@@ -17,7 +17,7 @@ resource_types:
     type: docker-image
     source:
       repository: concourse/git-resource
-      tag: "1.14.5" 
+      tag: "1.14.5"
 
 resources:
   - name: agent-operator-pipeline-source
@@ -136,6 +136,11 @@ resources:
       tag: latest
       username: iamapikey
       password: ((concourse-icr-containers-public.password))
+  - name: preflight
+    type: github-release
+    source:
+      owner: redhat-openshift-ecosystem
+      repository: openshift-preflight
 
 jobs:
   - name: self-update
@@ -300,6 +305,7 @@ jobs:
           outputs:
             - name: message
             - name: latest-operator-image-manifest-sha
+            - name: docker-cfg
           params:
             DOCKER_CLI_EXPERIMENTAL: enabled
             COMMIT_SHA: ((.:commit-sha))
@@ -381,6 +387,9 @@ jobs:
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin quay.io
                 export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
+                
+                # Copy Docker CFG for Preflight Step
+                cp ~/.docker/config.json docker-cfg/
 
                 export EXISTS=0
                 docker manifest inspect $RED_HAT_REGISTRY:${OPERATOR_DOCKER_VERSION} || export EXISTS=$?
@@ -406,7 +415,6 @@ jobs:
                 # For now we will fall back to just publish the amd64 variant instead:
                 docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
                 docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
-
                 # echo "---> Building multi-architectural manifest on Red Hat Container Registry"
                 # docker manifest create "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" \
                 #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" \
@@ -419,6 +427,49 @@ jobs:
       - put: latest-operator-image-manifest-sha
         params:
           directory: latest-operator-image-manifest-sha
+      - get: preflight
+        params:
+          globs:
+            - preflight-linux-amd64
+      - task: redhat-preflight-scans
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: docker-cfg
+            - name: preflight
+          params:
+            VERSION: ((.:operator-version))
+            RED_HAT_API_TOKEN: ((redhat-container-registry-5e9612d87512796c24e4aeef.api-token))
+          run:
+            path: bash
+            args:
+              - -ce
+              - |
+                # strip the leading "v" from the operator version for release:
+                
+                export PREFIX="v"
+                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
+                
+                # Run Preflight Image Scans for RH Marketplace
+                
+                export RED_HAT_PROJECT_ID=5e961c2c93604e02afa9ebdf
+                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
+                export DOCKER_CFG_FILE="$(pwd)/docker-cfg/config.json"
+
+                pushd preflight
+
+                chmod +x preflight-linux-amd64
+
+                rm -rf artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                rm -rf artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                rm -rf artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                rm -rf artifacts && ./preflight-linux-amd64 check container "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+
+                popd
 
   - name: operator-olm-github-release
     max_in_flight: 1
