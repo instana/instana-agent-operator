@@ -1,0 +1,155 @@
+---
+
+resources:
+  - name: agent-operator-pipeline-source
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: main
+
+  - name: instana-agent-operator-release
+    type: github-release
+    source:
+      owner: instana
+      repository: instana-agent-operator
+
+  - name: community-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/community-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+  - name: certified-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/certified-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+  - name: redhat-marketplace-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/redhat-marketplace-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+
+jobs:
+  - name: self-update
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-pipeline-source
+        trigger: true
+      - set_pipeline: self
+        file: agent-operator-pipeline-source/ci/rh-olm-release-pipeline.yaml
+
+  - name: olm-release-pr-creation
+    max_in_flight: 1
+    plan:
+      - get: instana-agent-operator-release
+        params:
+          globs:
+            - olm-*.zip
+        trigger: true
+      - in_parallel:
+          steps:
+            - do:
+                - get: community-operators-repo
+                - task: community-operator-push-changes
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: registry.access.redhat.com/ubi8/ubi-minimal
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: community-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: k8s-operatorhub
+                      REPO: community-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          microdnf install git zip curl jq
+                          
+                          pushd instana-agent-operator-release
+                          
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+                          
+                          # If the PR is already open then we are done
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
+                          if [ -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          
+                          popd
+                          
+                          pushd community-operators-repo/operators/instana-agent-operator
+                          
+                          mkdir -p $OPERATOR_RELEASE_VERSION
+                          unzip $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
+                          
+                          git add .
+                          git commit -S -m "$COMMIT_MESSAGE"
+                          
+                          popd
+                - put: community-operators-repo
+                - task: community-operator-create-pr
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: registry.access.redhat.com/ubi8/ubi-minimal
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: community-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: k8s-operatorhub
+                      REPO: community-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          microdnf install curl jq
+                          
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          # If the PR is already open then we are done
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
+                          if [ -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+
+                          popd
+                          
+                          # Create the PR
+                          curl \
+                            -fX POST \
+                            -H "Accept: application/vnd.github+json" \
+                            -H "Authorization: Bearer $GH_API_TOKEN" \
+                            https://api.github.com/repos/$OWNER/$REPO/pulls \
+                            -d '{"title":"$COMMIT_MESSAGE", "head":"instana:main","base":"main"}'
