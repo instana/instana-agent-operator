@@ -152,4 +152,4 @@ jobs:
                             -H "Accept: application/vnd.github+json" \
                             -H "Authorization: Bearer $GH_API_TOKEN" \
                             https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d '{"title":"$COMMIT_MESSAGE", "head":"instana:main","base":"main"}'
+                            -d '{"title":"$COMMIT_MESSAGE","head":"instana:main","base":"main"}'
