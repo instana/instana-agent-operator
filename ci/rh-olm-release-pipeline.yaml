@@ -22,22 +22,22 @@ resources:
       branch: main
       username: instanacd
       password: ((instanacd-github-api-token))
-  - name: certified-operators-repo
-    type: git
-    icon: github
-    source:
-      uri: https://github.com/instana/certified-operators.git
-      branch: main
-      username: instanacd
-      password: ((instanacd-github-api-token))
-  - name: redhat-marketplace-operators-repo
-    type: git
-    icon: github
-    source:
-      uri: https://github.com/instana/redhat-marketplace-operators.git
-      branch: main
-      username: instanacd
-      password: ((instanacd-github-api-token))
+#  - name: certified-operators-repo
+#    type: git
+#    icon: github
+#    source:
+#      uri: https://github.com/instana/certified-operators.git
+#      branch: main
+#      username: instanacd
+#      password: ((instanacd-github-api-token))
+#  - name: redhat-marketplace-operators-repo
+#    type: git
+#    icon: github
+#    source:
+#      uri: https://github.com/instana/redhat-marketplace-operators.git
+#      branch: main
+#      username: instanacd
+#      password: ((instanacd-github-api-token))
 
 jobs:
   - name: self-update
@@ -138,7 +138,7 @@ jobs:
 
                           # If the PR is already open then we are done
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
                           if [ -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
