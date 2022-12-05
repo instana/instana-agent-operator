@@ -91,7 +91,7 @@ jobs:
                           # If the PR is already open then we are done
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
-                          if [ -z "$EXISTING_PR_INFO_JSON" ]; then
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
@@ -141,7 +141,7 @@ jobs:
                           # If the PR is already open then we are done
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
-                          if [ -z "$EXISTING_PR_INFO_JSON" ]; then
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
