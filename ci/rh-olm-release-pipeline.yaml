@@ -103,6 +103,9 @@ jobs:
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
                           
+                          git config --global user.name "instanacd"
+                          git config --global user.email "instanacd@instana.com"
+                          
                           git add .
                           git commit -S -m "$COMMIT_MESSAGE"
                           
