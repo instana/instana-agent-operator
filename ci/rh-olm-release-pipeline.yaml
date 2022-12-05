@@ -108,6 +108,8 @@ jobs:
                           
                           popd
                 - put: community-operators-repo
+                  params:
+                    repository: community-operators-repo
                 - task: community-operator-create-pr
                   config:
                     platform: linux
