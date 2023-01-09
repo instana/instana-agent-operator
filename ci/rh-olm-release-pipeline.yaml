@@ -303,7 +303,7 @@ jobs:
                           pushd yq-release
                           
                           chmod +x yq_linux_amd64
-                          mv yq_linux_amd64 /usr/local/bin/
+                          mv yq_linux_amd64 /usr/local/bin/yq
                           
                           popd
                           
