@@ -107,7 +107,7 @@ jobs:
                           git config --global user.email "instanacd@instana.com"
                           
                           git add .
-                          git commit -S -m "$COMMIT_MESSAGE"
+                          git commit -s -m "$COMMIT_MESSAGE"
                           
                           popd
                 - put: community-operators-repo
