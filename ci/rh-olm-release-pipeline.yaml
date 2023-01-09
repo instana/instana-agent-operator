@@ -60,7 +60,7 @@ jobs:
           steps:
             - do:
                 - get: community-operators-repo
-                - task: community-operator-push-changes
+                - task: community-operator-commit-changes
                   config:
                     platform: linux
                     image_resource:
@@ -163,7 +163,7 @@ jobs:
 
             - do:
                 - get: certified-operators-repo
-                - task: certified-operator-push-changes
+                - task: certified-operator-commit-changes
                   config:
                     platform: linux
                     image_resource:
