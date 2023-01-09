@@ -324,7 +324,7 @@ jobs:
                           
                           popd
                           
-                          pushd redhat-marketplace-operators-repo/operators/instana-agent-operator
+                          pushd redhat-marketplace-operators-repo/operators/instana-agent-operator-rhmp
                           
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
