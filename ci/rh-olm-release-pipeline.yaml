@@ -286,6 +286,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
+                      - name: yq-release
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
