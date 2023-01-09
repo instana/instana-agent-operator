@@ -22,14 +22,14 @@ resources:
       branch: main
       username: instanacd
       password: ((instanacd-github-api-token))
-#  - name: certified-operators-repo
-#    type: git
-#    icon: github
-#    source:
-#      uri: https://github.com/instana/certified-operators.git
-#      branch: main
-#      username: instanacd
-#      password: ((instanacd-github-api-token))
+  - name: certified-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/certified-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
 #  - name: redhat-marketplace-operators-repo
 #    type: git
 #    icon: github
@@ -140,6 +140,109 @@ jobs:
 
                           OLM_BUNDLE_ZIP=$(ls olm*.zip)
                           OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          # If the PR is already open then we are done
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+
+                          popd
+                          
+                          # Create the PR
+                          curl \
+                            -fX POST \
+                            -H "Accept: application/vnd.github+json" \
+                            -H "Authorization: Bearer $GH_API_TOKEN" \
+                            https://api.github.com/repos/$OWNER/$REPO/pulls \
+                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+
+            - do:
+                - get: certified-operators-repo
+                - task: community-operator-push-changes
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: registry.access.redhat.com/ubi8/ubi-minimal
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: certified-operators-repo
+                    outputs:
+                      - name: certified-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: redhat-openshift-ecosystem
+                      REPO: certified-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          microdnf install git zip curl jq
+                          
+                          pushd instana-agent-operator-release
+                          
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+                          
+                          # If the PR is already open then we are done
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq '.[] | select(.title=="$COMMIT_MESSAGE")')
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          
+                          popd
+                          
+                          pushd certified-operators-repo/operators/instana-agent-operator
+                          
+                          mkdir -p $OPERATOR_RELEASE_VERSION
+                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
+                          
+                          git config --global user.name "instanacd"
+                          git config --global user.email "instanacd@instana.com"
+                          
+                          git add .
+                          git commit -s -m "$COMMIT_MESSAGE"
+                          
+                          popd
+                - put: certified-operators-repo
+                  params:
+                    repository: certified-operators-repo
+                - task: community-operator-create-pr
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: registry.access.redhat.com/ubi8/ubi-minimal
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: certified-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: redhat-openshift-ecosystem
+                      REPO: certified-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          microdnf install curl jq
+                          
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
                           COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
 
