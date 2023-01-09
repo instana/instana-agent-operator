@@ -14,6 +14,12 @@ resources:
       owner: instana
       repository: instana-agent-operator
 
+  - name: yq-release
+    type: github-release
+    source:
+      owner: mikefarah
+      repository: yq
+
   - name: community-operators-repo
     type: git
     icon: github
@@ -266,6 +272,10 @@ jobs:
 
             - do:
                 - get: redhat-marketplace-operators-repo
+                - get: yq-release
+                  params:
+                    globs:
+                      - yq_linux_amd64
                 - task: redhat-marketplace-operator-commit-changes
                   config:
                     platform: linux
@@ -289,6 +299,13 @@ jobs:
                         - |
                           microdnf install git zip curl jq
                           
+                          pushd yq-release
+                          
+                          chmod +x yq_linux_amd64
+                          mv yq_linux_amd64 /usr/local/bin/
+                          
+                          popd
+                          
                           pushd instana-agent-operator-release
                           
                           OLM_BUNDLE_ZIP=$(ls olm*.zip)
@@ -310,6 +327,20 @@ jobs:
                           
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
+                          
+                          pushd $OPERATOR_RELEASE_VERSION
+                          
+                          pushd manifests
+                          yq -i '.metadata.annotations += {"marketplace.openshift.io/remote-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/pricing?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
+                          yq -i '.metadata.annotations += {"marketplace.openshift.io/support-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/support?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
+                          mv instana-agent-operator.clusterserviceversion.yaml instana-agent-operator-rhmp.clusterserviceversion.yaml
+                          popd
+                          
+                          pushd metadata
+                          yq -i '.annotations."operators.operatorframework.io.bundle.package.v1" |= "instana-agent-operator-rhmp"' annotations.yaml
+                          popd
+                          
+                          popd
                           
                           git config --global user.name "instanacd"
                           git config --global user.email "instanacd@instana.com"
