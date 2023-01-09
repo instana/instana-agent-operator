@@ -311,7 +311,7 @@ jobs:
                           
                           OLM_BUNDLE_ZIP=$(ls olm*.zip)
                           OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
                           
                           # If the PR is already open then we are done
@@ -378,7 +378,7 @@ jobs:
 
                           OLM_BUNDLE_ZIP=$(ls olm*.zip)
                           OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
 
                           # If the PR is already open then we are done
