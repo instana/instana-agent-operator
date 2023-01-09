@@ -70,6 +70,8 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
+                    outputs:
+                      - name: community-operators-repo
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: k8s-operatorhub
