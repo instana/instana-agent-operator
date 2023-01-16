@@ -10,12 +10,14 @@ resources:
 
   - name: instana-agent-operator-release
     type: github-release
+    check_every: 5m
     source:
       owner: instana
       repository: instana-agent-operator
 
   - name: yq-release
     type: github-release
+    check_every: 24h
     source:
       owner: mikefarah
       repository: yq
