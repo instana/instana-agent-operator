@@ -42,7 +42,7 @@ type InstanaAgentSpec struct {
 
 	// Enables the OpenTelemetry gRPC endpoint on the Agent. If true, it will also apply `service.create: true`.
 	// +kubebuilder:validation:Optional
-	OpenTelemetry Enabled `json:"opentelemetry,omitempty"`
+	OpenTelemetry OpenTelemetry `json:"opentelemetry,omitempty"`
 
 	// Enables the Prometheus endpoint on the Agent. If true, it will also apply `service.create: true`.
 	// +kubebuilder:validation:Optional
