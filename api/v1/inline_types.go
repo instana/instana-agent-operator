@@ -272,7 +272,7 @@ type KubernetesDeploymentSpec struct {
 }
 
 type OpenTelemetry struct {
-	// Deprecated setting for backwards compatability
+	// Deprecated setting for backwards compatibility
 	Enabled `json:",inline"`
 
 	// +kubebuilder:validation:Optional
