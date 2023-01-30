@@ -417,7 +417,7 @@ jobs:
                     --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
   
                   echo "---> Pushing multi-architectural manifest to artifactory"
-                  docker manifest push --purge "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
+                  docker manifest push --purge "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION"
                 fi
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin quay.io
