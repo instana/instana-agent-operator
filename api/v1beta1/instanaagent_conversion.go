@@ -92,7 +92,7 @@ func (src *InstanaAgent) convertInternalSpecTo(dst *v1.InstanaAgent) {
 	}
 
 	dst.Spec.Rbac.Create = srcSpec.AgentRbacCreate
-	dst.Spec.OpenTelemetry.Enabled = srcSpec.OpenTelemetryEnabled
+	dst.Spec.OpenTelemetry.Enabled.Enabled = srcSpec.OpenTelemetryEnabled
 
 	dst.Spec.Agent.TlsSpec.SecretName = srcSpec.AgentTlsSecretName
 	dst.Spec.Agent.TlsSpec.Certificate = srcSpec.AgentTlsCertificate
@@ -175,7 +175,7 @@ func (dst *InstanaAgent) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 
 	dst.Spec.AgentRbacCreate = src.Spec.Rbac.Create
-	dst.Spec.OpenTelemetryEnabled = src.Spec.OpenTelemetry.Enabled
+	dst.Spec.OpenTelemetryEnabled = src.Spec.OpenTelemetry.Enabled.Enabled
 
 	dst.Spec.AgentTlsSecretName = src.Spec.Agent.TlsSpec.SecretName
 	dst.Spec.AgentTlsCertificate = src.Spec.Agent.TlsSpec.Certificate

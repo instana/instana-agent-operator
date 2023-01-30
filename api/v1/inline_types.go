@@ -270,3 +270,14 @@ type KubernetesDeploymentSpec struct {
 	// +kubebuilder:validation:Optional
 	Pod coreV1.ResourceRequirements `json:"pod,omitempty"`
 }
+
+type OpenTelemetry struct {
+	// Deprecated setting for backwards compatibility
+	Enabled `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	GRPC Enabled `json:"grpc,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	HTTP Enabled `json:"http,omitempty"`
+}

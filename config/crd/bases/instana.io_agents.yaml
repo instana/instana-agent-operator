@@ -1405,6 +1405,16 @@ spec:
                 properties:
                   enabled:
                     type: boolean
+                  grpc:
+                    properties:
+                      enabled:
+                        type: boolean
+                    type: object
+                  http:
+                    properties:
+                      enabled:
+                        type: boolean
+                    type: object
                 type: object
               opentelemetry.enabled:
                 type: boolean
