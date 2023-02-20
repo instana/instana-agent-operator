@@ -19,7 +19,6 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
-	agentoperatorv1beta1 "github.com/instana/instana-agent-operator/api/v1beta1"
 	"github.com/instana/instana-agent-operator/version"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -42,7 +41,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(agentoperatorv1beta1.AddToScheme(scheme))
 	utilruntime.Must(agentoperatorv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -88,15 +86,6 @@ func main() {
 	if err != nil {
 		log.Error(err, "Unable to start manager")
 		os.Exit(1)
-	}
-
-	// Register our Conversion Webhook to translate v1beta1 to v1 versions
-	// WebHooks are by default enabled, so "empty" variable should not be interpreted as "false"
-	if enableWebhooks, err := strconv.ParseBool(os.Getenv("ENABLE_WEBHOOKS")); enableWebhooks || err != nil {
-		if err = (&agentoperatorv1.InstanaAgent{}).SetupWebhookWithManager(mgr); err != nil {
-			log.Error(err, "unable to create webhook", "webhook", "InstanaAgent")
-			os.Exit(1)
-		}
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

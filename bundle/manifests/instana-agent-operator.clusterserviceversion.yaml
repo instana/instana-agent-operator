@@ -26,35 +26,14 @@ metadata:
               "name": "edited-zone"
             }
           }
-        },
-        {
-          "apiVersion": "instana.io/v1beta1",
-          "kind": "InstanaAgent",
-          "metadata": {
-            "name": "instana-agent",
-            "namespace": "instana-agent"
-          },
-          "spec": {
-            "agent.endpoint.host": "ingress-red-saas.instana.io",
-            "agent.endpoint.port": 443,
-            "agent.env": {
-              "INSTANA_AGENT_TAGS": "example"
-            },
-            "agent.key": "replace-me",
-            "agent.zone.name": "my-zone",
-            "cluster.name": "replace-me",
-            "config.files": {
-              "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n"
-            }
-          }
         }
       ]
     capabilities: Full Lifecycle
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
-    containerImage:  icr.io/instana/instana-agent-operator:latest
+    containerImage: icr.io/instana/instana-agent-operator:latest
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    operators.operatorframework.io/builder: operator-sdk-v1.16.0
+    operators.operatorframework.io/builder: operator-sdk-v1.15.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -91,21 +70,6 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1
-    - description: InstanaAgent is the Schema for the agents API
-      displayName: Instana Agent
-      kind: InstanaAgent
-      name: agents.instana.io
-      resources:
-      - kind: DaemonSet
-        name: instana-agent
-        version: v1
-      - kind: Pod
-        name: instana-agent
-        version: v1
-      - kind: Secret
-        name: instana-agent
-        version: v1
-      version: v1beta1
   description: |
     # Instana
 
@@ -398,7 +362,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image:  icr.io/instana/instana-agent-operator:latest
+                image: icr.io/instana/instana-agent-operator:latest
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -407,10 +371,6 @@ spec:
                   initialDelaySeconds: 15
                   periodSeconds: 20
                 name: manager
-                ports:
-                - containerPort: 9443
-                  name: webhook-server
-                  protocol: TCP
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -430,12 +390,6 @@ spec:
               terminationGracePeriodSeconds: 10
     strategy: deployment
   installModes:
-  - supported: false
-    type: OwnNamespace
-  - supported: false
-    type: SingleNamespace
-  - supported: false
-    type: MultiNamespace
   - supported: true
     type: AllNamespaces
   keywords:
@@ -453,22 +407,9 @@ spec:
   provider:
     name: Instana
   relatedImages:
-  - image:  icr.io/instana/instana-agent-operator:latest
+  - image: icr.io/instana/instana-agent-operator:latest
     name: instana-agent-operator
   - image: icr.io/instana/agent:latest
     name: instana-agent
   replaces: instana-agent-operator.v0.0.0
   version: 0.0.1
-  webhookdefinitions:
-  - admissionReviewVersions:
-    - v1
-    - v1beta1
-    containerPort: 443
-    conversionCRDs:
-    - agents.instana.io
-    deploymentName: controller-manager
-    generateName: cagents.kb.io
-    sideEffects: None
-    targetPort: 9443
-    type: ConversionWebhook
-    webhookPath: /convert
