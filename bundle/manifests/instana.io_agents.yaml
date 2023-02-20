@@ -1481,28 +1481,6 @@ spec:
           status:
             description: InstanaAgentStatus defines the observed state of InstanaAgent
             properties:
-              clusterrole:
-                description: ResourceInfo holds Name and UID to given object
-                properties:
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - name
-                - uid
-                type: object
-              clusterrolebinding:
-                description: ResourceInfo holds Name and UID to given object
-                properties:
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - name
-                - uid
-                type: object
               configmap:
                 description: ResourceInfo holds Name and UID to given object
                 properties:
@@ -1545,28 +1523,6 @@ spec:
                 type: boolean
               reason:
                 type: string
-              secret:
-                description: ResourceInfo holds Name and UID to given object
-                properties:
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - name
-                - uid
-                type: object
-              serviceaccount:
-                description: ResourceInfo holds Name and UID to given object
-                properties:
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - name
-                - uid
-                type: object
               status:
                 description: AgentOperatorState type representing the running state
                   of the Agent Operator itself.

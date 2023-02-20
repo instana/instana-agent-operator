@@ -59,8 +59,6 @@ func main() {
 
 	// When running in debug-mode, include some more logging etc
 	debugMode, _ := strconv.ParseBool(os.Getenv("DEBUG_MODE"))
-	// For local dev mode, make it possible to override the Certificate Path where certificates might get stored
-	certificatePath := os.Getenv("CERTIFICATE_PATH")
 
 	opts := zap.Options{
 		Development: debugMode,
@@ -81,7 +79,6 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "819a9291.instana.io",
-		CertDir:                certificatePath,
 	})
 	if err != nil {
 		log.Error(err, "Unable to start manager")
