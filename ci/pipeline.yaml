@@ -611,8 +611,6 @@ jobs:
 
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
                 make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
-                # Create the YAML for installing the Agent Operator, which we want to package with the release (WITHOUT WEBHOOK)
-                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml-no-webhook > target/instana-agent-operator-no-conversion-webhook.yaml
 
                 # For public releases, also create the appropriate github release:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'

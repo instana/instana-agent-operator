@@ -7,8 +7,6 @@ data:
       healthProbeBindAddress: :8081
     metrics:
       bindAddress: 127.0.0.1:8080
-    webhook:
-      port: 9443
     leaderElection:
       leaderElect: true
       resourceName: 819a9291.instana.io
