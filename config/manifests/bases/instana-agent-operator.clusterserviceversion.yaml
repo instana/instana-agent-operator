@@ -34,17 +34,31 @@ metadata:
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
   labels:
-    operatorframework.io/os.linux: supported
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.ppc64le: supported
     operatorframework.io/arch.s390x: supported
+    operatorframework.io/os.linux: supported
   name: instana-agent-operator.v0.0.0
   namespace: placeholder
-
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: InstanaAgent is the Schema for the agents API
+      displayName: Instana Agent
+      kind: InstanaAgent
+      name: agents.instana.io
+      resources:
+      - kind: DaemonSet
+        name: instana-agent
+        version: v1
+      - kind: Pod
+        name: instana-agent
+        version: v1
+      - kind: Secret
+        name: instana-agent
+        version: v1
+      version: v1beta1
     - description: InstanaAgent is the Schema for the agents API
       displayName: Instana Agent
       kind: InstanaAgent
@@ -67,21 +81,6 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1
-    - description: InstanaAgent is the Schema for the agents API
-      displayName: Instana Agent
-      kind: InstanaAgent
-      name: agents.instana.io
-      resources:
-      - kind: DaemonSet
-        name: instana-agent
-        version: v1
-      - kind: Pod
-        name: instana-agent
-        version: v1
-      - kind: Secret
-        name: instana-agent
-        version: v1
-      version: v1beta1
   description: |
     # Instana
 

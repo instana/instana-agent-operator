@@ -346,7 +346,7 @@ func (r *InstanaAgentReconciler) fetchInstanaNamespace(ctx context.Context) (*co
 }
 
 // validateAgentCrd does some basic validation as otherwise Helm may not deploy the Agent DaemonSet but silently skip it if
-// certain fields are omitted. In the future we should prevent this by adding a Validation WebHook.
+// certain fields are omitted.
 func (r *InstanaAgentReconciler) validateAgentCrd(crd *instanaV1.InstanaAgent) error {
 	if len(crd.Spec.Agent.EndpointHost) == 0 || len(crd.Spec.Agent.EndpointPort) == 0 || crd.Spec.Agent.EndpointPort == "0" {
 		r.log.Info(`
@@ -481,11 +481,6 @@ func (r *InstanaAgentReconciler) updateStatusFieldsAndFireEvent(ctx context.Cont
 		return r.upsertCrdStatusFields(ctx, req, state, func(status *instanaV1.InstanaAgentStatus) instanaV1.InstanaAgentStatus {
 			status.ConfigMap = configMapResource
 			status.DaemonSet = daemonSetResource
-			// Reset other statuses because we don't use them for the v1 Agent
-			status.Secret = instanaV1.ResourceInfo{}
-			status.ClusterRole = instanaV1.ResourceInfo{}
-			status.ClusterRoleBinding = instanaV1.ResourceInfo{}
-			status.ServiceAccount = instanaV1.ResourceInfo{}
 			return *status
 		})
 	}

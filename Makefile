@@ -73,10 +73,10 @@ setup: ## Basic project setup, e.g. installing GitHook for checking license head
 
 
 ##@ Development
-
+PYTHON3=python3
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	python3 ./hack/customize_crds.py
+	$(PYTHON3) ./hack/customize_crds.py
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -100,7 +100,6 @@ build: setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export DEBUG_MODE=true
-run: export CERTIFICATE_PATH=testcerts
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
@@ -114,21 +113,10 @@ docker-push: ## Push the docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
-	[[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2> /dev/null) == "true" ]] || (kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager)
-	# Install the Operator Manager and CRD resources
-	kubectl create ns instana-agent || true
-	$(KUSTOMIZE) build config/local_development | sed -e "s|localhost|$$($(get_ip_addr))|" | kubectl apply -f -
-	# Wait until the Secret with certificates is available
-	while ! kubectl get secret webhook-server-cert -n instana-agent; do echo "...Waiting for Certs to be created" && sleep 2; done
-	# Download generated certificates to local, because for WebHooks TLS is mandatory
-	kubectl get secret webhook-server-cert -n instana-agent --template='{{index .data "ca.crt" | base64decode}}' > testcerts/ca.crt
-	kubectl get secret webhook-server-cert -n instana-agent --template='{{index .data "tls.crt" | base64decode}}' > testcerts/tls.crt
-	kubectl get secret webhook-server-cert -n instana-agent --template='{{index .data "tls.key" | base64decode}}' > testcerts/tls.key
+	kubectl apply -k config/crd
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/local_development | kubectl delete -f -
-	kubectl delete ns instana-agent
+	kubectl delete -k config/crd
 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
@@ -137,8 +125,6 @@ deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cl
 deploy-minikube: manifests kustomize ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
 	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
-	# Make sure the Cert-Manager is installed in the Minikube cluster, which is needed for the converting Mutating WebHook
-	[[ $$(kubectl get pods --namespace cert-manager -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2> /dev/null) == "true" ]] || (kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml && kubectl wait --for=condition=READY pods --all -n cert-manager)
 	# Update correct Controller Manager image to be used
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	# Make certain we don't try to pull images from somewhere else
@@ -235,7 +221,3 @@ bundle-build: ## Build the bundle image for OLM.
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/default
-
-controller-yaml-no-webhook: manifests kustomize ## Output the YAML for deployment (without conversion WebHook), so it can be packaged with the release. Use `make --silent` to suppress other output.
-	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
-	$(KUSTOMIZE) build config/default_no_webhook

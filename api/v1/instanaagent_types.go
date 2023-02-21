@@ -134,14 +134,6 @@ type InstanaAgentStatus struct {
 	ConfigMap       ResourceInfo            `json:"configmap,omitempty"`
 	DaemonSet       ResourceInfo            `json:"daemonset,omitempty"`
 	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
-
-	// Other Status fields that need to be included for backwards compatibility (Conversion WebHook needs to result in same CR
-	// when converting back and forth)
-
-	ServiceAccount     ResourceInfo `json:"serviceaccount,omitempty"`
-	ClusterRole        ResourceInfo `json:"clusterrole,omitempty"`
-	ClusterRoleBinding ResourceInfo `json:"clusterrolebinding,omitempty"`
-	Secret             ResourceInfo `json:"secret,omitempty"`
 }
 
 //+kubebuilder:object:root=true
