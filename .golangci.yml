@@ -1,3 +1,4 @@
+# TODO: replace deprecated linters and update version
 linters-settings:
   misspell:
     locale: US
@@ -5,17 +6,17 @@ linters-settings:
 linters:
   disable-all: true
   enable:
-  - deadcode
-  - goimports
-  - gosimple
-  - govet
-  - ineffassign
-  - staticcheck
-  - structcheck
-  - typecheck
-  - unused
-  - varcheck
-  - misspell
+    - deadcode
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    - misspell
 
 service:
   golangci-lint-version: 1.31.x # use the fixed version to not introduce new linters unexpectedly
