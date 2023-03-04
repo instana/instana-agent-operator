@@ -4,11 +4,11 @@
 #
 
 # Build the manager binary, always build on amd64 platform
-FROM --platform=linux/amd64 golang:1.18 as builder
+FROM --platform=linux/amd64 golang:1.22 as builder
 
 ARG TARGETPLATFORM='linux/amd64'
-ARG VERSION=dev
-ARG GIT_COMMIT=unspecified
+ARG VERSION
+ARG GIT_COMMIT
 
 WORKDIR /workspace
 
@@ -25,6 +25,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY version/ version/
+COPY pkg/ pkg/
 
 # Build, injecting VERSION and GIT_COMMIT directly in the code
 RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'linux/arm64') echo 'arm64' ;; 'linux/s390x') echo 's390x' ;; 'linux/ppc64le') echo 'ppc64le' ;; esac) \
@@ -33,12 +34,11 @@ RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'li
 
 # Resulting image with actual Operator
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
-MAINTAINER Instana, support@instana.com
 
 ARG TARGETPLATFORM='linux/amd64'
-ARG VERSION=dev
+ARG VERSION
 ARG BUILD=1
-ARG GIT_COMMIT=unspecified
+ARG GIT_COMMIT
 ARG DATE=""
 
 LABEL name="instana-agent-operator" \
@@ -56,11 +56,14 @@ LABEL name="instana-agent-operator" \
       io.openshift.tags="" \
       io.k8s.description="" \
       com.redhat.build-host="" \
-      com.redhat.component=""
+      com.redhat.component="" \
+      # MAINTAINER is deprecated -> https://docs.docker.com/reference/dockerfile/#maintainer
+      org.opencontainers.image.authors="Instana, support@instana.com"
 
 ENV OPERATOR=instana-agent-operator \
     USER_UID=1001 \
-    USER_NAME=instana-agent-operator
+    USER_NAME=instana-agent-operator \
+    OPERATOR_VERSION=$VERSION
 
 RUN microdnf update \
   && microdnf clean all

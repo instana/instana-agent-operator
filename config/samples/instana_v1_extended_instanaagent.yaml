@@ -14,6 +14,10 @@ spec:
     key: replace-key
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
+    
+    # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+    minReadySeconds: 0
+
     # use this to set additional environment variables for the instana agent
     # for example:
     # env:
@@ -29,13 +33,13 @@ spec:
     # TLS for end-to-end encryption between Instana agent and clients accessing the agent.
     # The Instana agent does not yet allow enforcing TLS encryption.
     # TLS is only enabled on a connection when requested by the client.
-    tls:
+      #    tls:
       # In order to enable TLS, a secret of type kubernetes.io/tls must be specified.
       # secretName is the name of the secret that has the relevant files.
-      # secretName: null
+      # secretName: ""
       # Otherwise,  the certificate and the private key must be provided as base64 encoded.
-      # certificate: null
-      # key: null
+      # certificate: ""
+    # key: ""
 
     image:
       # agent.image.name is the name of the container image of the Instana agent.
@@ -75,7 +79,7 @@ spec:
 
       # agent.pod.priorityClassName is the name of an existing PriorityClass that should be set on the agent pods
       #   https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
-      priorityClassName: null
+      #      priorityClassName: ""
 
       # agent.pod.requests and agent.pod.limits adjusts the resource assignments for the DaemonSet agent
       #   regardless of the kubernetes.deployment.enabled setting
@@ -91,15 +95,12 @@ spec:
         cpu: "1.5"
 
     # agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
-    host:
-      repository: null
+    #    host:
+    #      repository: ""
 
     configuration_yaml: |
     # You can leave this empty, or use this to configure your instana agent.
     # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
-
-    # Custom agent charts URL that can be used in air gapped envs
-    charts_url: some-link
 
   # openshift specifies whether the cluster role should include openshift permissions and other tweaks to the YAML.
   # The chart will try to auto-detect if the cluster is OpenShift, so you will likely not even need to set this explicitly.
@@ -147,16 +148,19 @@ spec:
       enabled: true
       # Use three replicas to ensure the HA by the default.
       replicas: 3
+      # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+      minReadySeconds: 0
+
       # k8s_sensor.deployment.pod adjusts the resource assignments for the agent independently of the DaemonSet agent when k8s_sensor.deployment.enabled=true
       pod:
         requests:
           # k8s_sensor.deployment.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
           memory: 128Mi
           # k8s_sensor.deployment.pod.requests.cpu are the requested CPU units allocation for the agent pods.
-          cpu: 10m
+          cpu: 120m
         limits:
           # k8s_sensor.deployment.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
-          memory: 1536Mi
+          memory: 2048Mi
           # k8s_sensor.deployment.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
           cpu: 500m
         affinity:
@@ -184,6 +188,8 @@ spec:
       enabled: false
       # Use a single replica, the impact will generally be low and we need to address a host of other concerns where clusters are large.
       replicas: 1
+      # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+      minReadySeconds: 0
 
       # kubernetes.deployment.pod adjusts the resource assignments for the agent independently of the DaemonSet agent when kubernetes.deployment.enabled=true
       pod:

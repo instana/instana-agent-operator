@@ -31,9 +31,10 @@ metadata:
     capabilities: Full Lifecycle
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
-    containerImage: icr.io/instana/instana-agent-operator:latest
+    containerImage: icr.io/instana/instana-agent-operator:snapshot
+    createdAt: "2024-04-26T10:39:24Z"
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    operators.operatorframework.io/builder: operator-sdk-v1.15.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -177,6 +178,112 @@ spec:
           verbs:
           - create
           - patch
+        - nonResourceURLs:
+          - /healthz
+          - /version
+          verbs:
+          - get
+        - apiGroups:
+          - apiextensions.k8s.io
+          resources:
+          - customresourcedefinitions
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - deployments
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - deployments
+          - replicasets
+          - statefulsets
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - apps.openshift.io
+          resources:
+          - deploymentconfigs
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - autoscaling
+          resources:
+          - horizontalpodautoscalers
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          - jobs
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - endpoints
+          - events
+          - namespaces
+          - nodes
+          - persistentvolumeclaims
+          - persistentvolumes
+          - pods
+          - pods/log
+          - replicationcontrollers
+          - resourcequotas
+          - services
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - secrets
+          - serviceaccounts
+          - services
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - extensions
+          resources:
+          - deployments
+          - ingresses
+          - replicasets
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - instana.io
           resources:
@@ -204,105 +311,6 @@ spec:
           - patch
           - update
         - apiGroups:
-          - ""
-          - extensions
-          - apps
-          - rbac.authorization.k8s.io
-          resources:
-          - serviceaccounts
-          - clusterroles
-          - clusterrolebindings
-          - secrets
-          - configmaps
-          - daemonsets
-          - namespaces
-          - services
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          - apiextensions.k8s.io
-          resources:
-          - pods
-          - customresourcedefinitions
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-        - nonResourceURLs:
-          - /version
-          - /healthz
-          verbs:
-          - get
-        - apiGroups:
-          - ""
-          resources:
-          - componentstatuses
-          - endpoints
-          - events
-          - namespaces
-          - nodes
-          - pods
-          - replicationcontrollers
-          - resourcequotas
-          - services
-          - persistentvolumes
-          - persistentvolumeclaims
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - endpoints
-          verbs:
-          - create
-          - update
-          - patch
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - replicasets
-          - daemonsets
-          - statefulsets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - batch
-          resources:
-          - jobs
-          - cronjobs
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - extensions
-          resources:
-          - deployments
-          - ingresses
-          - replicasets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
           - networking.k8s.io
           resources:
           - ingresses
@@ -311,12 +319,26 @@ spec:
           - list
           - watch
         - apiGroups:
-          - apps.openshift.io
+          - policy
+          resourceNames:
+          - instana-agent-k8sensor
           resources:
-          - deploymentconfigs
+          - podsecuritypolicies
           verbs:
+          - use
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          - clusterroles
+          verbs:
+          - bind
+          - create
+          - delete
           - get
           - list
+          - patch
+          - update
           - watch
         - apiGroups:
           - security.openshift.io
@@ -326,9 +348,11 @@ spec:
           - securitycontextconstraints
           verbs:
           - use
-        serviceAccountName: controller-manager
+        serviceAccountName: instana-agent-operator
       deployments:
-      - name: controller-manager
+      - label:
+          app.kubernetes.io/name: instana-agent-operator
+        name: instana-agent-operator
         spec:
           replicas: 2
           selector:
@@ -362,7 +386,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: icr.io/instana/instana-agent-operator:latest
+                image: icr.io/instana/instana-agent-operator:snapshot
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -386,7 +410,7 @@ spec:
                     memory: 200Mi
                 securityContext:
                   allowPrivilegeEscalation: true
-              serviceAccountName: controller-manager
+              serviceAccountName: instana-agent-operator
               terminationGracePeriodSeconds: 10
     strategy: deployment
   installModes:
@@ -406,10 +430,5 @@ spec:
   minKubeVersion: 1.11.0
   provider:
     name: Instana
-  relatedImages:
-  - image: icr.io/instana/instana-agent-operator:latest
-    name: instana-agent-operator
-  - image: icr.io/instana/agent:latest
-    name: instana-agent
   replaces: instana-agent-operator.v0.0.0
   version: 0.0.1

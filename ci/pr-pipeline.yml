@@ -75,6 +75,13 @@ resources:
       access_token: ((instanacd-github-api-token))
       context_prefix: concourse
       github_host: github.com
+  
+  - name: golangci-lint-release
+    type: github-release
+    check_every: 24h
+    source:
+      owner: golangci
+      repository: golangci-lint
 
 jobs:
 
@@ -123,8 +130,8 @@ jobs:
                 
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
-                export GO_VERSION=1.21.5
-                export GO_SHA256="e2bc0b3e4b64111ec117295c088bde5f00eeed1567999ff77bc859d7df70078e go${GO_VERSION}.linux-amd64.tar.gz"
+                export GO_VERSION=1.22.1
+                export GO_SHA256="aab8e15785c997ae20f9c88422ee35d962c4562212bb0f879d052a35c8307c7f go${GO_VERSION}.linux-amd64.tar.gz"
                 curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && echo "${GO_SHA256}" | sha256sum --check \
                 && rm -rf /usr/local/go \
@@ -148,6 +155,10 @@ jobs:
             put: gh-status
             inputs: [ instana-agent-operator ]
             params: { state: error, context: build-and-test-operator/build }
+      - get: golangci-lint-release
+        params:
+          globs:
+          - golangci-lint-*-linux-amd64.rpm
       - task: unit-test
         privileged: true
         config:
@@ -158,6 +169,7 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: pipeline-source
+            - name: golangci-lint-release
           caches:
             - path: /go/pkg/mod
           run:
@@ -165,19 +177,24 @@ jobs:
             args:
               - -ceu
               - |
-                cd pipeline-source
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
                 pip3 install pyyaml
                 
+                pushd golangci-lint-release
+                LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
+                rpm -i $LINTER_RPM
+                popd
+                
+                cd pipeline-source
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
-                export GO_VERSION=1.19
+                export GO_VERSION=1.22.1
                 curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && rm -rf /usr/local/go \
                 && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && mkdir -p "${GOPATH}" \
                 && go version
-                make test
+                make lint test
         on_success:
           put: gh-status
           inputs: [ instana-agent-operator ]
