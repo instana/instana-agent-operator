@@ -32,7 +32,7 @@ func AllNonEmpty[T any](in []optional.Optional[T]) []T {
 	})
 }
 
-// TODO: maybe: ignore anything not named instana-agent?
+// TODO: error if not expected name and namespace
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
 // TODO: resource renderer interface?
