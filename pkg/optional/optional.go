@@ -1,14 +1,17 @@
 package optional
 
+import "reflect"
+
 type optional[T any] struct {
-	val *T
+	val T
 }
 
 func (o *optional[T]) IsEmpty() bool {
-	return o.val == nil
+	valueOf := reflect.ValueOf(o.val)
+	return !valueOf.IsValid() || valueOf.IsZero()
 }
 
-func (o *optional[T]) Get() *T {
+func (o *optional[T]) Get() T {
 	return o.val
 }
 
@@ -23,13 +26,13 @@ func (o *optional[T]) GetOrElseDo(f func() T) T {
 	case true:
 		return f()
 	default:
-		return *o.val
+		return o.val
 	}
 }
 
 type Optional[T any] interface {
 	IsEmpty() bool
-	Get() *T
+	Get() T
 	GetOrElse(val T) T
 	GetOrElseDo(func() T) T
 }
@@ -39,12 +42,6 @@ func Empty[T any]() Optional[T] {
 }
 
 func Of[T any](val T) Optional[T] {
-	return &optional[T]{
-		val: &val,
-	}
-}
-
-func OfNilable[T any](val *T) Optional[T] {
 	return &optional[T]{
 		val: val,
 	}

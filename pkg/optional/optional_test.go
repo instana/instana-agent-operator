@@ -7,18 +7,18 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func assertIsEmpty(t *testing.T, opt Optional[any]) {
+func assertIsEmpty[T any](t *testing.T, opt Optional[T]) {
 	assertions := require.New(t)
 
 	assertions.True(opt.IsEmpty())
-	assertions.Nil(opt.Get())
+	assertions.Zero(opt.Get())
 }
 
 func assertIsNotEmpty[T any](t *testing.T, opt Optional[T]) {
 	assertions := require.New(t)
 
 	assertions.False(opt.IsEmpty())
-	assertions.NotNil(opt.Get())
+	assertions.NotZero(opt.Get())
 }
 
 func TestIsEmpty(t *testing.T) {
@@ -26,13 +26,16 @@ func TestIsEmpty(t *testing.T) {
 		assertIsEmpty(t, Empty[any]())
 	})
 	t.Run("nil_provided", func(t *testing.T) {
-		assertIsEmpty(t, OfNilable[any](nil))
+		assertIsEmpty(t, Of[any](nil))
 	})
-	t.Run("not_nil_implicit", func(t *testing.T) {
-		assertIsNotEmpty[bool](t, OfNilable[bool](pointer.BoolPtr(true)))
+	t.Run("non_zero_pointer_to_zero_val", func(t *testing.T) {
+		assertIsNotEmpty[*bool](t, Of[*bool](pointer.Bool(false)))
 	})
-	t.Run("not_nil_explicit", func(t *testing.T) {
+	t.Run("non_zero_explicit", func(t *testing.T) {
 		assertIsNotEmpty[bool](t, Of[bool](true))
+	})
+	t.Run("zero_explicit", func(t *testing.T) {
+		assertIsEmpty[bool](t, Of[bool](false))
 	})
 }
 
