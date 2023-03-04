@@ -1,9 +1,10 @@
 package optional
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
-	"testing"
 )
 
 func assertIsEmpty(t *testing.T, opt Optional[any]) {

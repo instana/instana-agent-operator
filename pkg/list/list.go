@@ -1,6 +1,8 @@
 package list
 
-func filter[T any](in []T, shouldBeIncluded func(val T) bool) []T {
+import "github.com/instana/instana-agent-operator/pkg/optional"
+
+func Filter[T any](in []T, shouldBeIncluded func(val T) bool) []T {
 	res := make([]T, 0, len(in))
 	for _, v := range in {
 		v := v
@@ -11,7 +13,7 @@ func filter[T any](in []T, shouldBeIncluded func(val T) bool) []T {
 	return res
 }
 
-func mapTo[X any, Y any](in []X, mapItemTo func(v X) Y) []Y {
+func MapTo[X any, Y any](in []X, mapItemTo func(val X) Y) []Y {
 	res := make([]Y, 0, len(in))
 	for _, v := range in {
 		v := v
@@ -20,6 +22,14 @@ func mapTo[X any, Y any](in []X, mapItemTo func(v X) Y) []Y {
 	return res
 }
 
-// TODO: filter and mapto for optional
+func AllNonEmpty[T any](in []optional.Optional[T]) []T {
+	withoutEmpties := Filter[optional.Optional[T]](in, func(val optional.Optional[T]) bool {
+		return !val.IsEmpty()
+	})
 
-// TODO: other todo, owned resources, exponential backoff config, resource renderer interface?, general transformers interface + implement (common labels + owner refs), apply all function, basic controller tasks, then status later on
+	return MapTo[optional.Optional[T], T](withoutEmpties, func(val optional.Optional[T]) T {
+		return *val.Get()
+	})
+}
+
+// TODO: other todo, owned resources, exponential backoff config, resource renderer interface?, general transformers interface + implement (common labels + owner refs), apply all function, basic controller tasks, then status later on, suite test, new ci build with all tests running + golangci lint, fix golangci settings
