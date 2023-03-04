@@ -7,8 +7,8 @@
 FROM --platform=linux/amd64 golang:1.22 AS builder
 
 ARG TARGETPLATFORM='linux/amd64'
-ARG VERSION=dev
-ARG GIT_COMMIT=unspecified
+ARG VERSION
+ARG GIT_COMMIT
 
 WORKDIR /workspace
 
@@ -25,6 +25,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY version/ version/
+COPY pkg/ pkg/
 
 # Build, injecting VERSION and GIT_COMMIT directly in the code
 RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'linux/arm64') echo 'arm64' ;; 'linux/s390x') echo 's390x' ;; 'linux/ppc64le') echo 'ppc64le' ;; esac) \
@@ -35,9 +36,9 @@ RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'li
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 ARG TARGETPLATFORM='linux/amd64'
-ARG VERSION=dev
+ARG VERSION
 ARG BUILD=1
-ARG GIT_COMMIT=unspecified
+ARG GIT_COMMIT
 ARG DATE=""
 
 LABEL name="instana-agent-operator" \
@@ -60,7 +61,8 @@ LABEL name="instana-agent-operator" \
 
 ENV OPERATOR=instana-agent-operator \
     USER_UID=1001 \
-    USER_NAME=instana-agent-operator
+    USER_NAME=instana-agent-operator \
+    OPERATOR_VERSION=$VERSION
 
 RUN microdnf update \
   && microdnf clean all

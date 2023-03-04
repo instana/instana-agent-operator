@@ -5,8 +5,15 @@
 package v1
 
 import (
-	appV1 "k8s.io/api/apps/v1"
-	coreV1 "k8s.io/api/core/v1"
+	"fmt"
+	"strconv"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type AgentMode string
@@ -25,12 +32,20 @@ type Name struct {
 
 type Create struct {
 	// +kubebuilder:validation:Optional
-	Create bool `json:"create,omitempty"`
+	Create *bool `json:"create,omitempty"`
 }
 
 type Enabled struct {
 	// +kubebuilder:validation:Optional
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+}
+
+func (e Enabled) String() string {
+	if e.Enabled == nil {
+		return "nil"
+	} else {
+		return strconv.FormatBool(*e.Enabled)
+	}
 }
 
 // BaseAgentSpec defines the desired state info related to the running Agent
@@ -89,11 +104,11 @@ type BaseAgentSpec struct {
 
 	// Override the container image used for the Instana Agent pods.
 	// +kubebuilder:validation:Optional
-	ImageSpec `json:"image,omitempty"`
+	ExtendedImageSpec `json:"image,omitempty"`
 
 	// Control how to update the Agent DaemonSet
 	// +kubebuilder:validation:Optional
-	UpdateStrategy appV1.DaemonSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	UpdateStrategy appsv1.DaemonSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Override Agent Pod specific settings such as annotations, labels and resources.
 	// +kubebuilder:validation:Optional
@@ -127,9 +142,6 @@ type BaseAgentSpec struct {
 	// Supply Agent configuration e.g. for configuring certain Sensors.
 	// +kubebuilder:validation:Optional
 	ConfigurationYaml string `json:"configuration_yaml,omitempty"`
-	// Mount in a ConfigMap with Agent configuration. Alternative to the `configuration_yaml` field.
-	// +kubebuilder:validation:Optional
-	Configuration ConfigurationSpec `json:"configuration,omitempty"`
 
 	// RedactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS environment variable.
 	// +kubebuilder:validation:Optional
@@ -143,9 +155,26 @@ type BaseAgentSpec struct {
 	// Alternative to `Host` for referencing a different Maven repo.
 	// +kubebuilder:validation:Optional
 	MvnRepoUrl string `json:"instanaMvnRepoUrl,omitempty"`
-	// Custom agent charts url.
+	// Sets the INSTANA_MVN_REPOSITORY_FEATURES_PATH environment variable
 	// +kubebuilder:validation:Optional
-	ChartsUrl string `json:"charts_url,omitempty"`
+	MvnRepoFeaturesPath string `json:"instanaMvnRepoFeaturesPath,omitempty"`
+	// Sets the INSTANA_MVN_REPOSITORY_SHARED_PATH environment variable
+	// +kubebuilder:validation:Optional
+	MvnRepoSharedPath string `json:"instanaMvnRepoSharedPath,omitempty"`
+}
+
+type ResourceRequirements corev1.ResourceRequirements
+
+func (r ResourceRequirements) GetOrDefault() corev1.ResourceRequirements {
+	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Requests))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
+
+	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Limits))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("768Mi"))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.5"))
+
+	return corev1.ResourceRequirements(r)
 }
 
 type AgentPodSpec struct {
@@ -159,12 +188,12 @@ type AgentPodSpec struct {
 
 	// agent.pod.tolerations are tolerations to influence agent pod assignment.
 	// +kubebuilder:validation:Optional
-	Tolerations []coreV1.Toleration `json:"tolerations,omitempty"`
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
 	// agent.pod.affinity are affinities to influence agent pod assignment.
 	// https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 	// +kubebuilder:validation:Optional
-	Affinity coreV1.Affinity `json:"affinity,omitempty"`
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
 
 	// agent.pod.priorityClassName is the name of an existing PriorityClass that should be set on the agent pods
 	// https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
@@ -172,7 +201,9 @@ type AgentPodSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// Override Agent resource requirements to e.g. give the Agent container more memory.
-	coreV1.ResourceRequirements `json:",inline"`
+	ResourceRequirements `json:",inline"`
+
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 type TlsSpec struct {
@@ -181,10 +212,10 @@ type TlsSpec struct {
 	SecretName string `json:"secretName,omitempty"`
 	// certificate (together with key) is the alternative to an existing Secret. Must be base64 encoded.
 	// +kubebuilder:validation:Optional
-	Certificate string `json:"certificate,omitempty"`
+	Certificate []byte `json:"certificate,omitempty"`
 	// key (together with certificate) is the alternative to an existing Secret. Must be base64 encoded.
 	// +kubebuilder:validation:Optional
-	Key string `json:"key,omitempty"`
+	Key []byte `json:"key,omitempty"`
 }
 
 type ImageSpec struct {
@@ -203,30 +234,33 @@ type ImageSpec struct {
 
 	// PullPolicy specifies when to pull the image container.
 	// +kubebuilder:validation:Optional
-	PullPolicy string `json:"pullPolicy,omitempty"`
+	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
+}
+
+type ExtendedImageSpec struct {
+	// +kubebuilder:validation:Required
+	ImageSpec `json:",inline"`
 
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with
 	// "containers.instana.io". Setting `agent.image.pullSecrets` prevents the creation of the default "containers-instana-io" secret.
 	// +kubebuilder:validation:Optional
-	PullSecrets []PullSecretSpec `json:"pullSecrets,omitempty"`
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
-type PullSecretSpec struct {
-	Name `json:",inline"`
+func (i ImageSpec) Image() string {
+	switch {
+	case i.Digest != "":
+		return fmt.Sprintf("%s@%s", i.Name, i.Digest)
+	case i.Tag != "":
+		return fmt.Sprintf("%s:%s", i.Name, i.Tag)
+	default:
+		return i.Name
+	}
 }
 
 type HostSpec struct {
 	// +kubebuilder:validation:Optional
 	Repository string `json:"repository,omitempty"`
-}
-
-type ConfigurationSpec struct {
-	// When setting this to true, the Helm chart will automatically look up the entries
-	// of the default instana-agent ConfigMap, and mount as agent configuration files
-	// under /opt/instana/agent/etc/instana all entries with keys that match the
-	// 'configuration-*.yaml' scheme
-	// +kubebuilder:validation:Optional
-	AutoMountConfigEntries bool `json:"autoMountConfigEntries,omitempty"`
 }
 
 type Prometheus struct {
@@ -249,6 +283,8 @@ type ServiceAccountSpec struct {
 
 	// Name of the ServiceAccount. If not set and `create` is true, a name is generated using the fullname template.
 	Name `json:",inline"`
+
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type PodSecurityPolicySpec struct {
@@ -270,11 +306,37 @@ type K8sSpec struct {
 	DeploymentSpec KubernetesDeploymentSpec `json:"deployment,omitempty"`
 	// +kubebuilder:validation:Optional
 	ImageSpec ImageSpec `json:"image,omitempty"`
+	// Toggles the PDB for the K8s Sensor
+	// +kubebuilder:validation:Optional
+	PodDisruptionBudget Enabled `json:"podDisruptionBudget,omitempty"`
+}
+
+type KubernetesPodSpec struct {
+	ResourceRequirements `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// agent.pod.tolerations are tolerations to influence agent pod assignment.
+	// +kubebuilder:validation:Optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// agent.pod.affinity are affinities to influence agent pod assignment.
+	// https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+	// +kubebuilder:validation:Optional
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
 }
 
 type KubernetesDeploymentSpec struct {
 	// Specify if separate deployment of the Kubernetes Sensor should be enabled.
 	Enabled `json:",inline"`
+
+	// The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+	// +kubebuilder:validation:Optional
+	MinReadySeconds int `json:"minReadySeconds,omitempty"`
 
 	// Specify the number of replicas for the Kubernetes Sensor.
 	// +kubebuilder:validation:Optional
@@ -286,16 +348,49 @@ type KubernetesDeploymentSpec struct {
 
 	// Override pod resource requirements for the Kubernetes Sensor pods.
 	// +kubebuilder:validation:Optional
-	Pod coreV1.ResourceRequirements `json:"pod,omitempty"`
+	Pod KubernetesPodSpec `json:"pod,omitempty"`
 }
 
 type OpenTelemetry struct {
 	// Deprecated setting for backwards compatibility
-	Enabled `json:",inline"`
+	Enabled `json:",inline" yaml:",inline"`
 
 	// +kubebuilder:validation:Optional
-	GRPC Enabled `json:"grpc,omitempty"`
+	GRPC *Enabled `json:"grpc,omitempty" yaml:"grpc,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	HTTP Enabled `json:"http,omitempty"`
+	HTTP *Enabled `json:"http,omitempty" yaml:"http,omitempty"`
+}
+
+func (otlp OpenTelemetry) GrpcIsEnabled() bool {
+	switch otlp.GRPC {
+	case nil:
+		return pointer.DerefOrEmpty(otlp.Enabled.Enabled)
+	default:
+		return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
+	}
+}
+
+func (otlp OpenTelemetry) HttpIsEnabled() bool {
+	switch otlp.HTTP {
+	case nil:
+		return false
+	default:
+		return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
+	}
+}
+
+func (otlp OpenTelemetry) IsEnabled() bool {
+	return otlp.GrpcIsEnabled() || otlp.HttpIsEnabled()
+}
+
+type Zone struct {
+	// +kubebuilder:validation:Optional
+	Name `json:",inline"`
+	// +kubebuilder:validation:Optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// +kubebuilder:validation:Optional
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
+	// +kubebuilder:validation:Optional
+	Mode AgentMode `json:"mode,omitempty"`
 }

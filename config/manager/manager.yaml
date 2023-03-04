@@ -68,5 +68,5 @@ spec:
           requests:
             cpu: 200m
             memory: 200Mi
-      serviceAccountName: controller-manager
+      serviceAccountName: instana-agent-operator
       terminationGracePeriodSeconds: 10

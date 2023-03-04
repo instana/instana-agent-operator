@@ -11,6 +11,7 @@
 !api/
 !controllers/
 !logger/
+!pkg/
 !version/
 
 # Other files not to ignore
