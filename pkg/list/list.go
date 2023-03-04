@@ -42,3 +42,4 @@ func AllNonEmpty[T any](in []optional.Optional[T]) []T {
 // TODO: new ci build with all tests running + golangci lint, fix golangci settings
 // TODO: extra: yamlified config.yaml, etc.
 // TODO: fix "controller-manager" naming convention
+// TODO: status and events
