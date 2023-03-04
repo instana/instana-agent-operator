@@ -60,7 +60,8 @@ LABEL name="instana-agent-operator" \
 
 ENV OPERATOR=instana-agent-operator \
     USER_UID=1001 \
-    USER_NAME=instana-agent-operator
+    USER_NAME=instana-agent-operator \
+    OPERATOR_VERSION=$VERSION
 
 RUN microdnf update \
   && microdnf clean all
