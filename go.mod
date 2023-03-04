@@ -1,6 +1,6 @@
 module github.com/instana/instana-agent-operator
 
-go 1.18
+go 1.20
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
@@ -10,11 +10,13 @@ require (
 	github.com/onsi/gomega v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/procyon-projects/chrono v1.0.0
+	github.com/stretchr/testify v1.7.0
 	helm.sh/helm/v3 v3.7.0
 	k8s.io/api v0.22.1
 	k8s.io/apimachinery v0.22.1
 	k8s.io/cli-runtime v0.22.1
 	k8s.io/client-go v0.22.1
+	k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9
 	sigs.k8s.io/controller-runtime v0.9.2
 	sigs.k8s.io/yaml v1.2.0
 )
@@ -117,7 +119,6 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
@@ -151,7 +152,6 @@ require (
 	k8s.io/klog/v2 v2.9.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e // indirect
 	k8s.io/kubectl v0.22.1 // indirect
-	k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9 // indirect
 	oras.land/oras-go v0.4.0 // indirect
 	sigs.k8s.io/kustomize/api v0.8.11 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.11.0 // indirect
