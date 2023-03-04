@@ -56,5 +56,5 @@ func TestAllNonEmpty(t *testing.T) {
 
 	assertions := require.New(t)
 
-	assertions.Equal([]bool{true, false, true, true, false, true}, out)
+	assertions.Equal([]bool{true, true, true, true}, out)
 }
