@@ -1,6 +1,6 @@
 module github.com/instana/instana-agent-operator
 
-go 1.20
+go 1.20 // TODO: Update all dependencies and remove unused
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
