@@ -1,10 +1,11 @@
 package transformations
 
 import (
+	"os"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
 
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,8 +31,8 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 			Kind:               agent.Kind,
 			Name:               agent.Name,
 			UID:                agent.UID,
-			Controller:         pointer.ToPointer(true),
-			BlockOwnerDeletion: pointer.ToPointer(true),
+			Controller:         pointer.To(true),
+			BlockOwnerDeletion: pointer.To(true),
 		},
 	}
 }
@@ -49,4 +50,4 @@ func (t *transformations) AddCommonLabels(obj client.Object) {
 
 func (t *transformations) AddOwnerReference(obj client.Object) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), t.OwnerReference))
-} // TODO: test
+}
