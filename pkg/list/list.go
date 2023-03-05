@@ -62,7 +62,7 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
 	})
 }
 
-// TODO: error if not expected name and namespace (and status/event?)
+// TODO: warning if not expected name and namespace (and status/event?)
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
 // TODO: resource renderer interface?

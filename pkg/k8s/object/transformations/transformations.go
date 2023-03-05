@@ -41,7 +41,7 @@ func (t *transformations) AddCommonLabels(obj client.Object) {
 	labels := optional.Of(obj.GetLabels()).GetOrElse(make(map[string]string, 3))
 
 	labels["app.kubernetes.io/name"] = "instana-agent"
-	labels["app.kubernetes.io/instance"] = "instana-agent"
+	labels["app.kubernetes.io/instance"] = t.Name
 	labels["app.kubernetes.io/version"] = version
 
 	obj.SetLabels(labels)
