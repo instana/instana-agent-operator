@@ -9,8 +9,10 @@ import (
 )
 
 func TestFilter(t *testing.T) {
+	mpr := NewListFilter[bool]()
+
 	in := []bool{true, true, false, true, false, false, true}
-	out := Filter(in, func(val bool) bool {
+	out := mpr.Filter(in, func(val bool) bool {
 		return val
 	})
 
@@ -24,8 +26,10 @@ func TestFilter(t *testing.T) {
 }
 
 func TestMapTo(t *testing.T) {
+	mpr := NewListMapTo[bool, int]()
+
 	in := []bool{true, true, false, true, false, false, true}
-	out := MapTo[bool, int](in, func(v bool) int {
+	out := mpr.MapTo(in, func(v bool) int {
 		switch v {
 		case true:
 			return 1
@@ -40,6 +44,8 @@ func TestMapTo(t *testing.T) {
 }
 
 func TestAllNonEmpty(t *testing.T) {
+	mpr := NewNonEmptyOptionalMapper[bool]()
+
 	in := []optional.Optional[bool]{
 		optional.Empty[bool](),
 		optional.Of(true),
@@ -52,7 +58,7 @@ func TestAllNonEmpty(t *testing.T) {
 		optional.Of(false),
 		optional.Of(true),
 	}
-	out := AllNonEmpty(in)
+	out := mpr.AllNonEmpty(in)
 
 	assertions := require.New(t)
 

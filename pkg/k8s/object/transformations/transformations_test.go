@@ -1,6 +1,7 @@
 package transformations
 
 import (
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,7 +12,7 @@ import (
 func TestAddCommonLabels(t *testing.T) {
 	t.Run("with_empty_labels_initially", func(t *testing.T) {
 		obj := v1.ConfigMap{}
-		AddCommonLabels(&obj)
+		NewTransformations(&instanav1.InstanaAgent{}).AddCommonLabels(&obj)
 
 		assertions := require.New(t)
 
@@ -31,7 +32,7 @@ func TestAddCommonLabels(t *testing.T) {
 			},
 		}
 
-		AddCommonLabels(&obj)
+		NewTransformations(&instanav1.InstanaAgent{}).AddCommonLabels(&obj)
 
 		assertions := require.New(t)
 
