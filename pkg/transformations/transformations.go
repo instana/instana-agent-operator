@@ -11,7 +11,7 @@ var (
 	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrElse("v0.0.0")
 )
 
-// TODO: interface this for mocking
+// TODO: interface this for mocking + constructor passing in agentCR + Add Owner refs function
 
 func AddCommonLabels(obj client.Object) {
 

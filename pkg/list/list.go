@@ -2,6 +2,8 @@ package list
 
 import "github.com/instana/instana-agent-operator/pkg/optional"
 
+// TODO: dummy interface for mocks
+
 func Filter[T any](in []T, shouldBeIncluded func(val T) bool) []T {
 	res := make([]T, 0, len(in))
 	for _, v := range in {
