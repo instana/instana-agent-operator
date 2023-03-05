@@ -32,7 +32,7 @@ func AllNonEmpty[T any](in []optional.Optional[T]) []T {
 	})
 }
 
-// TODO: error if not expected name and namespace
+// TODO: error if not expected name and namespace (and status/event?)
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
 // TODO: resource renderer interface?
@@ -42,4 +42,4 @@ func AllNonEmpty[T any](in []optional.Optional[T]) []T {
 // TODO: new ci build with all tests running + golangci lint, fix golangci settings
 // TODO: extra: yamlified config.yaml, etc.
 // TODO: fix "controller-manager" naming convention
-// TODO: status and events
+// TODO: status and events (+conditions?)
