@@ -25,7 +25,7 @@ func TestApply(t *testing.T) {
 		gomock.Eq(ctx),
 		gomock.Eq(&cm),
 		gomock.Eq(k8sclient.Apply),
-		gomock.InAnyOrder(append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))),
+		gomock.Eq(append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))),
 	).Times(1).Return(expected)
 
 	mockTransformations := NewMockTransformations(ctrl)
