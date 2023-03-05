@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,9 +21,6 @@ type instanaAgentClient struct {
 }
 
 func (c *instanaAgentClient) Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	c.AddCommonLabels(obj)
 	c.AddOwnerReference(obj)
 
@@ -33,8 +32,9 @@ func (c *instanaAgentClient) Apply(ctx context.Context, obj k8sclient.Object, op
 	)
 }
 
-func NewClient(k8sClient k8sclient.Client) InstanaAgentClient {
+func NewClient(k8sClient k8sclient.Client, agent *instanav1.InstanaAgent) InstanaAgentClient {
 	return &instanaAgentClient{
-		Client: k8sClient,
+		Client:          k8sClient,
+		Transformations: transformations.NewTransformations(agent),
 	}
 }
