@@ -221,3 +221,8 @@ bundle-build: ## Build the bundle image for OLM.
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/default
+
+get-mockgen:
+	which mockgen >> /dev/null 2>&1 || go install github.com/golang/mock/mockgen@v1.6.0
+
+

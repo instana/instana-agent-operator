@@ -1,10 +1,10 @@
 package optional
 
 import (
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/pointer"
 )
 
 func assertIsEmpty[T any](t *testing.T, opt Optional[T]) {
@@ -29,7 +29,7 @@ func TestIsEmpty(t *testing.T) {
 		assertIsEmpty(t, Of[any](nil))
 	})
 	t.Run("non_zero_pointer_to_zero_val", func(t *testing.T) {
-		assertIsNotEmpty[*bool](t, Of[*bool](pointer.Bool(false)))
+		assertIsNotEmpty[*bool](t, Of[*bool](pointer.ToPointer(false)))
 	})
 	t.Run("non_zero_explicit", func(t *testing.T) {
 		assertIsNotEmpty[bool](t, Of[bool](true))

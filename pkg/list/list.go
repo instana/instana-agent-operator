@@ -2,9 +2,37 @@ package list
 
 import "github.com/instana/instana-agent-operator/pkg/optional"
 
-// TODO: dummy interface for mocks
+type ListFilter[T any] interface {
+	Filter(in []T, shouldBeIncluded func(val T) bool) []T
+}
 
-func Filter[T any](in []T, shouldBeIncluded func(val T) bool) []T {
+type ListMapTo[T any, S any] interface {
+	MapTo(in []T, mapItemTo func(val T) S) []S
+}
+
+type NonEmptyOptionalMapper[T any] interface {
+	AllNonEmpty(in []optional.Optional[T]) []T
+}
+
+type transformer[T any, S any] struct{}
+
+type nonEmptyOptionalMapper[T any] struct {
+	transformer[optional.Optional[T], T]
+}
+
+func NewListFilter[T any]() ListFilter[T] {
+	return &transformer[T, any]{}
+}
+
+func NewListMapTo[T any, S any]() ListMapTo[T, S] {
+	return &transformer[T, S]{}
+}
+
+func NewNonEmptyOptionalMapper[T any]() NonEmptyOptionalMapper[T] {
+	return &nonEmptyOptionalMapper[T]{}
+}
+
+func (t *transformer[T, S]) Filter(in []T, shouldBeIncluded func(val T) bool) []T {
 	res := make([]T, 0, len(in))
 	for _, v := range in {
 		v := v
@@ -15,8 +43,8 @@ func Filter[T any](in []T, shouldBeIncluded func(val T) bool) []T {
 	return res
 }
 
-func MapTo[X any, Y any](in []X, mapItemTo func(val X) Y) []Y {
-	res := make([]Y, 0, len(in))
+func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
+	res := make([]S, 0, len(in))
 	for _, v := range in {
 		v := v
 		res = append(res, mapItemTo(v))
@@ -24,12 +52,12 @@ func MapTo[X any, Y any](in []X, mapItemTo func(val X) Y) []Y {
 	return res
 }
 
-func AllNonEmpty[T any](in []optional.Optional[T]) []T {
-	withoutEmpties := Filter[optional.Optional[T]](in, func(val optional.Optional[T]) bool {
+func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
+	withoutEmpties := o.transformer.Filter(in, func(val optional.Optional[T]) bool {
 		return !val.IsEmpty()
 	})
 
-	return MapTo[optional.Optional[T], T](withoutEmpties, func(val optional.Optional[T]) T {
+	return o.transformer.MapTo(withoutEmpties, func(val optional.Optional[T]) T {
 		return val.Get()
 	})
 }
