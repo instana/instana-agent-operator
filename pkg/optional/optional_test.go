@@ -29,7 +29,7 @@ func TestIsEmpty(t *testing.T) {
 		assertIsEmpty(t, Of[any](nil))
 	})
 	t.Run("non_zero_pointer_to_zero_val", func(t *testing.T) {
-		assertIsNotEmpty[*bool](t, Of[*bool](pointer.ToPointer(false)))
+		assertIsNotEmpty[*bool](t, Of[*bool](pointer.To(false)))
 	})
 	t.Run("non_zero_explicit", func(t *testing.T) {
 		assertIsNotEmpty[bool](t, Of[bool](true))
