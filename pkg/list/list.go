@@ -73,3 +73,4 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
 // TODO: extra: yamlified config.yaml, etc.
 // TODO: fix "controller-manager" naming convention
 // TODO: status and events (+conditions?)
+// TODO: extra: runtime status from agents?
