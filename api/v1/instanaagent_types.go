@@ -6,7 +6,6 @@
 package v1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -69,39 +68,6 @@ type InstanaAgentSpec struct {
 	// The Operator will check and make sure no 'unsupported' Chart versions can be selected.
 	// +kubebuilder:validation:Optional
 	PinnedChartVersion string `json:"pinnedChartVersion,omitempty"`
-
-	//
-	// OLD v1beta1 spec which, by including temporarily, we can provide backwards compatibility for the v1beta1 spec as served
-	// by the Java Operator. Prevents having to modify the CR outside the Operator.
-	//
-
-	ConfigurationFiles          map[string]string `json:"config.files,omitempty"`
-	AgentZoneName               string            `json:"agent.zone.name,omitempty"`
-	AgentKey                    string            `json:"agent.key,omitempty"`
-	AgentEndpointHost           string            `json:"agent.endpoint.host,omitempty"`
-	AgentEndpointPort           uint16            `json:"agent.endpoint.port,omitempty"`
-	AgentClusterRoleName        string            `json:"agent.clusterRoleName,omitempty"`
-	AgentClusterRoleBindingName string            `json:"agent.clusterRoleBindingName,omitempty"`
-	AgentServiceAccountName     string            `json:"agent.serviceAccountName,omitempty"`
-	AgentSecretName             string            `json:"agent.secretName,omitempty"`
-	AgentDaemonSetName          string            `json:"agent.daemonSetName,omitempty"`
-	AgentConfigMapName          string            `json:"agent.configMapName,omitempty"`
-	AgentRbacCreate             bool              `json:"agent.rbac.create,omitempty"`
-	AgentImageName              string            `json:"agent.image,omitempty"`
-	AgentImagePullPolicy        string            `json:"agent.imagePullPolicy,omitempty"`
-	AgentCpuReq                 resource.Quantity `json:"agent.cpuReq,omitempty"`
-	AgentCpuLim                 resource.Quantity `json:"agent.cpuLimit,omitempty"`
-	AgentMemReq                 resource.Quantity `json:"agent.memReq,omitempty"`
-	AgentMemLim                 resource.Quantity `json:"agent.memLimit,omitempty"`
-	AgentDownloadKey            string            `json:"agent.downloadKey,omitempty"`
-	AgentRepository             string            `json:"agent.host.repository,omitempty"`
-	AgentTlsSecretName          string            `json:"agent.tls.secretName,omitempty"`
-	AgentTlsCertificate         string            `json:"agent.tls.certificate,omitempty"`
-	AgentTlsKey                 string            `json:"agent.tls.key,omitempty"`
-	OpenTelemetryEnabled        bool              `json:"opentelemetry.enabled,omitempty"`
-	ClusterName                 string            `json:"cluster.name,omitempty"`
-	AgentEnv                    map[string]string `json:"agent.env,omitempty"`
-	// END of OLD spec
 }
 
 //+k8s:openapi-gen=true
