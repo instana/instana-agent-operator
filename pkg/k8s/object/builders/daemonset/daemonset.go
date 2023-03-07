@@ -6,6 +6,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// TODO: Multiple zones
+
 type DaemonSetBuilder interface {
 	Build() optional.Optional[client.Object]
 }
