@@ -74,3 +74,4 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
 // TODO: fix "controller-manager" naming convention
 // TODO: status and events (+conditions?)
 // TODO: extra: runtime status from agents?
+// TODO: extra auto detect OpenShift, auto set tolerations, etc.
