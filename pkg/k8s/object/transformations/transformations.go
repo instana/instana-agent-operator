@@ -17,6 +17,13 @@ var (
 	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrElse("v0.0.0")
 )
 
+// labels
+const (
+	NameLabel     = "app.kubernetes.io/name"
+	InstanceLabel = "app.kubernetes.io/instance"
+	VersionLabel  = "app.kubernetes.io/version"
+)
+
 type Transformations interface {
 	AddCommonLabels(obj client.Object)
 	AddOwnerReference(obj client.Object)
@@ -39,14 +46,18 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 	}
 }
 
+func AddCommonLabels(labels map[string]string, name string, skipVersionLabel bool) map[string]string {
+	labels[NameLabel] = "instana-agent"
+	labels[InstanceLabel] = name
+	if !skipVersionLabel {
+		labels[VersionLabel] = version
+	}
+	return labels
+}
+
 func (t *transformations) AddCommonLabels(obj client.Object) {
-
 	labels := optional.Of(obj.GetLabels()).GetOrElse(make(map[string]string, 3))
-
-	labels["app.kubernetes.io/name"] = "instana-agent"
-	labels["app.kubernetes.io/instance"] = t.Name
-	labels["app.kubernetes.io/version"] = version
-
+	AddCommonLabels(labels, t.Name, false)
 	obj.SetLabels(labels)
 }
 
