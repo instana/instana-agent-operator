@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// TODO: Support nameOverride and fullNameOverride ???
+
 var (
 	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrElse("v0.0.0")
 )
