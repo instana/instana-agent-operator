@@ -3,6 +3,8 @@
  * (c) Copyright Instana Inc. 2021
  */
 
+// TODO: validation and cleanup
+
 package v1
 
 import (
