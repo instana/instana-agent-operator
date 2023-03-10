@@ -61,6 +61,9 @@ type InstanaAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	KubernetesSpec `json:"kubernetes,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	K8sSensor K8sSpec `json:"k8s_sensor,omitempty"`
+
 	// Specifying the PinnedChartVersion allows for 'pinning' the Helm Chart used by the Operator for installing the Agent
 	// DaemonSet. Normally the Operator will always install and update to the latest Helm Chart version.
 	// The Operator will check and make sure no 'unsupported' Chart versions can be selected.
