@@ -75,3 +75,4 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
 // TODO: status and events (+conditions?)
 // TODO: extra: runtime status from agents?
 // TODO: extra auto detect OpenShift, auto set tolerations, etc.
+// TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
