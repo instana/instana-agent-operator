@@ -17,5 +17,3 @@ func serviceAccountNameDefault(agent *v1.InstanaAgent) string {
 func ServiceAccountName(agent *v1.InstanaAgent) string {
 	return optional.Of(agent.Spec.ServiceAccountSpec.Name.Name).GetOrElse(serviceAccountNameDefault(agent))
 }
-
-// TODO: test
