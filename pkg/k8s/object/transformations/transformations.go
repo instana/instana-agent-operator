@@ -62,5 +62,5 @@ func (t *transformations) AddCommonLabels(obj client.Object) {
 }
 
 func (t *transformations) AddOwnerReference(obj client.Object) {
-	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), t.OwnerReference))
+	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), t.OwnerReference)) // TODO: Use contorllerutils function, what to do about cluster-scoped resources?
 }
