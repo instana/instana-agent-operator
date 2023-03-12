@@ -14,6 +14,7 @@ import (
 
 // TODO: Test and finish
 
+// TODO: seperate configuration interface for mockability in construction
 type DaemonSetBuilder interface {
 	Build() optional.Optional[client.Object]
 }

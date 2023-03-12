@@ -5,6 +5,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
+// TODO: Mockable
+
 func serviceAccountNameDefault(agent *v1.InstanaAgent) string {
 	switch agent.Spec.ServiceAccountSpec.Create.Create {
 	case true:
