@@ -21,7 +21,7 @@ type DaemonSetBuilder interface {
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
-	instanaConfigurationHash string
+	instanaConfigurationHash string // TODO: implement here or elsewhere?
 }
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, instanaConfigurationHash string) DaemonSetBuilder {
