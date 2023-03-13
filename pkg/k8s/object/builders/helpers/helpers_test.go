@@ -9,14 +9,13 @@ import (
 )
 
 func TestServiceAccountName(t *testing.T) {
-	h := &helpers{}
 
 	t.Run("ServiceAccount name is set in spec", func(t *testing.T) {
 		assertions := require.New(t)
 
 		const expected = "0wegoijsdgo"
 
-		actual := h.ServiceAccountName(&instanav1.InstanaAgent{
+		h := NewHelpers(&instanav1.InstanaAgent{
 			Spec: instanav1.InstanaAgentSpec{
 				ServiceAccountSpec: instanav1.ServiceAccountSpec{
 					Name: instanav1.Name{
@@ -26,7 +25,7 @@ func TestServiceAccountName(t *testing.T) {
 			},
 		})
 
-		assertions.Equal(expected, actual)
+		assertions.Equal(expected, h.ServiceAccountName())
 	})
 
 	t.Run("ServiceAccount name is set in spec and create is true", func(t *testing.T) {
@@ -34,7 +33,7 @@ func TestServiceAccountName(t *testing.T) {
 
 		const expected = "erhpoijsg94"
 
-		actual := h.ServiceAccountName(&instanav1.InstanaAgent{
+		h := NewHelpers(&instanav1.InstanaAgent{
 			Spec: instanav1.InstanaAgentSpec{
 				ServiceAccountSpec: instanav1.ServiceAccountSpec{
 					Name: instanav1.Name{
@@ -47,7 +46,7 @@ func TestServiceAccountName(t *testing.T) {
 			},
 		})
 
-		assertions.Equal(expected, actual)
+		assertions.Equal(expected, h.ServiceAccountName())
 	})
 
 	t.Run("ServiceAccount create is true in spec", func(t *testing.T) {
@@ -55,7 +54,7 @@ func TestServiceAccountName(t *testing.T) {
 
 		const expected = "-94jsdogijoijwgt"
 
-		actual := h.ServiceAccountName(&instanav1.InstanaAgent{
+		h := NewHelpers(&instanav1.InstanaAgent{
 			ObjectMeta: v1.ObjectMeta{
 				Name: expected,
 			},
@@ -68,7 +67,7 @@ func TestServiceAccountName(t *testing.T) {
 			},
 		})
 
-		assertions.Equal(expected, actual)
+		assertions.Equal(expected, h.ServiceAccountName())
 	})
 
 	t.Run("No ServiceAccount options specified", func(t *testing.T) {
@@ -76,8 +75,8 @@ func TestServiceAccountName(t *testing.T) {
 
 		const expected = "default"
 
-		actual := h.ServiceAccountName(&instanav1.InstanaAgent{})
+		h := NewHelpers(&instanav1.InstanaAgent{})
 
-		assertions.Equal(expected, actual)
+		assertions.Equal(expected, h.ServiceAccountName())
 	})
 }
