@@ -5,29 +5,29 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-var (
-	instance = helpers{}
-)
-
-type helpers struct{}
-
-type Helpers interface {
-	ServiceAccountName(agent *v1.InstanaAgent) string
+type helpers struct {
+	*v1.InstanaAgent
 }
 
-func (h *helpers) serviceAccountNameDefault(agent *v1.InstanaAgent) string {
-	switch agent.Spec.ServiceAccountSpec.Create.Create {
+type Helpers interface {
+	ServiceAccountName() string
+}
+
+func (h *helpers) serviceAccountNameDefault() string {
+	switch h.Spec.ServiceAccountSpec.Create.Create {
 	case true:
-		return agent.Name
+		return h.Name
 	default:
 		return "default"
 	}
 }
 
-func (h *helpers) ServiceAccountName(agent *v1.InstanaAgent) string {
-	return optional.Of(agent.Spec.ServiceAccountSpec.Name.Name).GetOrElse(h.serviceAccountNameDefault(agent))
+func (h *helpers) ServiceAccountName() string {
+	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrElse(h.serviceAccountNameDefault())
 }
 
-func GetInstance() Helpers {
-	return &instance
+func NewHelpers(agent *v1.InstanaAgent) Helpers {
+	return &helpers{
+		InstanaAgent: agent,
+	}
 }

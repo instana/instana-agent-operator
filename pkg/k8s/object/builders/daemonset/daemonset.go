@@ -3,6 +3,7 @@ package daemonset
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	v1 "k8s.io/api/apps/v1"
@@ -23,6 +24,7 @@ type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
 	transformations.Transformations
 	hash.Hasher
+	helpers.Helpers
 }
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) DaemonSetBuilder {
@@ -30,6 +32,7 @@ func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) DaemonSetBuilder {
 		InstanaAgent:    agent,
 		Transformations: transformations.NewTransformations(agent),
 		Hasher:          hash.NewHasher(),
+		Helpers:         helpers.NewHelpers(agent),
 	}
 }
 
@@ -71,7 +74,9 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 					Labels:      d.getPodTemplateLabels(),
 					Annotations: d.getPodTemplateAnnotations(),
 				},
-				Spec: coreV1.PodSpec{},
+				Spec: coreV1.PodSpec{
+					ServiceAccountName: d.ServiceAccountName(),
+				},
 			},
 			UpdateStrategy: d.InstanaAgent.Spec.Agent.UpdateStrategy,
 		},
