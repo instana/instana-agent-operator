@@ -5,9 +5,17 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-// TODO: Mockable
+var (
+	instance = helpers{}
+)
 
-func serviceAccountNameDefault(agent *v1.InstanaAgent) string {
+type helpers struct{}
+
+type Helpers interface {
+	ServiceAccountName(agent *v1.InstanaAgent) string
+}
+
+func (h *helpers) serviceAccountNameDefault(agent *v1.InstanaAgent) string {
 	switch agent.Spec.ServiceAccountSpec.Create.Create {
 	case true:
 		return agent.Name
@@ -16,6 +24,10 @@ func serviceAccountNameDefault(agent *v1.InstanaAgent) string {
 	}
 }
 
-func ServiceAccountName(agent *v1.InstanaAgent) string {
-	return optional.Of(agent.Spec.ServiceAccountSpec.Name.Name).GetOrElse(serviceAccountNameDefault(agent))
+func (h *helpers) ServiceAccountName(agent *v1.InstanaAgent) string {
+	return optional.Of(agent.Spec.ServiceAccountSpec.Name.Name).GetOrElse(h.serviceAccountNameDefault(agent))
+}
+
+func GetInstance() Helpers {
+	return &instance
 }
