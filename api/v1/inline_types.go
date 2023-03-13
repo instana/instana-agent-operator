@@ -166,6 +166,8 @@ type AgentPodSpec struct {
 
 	// Override Agent resource requirements to e.g. give the Agent container more memory.
 	coreV1.ResourceRequirements `json:",inline"`
+
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 type TlsSpec struct {
@@ -201,11 +203,7 @@ type ImageSpec struct {
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with
 	// "containers.instana.io". Setting `agent.image.pullSecrets` prevents the creation of the default "containers-instana-io" secret.
 	// +kubebuilder:validation:Optional
-	PullSecrets []PullSecretSpec `json:"pullSecrets,omitempty"`
-}
-
-type PullSecretSpec struct {
-	Name `json:",inline"`
+	PullSecrets []coreV1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 type HostSpec struct {
