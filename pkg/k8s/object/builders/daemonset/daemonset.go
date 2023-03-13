@@ -3,6 +3,7 @@ package daemonset
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -10,6 +11,7 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 // TODO: Multiple zones
@@ -52,6 +54,18 @@ func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 	return podAnnotations
 }
 
+func (d *daemonSetBuilder) getImagePullSecrets() []coreV1.LocalObjectReference {
+	res := d.Spec.Agent.ImageSpec.PullSecrets
+
+	if strings.HasPrefix(d.Spec.Agent.ImageSpec.Name, builders.ContainersInstanaIoRegistry) {
+		res = append(res, coreV1.LocalObjectReference{
+			Name: builders.ContainersInstanaIoSecretName,
+		})
+	}
+
+	return res
+}
+
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
 		return optional.Empty[client.Object]()
@@ -76,6 +90,17 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 				},
 				Spec: coreV1.PodSpec{
 					ServiceAccountName: d.ServiceAccountName(),
+					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
+					HostNetwork:        true,
+					HostPID:            true,
+					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
+					DNSPolicy:          coreV1.DNSClusterFirstWithHostNet,
+					ImagePullSecrets:   d.getImagePullSecrets(),
+					Containers: []coreV1.Container{
+						{
+							Name: "instana-agent",
+						},
+					},
 				},
 			},
 			UpdateStrategy: d.InstanaAgent.Spec.Agent.UpdateStrategy,
