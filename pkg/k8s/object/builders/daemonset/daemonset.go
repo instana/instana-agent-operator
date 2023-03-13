@@ -2,6 +2,7 @@ package daemonset
 
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	v1 "k8s.io/api/apps/v1"
@@ -21,29 +22,31 @@ type DaemonSetBuilder interface {
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
-	instanaConfigurationHash string // TODO: implement here or elsewhere?
+	transformations.Transformations
+	hash.Hasher
 }
 
-func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, instanaConfigurationHash string) DaemonSetBuilder {
+func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) DaemonSetBuilder {
 	return &daemonSetBuilder{
-		InstanaAgent:             agent,
-		instanaConfigurationHash: instanaConfigurationHash,
+		InstanaAgent:    agent,
+		Transformations: transformations.NewTransformations(agent),
+		Hasher:          hash.NewHasher(),
 	}
 }
 
 func (d *daemonSetBuilder) getSelectorMatchLabels() map[string]string {
-	return transformations.AddCommonLabels(map[string]string{}, d.Name, true)
+	return d.AddCommonLabelsToMap(map[string]string{}, d.Name, true)
 }
 
 func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrElse(map[string]string{})
 	podLabels["instana/agent-mode"] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrElse(instanav1.APM))
-	return transformations.AddCommonLabels(podLabels, d.Name, false)
+	return d.AddCommonLabelsToMap(podLabels, d.Name, false)
 }
 
 func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrElse(map[string]string{})
-	podAnnotations["instana-configuration-hash"] = d.instanaConfigurationHash
+	podAnnotations["instana-configuration-hash"] = d.HashOrDie(&d.Spec)
 	return podAnnotations
 }
 
