@@ -27,6 +27,7 @@ const (
 type Transformations interface {
 	AddCommonLabels(obj client.Object)
 	AddOwnerReference(obj client.Object)
+	AddCommonLabelsToMap(labels map[string]string, name string, skipVersionLabel bool) map[string]string
 }
 
 type transformations struct {
@@ -46,7 +47,7 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 	}
 }
 
-func AddCommonLabels(labels map[string]string, name string, skipVersionLabel bool) map[string]string {
+func (t *transformations) AddCommonLabelsToMap(labels map[string]string, name string, skipVersionLabel bool) map[string]string {
 	labels[NameLabel] = "instana-agent"
 	labels[InstanceLabel] = name
 	if !skipVersionLabel {
@@ -57,7 +58,7 @@ func AddCommonLabels(labels map[string]string, name string, skipVersionLabel boo
 
 func (t *transformations) AddCommonLabels(obj client.Object) {
 	labels := optional.Of(obj.GetLabels()).GetOrElse(make(map[string]string, 3))
-	AddCommonLabels(labels, t.Name, false)
+	t.AddCommonLabelsToMap(labels, t.Name, false)
 	obj.SetLabels(labels)
 }
 

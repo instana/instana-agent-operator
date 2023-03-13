@@ -7,6 +7,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 )
@@ -116,5 +117,56 @@ func TestAddOwnerReference(t *testing.T) {
 				BlockOwnerDeletion: pointer.To(true),
 			},
 		}, cm.OwnerReferences)
+	})
+}
+
+func TestAddCommonLabelsToMap(t *testing.T) {
+	const name = "my-instance"
+	transformer := &transformations{}
+
+	t.Run("should add all common labels to an empty map", func(t *testing.T) {
+		labels := transformer.AddCommonLabelsToMap(map[string]string{}, name, false)
+		assert.Equal(t, map[string]string{
+			NameLabel:     "instana-agent",
+			InstanceLabel: name,
+			VersionLabel:  version,
+		}, labels)
+	})
+
+	t.Run("should add only app name and instance name to an empty map if skipVersionLabel is true", func(t *testing.T) {
+		labels := transformer.AddCommonLabelsToMap(map[string]string{}, name, true)
+		assert.Equal(t, map[string]string{
+			NameLabel:     "instana-agent",
+			InstanceLabel: name,
+		}, labels)
+	})
+
+	t.Run("should add all common labels to an existing map", func(t *testing.T) {
+		labels := map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		}
+		labels = transformer.AddCommonLabelsToMap(labels, name, false)
+		assert.Equal(t, map[string]string{
+			"key1":        "value1",
+			"key2":        "value2",
+			NameLabel:     "instana-agent",
+			InstanceLabel: name,
+			VersionLabel:  version,
+		}, labels)
+	})
+
+	t.Run("should overwrite existing common labels", func(t *testing.T) {
+		labels := map[string]string{
+			NameLabel:     "my-app",
+			InstanceLabel: "my-instance",
+			VersionLabel:  "0.0.0",
+		}
+		labels = transformer.AddCommonLabelsToMap(labels, name, false)
+		assert.Equal(t, map[string]string{
+			NameLabel:     "instana-agent",
+			InstanceLabel: name,
+			VersionLabel:  version,
+		}, labels)
 	})
 }
