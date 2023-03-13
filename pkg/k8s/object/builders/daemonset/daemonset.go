@@ -98,7 +98,9 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 					ImagePullSecrets:   d.getImagePullSecrets(),
 					Containers: []coreV1.Container{
 						{
-							Name: "instana-agent",
+							Name:            "instana-agent",
+							Image:           d.Spec.Agent.Image(),
+							ImagePullPolicy: d.Spec.Agent.PullPolicy,
 						},
 					},
 				},

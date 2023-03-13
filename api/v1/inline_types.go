@@ -199,7 +199,7 @@ type ImageSpec struct {
 
 	// PullPolicy specifies when to pull the image container.
 	// +kubebuilder:validation:Optional
-	PullPolicy string `json:"pullPolicy,omitempty"`
+	PullPolicy coreV1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with
 	// "containers.instana.io". Setting `agent.image.pullSecrets` prevents the creation of the default "containers-instana-io" secret.
