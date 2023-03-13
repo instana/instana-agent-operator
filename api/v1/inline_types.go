@@ -5,6 +5,7 @@
 package v1
 
 import (
+	"fmt"
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 )
@@ -204,6 +205,17 @@ type ImageSpec struct {
 	// "containers.instana.io". Setting `agent.image.pullSecrets` prevents the creation of the default "containers-instana-io" secret.
 	// +kubebuilder:validation:Optional
 	PullSecrets []coreV1.LocalObjectReference `json:"pullSecrets,omitempty"`
+}
+
+func (i ImageSpec) Image() string {
+	switch {
+	case i.Digest != "":
+		return fmt.Sprintf("%s@%s", i.Name, i.Digest)
+	case i.Tag != "":
+		return fmt.Sprintf("%s:%s", i.Name, i.Tag)
+	default:
+		return i.Name
+	}
 }
 
 type HostSpec struct {
