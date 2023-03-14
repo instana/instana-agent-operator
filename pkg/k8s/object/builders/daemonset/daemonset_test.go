@@ -1,11 +1,12 @@
 package daemonset
 
 import (
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestDaemonSetBuilder_getSelectorMatchLabels(t *testing.T) {
