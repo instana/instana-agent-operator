@@ -18,10 +18,6 @@ import (
 
 // TODO: Test and finish
 
-type DaemonSetBuilder interface {
-	Build() optional.Optional[client.Object]
-}
-
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
 	transformations.Transformations
@@ -29,7 +25,7 @@ type daemonSetBuilder struct {
 	helpers.Helpers
 }
 
-func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) DaemonSetBuilder {
+func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) builders.ResourceBuilder {
 	return &daemonSetBuilder{
 		InstanaAgent:    agent,
 		Transformations: transformations.NewTransformations(agent),
