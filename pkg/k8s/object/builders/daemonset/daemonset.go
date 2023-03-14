@@ -104,5 +104,5 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 			UpdateStrategy: d.InstanaAgent.Spec.Agent.UpdateStrategy,
 		},
 	}
-
+	return optional.Of[client.Object](ds)
 }
