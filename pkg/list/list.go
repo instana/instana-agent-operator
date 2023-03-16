@@ -63,6 +63,7 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
 }
 
 // TODO: warning (error) if not expected name and namespace (and status/event?)
+// TODO: Keep Helm uninstall step for migration?
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
 // TODO: resource renderer interface?
