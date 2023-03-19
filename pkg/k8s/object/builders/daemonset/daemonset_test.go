@@ -213,3 +213,72 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 	})
 
 }
+
+func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
+	t.Run("no_user_provided_annotations", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		assertions := require.New(t)
+
+		agent := instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Cluster: instanav1.Name{
+					Name: "oawgeoieg",
+				},
+			},
+		}
+
+		const expectedHash = "49845soidghoijw09"
+
+		hasher := NewMockHasher(ctrl)
+		hasher.EXPECT().HashOrDie(gomock.Eq(&agent.Spec)).Return(expectedHash)
+
+		db := &daemonSetBuilder{
+			InstanaAgent: &agent,
+			Hasher:       hasher,
+		}
+
+		actual := db.getPodTemplateAnnotations()
+		assertions.Equal(map[string]string{
+			"instana-configuration-hash": expectedHash,
+		}, actual)
+	})
+	t.Run("with_user_provided_annotations", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		assertions := require.New(t)
+
+		agent := instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Cluster: instanav1.Name{
+					Name: "oawgeoieg",
+				},
+				Agent: instanav1.BaseAgentSpec{
+					Pod: instanav1.AgentPodSpec{
+						Annotations: map[string]string{
+							"498hroihsg":             "4589fdoighjsoijs",
+							"flkje489h309sd":         "oie409ojifg",
+							"4509ufdoigjselkjweoihg": "g059pojw9jwpoijd",
+						},
+					},
+				},
+			},
+		}
+
+		const expectedHash = "49845soidghoijw09"
+
+		hasher := NewMockHasher(ctrl)
+		hasher.EXPECT().HashOrDie(gomock.Eq(&agent.Spec)).Return(expectedHash)
+
+		db := &daemonSetBuilder{
+			InstanaAgent: &agent,
+			Hasher:       hasher,
+		}
+
+		actual := db.getPodTemplateAnnotations()
+		assertions.Equal(map[string]string{
+			"instana-configuration-hash": expectedHash,
+			"498hroihsg":                 "4589fdoighjsoijs",
+			"flkje489h309sd":             "oie409ojifg",
+			"4509ufdoigjselkjweoihg":     "g059pojw9jwpoijd",
+		}, actual)
+	})
+}
