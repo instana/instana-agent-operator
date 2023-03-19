@@ -16,6 +16,8 @@ func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	}
 }
 
+// TODO: Generalize this logic for other similar cases
+
 func (a *agentMode) Build() optional.Optional[corev1.EnvVar] {
 	switch mode := a.Spec.Agent.Mode; mode == "" {
 	case true:
