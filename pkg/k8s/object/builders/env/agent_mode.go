@@ -6,4 +6,4 @@ import (
 
 func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromField("INSTANA_AGENT_MODE", agent.Spec.Agent.Mode)
-}
+} // TODO: Test
