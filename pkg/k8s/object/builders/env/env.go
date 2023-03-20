@@ -33,4 +33,5 @@ func (f *fromFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
 			Value: fmt.Sprintf("%v", f.providedValue.Get()),
 		})
 	}
+	// TODO: Add optional "Map" function for more generality
 } // TODO: Test
