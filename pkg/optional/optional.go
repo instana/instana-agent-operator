@@ -46,3 +46,12 @@ func Of[T any](val T) Optional[T] {
 		val: val,
 	}
 }
+
+func Map[T any, U any](in Optional[T], transform func(in T) U) Optional[U] {
+	switch in.IsEmpty() {
+	case true:
+		return Empty[U]()
+	default:
+		return Of(transform(in.Get()))
+	}
+}

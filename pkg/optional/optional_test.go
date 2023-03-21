@@ -1,8 +1,9 @@
 package optional
 
 import (
-	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"testing"
+
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 
 	"github.com/stretchr/testify/require"
 )
@@ -88,5 +89,33 @@ func TestGetOrElse(t *testing.T) {
 		actual := opt.GetOrElse("proijrognasoieojsg")
 
 		assertions.Equal(expected, actual)
+	})
+}
+
+func TestMap(t *testing.T) {
+	type myType string
+
+	t.Run("when_empty", func(t *testing.T) {
+		assertions := require.New(t)
+
+		in := Empty[string]()
+
+		actual := Map[string, myType](in, func(in string) myType {
+			return myType(in)
+		})
+
+		assertions.Equal(Empty[myType](), actual)
+	})
+
+	t.Run("when_not_empty", func(t *testing.T) {
+		assertions := require.New(t)
+
+		in := Of[string]("oiw4eoijsoidjdsgf")
+
+		actual := Map[string, myType](in, func(in string) myType {
+			return myType(in)
+		})
+
+		assertions.Equal(Of[myType]("oiw4eoijsoidjdsgf"), actual)
 	})
 }
