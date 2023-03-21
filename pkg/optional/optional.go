@@ -30,11 +30,18 @@ func (o *optional[T]) GetOrElseDo(f func() T) T {
 	}
 }
 
+func (o *optional[T]) IfPresent(do func(val T)) {
+	if !o.IsEmpty() {
+		do(o.Get())
+	}
+}
+
 type Optional[T any] interface {
 	IsEmpty() bool
 	Get() T
 	GetOrElse(val T) T
 	GetOrElseDo(func() T) T
+	IfPresent(func(T))
 }
 
 func Empty[T any]() Optional[T] {

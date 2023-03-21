@@ -119,3 +119,25 @@ func TestMap(t *testing.T) {
 		assertions.Equal(Of[myType]("oiw4eoijsoidjdsgf"), actual)
 	})
 }
+
+func TestIfPresent(t *testing.T) {
+	t.Run("not_present", func(t *testing.T) {
+		assertions := require.New(t)
+
+		o := Of("")
+		o.IfPresent(func(_ string) {
+			assertions.Fail("this function should not run if optional is empty")
+		})
+	})
+	t.Run("is_present", func(t *testing.T) {
+		assertions := require.New(t)
+
+		actual := 0
+
+		o := Of(5)
+		o.IfPresent(func(i int) {
+			actual = i
+		})
+		assertions.Equal(5, actual)
+	})
+}
