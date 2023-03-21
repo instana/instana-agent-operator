@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Generalize these?
+
 func TestAgentModeEnv(t *testing.T) {
 	t.Run("when_empty", func(t *testing.T) {
 		assertions := require.New(t)
