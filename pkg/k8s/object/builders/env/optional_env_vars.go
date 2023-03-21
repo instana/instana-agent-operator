@@ -7,3 +7,9 @@ import (
 func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromField("INSTANA_AGENT_MODE", agent.Spec.Agent.Mode)
 }
+
+// TODO: Leader elector port still needed?
+
+func ZoneNameEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromField("INSTANA_ZONE", agent.Spec.Zone.Name)
+}
