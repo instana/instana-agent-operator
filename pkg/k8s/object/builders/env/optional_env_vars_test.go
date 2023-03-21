@@ -63,3 +63,30 @@ func TestZoneNameEnv(t *testing.T) {
 		)
 	})
 }
+
+func TestClusterNameEnv(t *testing.T) {
+	t.Run("when_empty", func(t *testing.T) {
+		assertions := require.New(t)
+		actual := ClusterNameEnv(&instanav1.InstanaAgent{}).Build()
+
+		assertions.Equal(optional.Empty[corev1.EnvVar](), actual)
+	})
+	t.Run("with_value", func(t *testing.T) {
+		assertions := require.New(t)
+		actual := ClusterNameEnv(&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Cluster: instanav1.Name{
+					Name: "oiweoiohewf",
+				},
+			},
+		}).Build()
+
+		assertions.Equal(
+			optional.Of(corev1.EnvVar{
+				Name:  "INSTANA_KUBERNETES_CLUSTER_NAME",
+				Value: "oiweoiohewf",
+			}),
+			actual,
+		)
+	})
+}

@@ -13,3 +13,7 @@ func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 func ZoneNameEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromField("INSTANA_ZONE", agent.Spec.Zone.Name)
 }
+
+func ClusterNameEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromField("INSTANA_KUBERNETES_CLUSTER_NAME", agent.Spec.Cluster.Name)
+}
