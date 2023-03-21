@@ -32,5 +32,4 @@ func (f *fromFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
 	})
 }
 
-// TODO: Add optional "Map" function for more generality, also add execute when not empty, etc
-// TODO: Test
+// TODO: Test + all common + function to return all common for multiple places?
