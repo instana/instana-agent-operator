@@ -24,15 +24,12 @@ func fromField[T any](name string, val T) EnvBuilder {
 }
 
 func (f *fromFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
-	switch f.providedValue.IsEmpty() {
-	case true:
-		return optional.Empty[corev1.EnvVar]()
-	default:
-		return optional.Of(corev1.EnvVar{
+	return optional.Map(f.providedValue, func(in T) corev1.EnvVar {
+		return corev1.EnvVar{
 			Name:  f.name,
 			Value: fmt.Sprintf("%v", f.providedValue.Get()),
-		})
-	}
+		}
+	})
 }
 
 // TODO: Add optional "Map" function for more generality, also add execute when not empty, etc
