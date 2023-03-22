@@ -125,11 +125,11 @@ type InstanaAgentReconciler struct {
 	leaderElector *leaderelection.LeaderElector
 }
 
-//+kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
+// +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling Instana Agent")
@@ -224,7 +224,7 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// First try to start Leader Election Coordination so to return error if we cannot get it started
-	if r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled() {
+	if (r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled()) && !crdInstance.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled {
 		if r.leaderElector != nil {
 			// As we'll replace the Leader Elector instance make sure to properly clean up old one
 			r.leaderElector.CancelLeaderElection()
