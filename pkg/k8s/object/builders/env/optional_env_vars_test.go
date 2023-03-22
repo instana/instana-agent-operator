@@ -84,3 +84,35 @@ func TestClusterNameEnv(t *testing.T) {
 		"oiweoiohewf",
 	)
 }
+
+func TestAgentEndpointEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		AgentEndpointEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					EndpointHost: "kljdskoije",
+				},
+			},
+		},
+		"INSTANA_AGENT_ENDPOINT",
+		"kljdskoije",
+	)
+}
+
+func TestAgentEndpointPortEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		AgentEndpointPortEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					EndpointPort: "480230932",
+				},
+			},
+		},
+		"INSTANA_AGENT_ENDPOINT_PORT",
+		"480230932",
+	)
+}
