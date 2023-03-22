@@ -10,85 +10,77 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: Generalize these?
-
-func TestAgentModeEnv(t *testing.T) {
+func testOptionalEnv(
+	t *testing.T,
+	f func(agent *instanav1.InstanaAgent) EnvBuilder,
+	agent *instanav1.InstanaAgent,
+	expectedName string,
+	expectedValue string,
+) {
 	t.Run("when_empty", func(t *testing.T) {
 		assertions := require.New(t)
-		actual := AgentModeEnv(&instanav1.InstanaAgent{}).Build()
+		actual := f(&instanav1.InstanaAgent{}).Build()
 
-		assertions.Equal(optional.Empty[corev1.EnvVar](), actual)
+		assertions.Empty(actual)
 	})
 	t.Run("with_value", func(t *testing.T) {
 		assertions := require.New(t)
-		actual := AgentModeEnv(&instanav1.InstanaAgent{
+		actual := f(agent).Build()
+
+		assertions.Equal(
+			optional.Of(corev1.EnvVar{
+				Name:  expectedName,
+				Value: expectedValue,
+			}),
+			actual,
+		)
+	})
+}
+
+func TestAgentModeEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		AgentModeEnv,
+		&instanav1.InstanaAgent{
 			Spec: instanav1.InstanaAgentSpec{
 				Agent: instanav1.BaseAgentSpec{
 					Mode: instanav1.KUBERNETES,
 				},
 			},
-		}).Build()
-
-		assertions.Equal(
-			optional.Of(corev1.EnvVar{
-				Name:  "INSTANA_AGENT_MODE",
-				Value: string(instanav1.KUBERNETES),
-			}),
-			actual,
-		)
-	})
+		},
+		"INSTANA_AGENT_MODE",
+		string(instanav1.KUBERNETES),
+	)
 }
 
 func TestZoneNameEnv(t *testing.T) {
-	t.Run("when_empty", func(t *testing.T) {
-		assertions := require.New(t)
-		actual := ZoneNameEnv(&instanav1.InstanaAgent{}).Build()
-
-		assertions.Equal(optional.Empty[corev1.EnvVar](), actual)
-	})
-	t.Run("with_value", func(t *testing.T) {
-		assertions := require.New(t)
-		actual := ZoneNameEnv(&instanav1.InstanaAgent{
+	testOptionalEnv(
+		t,
+		ZoneNameEnv,
+		&instanav1.InstanaAgent{
 			Spec: instanav1.InstanaAgentSpec{
 				Zone: instanav1.Name{
 					Name: "oiweoiohewf",
 				},
 			},
-		}).Build()
-
-		assertions.Equal(
-			optional.Of(corev1.EnvVar{
-				Name:  "INSTANA_ZONE",
-				Value: "oiweoiohewf",
-			}),
-			actual,
-		)
-	})
+		},
+		"INSTANA_ZONE",
+		"oiweoiohewf",
+	)
 }
 
 func TestClusterNameEnv(t *testing.T) {
-	t.Run("when_empty", func(t *testing.T) {
-		assertions := require.New(t)
-		actual := ClusterNameEnv(&instanav1.InstanaAgent{}).Build()
-
-		assertions.Equal(optional.Empty[corev1.EnvVar](), actual)
-	})
-	t.Run("with_value", func(t *testing.T) {
-		assertions := require.New(t)
-		actual := ClusterNameEnv(&instanav1.InstanaAgent{
+	testOptionalEnv(
+		t,
+		ClusterNameEnv,
+		&instanav1.InstanaAgent{
 			Spec: instanav1.InstanaAgentSpec{
 				Cluster: instanav1.Name{
 					Name: "oiweoiohewf",
 				},
 			},
-		}).Build()
-
-		assertions.Equal(
-			optional.Of(corev1.EnvVar{
-				Name:  "INSTANA_KUBERNETES_CLUSTER_NAME",
-				Value: "oiweoiohewf",
-			}),
-			actual,
-		)
-	})
+		},
+		"INSTANA_KUBERNETES_CLUSTER_NAME",
+		"oiweoiohewf",
+	)
 }

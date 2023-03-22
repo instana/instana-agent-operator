@@ -13,7 +13,7 @@ func Test_fromField(t *testing.T) {
 		assertions := require.New(t)
 		actual := fromField("MY_ENV_FIELD_1", "").Build()
 
-		assertions.Equal(optional.Empty[corev1.EnvVar](), actual)
+		assertions.Empty(actual)
 	})
 	t.Run("with_value", func(t *testing.T) {
 		assertions := require.New(t)
