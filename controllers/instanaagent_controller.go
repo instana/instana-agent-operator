@@ -224,7 +224,11 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// First try to start Leader Election Coordination so to return error if we cannot get it started
-	if (r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled()) && !crdInstance.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled {
+	if crdInstance.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled {
+		if r.leaderElector != nil {
+			r.leaderElector.CancelLeaderElection()
+		}
+	} else if r.leaderElector == nil || !r.leaderElector.IsLeaderElectionScheduled() {
 		if r.leaderElector != nil {
 			// As we'll replace the Leader Elector instance make sure to properly clean up old one
 			r.leaderElector.CancelLeaderElection()
