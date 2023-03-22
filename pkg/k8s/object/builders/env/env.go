@@ -11,19 +11,19 @@ type EnvBuilder interface {
 	Build() optional.Optional[corev1.EnvVar]
 }
 
-type fromFieldIfSet[T any] struct {
+type fromCRFieldIfSet[T any] struct {
 	name          string
 	providedValue optional.Optional[T]
 }
 
-func fromField[T any](name string, val T) EnvBuilder {
-	return &fromFieldIfSet[T]{
+func fromCRField[T any](name string, val T) EnvBuilder {
+	return &fromCRFieldIfSet[T]{
 		name:          name,
 		providedValue: optional.Of(val),
 	}
 }
 
-func (f *fromFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
+func (f *fromCRFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
 	return optional.Map(f.providedValue, func(in T) corev1.EnvVar {
 		return corev1.EnvVar{
 			Name:  f.name,
