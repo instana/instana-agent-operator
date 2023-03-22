@@ -3,6 +3,7 @@ package env
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -79,6 +80,21 @@ func AgentKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 					Name: helpers.NewHelpers(agent).KeysSecretName(),
 				},
 				Key: "key",
+			},
+		},
+	})
+}
+
+func DownloadKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromLiteralVal(corev1.EnvVar{
+		Name: "INSTANA_DOWNLOAD_KEY",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: helpers.NewHelpers(agent).KeysSecretName(),
+				},
+				Key:      "downloadKey",
+				Optional: pointer.To(true),
 			},
 		},
 	})
