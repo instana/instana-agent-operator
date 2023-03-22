@@ -71,13 +71,13 @@ func RedactK8sSecretsEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 
 // From a Secret
 
-func AgentKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+func AgentKeyEnv(helpers helpers.Helpers) EnvBuilder {
 	return fromLiteralVal(corev1.EnvVar{
 		Name: "INSTANA_AGENT_KEY",
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: helpers.NewHelpers(agent).KeysSecretName(),
+					Name: helpers.KeysSecretName(),
 				},
 				Key: "key",
 			},
@@ -85,13 +85,13 @@ func AgentKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	})
 }
 
-func DownloadKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+func DownloadKeyEnv(helpers helpers.Helpers) EnvBuilder {
 	return fromLiteralVal(corev1.EnvVar{
 		Name: "INSTANA_DOWNLOAD_KEY",
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: helpers.NewHelpers(agent).KeysSecretName(),
+					Name: helpers.KeysSecretName(),
 				},
 				Key:      "downloadKey",
 				Optional: pointer.To(true),
@@ -99,3 +99,18 @@ func DownloadKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 		},
 	})
 }
+
+// From Pod Reference // TODO: Other one
+
+func PodNameEnv() EnvBuilder {
+	return fromLiteralVal(corev1.EnvVar{
+		Name: "INSTANA_AGENT_POD_NAME",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "metadata.name",
+			},
+		},
+	})
+}
+
+// TODO: from user provided

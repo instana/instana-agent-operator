@@ -3,9 +3,9 @@ package env
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testOptionalEnv(
+func testCRFieldEnvVar(
 	t *testing.T,
 	f func(agent *instanav1.InstanaAgent) EnvBuilder,
 	agent *instanav1.InstanaAgent,
@@ -42,7 +42,7 @@ func testOptionalEnv(
 }
 
 func TestAgentModeEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		AgentModeEnv,
 		&instanav1.InstanaAgent{
@@ -58,7 +58,7 @@ func TestAgentModeEnv(t *testing.T) {
 }
 
 func TestZoneNameEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ZoneNameEnv,
 		&instanav1.InstanaAgent{
@@ -74,7 +74,7 @@ func TestZoneNameEnv(t *testing.T) {
 }
 
 func TestClusterNameEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ClusterNameEnv,
 		&instanav1.InstanaAgent{
@@ -90,7 +90,7 @@ func TestClusterNameEnv(t *testing.T) {
 }
 
 func TestAgentEndpointEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		AgentEndpointEnv,
 		&instanav1.InstanaAgent{
@@ -106,7 +106,7 @@ func TestAgentEndpointEnv(t *testing.T) {
 }
 
 func TestAgentEndpointPortEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		AgentEndpointPortEnv,
 		&instanav1.InstanaAgent{
@@ -122,7 +122,7 @@ func TestAgentEndpointPortEnv(t *testing.T) {
 }
 
 func TestMavenRepoUrlEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		MavenRepoUrlEnv,
 		&instanav1.InstanaAgent{
@@ -138,7 +138,7 @@ func TestMavenRepoUrlEnv(t *testing.T) {
 }
 
 func TestProxyHostEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ProxyHostEnv,
 		&instanav1.InstanaAgent{
@@ -154,7 +154,7 @@ func TestProxyHostEnv(t *testing.T) {
 }
 
 func TestProxyPortEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ProxyPortEnv,
 		&instanav1.InstanaAgent{
@@ -170,7 +170,7 @@ func TestProxyPortEnv(t *testing.T) {
 }
 
 func TestProxyProtocolEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ProxyProtocolEnv,
 		&instanav1.InstanaAgent{
@@ -186,7 +186,7 @@ func TestProxyProtocolEnv(t *testing.T) {
 }
 
 func TestProxyUserEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ProxyUserEnv,
 		&instanav1.InstanaAgent{
@@ -202,7 +202,7 @@ func TestProxyUserEnv(t *testing.T) {
 }
 
 func TestProxyPasswordEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ProxyPasswordEnv,
 		&instanav1.InstanaAgent{
@@ -218,7 +218,7 @@ func TestProxyPasswordEnv(t *testing.T) {
 }
 
 func TestProxyUseDNSEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ProxyUseDNSEnv,
 		&instanav1.InstanaAgent{
@@ -234,7 +234,7 @@ func TestProxyUseDNSEnv(t *testing.T) {
 }
 
 func TestListenAddressEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		ListenAddressEnv,
 		&instanav1.InstanaAgent{
@@ -250,7 +250,7 @@ func TestListenAddressEnv(t *testing.T) {
 }
 
 func TestRedactK8sSecretsEnv(t *testing.T) {
-	testOptionalEnv(
+	testCRFieldEnvVar(
 		t,
 		RedactK8sSecretsEnv,
 		&instanav1.InstanaAgent{
@@ -265,124 +265,61 @@ func TestRedactK8sSecretsEnv(t *testing.T) {
 	)
 }
 
+func testKeysSecretEnvVar(
+	t *testing.T,
+	f func(helpers helpers.Helpers) EnvBuilder,
+	expectedName string,
+	expectedKey string,
+	expectedOptional *bool,
+) {
+	ctrl := gomock.NewController(t)
+	assertions := require.New(t)
+
+	hlprs := NewMockHelpers(ctrl)
+	hlprs.EXPECT().KeysSecretName().Return("weoijsdfjjsf")
+
+	assertions.Equal(
+		optional.Of(corev1.EnvVar{
+			Name: expectedName,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "weoijsdfjjsf",
+					},
+					Key:      expectedKey,
+					Optional: expectedOptional,
+				},
+			},
+		}),
+		f(hlprs).Build(),
+	)
+}
+
 func TestAgentKeyEnv(t *testing.T) {
-	t.Run("no_user_provided_secret", func(t *testing.T) {
-		t.Run("keys_secret_not_provided_by_user", func(t *testing.T) {
-			assertions := require.New(t)
-
-			h := AgentKeyEnv(&instanav1.InstanaAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "riuoidfoisd",
-				},
-			})
-			actual := h.Build()
-
-			assertions.Equal(
-				optional.Of(corev1.EnvVar{
-					Name: "INSTANA_AGENT_KEY",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "riuoidfoisd",
-							},
-							Key: "key",
-						},
-					},
-				}),
-				actual,
-			)
-		})
-		t.Run("keys_secret_is_provided_by_user", func(t *testing.T) {
-			assertions := require.New(t)
-
-			h := AgentKeyEnv(&instanav1.InstanaAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "oiew9oisdoijdsf",
-				},
-				Spec: instanav1.InstanaAgentSpec{
-					Agent: instanav1.BaseAgentSpec{
-						KeysSecret: "riuoidfoisd",
-					},
-				},
-			})
-			actual := h.Build()
-
-			assertions.Equal(
-				optional.Of(corev1.EnvVar{
-					Name: "INSTANA_AGENT_KEY",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "riuoidfoisd",
-							},
-							Key: "key",
-						},
-					},
-				}),
-				actual,
-			)
-		})
-	})
+	testKeysSecretEnvVar(t, AgentKeyEnv, "INSTANA_AGENT_KEY", "key", nil)
 }
 
 func TestDownloadKeyEnv(t *testing.T) {
-	t.Run("no_user_provided_secret", func(t *testing.T) {
-		t.Run("keys_secret_not_provided_by_user", func(t *testing.T) {
-			assertions := require.New(t)
+	testKeysSecretEnvVar(t, DownloadKeyEnv, "INSTANA_DOWNLOAD_KEY", "downloadKey", pointer.To(true))
+}
 
-			h := DownloadKeyEnv(&instanav1.InstanaAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "riuoidfoisd",
+func testFromPodField(t *testing.T, f func() EnvBuilder, literal corev1.EnvVar) {
+	assertions := require.New(t)
+
+	assertions.Equal(optional.Of(literal), f().Build())
+}
+
+func TestPodNameEnv(t *testing.T) {
+	testFromPodField(
+		t,
+		PodNameEnv,
+		corev1.EnvVar{
+			Name: "INSTANA_AGENT_POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
 				},
-			})
-			actual := h.Build()
-
-			assertions.Equal(
-				optional.Of(corev1.EnvVar{
-					Name: "INSTANA_DOWNLOAD_KEY",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "riuoidfoisd",
-							},
-							Key:      "downloadKey",
-							Optional: pointer.To(true),
-						},
-					},
-				}),
-				actual,
-			)
-		})
-		t.Run("keys_secret_is_provided_by_user", func(t *testing.T) {
-			assertions := require.New(t)
-
-			h := DownloadKeyEnv(&instanav1.InstanaAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "oiew9oisdoijdsf",
-				},
-				Spec: instanav1.InstanaAgentSpec{
-					Agent: instanav1.BaseAgentSpec{
-						KeysSecret: "riuoidfoisd",
-					},
-				},
-			})
-			actual := h.Build()
-
-			assertions.Equal(
-				optional.Of(corev1.EnvVar{
-					Name: "INSTANA_DOWNLOAD_KEY",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "riuoidfoisd",
-							},
-							Key:      "downloadKey",
-							Optional: pointer.To(true),
-						},
-					},
-				}),
-				actual,
-			)
-		})
-	})
+			},
+		},
+	)
 }
