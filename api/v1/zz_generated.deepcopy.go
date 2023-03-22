@@ -265,6 +265,7 @@ func (in *InstanaAgentSpec) DeepCopyInto(out *InstanaAgentSpec) {
 	out.ServiceAccountSpec = in.ServiceAccountSpec
 	out.PodSecurityPolicySpec = in.PodSecurityPolicySpec
 	in.KubernetesSpec.DeepCopyInto(&out.KubernetesSpec)
+	in.K8sSensor.DeepCopyInto(&out.K8sSensor)
 	if in.ConfigurationFiles != nil {
 		in, out := &in.ConfigurationFiles, &out.ConfigurationFiles
 		*out = make(map[string]string, len(*in))
