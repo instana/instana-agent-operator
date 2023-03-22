@@ -116,3 +116,83 @@ func TestAgentEndpointPortEnv(t *testing.T) {
 		"480230932",
 	)
 }
+
+func TestMavenRepoUrlEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		MavenRepoUrlEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					MvnRepoUrl: "tgiojreoihsef",
+				},
+			},
+		},
+		"INSTANA_MVN_REPOSITORY_URL",
+		"tgiojreoihsef",
+	)
+}
+
+func TestProxyHostEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ProxyHostEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyHost: "giroijwsoidoisd",
+				},
+			},
+		},
+		"INSTANA_AGENT_PROXY_HOST",
+		"giroijwsoidoisd",
+	)
+}
+
+func TestProxyPortEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ProxyPortEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyPort: "boieoijspojs",
+				},
+			},
+		},
+		"INSTANA_AGENT_PROXY_PORT",
+		"boieoijspojs",
+	)
+}
+
+func TestProxyProtocolEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ProxyProtocolEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyProtocol: "eoidoijsoihe",
+				},
+			},
+		},
+		"INSTANA_AGENT_PROXY_PROTOCOL",
+		"eoidoijsoihe",
+	)
+}
+
+func TestProxyUserEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ProxyUserEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyUser: "hoieoijsdoifjsd",
+				},
+			},
+		},
+		"INSTANA_AGENT_PROXY_USER",
+		"hoieoijsdoifjsd",
+	)
+}

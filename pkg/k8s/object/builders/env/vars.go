@@ -28,4 +28,24 @@ func AgentEndpointPortEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromCRField("INSTANA_AGENT_ENDPOINT_PORT", agent.Spec.Agent.EndpointPort)
 }
 
+func MavenRepoUrlEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_MVN_REPOSITORY_URL", agent.Spec.Agent.MvnRepoUrl)
+}
+
+func ProxyHostEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_PROXY_HOST", agent.Spec.Agent.ProxyHost)
+}
+
+func ProxyPortEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_PROXY_PORT", agent.Spec.Agent.ProxyPort)
+}
+
+func ProxyProtocolEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_PROXY_PROTOCOL", agent.Spec.Agent.ProxyProtocol)
+}
+
+func ProxyUserEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_PROXY_USER", agent.Spec.Agent.ProxyUser)
+}
+
 // TODO: finish with direct refs
