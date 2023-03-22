@@ -2,9 +2,13 @@ package env
 
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // TODO: Secret, CM, field refs, and custom env variables
+
+// Directly From CR
 
 func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromCRField("INSTANA_AGENT_MODE", agent.Spec.Agent.Mode)
@@ -62,4 +66,20 @@ func ListenAddressEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 
 func RedactK8sSecretsEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromCRField("INSTANA_KUBERNETES_REDACT_SECRETS", agent.Spec.Agent.RedactKubernetesSecrets)
+}
+
+// From a Secret
+
+func AgentKeyEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromLiteralVal(corev1.EnvVar{
+		Name: "INSTANA_AGENT_KEY",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: helpers.NewHelpers(agent).KeysSecretName(),
+				},
+				Key: "key",
+			},
+		},
+	})
 }

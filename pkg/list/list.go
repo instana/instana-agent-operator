@@ -78,3 +78,5 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []optional.Optional[T]) []T {
 // TODO: extra auto detect OpenShift, auto set tolerations, etc.
 // TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
 // TODO: CRD validation flags?
+
+// TODO: Mockgens in Makefile

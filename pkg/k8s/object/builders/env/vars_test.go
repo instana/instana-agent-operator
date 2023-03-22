@@ -3,6 +3,8 @@ package env
 import (
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -259,4 +261,64 @@ func TestRedactK8sSecretsEnv(t *testing.T) {
 		"INSTANA_KUBERNETES_REDACT_SECRETS",
 		"w894309u2oijsgf",
 	)
+}
+
+func TestAgentKeyEnv(t *testing.T) {
+	t.Run("no_user_provided_secret", func(t *testing.T) {
+		t.Run("keys_secret_not_provided_by_user", func(t *testing.T) {
+			assertions := require.New(t)
+
+			h := AgentKeyEnv(&instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "riuoidfoisd",
+				},
+			})
+			actual := h.Build()
+
+			assertions.Equal(
+				optional.Of(corev1.EnvVar{
+					Name: "INSTANA_AGENT_KEY",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "riuoidfoisd",
+							},
+							Key: "key",
+						},
+					},
+				}),
+				actual,
+			)
+		})
+		t.Run("keys_secret_is_provided_by_user", func(t *testing.T) {
+			assertions := require.New(t)
+
+			h := AgentKeyEnv(&instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "oiew9oisdoijdsf",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						KeysSecret: "riuoidfoisd",
+					},
+				},
+			})
+			actual := h.Build()
+
+			assertions.Equal(
+				optional.Of(corev1.EnvVar{
+					Name: "INSTANA_AGENT_KEY",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "riuoidfoisd",
+							},
+							Key: "key",
+						},
+					},
+				}),
+				actual,
+			)
+		})
+	})
 }
