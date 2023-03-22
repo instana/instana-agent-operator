@@ -48,4 +48,18 @@ func ProxyUserEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromCRField("INSTANA_AGENT_PROXY_USER", agent.Spec.Agent.ProxyUser)
 }
 
-// TODO: finish with direct refs
+func ProxyPasswordEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_PROXY_PASSWORD", agent.Spec.Agent.ProxyPassword)
+}
+
+func ProxyUseDNSEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_PROXY_USE_DNS", agent.Spec.Agent.ProxyUseDNS)
+}
+
+func ListenAddressEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_AGENT_HTTP_LISTEN", agent.Spec.Agent.ListenAddress)
+}
+
+func RedactK8sSecretsEnv(agent *instanav1.InstanaAgent) EnvBuilder {
+	return fromCRField("INSTANA_KUBERNETES_REDACT_SECRETS", agent.Spec.Agent.RedactKubernetesSecrets)
+}

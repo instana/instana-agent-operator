@@ -196,3 +196,67 @@ func TestProxyUserEnv(t *testing.T) {
 		"hoieoijsdoifjsd",
 	)
 }
+
+func TestProxyPasswordEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ProxyPasswordEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyPassword: "ruiohdoigjseijsdf",
+				},
+			},
+		},
+		"INSTANA_AGENT_PROXY_PASSWORD",
+		"ruiohdoigjseijsdf",
+	)
+}
+
+func TestProxyUseDNSEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ProxyUseDNSEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyUseDNS: true,
+				},
+			},
+		},
+		"INSTANA_AGENT_PROXY_USE_DNS",
+		"true",
+	)
+}
+
+func TestListenAddressEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		ListenAddressEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ListenAddress: "iroihlksdifho",
+				},
+			},
+		},
+		"INSTANA_AGENT_HTTP_LISTEN",
+		"iroihlksdifho",
+	)
+}
+
+func TestRedactK8sSecretsEnv(t *testing.T) {
+	testOptionalEnv(
+		t,
+		RedactK8sSecretsEnv,
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					RedactKubernetesSecrets: "w894309u2oijsgf",
+				},
+			},
+		},
+		"INSTANA_KUBERNETES_REDACT_SECRETS",
+		"w894309u2oijsgf",
+	)
+}
