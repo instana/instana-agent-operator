@@ -11,6 +11,7 @@ type helpers struct {
 
 type Helpers interface {
 	ServiceAccountName() string
+	KeysSecretName() string
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
@@ -24,6 +25,10 @@ func (h *helpers) serviceAccountNameDefault() string {
 
 func (h *helpers) ServiceAccountName() string {
 	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrElse(h.serviceAccountNameDefault())
+}
+
+func (h *helpers) KeysSecretName() string {
+	return optional.Of(h.Spec.Agent.KeysSecret).GetOrElse(h.Name)
 }
 
 func NewHelpers(agent *v1.InstanaAgent) Helpers {

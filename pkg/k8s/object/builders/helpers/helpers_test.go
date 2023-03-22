@@ -80,3 +80,39 @@ func TestServiceAccountName(t *testing.T) {
 		assertions.Equal(expected, h.ServiceAccountName())
 	})
 }
+
+func TestHelpers_KeysSecretName(t *testing.T) {
+	t.Run("keys_secret_not_provided_by_user", func(t *testing.T) {
+		assertions := require.New(t)
+
+		const expected = "riuoidfoisd"
+
+		h := NewHelpers(&instanav1.InstanaAgent{
+			ObjectMeta: v1.ObjectMeta{
+				Name: expected,
+			},
+		})
+		actual := h.KeysSecretName()
+
+		assertions.Equal(expected, actual)
+	})
+	t.Run("keys_secret_is_provided_by_user", func(t *testing.T) {
+		assertions := require.New(t)
+
+		const expected = "riuoidfoisd"
+
+		h := NewHelpers(&instanav1.InstanaAgent{
+			ObjectMeta: v1.ObjectMeta{
+				Name: "oiew9oisdoijdsf",
+			},
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					KeysSecret: expected,
+				},
+			},
+		})
+		actual := h.KeysSecretName()
+
+		assertions.Equal(expected, actual)
+	})
+}
