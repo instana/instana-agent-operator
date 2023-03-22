@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Test_fromField(t *testing.T) {
+func Test_fromCRField(t *testing.T) {
 	t.Run("when_empty", func(t *testing.T) {
 		assertions := require.New(t)
 		actual := fromCRField("MY_ENV_FIELD_1", "").Build()
@@ -27,4 +27,21 @@ func Test_fromField(t *testing.T) {
 			actual,
 		)
 	})
+}
+
+func Test_fromLiteralVal(t *testing.T) {
+	assertions := require.New(t)
+
+	actual := fromLiteralVal(corev1.EnvVar{
+		Name:  "90439jsdjf",
+		Value: "nfdpojwpiew",
+	}).Build()
+
+	assertions.Equal(
+		optional.Of(corev1.EnvVar{
+			Name:  "90439jsdjf",
+			Value: "nfdpojwpiew",
+		}),
+		actual,
+	)
 }

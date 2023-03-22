@@ -32,4 +32,16 @@ func (f *fromCRFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
 	})
 }
 
-// TODO: all common + function to return all common for multiple places?
+type fromLiteral struct {
+	corev1.EnvVar
+}
+
+func fromLiteralVal(val corev1.EnvVar) EnvBuilder {
+	return &fromLiteral{
+		EnvVar: val,
+	}
+}
+
+func (f *fromLiteral) Build() optional.Optional[corev1.EnvVar] {
+	return optional.Of(f.EnvVar)
+}
