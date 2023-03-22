@@ -4,6 +4,8 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 )
 
+// TODO: Secret and CM refs
+
 func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromField("INSTANA_AGENT_MODE", agent.Spec.Agent.Mode)
 }
@@ -25,3 +27,5 @@ func AgentEndpointEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 func AgentEndpointPortEnv(agent *instanav1.InstanaAgent) EnvBuilder {
 	return fromField("INSTANA_AGENT_ENDPOINT_PORT", agent.Spec.Agent.EndpointPort)
 }
+
+// TODO: finish with direct refs
