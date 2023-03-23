@@ -130,8 +130,13 @@ spec:
                           prevents the creation of the default "containers-instana-io"
                           secret.
                         items:
+                          description: LocalObjectReference contains enough information
+                            to let you locate the referenced object inside the same
+                            namespace.
                           properties:
                             name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
                               type: string
                           type: object
                         type: array
@@ -485,9 +490,6 @@ spec:
                                             null selector and null or empty namespaces
                                             list means "this pod's namespace". An
                                             empty selector ({}) matches all namespaces.
-                                            This field is beta-level and is only honored
-                                            when PodAffinityNamespaceSelector feature
-                                            is enabled.
                                           properties:
                                             matchExpressions:
                                               description: matchExpressions is a list
@@ -547,7 +549,7 @@ spec:
                                             union of the namespaces listed in this
                                             field and the ones selected by namespaceSelector.
                                             null or empty namespaces list and null
-                                            namespaceSelector means "this pod's namespace"
+                                            namespaceSelector means "this pod's namespace".
                                           items:
                                             type: string
                                           type: array
@@ -656,9 +658,7 @@ spec:
                                         this field and the ones listed in the namespaces
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
-                                        selector ({}) matches all namespaces. This
-                                        field is beta-level and is only honored when
-                                        PodAffinityNamespaceSelector feature is enabled.
+                                        selector ({}) matches all namespaces.
                                       properties:
                                         matchExpressions:
                                           description: matchExpressions is a list
@@ -715,7 +715,7 @@ spec:
                                         listed in this field and the ones selected
                                         by namespaceSelector. null or empty namespaces
                                         list and null namespaceSelector means "this
-                                        pod's namespace"
+                                        pod's namespace".
                                       items:
                                         type: string
                                       type: array
@@ -826,9 +826,6 @@ spec:
                                             null selector and null or empty namespaces
                                             list means "this pod's namespace". An
                                             empty selector ({}) matches all namespaces.
-                                            This field is beta-level and is only honored
-                                            when PodAffinityNamespaceSelector feature
-                                            is enabled.
                                           properties:
                                             matchExpressions:
                                               description: matchExpressions is a list
@@ -888,7 +885,7 @@ spec:
                                             union of the namespaces listed in this
                                             field and the ones selected by namespaceSelector.
                                             null or empty namespaces list and null
-                                            namespaceSelector means "this pod's namespace"
+                                            namespaceSelector means "this pod's namespace".
                                           items:
                                             type: string
                                           type: array
@@ -997,9 +994,7 @@ spec:
                                         this field and the ones listed in the namespaces
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
-                                        selector ({}) matches all namespaces. This
-                                        field is beta-level and is only honored when
-                                        PodAffinityNamespaceSelector feature is enabled.
+                                        selector ({}) matches all namespaces.
                                       properties:
                                         matchExpressions:
                                           description: matchExpressions is a list
@@ -1056,7 +1051,7 @@ spec:
                                         listed in this field and the ones selected
                                         by namespaceSelector. null or empty namespaces
                                         list and null namespaceSelector means "this
-                                        pod's namespace"
+                                        pod's namespace".
                                       items:
                                         type: string
                                       type: array
@@ -1082,6 +1077,27 @@ spec:
                         description: agent.pod.annotations are additional annotations
                           to be added to the agent pods.
                         type: object
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                            - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                          - name
+                        x-kubernetes-list-type: map
                       labels:
                         additionalProperties:
                           type: string
@@ -1091,12 +1107,16 @@ spec:
                       limits:
                         additionalProperties:
                           anyOf:
-                          - type: integer
-                          - type: string
+                            - type: integer
+                            - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: 'Limits describes the maximum amount of compute
                           resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
                         type: object
                       priorityClassName:
                         description: agent.pod.priorityClassName is the name of an
@@ -1106,7 +1126,7 @@ spec:
                       requests:
                         additionalProperties:
                           anyOf:
-                          - type: integer
+                            - type: integer
                           - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
@@ -1242,8 +1262,7 @@ spec:
                               by the daemonset on any given node can double if the
                               readiness check fails, and so resource intensive daemonsets
                               should take into account that they may cause evictions
-                              during disruption. This is beta field and enabled/disabled
-                              by DaemonSetUpdateSurge feature gate.'
+                              during disruption.'
                             x-kubernetes-int-or-string: true
                           maxUnavailable:
                             anyOf:
@@ -1276,70 +1295,6 @@ spec:
                 - endpointHost
                 - endpointPort
                 type: object
-              agent.clusterRoleBindingName:
-                type: string
-              agent.clusterRoleName:
-                type: string
-              agent.configMapName:
-                type: string
-              agent.cpuLimit:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
-              agent.cpuReq:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
-              agent.daemonSetName:
-                type: string
-              agent.downloadKey:
-                type: string
-              agent.endpoint.host:
-                type: string
-              agent.endpoint.port:
-                type: integer
-              agent.env:
-                additionalProperties:
-                  type: string
-                type: object
-              agent.host.repository:
-                type: string
-              agent.image:
-                type: string
-              agent.imagePullPolicy:
-                type: string
-              agent.key:
-                type: string
-              agent.memLimit:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
-              agent.memReq:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
-              agent.rbac.create:
-                type: boolean
-              agent.secretName:
-                type: string
-              agent.serviceAccountName:
-                type: string
-              agent.tls.certificate:
-                type: string
-              agent.tls.key:
-                type: string
-              agent.tls.secretName:
-                type: string
-              agent.zone.name:
-                type: string
               cluster:
                 description: Name of the cluster, that will be assigned to this cluster
                   in Instana. Either specifying the 'cluster.name' or 'zone.name'
@@ -1347,12 +1302,6 @@ spec:
                 properties:
                   name:
                     type: string
-                type: object
-              cluster.name:
-                type: string
-              config.files:
-                additionalProperties:
-                  type: string
                 type: object
               k8s_sensor:
                 properties:
@@ -1364,6 +1313,28 @@ spec:
                         description: Override pod resource requirements for the Kubernetes
                           Sensor pods.
                         properties:
+                          claims:
+                            description: "Claims lists the names of resources, defined
+                              in spec.resourceClaims, that are used by this container.
+                              \n This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate. \n This field
+                              is immutable."
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: Name must match the name of one entry
+                                    in pod.spec.resourceClaims of the Pod where this
+                                    field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                                - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                              - name
+                            x-kubernetes-list-type: map
                           limits:
                             additionalProperties:
                               anyOf:
@@ -1414,8 +1385,13 @@ spec:
                           prevents the creation of the default "containers-instana-io"
                           secret.
                         items:
+                          description: LocalObjectReference contains enough information
+                            to let you locate the referenced object inside the same
+                            namespace.
                           properties:
                             name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
                               type: string
                           type: object
                         type: array
@@ -1438,11 +1414,33 @@ spec:
                         description: Override pod resource requirements for the Kubernetes
                           Sensor pods.
                         properties:
+                          claims:
+                            description: "Claims lists the names of resources, defined
+                              in spec.resourceClaims, that are used by this container.
+                              \n This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate. \n This field
+                              is immutable."
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: Name must match the name of one entry
+                                    in pod.spec.resourceClaims of the Pod where this
+                                    field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                                - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                              - name
+                            x-kubernetes-list-type: map
                           limits:
                             additionalProperties:
                               anyOf:
-                              - type: integer
-                              - type: string
+                                - type: integer
+                                - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                             description: 'Limits describes the maximum amount of compute
@@ -1490,8 +1488,6 @@ spec:
                         type: boolean
                     type: object
                 type: object
-              opentelemetry.enabled:
-                type: boolean
               pinnedChartVersion:
                 description: Specifying the PinnedChartVersion allows for 'pinning'
                   the Helm Chart used by the Operator for installing the Agent DaemonSet.
