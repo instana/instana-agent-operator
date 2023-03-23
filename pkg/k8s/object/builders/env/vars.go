@@ -8,8 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// TODO: Secret, CM, field refs, and custom env variables
-
 // Directly From CR
 
 func AgentModeEnv(agent *instanav1.InstanaAgent) EnvBuilder {
