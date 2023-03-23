@@ -323,3 +323,14 @@ func TestPodNameEnv(t *testing.T) {
 		},
 	)
 }
+
+func TestPodIpEnv(t *testing.T) {
+	testFromPodField(t, PodIpEnv, corev1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	})
+}

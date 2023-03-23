@@ -100,7 +100,7 @@ func DownloadKeyEnv(helpers helpers.Helpers) EnvBuilder {
 	})
 }
 
-// From Pod Reference // TODO: Other one
+// From Pod Reference
 
 func PodNameEnv() EnvBuilder {
 	return fromLiteralVal(corev1.EnvVar{
@@ -113,4 +113,19 @@ func PodNameEnv() EnvBuilder {
 	})
 }
 
-// TODO: from user provided
+func PodIpEnv() EnvBuilder {
+	return fromLiteralVal(corev1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	})
+}
+
+// From user-provided in CR
+
+//func UserProvidedEnv(agent *instanav1.InstanaAgent) []EnvBuilder {
+//	list.NewListMapTo().MapTo(agent.Spec.Agent.Env)
+//}
