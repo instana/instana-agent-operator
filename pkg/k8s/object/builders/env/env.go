@@ -45,3 +45,5 @@ func fromLiteralVal(val corev1.EnvVar) EnvBuilder {
 func (f *fromLiteral) Build() optional.Optional[corev1.EnvVar] {
 	return optional.Of(f.EnvVar)
 }
+
+// TODO: EnvBuilder amalgamator

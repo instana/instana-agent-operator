@@ -3,8 +3,6 @@ package daemonset
 import (
 	"strings"
 
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
-
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders"
@@ -12,7 +10,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	appsv1 "k8s.io/api/apps/v1"
-	coreV1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -23,47 +21,19 @@ import (
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
+
 	transformations.Transformations
 	hash.Hasher
 	helpers.Helpers
-	envBuilders []env.EnvBuilder
-}
-
-func (d *daemonSetBuilder) initEnvBuilders() *daemonSetBuilder {
-	d.envBuilders = append(
-		[]env.EnvBuilder{
-			env.AgentModeEnv(d.InstanaAgent),
-			env.ZoneNameEnv(d.InstanaAgent),
-			env.ClusterNameEnv(d.InstanaAgent),
-			env.AgentEndpointEnv(d.InstanaAgent),
-			env.AgentEndpointPortEnv(d.InstanaAgent),
-			env.MavenRepoUrlEnv(d.InstanaAgent),
-			env.ProxyHostEnv(d.InstanaAgent),
-			env.ProxyPortEnv(d.InstanaAgent),
-			env.ProxyProtocolEnv(d.InstanaAgent),
-			env.ProxyUserEnv(d.InstanaAgent),
-			env.ProxyPasswordEnv(d.InstanaAgent),
-			env.ProxyUseDNSEnv(d.InstanaAgent),
-			env.ListenAddressEnv(d.InstanaAgent),
-			env.RedactK8sSecretsEnv(d.InstanaAgent),
-			env.AgentKeyEnv(d.Helpers),
-			env.DownloadKeyEnv(d.Helpers),
-			env.PodNameEnv(),
-			env.PodIpEnv(),
-		},
-		env.UserProvidedEnv(d.InstanaAgent)...,
-	)
-
-	return d
 }
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) builders.ResourceBuilder {
-	return (&daemonSetBuilder{
+	return &daemonSetBuilder{
 		InstanaAgent:    agent,
 		Transformations: transformations.NewTransformations(agent),
 		Hasher:          hash.NewHasher(),
 		Helpers:         helpers.NewHelpers(agent),
-	}).initEnvBuilders()
+	}
 }
 
 func (d *daemonSetBuilder) getSelectorMatchLabels() map[string]string {
@@ -82,17 +52,45 @@ func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 	return podAnnotations
 }
 
-func (d *daemonSetBuilder) getImagePullSecrets() []coreV1.LocalObjectReference {
+func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	res := d.Spec.Agent.ImageSpec.PullSecrets
 
 	if strings.HasPrefix(d.Spec.Agent.ImageSpec.Name, builders.ContainersInstanaIoRegistry) {
-		res = append(res, coreV1.LocalObjectReference{
+		res = append(res, corev1.LocalObjectReference{
 			Name: builders.ContainersInstanaIoSecretName,
 		})
 	}
 
 	return res
 }
+
+//func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
+//	envBuilders := append(
+//		[]env.EnvBuilder{
+//			env.AgentModeEnv(d.InstanaAgent),
+//			env.ZoneNameEnv(d.InstanaAgent),
+//			env.ClusterNameEnv(d.InstanaAgent),
+//			env.AgentEndpointEnv(d.InstanaAgent),
+//			env.AgentEndpointPortEnv(d.InstanaAgent),
+//			env.MavenRepoUrlEnv(d.InstanaAgent),
+//			env.ProxyHostEnv(d.InstanaAgent),
+//			env.ProxyPortEnv(d.InstanaAgent),
+//			env.ProxyProtocolEnv(d.InstanaAgent),
+//			env.ProxyUserEnv(d.InstanaAgent),
+//			env.ProxyPasswordEnv(d.InstanaAgent),
+//			env.ProxyUseDNSEnv(d.InstanaAgent),
+//			env.ListenAddressEnv(d.InstanaAgent),
+//			env.RedactK8sSecretsEnv(d.InstanaAgent),
+//			env.AgentKeyEnv(d.Helpers),
+//			env.DownloadKeyEnv(d.Helpers),
+//			env.PodNameEnv(),
+//			env.PodIpEnv(),
+//		},
+//		env.UserProvidedEnv(d.InstanaAgent)...,
+//	)
+//
+//	// TODO
+//}
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
@@ -111,24 +109,25 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: d.getSelectorMatchLabels(),
 			},
-			Template: coreV1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      d.getPodTemplateLabels(),
 					Annotations: d.getPodTemplateAnnotations(),
 				},
-				Spec: coreV1.PodSpec{
+				Spec: corev1.PodSpec{
 					ServiceAccountName: d.ServiceAccountName(),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
 					HostNetwork:        true,
 					HostPID:            true,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
-					DNSPolicy:          coreV1.DNSClusterFirstWithHostNet,
+					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
 					ImagePullSecrets:   d.getImagePullSecrets(),
-					Containers: []coreV1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
+							//Env:             d.getEnvVars(),
 						},
 					},
 				},
