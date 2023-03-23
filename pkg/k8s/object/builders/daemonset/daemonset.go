@@ -3,6 +3,8 @@ package daemonset
 import (
 	"strings"
 
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders"
@@ -24,15 +26,44 @@ type daemonSetBuilder struct {
 	transformations.Transformations
 	hash.Hasher
 	helpers.Helpers
+	envBuilders []env.EnvBuilder
+}
+
+func (d *daemonSetBuilder) initEnvBuilders() *daemonSetBuilder {
+	d.envBuilders = append(
+		[]env.EnvBuilder{
+			env.AgentModeEnv(d.InstanaAgent),
+			env.ZoneNameEnv(d.InstanaAgent),
+			env.ClusterNameEnv(d.InstanaAgent),
+			env.AgentEndpointEnv(d.InstanaAgent),
+			env.AgentEndpointPortEnv(d.InstanaAgent),
+			env.MavenRepoUrlEnv(d.InstanaAgent),
+			env.ProxyHostEnv(d.InstanaAgent),
+			env.ProxyPortEnv(d.InstanaAgent),
+			env.ProxyProtocolEnv(d.InstanaAgent),
+			env.ProxyUserEnv(d.InstanaAgent),
+			env.ProxyPasswordEnv(d.InstanaAgent),
+			env.ProxyUseDNSEnv(d.InstanaAgent),
+			env.ListenAddressEnv(d.InstanaAgent),
+			env.RedactK8sSecretsEnv(d.InstanaAgent),
+			env.AgentKeyEnv(d.Helpers),
+			env.DownloadKeyEnv(d.Helpers),
+			env.PodNameEnv(),
+			env.PodIpEnv(),
+		},
+		env.UserProvidedEnv(d.InstanaAgent)...,
+	)
+
+	return d
 }
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) builders.ResourceBuilder {
-	return &daemonSetBuilder{
+	return (&daemonSetBuilder{
 		InstanaAgent:    agent,
 		Transformations: transformations.NewTransformations(agent),
 		Hasher:          hash.NewHasher(),
 		Helpers:         helpers.NewHelpers(agent),
-	}
+	}).initEnvBuilders()
 }
 
 func (d *daemonSetBuilder) getSelectorMatchLabels() map[string]string {
