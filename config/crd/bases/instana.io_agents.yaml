@@ -1351,6 +1351,77 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              k8s_sensor:
+                properties:
+                  deployment:
+                    properties:
+                      enabled:
+                        type: boolean
+                      pod:
+                        description: Override pod resource requirements for the Kubernetes
+                          Sensor pods.
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                      replicas:
+                        description: Specify the number of replicas for the Kubernetes
+                          Sensor.
+                        type: integer
+                    type: object
+                  image:
+                    properties:
+                      digest:
+                        description: Digest (a.k.a. Image ID) of the agent container
+                          image. If specified, it has priority over `agent.image.tag`,
+                          which will then be ignored.
+                        type: string
+                      name:
+                        description: Name is the name of the container image of the
+                          Instana agent.
+                        type: string
+                      pullPolicy:
+                        description: PullPolicy specifies when to pull the image container.
+                        type: string
+                      pullSecrets:
+                        description: PullSecrets allows you to override the default
+                          pull secret that is created when `agent.image.name` starts
+                          with "containers.instana.io". Setting `agent.image.pullSecrets`
+                          prevents the creation of the default "containers-instana-io"
+                          secret.
+                        items:
+                          properties:
+                            name:
+                              type: string
+                          type: object
+                        type: array
+                      tag:
+                        description: Tag is the name of the agent container image;
+                          if `agent.image.digest` is specified, this property is ignored.
+                        type: string
+                    type: object
+                type: object
               kubernetes:
                 description: Allows for installment of the Kubernetes Sensor as separate
                   pod. Which allows for better tailored resource settings (mainly

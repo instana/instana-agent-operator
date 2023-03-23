@@ -66,7 +66,7 @@ func (p *AgentChartPostRenderer) Run(in *bytes.Buffer) (*bytes.Buffer, error) {
 			p.log.V(1).Info("Removing leader-elector sidecar from DaemonSet was successful")
 		}
 
-		if !(r.ObjectName() == "clusterroles/instana-agent" || r.ObjectName() == "clusterrolebindings/instana-agent") {
+		if !(r.ObjectName() == "clusterroles/instana-agent" || r.ObjectName() == "clusterrolebindings/instana-agent" || r.ObjectName() == "clusterroles/k8sensor" || r.ObjectName() == "clusterrolebindings/k8sensor") {
 			if err := controllerutil.SetControllerReference(p.crdInstance, modifiedResource, p.scheme); err != nil {
 				return err
 			}

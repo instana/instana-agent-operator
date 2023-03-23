@@ -258,6 +258,13 @@ type KubernetesSpec struct {
 	DeploymentSpec KubernetesDeploymentSpec `json:"deployment,omitempty"`
 }
 
+type K8sSpec struct {
+	// +kubebuilder:validation:Optional
+	DeploymentSpec KubernetesDeploymentSpec `json:"deployment,omitempty"`
+	// +kubebuilder:validation:Optional
+	ImageSpec ImageSpec `json:"image,omitempty"`
+}
+
 type KubernetesDeploymentSpec struct {
 	// Specify if separate deployment of the Kubernetes Sensor should be enabled.
 	Enabled `json:",inline"`
