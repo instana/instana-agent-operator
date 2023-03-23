@@ -20,5 +20,5 @@ func TestMapConverter_ToList(t *testing.T) {
 		return fmt.Sprintf("%s: %s", key, val)
 	})
 
-	assertions.Equal([]string{"foo: bar", "hello: world", "something: else"}, actual)
+	assertions.ElementsMatch([]string{"foo: bar", "hello: world", "something: else"}, actual)
 }

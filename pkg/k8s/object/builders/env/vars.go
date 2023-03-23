@@ -2,6 +2,7 @@ package env
 
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	_map "github.com/instana/instana-agent-operator/pkg/collections/map"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
@@ -126,6 +127,14 @@ func PodIpEnv() EnvBuilder {
 
 // From user-provided in CR
 
-//func UserProvidedEnv(agent *instanav1.InstanaAgent) []EnvBuilder {
-//	list.NewListMapTo().MapTo(agent.Spec.Agent.Env)
-//}
+func UserProvidedEnv(agent *instanav1.InstanaAgent) []EnvBuilder {
+	return _map.NewMapConverter[string, string, EnvBuilder]().
+		ToList(agent.Spec.Agent.Env, func(name string, value string) EnvBuilder {
+			return fromLiteralVal(
+				corev1.EnvVar{
+					Name:  name,
+					Value: value,
+				},
+			)
+		})
+}

@@ -3,6 +3,8 @@ package env
 import (
 	"testing"
 
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
+
 	"github.com/golang/mock/gomock"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -333,4 +335,41 @@ func TestPodIpEnv(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestUserProvidedEnv(t *testing.T) {
+	assertions := require.New(t)
+
+	builders := UserProvidedEnv(&instanav1.InstanaAgent{
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Env: map[string]string{
+					"foo":      "bar",
+					"hello":    "world",
+					"oijrgoij": "45ioiojdij",
+				},
+			},
+		},
+	})
+	actual := list.NewListMapTo[EnvBuilder, corev1.EnvVar]().MapTo(builders, func(builder EnvBuilder) corev1.EnvVar {
+		return builder.Build().Get()
+	})
+
+	assertions.ElementsMatch(
+		[]corev1.EnvVar{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "hello",
+				Value: "world",
+			},
+			{
+				Name:  "oijrgoij",
+				Value: "45ioiojdij",
+			},
+		},
+		actual,
+	)
 }
