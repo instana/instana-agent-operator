@@ -31,4 +31,4 @@ func (b *builderProcessor[T]) BuildAll() []T {
 	return b.AllNonEmpty(asOptionals)
 }
 
-// TODO: ForAllPresent here (separate out asOptionals bit), then applyAll / dry-run applyAll in controller util
+// TODO: ForAllPresent here (separate out asOptionals bit OR use BuildAll result and apply to that), then applyAll / dry-run applyAll in controller util
