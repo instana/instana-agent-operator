@@ -410,3 +410,24 @@ func TestDaemonSetBuilder_getImagePullSecrets(t *testing.T) {
 		)
 	})
 }
+
+func TestDaemonSetBuilder_getEnvBuilders(t *testing.T) {
+	assertions := require.New(t)
+
+	userProvidedEnv := map[string]string{
+		"foo":   "bar",
+		"hello": "world",
+		"eodgh": "oijdsgnso",
+	}
+
+	db := NewDaemonSetBuilder(&instanav1.InstanaAgent{
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Env: userProvidedEnv,
+			},
+		},
+	}).(*daemonSetBuilder)
+	res := db.getEnvBuilders()
+
+	assertions.Len(res, 18+len(userProvidedEnv))
+}

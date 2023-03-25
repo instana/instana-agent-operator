@@ -3,6 +3,8 @@ package daemonset
 import (
 	"strings"
 
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders"
@@ -64,33 +66,31 @@ func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	return res
 }
 
-//func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
-//	envBuilders := append(
-//		[]env.EnvBuilder{
-//			env.AgentModeEnv(d.InstanaAgent),
-//			env.ZoneNameEnv(d.InstanaAgent),
-//			env.ClusterNameEnv(d.InstanaAgent),
-//			env.AgentEndpointEnv(d.InstanaAgent),
-//			env.AgentEndpointPortEnv(d.InstanaAgent),
-//			env.MavenRepoUrlEnv(d.InstanaAgent),
-//			env.ProxyHostEnv(d.InstanaAgent),
-//			env.ProxyPortEnv(d.InstanaAgent),
-//			env.ProxyProtocolEnv(d.InstanaAgent),
-//			env.ProxyUserEnv(d.InstanaAgent),
-//			env.ProxyPasswordEnv(d.InstanaAgent),
-//			env.ProxyUseDNSEnv(d.InstanaAgent),
-//			env.ListenAddressEnv(d.InstanaAgent),
-//			env.RedactK8sSecretsEnv(d.InstanaAgent),
-//			env.AgentKeyEnv(d.Helpers),
-//			env.DownloadKeyEnv(d.Helpers),
-//			env.PodNameEnv(),
-//			env.PodIpEnv(),
-//		},
-//		env.UserProvidedEnv(d.InstanaAgent)...,
-//	)
-//
-//	// TODO
-//}
+func (d *daemonSetBuilder) getEnvBuilders() []env.EnvBuilder {
+	return append(
+		[]env.EnvBuilder{
+			env.AgentModeEnv(d.InstanaAgent),
+			env.ZoneNameEnv(d.InstanaAgent),
+			env.ClusterNameEnv(d.InstanaAgent),
+			env.AgentEndpointEnv(d.InstanaAgent),
+			env.AgentEndpointPortEnv(d.InstanaAgent),
+			env.MavenRepoUrlEnv(d.InstanaAgent),
+			env.ProxyHostEnv(d.InstanaAgent),
+			env.ProxyPortEnv(d.InstanaAgent),
+			env.ProxyProtocolEnv(d.InstanaAgent),
+			env.ProxyUserEnv(d.InstanaAgent),
+			env.ProxyPasswordEnv(d.InstanaAgent),
+			env.ProxyUseDNSEnv(d.InstanaAgent),
+			env.ListenAddressEnv(d.InstanaAgent),
+			env.RedactK8sSecretsEnv(d.InstanaAgent),
+			env.AgentKeyEnv(d.Helpers),
+			env.DownloadKeyEnv(d.Helpers),
+			env.PodNameEnv(),
+			env.PodIpEnv(),
+		},
+		env.UserProvidedEnv(d.InstanaAgent)...,
+	)
+}
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
