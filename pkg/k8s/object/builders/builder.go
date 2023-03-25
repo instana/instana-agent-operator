@@ -6,5 +6,5 @@ import (
 )
 
 type ResourceBuilder interface {
-	Build() optional.Optional[client.Object]
+	optional.Builder[client.Object]
 }

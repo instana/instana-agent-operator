@@ -8,7 +8,7 @@ import (
 )
 
 type EnvBuilder interface {
-	Build() optional.Optional[corev1.EnvVar]
+	optional.Builder[corev1.EnvVar]
 }
 
 type fromCRFieldIfSet[T any] struct {
