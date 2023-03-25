@@ -38,8 +38,8 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 	return res
 }
 
-// TODO: warning (error) if not expected name and namespace (and status/event?)
-// TODO: Keep Helm uninstall step for migration?
+// TODO: ~~warning (error) if not expected name and namespace (and status/event?)~~ -> shouldn't be needed with helm uninstall logic below
+// TODO: Keep Helm uninstall step for migration -> Do this step iff (old) finalizer is present as this indicates upgrade, use a different finalizer from now on (if one is still needed)
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
 // TODO: resource renderer interface?
