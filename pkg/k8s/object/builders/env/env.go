@@ -7,16 +7,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type EnvBuilder interface {
-	optional.Builder[corev1.EnvVar]
-}
-
 type fromCRFieldIfSet[T any] struct {
 	name          string
 	providedValue optional.Optional[T]
 }
 
-func fromCRField[T any](name string, val T) EnvBuilder {
+func fromCRField[T any](name string, val T) optional.Builder[corev1.EnvVar] {
 	return &fromCRFieldIfSet[T]{
 		name:          name,
 		providedValue: optional.Of(val),
@@ -36,7 +32,7 @@ type fromLiteral struct {
 	corev1.EnvVar
 }
 
-func fromLiteralVal(val corev1.EnvVar) EnvBuilder {
+func fromLiteralVal(val corev1.EnvVar) optional.Builder[corev1.EnvVar] {
 	return &fromLiteral{
 		EnvVar: val,
 	}

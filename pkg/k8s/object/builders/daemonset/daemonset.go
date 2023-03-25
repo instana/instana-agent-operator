@@ -29,7 +29,7 @@ type daemonSetBuilder struct {
 	helpers.Helpers
 }
 
-func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) builders.ResourceBuilder {
+func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) optional.Builder[client.Object] {
 	return &daemonSetBuilder{
 		InstanaAgent:    agent,
 		Transformations: transformations.NewTransformations(agent),
@@ -66,9 +66,9 @@ func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	return res
 }
 
-func (d *daemonSetBuilder) getEnvBuilders() []env.EnvBuilder {
+func (d *daemonSetBuilder) getEnvBuilders() []optional.Builder[corev1.EnvVar] {
 	return append(
-		[]env.EnvBuilder{
+		[]optional.Builder[corev1.EnvVar]{
 			env.AgentModeEnv(d.InstanaAgent),
 			env.ZoneNameEnv(d.InstanaAgent),
 			env.ClusterNameEnv(d.InstanaAgent),
@@ -127,7 +127,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							//Env:             d.getEnvVars(),
+							Env:             optional.NewBuilderProcessor(d.getEnvBuilders()).BuildAll(),
 						},
 					},
 				},

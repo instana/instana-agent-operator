@@ -18,7 +18,7 @@ import (
 
 func testCRFieldEnvVar(
 	t *testing.T,
-	f func(agent *instanav1.InstanaAgent) EnvBuilder,
+	f func(agent *instanav1.InstanaAgent) optional.Builder[corev1.EnvVar],
 	agent *instanav1.InstanaAgent,
 	expectedName string,
 	expectedValue string,
@@ -269,7 +269,7 @@ func TestRedactK8sSecretsEnv(t *testing.T) {
 
 func testKeysSecretEnvVar(
 	t *testing.T,
-	f func(helpers helpers.Helpers) EnvBuilder,
+	f func(helpers helpers.Helpers) optional.Builder[corev1.EnvVar],
 	expectedName string,
 	expectedKey string,
 	expectedOptional *bool,
@@ -305,7 +305,7 @@ func TestDownloadKeyEnv(t *testing.T) {
 	testKeysSecretEnvVar(t, DownloadKeyEnv, "INSTANA_DOWNLOAD_KEY", "downloadKey", pointer.To(true))
 }
 
-func testFromPodField(t *testing.T, f func() EnvBuilder, literal corev1.EnvVar) {
+func testFromPodField(t *testing.T, f func() optional.Builder[corev1.EnvVar], literal corev1.EnvVar) {
 	assertions := require.New(t)
 
 	assertions.Equal(optional.Of(literal), f().Build())
@@ -351,7 +351,7 @@ func TestUserProvidedEnv(t *testing.T) {
 			},
 		},
 	})
-	actual := list.NewListMapTo[EnvBuilder, corev1.EnvVar]().MapTo(builders, func(builder EnvBuilder) corev1.EnvVar {
+	actual := list.NewListMapTo[optional.Builder[corev1.EnvVar], corev1.EnvVar]().MapTo(builders, func(builder optional.Builder[corev1.EnvVar]) corev1.EnvVar {
 		return builder.Build().Get()
 	})
 
