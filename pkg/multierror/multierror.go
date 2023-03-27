@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
