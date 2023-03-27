@@ -23,8 +23,18 @@ func TestMultiError(t *testing.T) {
 
 	me := NewMultiError(
 		errors.New("1"),
+		nil,
 		errors.New("2"),
 		errors.New("3"),
+	)
+	assertions.Equal(
+		[]error{
+			errors.New("1"),
+			nil,
+			errors.New("2"),
+			errors.New("3"),
+		},
+		me.All(),
 	)
 	assertions.Equal(
 		[]error{
@@ -32,12 +42,33 @@ func TestMultiError(t *testing.T) {
 			errors.New("2"),
 			errors.New("3"),
 		},
-		me.All(),
+		me.AllNonNil(),
+	)
+	assertions.Equal(
+		[]error{
+			errors.New("1"),
+			errors.New("2"),
+			errors.New("3"),
+		},
+		UnwrapAll(me.Combine()),
 	)
 
 	me.Add(
 		errors.New("4"),
+		nil,
 		errors.New("5"),
+	)
+	assertions.Equal(
+		[]error{
+			errors.New("1"),
+			nil,
+			errors.New("2"),
+			errors.New("3"),
+			errors.New("4"),
+			nil,
+			errors.New("5"),
+		},
+		me.All(),
 	)
 	assertions.Equal(
 		[]error{
@@ -47,7 +78,7 @@ func TestMultiError(t *testing.T) {
 			errors.New("4"),
 			errors.New("5"),
 		},
-		me.All(),
+		me.AllNonNil(),
 	)
 	assertions.Equal(
 		[]error{

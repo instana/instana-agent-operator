@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
 
@@ -11,6 +13,7 @@ type MultiError interface {
 	Combine() error
 	Add(errs ...error)
 	All() []error
+	AllNonNil() []error
 }
 
 type multiError struct {
@@ -24,11 +27,13 @@ func NewMultiError(errs ...error) MultiError {
 }
 
 func (m *multiError) Combine() error {
-	errMsgFmt := "Multiple Errors:\n\n" + strings.Repeat("%w\n", len(m.errs))
-	errs := list.NewListMapTo[error, any]().MapTo(m.errs, func(err error) any {
+	errs := m.AllNonNil()
+
+	errMsgFmt := "Multiple Errors:\n\n" + strings.Repeat("%w\n", len(errs))
+	errsAsAny := list.NewListMapTo[error, any]().MapTo(errs, func(err error) any {
 		return err
 	})
-	return fmt.Errorf(errMsgFmt, errs...)
+	return fmt.Errorf(errMsgFmt, errsAsAny...)
 }
 
 func (m *multiError) Add(errs ...error) {
@@ -37,4 +42,10 @@ func (m *multiError) Add(errs ...error) {
 
 func (m *multiError) All() []error {
 	return m.errs
+}
+
+func (m *multiError) AllNonNil() []error {
+	return list.NewListFilter[error]().Filter(m.errs, func(err error) bool {
+		return !errors.Is(err, nil)
+	})
 }
