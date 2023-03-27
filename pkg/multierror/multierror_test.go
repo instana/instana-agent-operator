@@ -19,6 +19,7 @@ func UnwrapAll(err error) []error {
 }
 
 func TestMultiError(t *testing.T) {
+	// TODO: tests for nil and empty being nil and add logic
 	assertions := require.New(t)
 
 	me := NewMultiError(
