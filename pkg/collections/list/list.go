@@ -56,3 +56,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: CRD validation flags?
 
 // TODO: Mockgens in Makefile
+// TODO: Result type?
