@@ -57,3 +57,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 
 // TODO: Mockgens in Makefile
 // TODO: Result type?
+// TODO: Logger settings
