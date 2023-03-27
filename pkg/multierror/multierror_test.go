@@ -1,9 +1,8 @@
 package multierror
 
 import (
-	"testing"
-
 	"errors"
+	"testing"
 
 	"github.com/stretchr/testify/require"
 )
@@ -19,76 +18,95 @@ func UnwrapAll(err error) []error {
 }
 
 func TestMultiError(t *testing.T) {
-	// TODO: tests for nil and empty being nil and add logic
-	assertions := require.New(t)
+	t.Run("empty_should_be_nil", func(t *testing.T) {
+		assertions := require.New(t)
 
-	me := NewMultiError(
-		errors.New("1"),
-		nil,
-		errors.New("2"),
-		errors.New("3"),
-	)
-	assertions.Equal(
-		[]error{
-			errors.New("1"),
-			nil,
-			errors.New("2"),
-			errors.New("3"),
-		},
-		me.All(),
-	)
-	assertions.Equal(
-		[]error{
-			errors.New("1"),
-			errors.New("2"),
-			errors.New("3"),
-		},
-		me.AllNonNil(),
-	)
-	assertions.Equal(
-		[]error{
-			errors.New("1"),
-			errors.New("2"),
-			errors.New("3"),
-		},
-		UnwrapAll(me.Combine()),
-	)
+		me := NewMultiErrorBuilder()
+		assertions.ErrorIs(me.Build(), nil)
 
-	me.Add(
-		errors.New("4"),
-		nil,
-		errors.New("5"),
-	)
-	assertions.Equal(
-		[]error{
+		me.Add(errors.New(""))
+		assertions.NotNil(me)
+	})
+	t.Run("all_nil_should_be_nil", func(t *testing.T) {
+		assertions := require.New(t)
+
+		me := NewMultiErrorBuilder(nil, nil)
+		assertions.ErrorIs(me.Build(), nil)
+
+		me.Add(errors.New(""))
+		assertions.NotNil(me)
+	})
+	t.Run("combine_and_add", func(t *testing.T) {
+		assertions := require.New(t)
+
+		me := NewMultiErrorBuilder(
 			errors.New("1"),
 			nil,
 			errors.New("2"),
 			errors.New("3"),
+		)
+		assertions.Equal(
+			[]error{
+				errors.New("1"),
+				nil,
+				errors.New("2"),
+				errors.New("3"),
+			},
+			me.All(),
+		)
+		assertions.Equal(
+			[]error{
+				errors.New("1"),
+				errors.New("2"),
+				errors.New("3"),
+			},
+			me.AllNonNil(),
+		)
+		assertions.Equal(
+			[]error{
+				errors.New("1"),
+				errors.New("2"),
+				errors.New("3"),
+			},
+			UnwrapAll(me.Build()),
+		)
+
+		me.Add(
 			errors.New("4"),
 			nil,
 			errors.New("5"),
-		},
-		me.All(),
-	)
-	assertions.Equal(
-		[]error{
-			errors.New("1"),
-			errors.New("2"),
-			errors.New("3"),
-			errors.New("4"),
-			errors.New("5"),
-		},
-		me.AllNonNil(),
-	)
-	assertions.Equal(
-		[]error{
-			errors.New("1"),
-			errors.New("2"),
-			errors.New("3"),
-			errors.New("4"),
-			errors.New("5"),
-		},
-		UnwrapAll(me.Combine()),
-	)
+		)
+		assertions.Equal(
+			[]error{
+				errors.New("1"),
+				nil,
+				errors.New("2"),
+				errors.New("3"),
+				errors.New("4"),
+				nil,
+				errors.New("5"),
+			},
+			me.All(),
+		)
+		assertions.Equal(
+			[]error{
+				errors.New("1"),
+				errors.New("2"),
+				errors.New("3"),
+				errors.New("4"),
+				errors.New("5"),
+			},
+			me.AllNonNil(),
+		)
+		assertions.Equal(
+			[]error{
+				errors.New("1"),
+				errors.New("2"),
+				errors.New("3"),
+				errors.New("4"),
+				errors.New("5"),
+			},
+			UnwrapAll(me.Build()),
+		)
+	})
 }

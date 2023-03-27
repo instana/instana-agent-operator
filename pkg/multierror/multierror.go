@@ -9,42 +9,47 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
 
-type MultiError interface {
-	Combine() error
+type MultiErrorBuilder interface {
+	Build() error
 	Add(errs ...error)
 	All() []error
 	AllNonNil() []error
 }
 
-type multiError struct {
+type multiErrorBuilder struct {
 	errs []error
 }
 
-func NewMultiError(errs ...error) MultiError {
-	return &multiError{
+func NewMultiErrorBuilder(errs ...error) MultiErrorBuilder {
+	return &multiErrorBuilder{
 		errs: errs,
 	}
 }
 
-func (m *multiError) Combine() error {
+func (m *multiErrorBuilder) Build() error {
 	errs := m.AllNonNil()
 
-	errMsgFmt := "Multiple Errors:\n\n" + strings.Repeat("%w\n", len(errs))
-	errsAsAny := list.NewListMapTo[error, any]().MapTo(errs, func(err error) any {
-		return err
-	})
-	return fmt.Errorf(errMsgFmt, errsAsAny...)
+	switch len(errs) {
+	case 0:
+		return nil
+	default:
+		errMsgFmt := "Multiple Errors:\n\n" + strings.Repeat("%w\n", len(errs))
+		errsAsAny := list.NewListMapTo[error, any]().MapTo(errs, func(err error) any {
+			return err
+		})
+		return fmt.Errorf(errMsgFmt, errsAsAny...)
+	}
 }
 
-func (m *multiError) Add(errs ...error) {
+func (m *multiErrorBuilder) Add(errs ...error) {
 	m.errs = append(m.errs, errs...)
 }
 
-func (m *multiError) All() []error {
+func (m *multiErrorBuilder) All() []error {
 	return m.errs
 }
 
-func (m *multiError) AllNonNil() []error {
+func (m *multiErrorBuilder) AllNonNil() []error {
 	return list.NewListFilter[error]().Filter(m.errs, func(err error) bool {
 		return !errors.Is(err, nil)
 	})
