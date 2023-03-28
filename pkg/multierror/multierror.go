@@ -9,6 +9,14 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
 
+type MultiError struct {
+	error
+}
+
+func (m MultiError) Unwrap() error {
+	return m.error
+}
+
 type MultiErrorBuilder interface {
 	Build() error
 	Add(errs ...error)
@@ -37,7 +45,9 @@ func (m *multiErrorBuilder) Build() error {
 		errsAsAny := list.NewListMapTo[error, any]().MapTo(errs, func(err error) any {
 			return err
 		})
-		return fmt.Errorf(errMsgFmt, errsAsAny...)
+		return MultiError{
+			error: fmt.Errorf(errMsgFmt, errsAsAny...),
+		}
 	}
 }
 
