@@ -87,11 +87,10 @@ func OfError[T any](err error) Result[T] {
 }
 
 func Map[I any, O any](original Result[I], mapper func(res I) Result[O]) Result[O] {
-	switch original.IsSuccess() {
+	switch res, err := original.Get(); original.IsSuccess() {
 	case true:
-		return mapper(original.ToOptional().Get())
+		return mapper(res)
 	default:
-		_, err := original.Get()
 		return OfError[O](err)
 	}
 }
