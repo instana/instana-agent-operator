@@ -15,13 +15,13 @@ func (o *optional[T]) Get() T {
 	return o.val
 }
 
-func (o *optional[T]) GetOrElse(val T) T {
-	return o.GetOrElseDo(func() T {
+func (o *optional[T]) GetOrDefault(val T) T {
+	return o.GetOrElse(func() T {
 		return val
 	})
 }
 
-func (o *optional[T]) GetOrElseDo(f func() T) T {
+func (o *optional[T]) GetOrElse(f func() T) T {
 	switch o.IsEmpty() {
 	case true:
 		return f()
@@ -39,8 +39,8 @@ func (o *optional[T]) IfPresent(do func(val T)) {
 type Optional[T any] interface {
 	IsEmpty() bool
 	Get() T
-	GetOrElse(val T) T
-	GetOrElseDo(func() T) T
+	GetOrDefault(val T) T
+	GetOrElse(func() T) T
 	IfPresent(func(T))
 }
 

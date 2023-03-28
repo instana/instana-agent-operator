@@ -14,7 +14,7 @@ import (
 // TODO: Support nameOverride and fullNameOverride ???
 
 var (
-	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrElse("v0.0.0")
+	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.0")
 )
 
 // labels
@@ -57,7 +57,7 @@ func (t *transformations) AddCommonLabelsToMap(labels map[string]string, name st
 }
 
 func (t *transformations) AddCommonLabels(obj client.Object) {
-	labels := optional.Of(obj.GetLabels()).GetOrElse(make(map[string]string, 3))
+	labels := optional.Of(obj.GetLabels()).GetOrDefault(make(map[string]string, 3))
 	t.AddCommonLabelsToMap(labels, t.Name, false)
 	obj.SetLabels(labels)
 }

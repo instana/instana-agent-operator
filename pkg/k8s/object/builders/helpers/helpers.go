@@ -24,11 +24,11 @@ func (h *helpers) serviceAccountNameDefault() string {
 }
 
 func (h *helpers) ServiceAccountName() string {
-	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrElse(h.serviceAccountNameDefault())
+	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrDefault(h.serviceAccountNameDefault())
 }
 
 func (h *helpers) KeysSecretName() string {
-	return optional.Of(h.Spec.Agent.KeysSecret).GetOrElse(h.Name)
+	return optional.Of(h.Spec.Agent.KeysSecret).GetOrDefault(h.Name)
 }
 
 func NewHelpers(agent *v1.InstanaAgent) Helpers {

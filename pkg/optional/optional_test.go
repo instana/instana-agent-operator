@@ -47,7 +47,7 @@ func TestGetOrElseDo(t *testing.T) {
 		opt := Empty[string]()
 		expected := "apoiwejgoisag"
 
-		actual := opt.GetOrElseDo(func() string {
+		actual := opt.GetOrElse(func() string {
 			return expected
 		})
 
@@ -60,7 +60,7 @@ func TestGetOrElseDo(t *testing.T) {
 		expected := "opasegoihsegoihsg"
 
 		opt := Of(expected)
-		actual := opt.GetOrElseDo(func() string {
+		actual := opt.GetOrElse(func() string {
 			return "proijrognasoieojsg"
 		})
 
@@ -75,7 +75,7 @@ func TestGetOrElse(t *testing.T) {
 		opt := Empty[string]()
 		expected := "apoiwejgoisag"
 
-		actual := opt.GetOrElse(expected)
+		actual := opt.GetOrDefault(expected)
 
 		assertions.Equal(expected, actual)
 
@@ -86,7 +86,7 @@ func TestGetOrElse(t *testing.T) {
 		expected := "opasegoihsegoihsg"
 
 		opt := Of(expected)
-		actual := opt.GetOrElse("proijrognasoieojsg")
+		actual := opt.GetOrDefault("proijrognasoieojsg")
 
 		assertions.Equal(expected, actual)
 	})

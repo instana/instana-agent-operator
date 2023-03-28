@@ -43,13 +43,13 @@ func (d *daemonSetBuilder) getSelectorMatchLabels() map[string]string {
 }
 
 func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
-	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrElse(map[string]string{})
-	podLabels["instana/agent-mode"] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrElse(instanav1.APM))
+	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
+	podLabels["instana/agent-mode"] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
 	return d.AddCommonLabelsToMap(podLabels, d.Name, false)
 }
 
 func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
-	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrElse(map[string]string{})
+	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrDefault(map[string]string{})
 	podAnnotations["instana-configuration-hash"] = d.HashOrDie(&d.Spec)
 	return podAnnotations
 }
