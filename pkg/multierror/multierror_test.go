@@ -18,7 +18,7 @@ func UnwrapAll(err error) []error {
 }
 
 func TestMultiError(t *testing.T) {
-	meTarget := MultiError{}
+	meTarget := multiError{}
 	seTarget := errors.New("")
 
 	t.Run("empty_should_be_nil", func(t *testing.T) {
@@ -71,10 +71,11 @@ func TestMultiError(t *testing.T) {
 				errors.New("2"),
 				errors.New("3"),
 			},
-			UnwrapAll(me.Build().(MultiError).Unwrap()),
+			UnwrapAll(me.Build().(multiError).Unwrap()),
 		)
 		assertions.NotNil(me.Build())
 		assertions.ErrorAs(me.Build(), &meTarget)
+		assertions.True(AsMultiError(me.Build()))
 		assertions.ErrorAs(me.Build(), &seTarget)
 
 		me.Add(
@@ -112,10 +113,11 @@ func TestMultiError(t *testing.T) {
 				errors.New("4"),
 				errors.New("5"),
 			},
-			UnwrapAll(me.Build().(MultiError).Unwrap()),
+			UnwrapAll(me.Build().(multiError).Unwrap()),
 		)
 		assertions.NotNil(me.Build())
 		assertions.ErrorAs(me.Build(), &meTarget)
+		assertions.True(AsMultiError(me.Build()))
 		assertions.ErrorAs(me.Build(), &seTarget)
 	})
 }
