@@ -2,6 +2,7 @@ package result
 
 import (
 	"errors"
+
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
@@ -64,6 +65,35 @@ func (r *result[T]) Recover(do func(err error) Result[T]) Result[T] {
 	}
 }
 
-// TODO: Tests
+func Of[T any](res T, err error) Result[T] {
+	return &result[T]{
+		res: res,
+		err: err,
+	}
+}
 
-// TODO: Of, OfFunction, ofResult, ofError, Map
+func OfInline[T any](do func() (res T, err error)) Result[T] {
+	return Of(do())
+}
+
+func OfResult[T any](res T) Result[T] {
+	return Of(res, nil)
+}
+
+func OfError[T any](err error) Result[T] {
+	return &result[T]{
+		err: err,
+	}
+}
+
+func Map[I any, O any](original Result[I], mapper func(res I) Result[O]) Result[O] {
+	switch original.IsSuccess() {
+	case true:
+		return mapper(original.ToOptional().Get())
+	default:
+		_, err := original.Get()
+		return OfError[O](err)
+	}
+}
+
+// TODO: Tests
