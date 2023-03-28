@@ -17,4 +17,4 @@ type result[T any] struct {
 	err error
 }
 
-// TODO: Of, OfFunction, ofSuccess, ofFailure, Map
+// TODO: Of, OfFunction, ofResult, ofError, Map
