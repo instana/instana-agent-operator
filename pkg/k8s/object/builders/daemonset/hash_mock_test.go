@@ -10,7 +10,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockHasher is a mock of Hasher interface.
+// MockHasher is a mock of JsonHasher interface.
 type MockHasher struct {
 	ctrl     *gomock.Controller
 	recorder *MockHasherMockRecorder
@@ -34,9 +34,9 @@ func (m *MockHasher) EXPECT() *MockHasherMockRecorder {
 }
 
 // HashOrDie mocks base method.
-func (m *MockHasher) HashOrDie(obj interface{}) string {
+func (m *MockHasher) HashJsonOrDie(obj interface{}) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HashOrDie", obj)
+	ret := m.ctrl.Call(m, "HashJsonOrDie", obj)
 	ret0, _ := ret[0].(string)
 	return ret0
 }
@@ -44,5 +44,5 @@ func (m *MockHasher) HashOrDie(obj interface{}) string {
 // HashOrDie indicates an expected call of HashOrDie.
 func (mr *MockHasherMockRecorder) HashOrDie(obj interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashOrDie", reflect.TypeOf((*MockHasher)(nil).HashOrDie), obj)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashJsonOrDie", reflect.TypeOf((*MockHasher)(nil).HashJsonOrDie), obj)
 }

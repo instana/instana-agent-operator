@@ -11,7 +11,7 @@ type hasher struct {
 	or_die.OrDie[[]byte]
 }
 
-func (h *hasher) HashOrDie(obj interface{}) string {
+func (h *hasher) HashJsonOrDie(obj interface{}) string {
 	jsonStr := h.ResultOrDie(func() ([]byte, error) {
 		return json.Marshal(obj)
 	})
@@ -19,11 +19,11 @@ func (h *hasher) HashOrDie(obj interface{}) string {
 	return string(hash[:])
 }
 
-type Hasher interface {
-	HashOrDie(obj interface{}) string
+type JsonHasher interface {
+	HashJsonOrDie(obj interface{}) string
 }
 
-func NewHasher() Hasher {
+func NewJsonHasher() JsonHasher {
 	return &hasher{
 		OrDie: or_die.New[[]byte](),
 	}

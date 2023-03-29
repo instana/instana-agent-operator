@@ -236,7 +236,7 @@ func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
 
 		db := &daemonSetBuilder{
 			InstanaAgent: &agent,
-			Hasher:       hasher,
+			JsonHasher:   hasher,
 		}
 
 		actual := db.getPodTemplateAnnotations()
@@ -272,7 +272,7 @@ func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
 
 		db := &daemonSetBuilder{
 			InstanaAgent: &agent,
-			Hasher:       hasher,
+			JsonHasher:   hasher,
 		}
 
 		actual := db.getPodTemplateAnnotations()
@@ -420,13 +420,16 @@ func TestDaemonSetBuilder_getEnvBuilders(t *testing.T) {
 		"eodgh": "oijdsgnso",
 	}
 
-	db := NewDaemonSetBuilder(&instanav1.InstanaAgent{
-		Spec: instanav1.InstanaAgentSpec{
-			Agent: instanav1.BaseAgentSpec{
-				Env: userProvidedEnv,
+	db := NewDaemonSetBuilder(
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Env: userProvidedEnv,
+				},
 			},
 		},
-	}).(*daemonSetBuilder)
+		false,
+	).(*daemonSetBuilder)
 	res := db.getEnvBuilders()
 
 	assertions.Len(res, 18+len(userProvidedEnv))

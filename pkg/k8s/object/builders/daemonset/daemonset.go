@@ -3,6 +3,8 @@ package daemonset
 import (
 	"strings"
 
+	"github.com/instana/instana-agent-operator/pkg/pointer"
+
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -23,17 +25,21 @@ import (
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
+	isOpenShift bool
 
 	transformations.Transformations
-	hash.Hasher
+	hash.JsonHasher
 	helpers.Helpers
 }
 
-func NewDaemonSetBuilder(agent *instanav1.InstanaAgent) optional.Builder[client.Object] {
+// TODO: Implement check for OpenShift in controller util
+
+func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) optional.Builder[client.Object] {
 	return &daemonSetBuilder{
 		InstanaAgent:    agent,
+		isOpenShift:     isOpenshift,
 		Transformations: transformations.NewTransformations(agent),
-		Hasher:          hash.NewHasher(),
+		JsonHasher:      hash.NewJsonHasher(),
 		Helpers:         helpers.NewHelpers(agent),
 	}
 }
@@ -50,7 +56,7 @@ func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 
 func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrDefault(map[string]string{})
-	podAnnotations["instana-configuration-hash"] = d.HashOrDie(&d.Spec)
+	podAnnotations["instana-configuration-hash"] = d.HashJsonOrDie(&d.Spec)
 	return podAnnotations
 }
 
@@ -128,6 +134,9 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
 							Env:             optional.NewBuilderProcessor(d.getEnvBuilders()).BuildAll(),
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: pointer.To(true),
+							},
 						},
 					},
 				},

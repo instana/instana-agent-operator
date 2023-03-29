@@ -13,7 +13,7 @@ type TestStruct struct {
 
 func TestHasher(t *testing.T) {
 
-	h := NewHasher()
+	h := NewJsonHasher()
 
 	t.Run("ValidInput", func(t *testing.T) {
 		assertions := require.New(t)
@@ -22,14 +22,14 @@ func TestHasher(t *testing.T) {
 			Field2: 42,
 		}
 		const expectedHash = "\xfb\x01\x7fc\xd7~v[\xcb!\x04\xa2\xf34t "
-		resultHash := h.HashOrDie(testStruct)
+		resultHash := h.HashJsonOrDie(testStruct)
 		assertions.Equal(expectedHash, resultHash)
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
 		assertions := require.New(t)
 		assertions.PanicsWithError("json: unsupported type: func()", func() {
-			h.HashOrDie(func() {})
+			h.HashJsonOrDie(func() {})
 		})
 	})
 }
