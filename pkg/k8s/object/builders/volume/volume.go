@@ -11,7 +11,7 @@ type fromHostLiteralParams struct {
 	*corev1.MountPropagationMode
 }
 
-func fromHostLiteral(params *fromHostLiteralParams) (optional.Builder[corev1.Volume], optional.Builder[corev1.VolumeMount]) {
+func fromHostLiteral(params *fromHostLiteralParams) (optional.Builder[corev1.Volume], optional.Builder[corev1.VolumeMount]) { // TODO: Two return values for all or use container?
 	return optional.BuilderFromLiteral(corev1.Volume{
 			Name: params.name,
 			VolumeSource: corev1.VolumeSource{
