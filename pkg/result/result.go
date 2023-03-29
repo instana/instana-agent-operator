@@ -76,11 +76,11 @@ func OfInline[T any](do func() (res T, err error)) Result[T] {
 	return Of(do())
 }
 
-func OfResult[T any](res T) Result[T] {
+func OfSuccess[T any](res T) Result[T] {
 	return Of(res, nil)
 }
 
-func OfError[T any](err error) Result[T] {
+func OfFailure[T any](err error) Result[T] {
 	return &result[T]{
 		err: err,
 	}
@@ -91,8 +91,6 @@ func Map[I any, O any](original Result[I], mapper func(res I) Result[O]) Result[
 	case true:
 		return mapper(res)
 	default:
-		return OfError[O](err)
+		return OfFailure[O](err)
 	}
 }
-
-// TODO: Tests
