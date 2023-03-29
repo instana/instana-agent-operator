@@ -72,7 +72,7 @@ func RedactK8sSecretsEnv(agent *instanav1.InstanaAgent) optional.Builder[corev1.
 // From a Secret
 
 func AgentKeyEnv(helpers helpers.Helpers) optional.Builder[corev1.EnvVar] {
-	return fromLiteralVal(corev1.EnvVar{
+	return optional.BuilderFromLiteral(corev1.EnvVar{
 		Name: "INSTANA_AGENT_KEY",
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
@@ -86,7 +86,7 @@ func AgentKeyEnv(helpers helpers.Helpers) optional.Builder[corev1.EnvVar] {
 }
 
 func DownloadKeyEnv(helpers helpers.Helpers) optional.Builder[corev1.EnvVar] {
-	return fromLiteralVal(corev1.EnvVar{
+	return optional.BuilderFromLiteral(corev1.EnvVar{
 		Name: "INSTANA_DOWNLOAD_KEY",
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
@@ -103,7 +103,7 @@ func DownloadKeyEnv(helpers helpers.Helpers) optional.Builder[corev1.EnvVar] {
 // From Pod Reference
 
 func PodNameEnv() optional.Builder[corev1.EnvVar] {
-	return fromLiteralVal(corev1.EnvVar{
+	return optional.BuilderFromLiteral(corev1.EnvVar{
 		Name: "INSTANA_AGENT_POD_NAME",
 		ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
@@ -114,7 +114,7 @@ func PodNameEnv() optional.Builder[corev1.EnvVar] {
 }
 
 func PodIpEnv() optional.Builder[corev1.EnvVar] {
-	return fromLiteralVal(corev1.EnvVar{
+	return optional.BuilderFromLiteral(corev1.EnvVar{
 		Name: "POD_IP",
 		ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
@@ -129,7 +129,7 @@ func PodIpEnv() optional.Builder[corev1.EnvVar] {
 func UserProvidedEnv(agent *instanav1.InstanaAgent) []optional.Builder[corev1.EnvVar] {
 	return _map.NewMapConverter[string, string, optional.Builder[corev1.EnvVar]]().
 		ToList(agent.Spec.Agent.Env, func(name string, value string) optional.Builder[corev1.EnvVar] {
-			return fromLiteralVal(
+			return optional.BuilderFromLiteral(
 				corev1.EnvVar{
 					Name:  name,
 					Value: value,

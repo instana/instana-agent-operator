@@ -38,3 +38,11 @@ func TestBuilderProcessor_BuildAll(t *testing.T) {
 
 	assertions.Equal([]int{1, 2, 3, 4, 5, 6, 7, 8, 9}, actual)
 }
+
+func Test_fromLiteralVal(t *testing.T) {
+	assertions := require.New(t)
+
+	actual := BuilderFromLiteral("asdf").Build()
+
+	assertions.Equal(Of("asdf"), actual)
+}

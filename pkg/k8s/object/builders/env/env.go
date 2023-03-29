@@ -27,17 +27,3 @@ func (f *fromCRFieldIfSet[T]) Build() optional.Optional[corev1.EnvVar] {
 		}
 	})
 }
-
-type fromLiteral struct {
-	corev1.EnvVar
-}
-
-func fromLiteralVal(val corev1.EnvVar) optional.Builder[corev1.EnvVar] {
-	return &fromLiteral{
-		EnvVar: val,
-	}
-}
-
-func (f *fromLiteral) Build() optional.Optional[corev1.EnvVar] {
-	return optional.Of(f.EnvVar)
-}

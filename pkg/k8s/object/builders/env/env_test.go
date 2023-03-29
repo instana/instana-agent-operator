@@ -28,20 +28,3 @@ func Test_fromCRField(t *testing.T) {
 		)
 	})
 }
-
-func Test_fromLiteralVal(t *testing.T) {
-	assertions := require.New(t)
-
-	actual := fromLiteralVal(corev1.EnvVar{
-		Name:  "90439jsdjf",
-		Value: "nfdpojwpiew",
-	}).Build()
-
-	assertions.Equal(
-		optional.Of(corev1.EnvVar{
-			Name:  "90439jsdjf",
-			Value: "nfdpojwpiew",
-		}),
-		actual,
-	)
-}
