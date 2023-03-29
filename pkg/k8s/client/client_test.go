@@ -18,7 +18,7 @@ func TestApply(t *testing.T) {
 	defer cancel()
 	cm := v1.ConfigMap{}
 	opts := []k8sclient.PatchOption{k8sclient.DryRunAll}
-	expected := errors.New("awojsgeoisegoijsdg")
+	expectedErr := errors.New("awojsgeoisegoijsdg")
 
 	mockK8sClient := NewMockClient(ctrl)
 	mockK8sClient.EXPECT().Patch(
@@ -26,7 +26,7 @@ func TestApply(t *testing.T) {
 		gomock.Eq(&cm),
 		gomock.Eq(k8sclient.Apply),
 		gomock.Eq(append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))),
-	).Times(1).Return(expected)
+	).Times(1).Return(expectedErr)
 
 	mockTransformations := NewMockTransformations(ctrl)
 	mockTransformations.EXPECT().AddCommonLabels(gomock.Eq(&cm)).Times(1)
@@ -37,9 +37,10 @@ func TestApply(t *testing.T) {
 		Transformations: mockTransformations,
 	}
 
-	actual := client.Apply(ctx, &cm, opts...)
+	actualVal, actualErr := client.Apply(ctx, &cm, opts...).Get()
 
 	assertions := require.New(t)
 
-	assertions.Equal(expected, actual)
+	assertions.Same(&cm, actualVal)
+	assertions.Equal(expectedErr, actualErr)
 }

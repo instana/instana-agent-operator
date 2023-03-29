@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 
+	"github.com/instana/instana-agent-operator/pkg/result"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
@@ -12,7 +14,7 @@ import (
 
 type InstanaAgentClient interface {
 	k8sclient.Client
-	Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) error
+	Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) result.Result[k8sclient.Object]
 }
 
 type instanaAgentClient struct {
@@ -20,15 +22,18 @@ type instanaAgentClient struct {
 	transformations.Transformations
 }
 
-func (c *instanaAgentClient) Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) error {
+func (c *instanaAgentClient) Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) result.Result[k8sclient.Object] {
 	c.AddCommonLabels(obj)
 	c.AddOwnerReference(obj)
 
-	return c.Patch(
-		ctx,
+	return result.Of(
 		obj,
-		k8sclient.Apply,
-		append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))...,
+		c.Patch(
+			ctx,
+			obj,
+			k8sclient.Apply,
+			append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))...,
+		),
 	)
 }
 
