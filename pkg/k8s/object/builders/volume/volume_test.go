@@ -85,3 +85,43 @@ func TestVarRunVolume(t *testing.T) {
 		VarRunVolume,
 	)
 }
+
+func testHostLiteralWhenOnlyOpenShift(
+	t *testing.T,
+	expected *hostVolumeWithMountParams,
+	f func(isOpenShift bool) optional.Optional[VolumeWithMount],
+) {
+	t.Run("not_OpenShift", func(t *testing.T) {
+		assertions := require.New(t)
+
+		assertions.Empty(f(false))
+	})
+	t.Run("is_OpenShift", func(t *testing.T) {
+		testHostLiteralVolume(t, expected, func() optional.Optional[VolumeWithMount] {
+			return f(true)
+		})
+	})
+}
+
+func Test_hostVolumeWithMountLiteralWhenOpenShift(t *testing.T) {
+	expected := &hostVolumeWithMountParams{
+		name:                 "erasgasd",
+		path:                 "arehasdfasdf",
+		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+	}
+	testHostLiteralWhenOnlyOpenShift(t, expected, func(isOpenShift bool) optional.Optional[VolumeWithMount] {
+		return hostVolumeWithMountLiteralWhenOpenShift(isOpenShift, expected)
+	})
+}
+
+func TestVarRunKuboVolume(t *testing.T) {
+	testHostLiteralWhenOnlyOpenShift(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "var-run-kubo",
+			path:                 "/var/vcap/sys/run/docker",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		VarRunKuboVolume,
+	)
+}

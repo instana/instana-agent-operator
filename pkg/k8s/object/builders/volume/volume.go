@@ -73,4 +73,12 @@ func hostVolumeWithMountLiteralWhenOpenShift(
 	default:
 		return optional.Empty[VolumeWithMount]()
 	}
+} // TODO: rest of these
+
+func VarRunKuboVolume(isOpenShift bool) optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteralWhenOpenShift(isOpenShift, &hostVolumeWithMountParams{
+		name:                 "var-run-kubo",
+		path:                 "/var/vcap/sys/run/docker",
+		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+	})
 }
