@@ -72,9 +72,9 @@ func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	return res
 }
 
-func (d *daemonSetBuilder) getEnvBuilders() []optional.Builder[corev1.EnvVar] {
+func (d *daemonSetBuilder) getEnvBuilders() []optional.Optional[corev1.EnvVar] {
 	return append(
-		[]optional.Builder[corev1.EnvVar]{
+		[]optional.Optional[corev1.EnvVar]{
 			env.AgentModeEnv(d.InstanaAgent),
 			env.ZoneNameEnv(d.InstanaAgent),
 			env.ClusterNameEnv(d.InstanaAgent),
@@ -133,7 +133,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							Env:             optional.NewBuilderProcessor(d.getEnvBuilders()).BuildAll(),
+							Env:             optional.NewNonEmptyOptionalMapper[corev1.EnvVar]().AllNonEmpty(d.getEnvBuilders()),
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),
 							},

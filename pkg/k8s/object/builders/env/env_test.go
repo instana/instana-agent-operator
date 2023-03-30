@@ -11,13 +11,13 @@ import (
 func Test_fromCRField(t *testing.T) {
 	t.Run("when_empty", func(t *testing.T) {
 		assertions := require.New(t)
-		actual := fromCRField("MY_ENV_FIELD_1", "").Build()
+		actual := fromCRField("MY_ENV_FIELD_1", "")
 
 		assertions.Empty(actual)
 	})
 	t.Run("with_value", func(t *testing.T) {
 		assertions := require.New(t)
-		actual := fromCRField("MY_ENV_FIELD_1", "ewoihsdoighds").Build()
+		actual := fromCRField("MY_ENV_FIELD_1", "ewoihsdoighds")
 
 		assertions.Equal(
 			optional.Of(corev1.EnvVar{

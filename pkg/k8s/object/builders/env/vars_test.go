@@ -1,12 +1,12 @@
 package env
 
 import (
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"testing"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 
 	"github.com/golang/mock/gomock"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -18,20 +18,20 @@ import (
 
 func testCRFieldEnvVar(
 	t *testing.T,
-	f func(agent *instanav1.InstanaAgent) optional.Builder[corev1.EnvVar],
+	f func(agent *instanav1.InstanaAgent) optional.Optional[corev1.EnvVar],
 	agent *instanav1.InstanaAgent,
 	expectedName string,
 	expectedValue string,
 ) {
 	t.Run("when_empty", func(t *testing.T) {
 		assertions := require.New(t)
-		actual := f(&instanav1.InstanaAgent{}).Build()
+		actual := f(&instanav1.InstanaAgent{})
 
 		assertions.Empty(actual)
 	})
 	t.Run("with_value", func(t *testing.T) {
 		assertions := require.New(t)
-		actual := f(agent).Build()
+		actual := f(agent)
 
 		assertions.Equal(
 			optional.Of(corev1.EnvVar{
@@ -269,7 +269,7 @@ func TestRedactK8sSecretsEnv(t *testing.T) {
 
 func testKeysSecretEnvVar(
 	t *testing.T,
-	f func(helpers helpers.Helpers) optional.Builder[corev1.EnvVar],
+	f func(helpers helpers.Helpers) optional.Optional[corev1.EnvVar],
 	expectedName string,
 	expectedKey string,
 	expectedOptional *bool,
@@ -293,7 +293,7 @@ func testKeysSecretEnvVar(
 				},
 			},
 		}),
-		f(hlprs).Build(),
+		f(hlprs),
 	)
 }
 
@@ -305,10 +305,10 @@ func TestDownloadKeyEnv(t *testing.T) {
 	testKeysSecretEnvVar(t, DownloadKeyEnv, "INSTANA_DOWNLOAD_KEY", "downloadKey", pointer.To(true))
 }
 
-func testFromPodField(t *testing.T, f func() optional.Builder[corev1.EnvVar], literal corev1.EnvVar) {
+func testFromPodField(t *testing.T, f func() optional.Optional[corev1.EnvVar], literal corev1.EnvVar) {
 	assertions := require.New(t)
 
-	assertions.Equal(optional.Of(literal), f().Build())
+	assertions.Equal(optional.Of(literal), f())
 }
 
 func TestPodNameEnv(t *testing.T) {
@@ -340,7 +340,7 @@ func TestPodIpEnv(t *testing.T) {
 func TestUserProvidedEnv(t *testing.T) {
 	assertions := require.New(t)
 
-	builders := UserProvidedEnv(&instanav1.InstanaAgent{
+	opts := UserProvidedEnv(&instanav1.InstanaAgent{
 		Spec: instanav1.InstanaAgentSpec{
 			Agent: instanav1.BaseAgentSpec{
 				Env: map[string]string{
@@ -351,8 +351,8 @@ func TestUserProvidedEnv(t *testing.T) {
 			},
 		},
 	})
-	actual := list.NewListMapTo[optional.Builder[corev1.EnvVar], corev1.EnvVar]().MapTo(builders, func(builder optional.Builder[corev1.EnvVar]) corev1.EnvVar {
-		return builder.Build().Get()
+	actual := list.NewListMapTo[optional.Optional[corev1.EnvVar], corev1.EnvVar]().MapTo(opts, func(builder optional.Optional[corev1.EnvVar]) corev1.EnvVar {
+		return builder.Get()
 	})
 
 	assertions.ElementsMatch(
