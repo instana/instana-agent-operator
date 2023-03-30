@@ -13,8 +13,8 @@ type hostVolumeWithMountParams struct {
 }
 
 type VolumeWithMount struct {
-	corev1.Volume
-	corev1.VolumeMount
+	Volume      corev1.Volume
+	VolumeMount corev1.VolumeMount
 }
 
 func hostVolumeWithMount(params *hostVolumeWithMountParams) VolumeWithMount {
@@ -63,4 +63,14 @@ func VarRunVolume() optional.Optional[VolumeWithMount] {
 	})
 }
 
-//type whenOpenshiftn
+func hostVolumeWithMountLiteralWhenOpenShift(
+	isOpenShift bool,
+	params *hostVolumeWithMountParams,
+) optional.Optional[VolumeWithMount] {
+	switch isOpenShift {
+	case true:
+		return hostVolumeWithMountLiteral(params)
+	default:
+		return optional.Empty[VolumeWithMount]()
+	}
+}
