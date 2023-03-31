@@ -50,10 +50,11 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: extra: yamlified config.yaml, etc.
 // TODO: fix "controller-manager" naming convention
 // TODO: status and events (+conditions?)
+// TODO: Update status as a defer in main reconcile function just above apply logic
 // TODO: extra: runtime status from agents?
 // TODO: extra auto detect OpenShift, auto set tolerations, etc.
 // TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
-// TODO: CRD validation flags?
+// TODO: CRD validation flags (regex, jsonschema patterns, etc)?
 // TODO: Result type?
 // TODO: Logger settings
 // TODO: Recovery somewhere?

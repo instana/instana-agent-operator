@@ -3,6 +3,8 @@ package volume
 import (
 	"testing"
 
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+
 	"github.com/golang/mock/gomock"
 
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -248,6 +250,44 @@ func TestTlsVolume(t *testing.T) {
 				},
 			}),
 			TlsVolume(helpers),
+		)
+	})
+}
+
+func TestRepoVolume(t *testing.T) {
+	t.Run("host_repo_not_set", func(t *testing.T) {
+		assertions := require.New(t)
+
+		assertions.Empty(RepoVolume(&instanav1.InstanaAgent{}))
+	})
+	t.Run("host_repo_is_set", func(t *testing.T) {
+		assertions := require.New(t)
+
+		actual := RepoVolume(&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Host: instanav1.HostSpec{
+						Repository: "eiosoijdsgih",
+					},
+				},
+			},
+		})
+		assertions.Equal(
+			optional.Of(VolumeWithMount{
+				Volume: corev1.Volume{
+					Name: "repo",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "eiosoijdsgih",
+						},
+					},
+				},
+				VolumeMount: corev1.VolumeMount{
+					Name:      "repo",
+					MountPath: "/opt/instana/agent/data/repo",
+				},
+			}),
+			actual,
 		)
 	})
 }

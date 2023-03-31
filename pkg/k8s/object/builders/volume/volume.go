@@ -1,6 +1,7 @@
 package volume
 
 import (
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -174,4 +175,28 @@ func TlsVolume(helpers helpers.Helpers) optional.Optional[VolumeWithMount] {
 	default:
 		return optional.Empty[VolumeWithMount]()
 	}
+}
+
+func RepoVolume(agent *instanav1.InstanaAgent) optional.Optional[VolumeWithMount] {
+	const volumeName = "repo"
+
+	return optional.Map[string, VolumeWithMount](
+		optional.Of(agent.Spec.Agent.Host.Repository),
+		func(path string) VolumeWithMount {
+			return VolumeWithMount{
+				Volume: corev1.Volume{
+					Name: volumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: path,
+						},
+					},
+				},
+				VolumeMount: corev1.VolumeMount{
+					Name:      volumeName,
+					MountPath: "/opt/instana/agent/data/repo",
+				},
+			}
+		},
+	)
 }
