@@ -149,3 +149,63 @@ func TestVarContainerdConfigVolume(t *testing.T) {
 		VarContainerdConfigVolume,
 	)
 }
+
+func TestSysVolume(t *testing.T) {
+	testHostLiteralVolume(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "sys",
+			path:                 "/sys",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		SysVolume,
+	)
+}
+
+func TestVarLogVolume(t *testing.T) {
+	testHostLiteralVolume(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "var-log",
+			path:                 "/var/log",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		VarLogVolume,
+	)
+}
+
+func TestVarLibVolume(t *testing.T) {
+	testHostLiteralVolume(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "var-lib",
+			path:                 "/var/lib",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		VarLibVolume,
+	)
+}
+
+func TestVarDataVolume(t *testing.T) {
+	testHostLiteralVolume(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "var-data",
+			path:                 "/var/data",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		VarDataVolume,
+	)
+}
+
+func TestMachineIdVolume(t *testing.T) {
+	testHostLiteralVolume(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "machine-id",
+			path:                 "/etc/machine-id",
+			MountPropagationMode: nil,
+		},
+		MachineIdVolume,
+	)
+}

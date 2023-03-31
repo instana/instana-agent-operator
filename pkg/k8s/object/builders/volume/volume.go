@@ -107,3 +107,42 @@ func VarContainerdConfigVolume(isOpenShift bool) optional.Optional[VolumeWithMou
 		},
 	)
 }
+
+func SysVolume() optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
+		name:                 "sys",
+		path:                 "/sys",
+		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+	})
+}
+
+func VarLogVolume() optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
+		name:                 "var-log",
+		path:                 "/var/log",
+		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+	})
+}
+
+func VarLibVolume() optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
+		name:                 "var-lib",
+		path:                 "/var/lib",
+		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+	})
+}
+
+func VarDataVolume() optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
+		name:                 "var-data",
+		path:                 "/var/data",
+		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+	})
+}
+
+func MachineIdVolume() optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
+		name: "machine-id",
+		path: "/etc/machine-id",
+	})
+}
