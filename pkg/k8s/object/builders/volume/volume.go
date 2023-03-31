@@ -6,6 +6,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// TODO: Read only in some cases?
+
 type hostVolumeWithMountParams struct {
 	name string
 	path string
