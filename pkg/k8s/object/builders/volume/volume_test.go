@@ -88,36 +88,36 @@ func TestVarRunVolume(t *testing.T) {
 	)
 }
 
-func testHostLiteralOnlyWhenNotOpenShift(
+func testHostLiteralOnlyWhenCondition(
 	t *testing.T,
 	expected *hostVolumeWithMountParams,
-	f func(isOpenShift bool) optional.Optional[VolumeWithMount],
+	f func(condition bool) optional.Optional[VolumeWithMount],
 ) {
-	t.Run("is_OpenShift", func(t *testing.T) {
+	t.Run("not_condition", func(t *testing.T) {
 		assertions := require.New(t)
 
-		assertions.Empty(f(true))
+		assertions.Empty(f(false))
 	})
-	t.Run("not_OpenShift", func(t *testing.T) {
+	t.Run("is_condition", func(t *testing.T) {
 		testHostLiteralVolume(t, expected, func() optional.Optional[VolumeWithMount] {
-			return f(false)
+			return f(true)
 		})
 	})
 }
 
-func Test_hostVolumeWithMountLiteralWhenNotOpenShift(t *testing.T) {
+func Test_hostVolumeWithMountLiteralWhenNotCondition(t *testing.T) {
 	expected := &hostVolumeWithMountParams{
 		name:                 "erasgasd",
 		path:                 "arehasdfasdf",
 		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
 	}
-	testHostLiteralOnlyWhenNotOpenShift(t, expected, func(isOpenShift bool) optional.Optional[VolumeWithMount] {
-		return hostVolumeWithMountLiteralWhenNotOpenShift(isOpenShift, expected)
+	testHostLiteralOnlyWhenCondition(t, expected, func(condition bool) optional.Optional[VolumeWithMount] {
+		return hostVolumeWithMountLiteralWhenCondition(condition, expected)
 	})
 }
 
 func TestVarRunKuboVolume(t *testing.T) {
-	testHostLiteralOnlyWhenNotOpenShift(
+	testHostLiteralOnlyWhenCondition(
 		t,
 		&hostVolumeWithMountParams{
 			name:                 "var-run-kubo",
@@ -129,7 +129,7 @@ func TestVarRunKuboVolume(t *testing.T) {
 }
 
 func TestVarRunContainerdVolume(t *testing.T) {
-	testHostLiteralOnlyWhenNotOpenShift(
+	testHostLiteralOnlyWhenCondition(
 		t,
 		&hostVolumeWithMountParams{
 			name:                 "var-run-containerd",
@@ -141,7 +141,7 @@ func TestVarRunContainerdVolume(t *testing.T) {
 }
 
 func TestVarContainerdConfigVolume(t *testing.T) {
-	testHostLiteralOnlyWhenNotOpenShift(
+	testHostLiteralOnlyWhenCondition(
 		t,
 		&hostVolumeWithMountParams{
 			name:                 "var-containerd-config",
