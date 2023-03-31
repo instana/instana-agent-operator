@@ -54,8 +54,6 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: extra auto detect OpenShift, auto set tolerations, etc.
 // TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
 // TODO: CRD validation flags?
-
-// TODO: Mockgens in Makefile
 // TODO: Result type?
 // TODO: Logger settings
 // TODO: Recovery somewhere?
