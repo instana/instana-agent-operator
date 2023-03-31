@@ -60,3 +60,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Logger settings
 // TODO: Recovery somewhere?
 // TODO: deprecation config_yaml string value and add a json.RawMessage version
+// TODO: Validation webhook or just status errors?
