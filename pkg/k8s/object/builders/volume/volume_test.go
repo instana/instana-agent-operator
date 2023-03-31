@@ -3,6 +3,8 @@ package volume
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
+
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/stretchr/testify/require"
@@ -208,4 +210,44 @@ func TestMachineIdVolume(t *testing.T) {
 		},
 		MachineIdVolume,
 	)
+}
+
+func TestTlsVolume(t *testing.T) {
+	t.Run("tls_not_enabled", func(t *testing.T) {
+		assertions := require.New(t)
+		ctrl := gomock.NewController(t)
+
+		helpers := NewMockHelpers(ctrl)
+		helpers.EXPECT().TLSIsEnabled().Return(false)
+
+		assertions.Empty(TlsVolume(helpers))
+	})
+	t.Run("tls_is_enabled", func(t *testing.T) {
+		assertions := require.New(t)
+		ctrl := gomock.NewController(t)
+
+		helpers := NewMockHelpers(ctrl)
+		helpers.EXPECT().TLSIsEnabled().Return(true)
+		helpers.EXPECT().TLSSecretName().Return("goisoijsoigjsd")
+
+		assertions.Equal(
+			optional.Of(VolumeWithMount{
+				Volume: corev1.Volume{
+					Name: "instana-agent-tls",
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName:  "goisoijsoigjsd",
+							DefaultMode: pointer.To[int32](0440),
+						},
+					},
+				},
+				VolumeMount: corev1.VolumeMount{
+					Name:      "instana-agent-tls",
+					MountPath: "/opt/instana/agent/etc/certs",
+					ReadOnly:  true,
+				},
+			}),
+			TlsVolume(helpers),
+		)
+	})
 }

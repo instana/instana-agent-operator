@@ -231,5 +231,6 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/hash/hash.go --destination ./pkg/k8s/object/builders/daemonset/hash_mock_test.go --package daemonset
 	mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./pkg/k8s/object/builders/daemonset/transformations_mock_test.go --package daemonset
 	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/env/helpers_mock_test.go --package env
+	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/volume/helpers_mock_test.go --package volume
 
 

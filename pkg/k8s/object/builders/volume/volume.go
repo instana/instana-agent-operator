@@ -1,12 +1,11 @@
 package volume
 
 import (
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
 )
-
-// TODO: Read only in some cases?
 
 type hostVolumeWithMountParams struct {
 	name string
@@ -151,4 +150,28 @@ func MachineIdVolume() optional.Optional[VolumeWithMount] {
 
 // TODO: Resolve config volumes
 
-// TODO: continue
+func TlsVolume(helpers helpers.Helpers) optional.Optional[VolumeWithMount] {
+	const volumeName = "instana-agent-tls"
+
+	switch helpers.TLSIsEnabled() {
+	case true:
+		return optional.Of(VolumeWithMount{
+			Volume: corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  helpers.TLSSecretName(),
+						DefaultMode: pointer.To[int32](0440),
+					},
+				},
+			},
+			VolumeMount: corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: "/opt/instana/agent/etc/certs",
+				ReadOnly:  true,
+			},
+		})
+	default:
+		return optional.Empty[VolumeWithMount]()
+	}
+}
