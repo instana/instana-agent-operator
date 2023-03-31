@@ -35,7 +35,7 @@ func (h *helpers) KeysSecretName() string {
 
 func (h *helpers) TLSIsEnabled() bool {
 	return h.Spec.Agent.TlsSpec.SecretName != "" || (h.Spec.Agent.TlsSpec.Certificate != "" && h.Spec.Agent.TlsSpec.Key != "")
-} // TODO: test
+}
 
 func (h *helpers) TLSSecretName() string {
 	return optional.Of(h.Spec.Agent.TlsSpec.SecretName).GetOrDefault(h.Name + "-tls")

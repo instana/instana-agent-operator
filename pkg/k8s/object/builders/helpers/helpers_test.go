@@ -116,3 +116,72 @@ func TestHelpers_KeysSecretName(t *testing.T) {
 		assertions.Equal(expected, actual)
 	})
 }
+
+func TestHelpers_TLSIsEnabled(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		secretName  string
+		certificate string
+		key         string
+		expected    bool
+	}{
+		{
+			name: "all_empty",
+		},
+		{
+			name:       "secret_name_filled",
+			secretName: "adsfasg",
+			expected:   true,
+		},
+		{
+			name:       "secret_name_and_key_filled",
+			secretName: "adsfasg",
+			expected:   true,
+			key:        "rgiosdoig",
+		},
+		{
+			name:        "secret_name_and_cert_filled",
+			secretName:  "adsfasg",
+			expected:    true,
+			certificate: "asoijegpoijsd",
+		},
+		{
+			name:        "secret_name_cert_and_key_filled",
+			secretName:  "adsfasg",
+			expected:    true,
+			certificate: "groijoijds",
+			key:         "rwihjsdoijdsj",
+		},
+		{
+			name:        "cert_filled",
+			certificate: "woisoijdsjdsg",
+		},
+		{
+			name: "key_filled",
+			key:  "soihsoigjsdg",
+		},
+		{
+			name:        "key_and_cert_filled",
+			key:         "rwoihsdohjd",
+			certificate: "ojoijsdoijoijdsf",
+			expected:    true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertions := require.New(t)
+
+			h := NewHelpers(&instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						TlsSpec: instanav1.TlsSpec{
+							SecretName:  test.secretName,
+							Certificate: test.certificate,
+							Key:         test.key,
+						},
+					},
+				},
+			})
+			assertions.Equal(test.expected, h.TLSIsEnabled())
+		})
+	}
+}
