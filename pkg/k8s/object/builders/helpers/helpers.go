@@ -12,6 +12,8 @@ type helpers struct {
 type Helpers interface {
 	ServiceAccountName() string
 	KeysSecretName() string
+	TLSIsEnabled() bool
+	TLSSecretName() string
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
@@ -30,6 +32,14 @@ func (h *helpers) ServiceAccountName() string {
 func (h *helpers) KeysSecretName() string {
 	return optional.Of(h.Spec.Agent.KeysSecret).GetOrDefault(h.Name)
 }
+
+func (h *helpers) TLSIsEnabled() bool {
+	return h.Spec.Agent.TlsSpec.SecretName != "" || (h.Spec.Agent.TlsSpec.Certificate != "" && h.Spec.Agent.TlsSpec.Key != "")
+} // TODO: test
+
+func (h *helpers) TLSSecretName() string {
+	return optional.Of(h.Spec.Agent.TlsSpec.SecretName).GetOrDefault(h.Name + "-tls")
+} // TODO: test
 
 func NewHelpers(agent *v1.InstanaAgent) Helpers {
 	return &helpers{
