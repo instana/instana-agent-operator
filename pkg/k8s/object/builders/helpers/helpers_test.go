@@ -185,3 +185,33 @@ func TestHelpers_TLSIsEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestHelpers_TLSSecretName(t *testing.T) {
+	t.Run("secret_name_set_explicitly", func(t *testing.T) {
+		assertions := require.New(t)
+
+		h := NewHelpers(&instanav1.InstanaAgent{
+			ObjectMeta: v1.ObjectMeta{
+				Name: "oioijsdjdsf",
+			},
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					TlsSpec: instanav1.TlsSpec{
+						SecretName: "prpojdg",
+					},
+				},
+			},
+		})
+		assertions.Equal("prpojdg", h.TLSSecretName())
+	})
+	t.Run("secret_name_not_set_explicitly", func(t *testing.T) {
+		assertions := require.New(t)
+
+		h := NewHelpers(&instanav1.InstanaAgent{
+			ObjectMeta: v1.ObjectMeta{
+				Name: "risoijsdgljs",
+			},
+		})
+		assertions.Equal("risoijsdgljs-tls", h.TLSSecretName())
+	})
+}

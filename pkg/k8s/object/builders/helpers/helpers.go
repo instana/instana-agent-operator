@@ -39,7 +39,7 @@ func (h *helpers) TLSIsEnabled() bool {
 
 func (h *helpers) TLSSecretName() string {
 	return optional.Of(h.Spec.Agent.TlsSpec.SecretName).GetOrDefault(h.Name + "-tls")
-} // TODO: test
+}
 
 func NewHelpers(agent *v1.InstanaAgent) Helpers {
 	return &helpers{
