@@ -56,7 +56,7 @@ func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 
 func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrDefault(map[string]string{})
-	podAnnotations["instana-configuration-hash"] = d.HashJsonOrDie(&d.Spec)
+	podAnnotations["instana-configuration-hash"] = d.HashJsonOrDie(&d.Spec) // TODO: do we really need to restart on any change?
 	return podAnnotations
 }
 
