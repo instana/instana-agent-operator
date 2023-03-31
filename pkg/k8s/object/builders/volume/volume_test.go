@@ -86,36 +86,36 @@ func TestVarRunVolume(t *testing.T) {
 	)
 }
 
-func testHostLiteralWhenOnlyOpenShift(
+func testHostLiteralOnlyWhenNotOpenShift(
 	t *testing.T,
 	expected *hostVolumeWithMountParams,
 	f func(isOpenShift bool) optional.Optional[VolumeWithMount],
 ) {
-	t.Run("not_OpenShift", func(t *testing.T) {
+	t.Run("is_OpenShift", func(t *testing.T) {
 		assertions := require.New(t)
 
-		assertions.Empty(f(false))
+		assertions.Empty(f(true))
 	})
-	t.Run("is_OpenShift", func(t *testing.T) {
+	t.Run("not_OpenShift", func(t *testing.T) {
 		testHostLiteralVolume(t, expected, func() optional.Optional[VolumeWithMount] {
-			return f(true)
+			return f(false)
 		})
 	})
 }
 
-func Test_hostVolumeWithMountLiteralWhenOpenShift(t *testing.T) {
+func Test_hostVolumeWithMountLiteralWhenNotOpenShift(t *testing.T) {
 	expected := &hostVolumeWithMountParams{
 		name:                 "erasgasd",
 		path:                 "arehasdfasdf",
 		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
 	}
-	testHostLiteralWhenOnlyOpenShift(t, expected, func(isOpenShift bool) optional.Optional[VolumeWithMount] {
-		return hostVolumeWithMountLiteralWhenOpenShift(isOpenShift, expected)
+	testHostLiteralOnlyWhenNotOpenShift(t, expected, func(isOpenShift bool) optional.Optional[VolumeWithMount] {
+		return hostVolumeWithMountLiteralWhenNotOpenShift(isOpenShift, expected)
 	})
 }
 
 func TestVarRunKuboVolume(t *testing.T) {
-	testHostLiteralWhenOnlyOpenShift(
+	testHostLiteralOnlyWhenNotOpenShift(
 		t,
 		&hostVolumeWithMountParams{
 			name:                 "var-run-kubo",
@@ -123,5 +123,29 @@ func TestVarRunKuboVolume(t *testing.T) {
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
 		},
 		VarRunKuboVolume,
+	)
+}
+
+func TestVarRunContainerdVolume(t *testing.T) {
+	testHostLiteralOnlyWhenNotOpenShift(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "var-run-containerd",
+			path:                 "/var/vcap/sys/run/containerd",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		VarRunContainerdVolume,
+	)
+}
+
+func TestVarContainerdConfigVolume(t *testing.T) {
+	testHostLiteralOnlyWhenNotOpenShift(
+		t,
+		&hostVolumeWithMountParams{
+			name:                 "var-containerd-config",
+			path:                 "/var/vcap/jobs/containerd/config",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+		VarContainerdConfigVolume,
 	)
 }

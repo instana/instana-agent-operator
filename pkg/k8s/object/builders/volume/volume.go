@@ -63,22 +63,47 @@ func VarRunVolume() optional.Optional[VolumeWithMount] {
 	})
 }
 
-func hostVolumeWithMountLiteralWhenOpenShift(
+func hostVolumeWithMountLiteralWhenNotOpenShift(
 	isOpenShift bool,
 	params *hostVolumeWithMountParams,
 ) optional.Optional[VolumeWithMount] {
 	switch isOpenShift {
-	case true:
+	case false:
 		return hostVolumeWithMountLiteral(params)
 	default:
 		return optional.Empty[VolumeWithMount]()
 	}
-} // TODO: rest of these
+}
 
 func VarRunKuboVolume(isOpenShift bool) optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteralWhenOpenShift(isOpenShift, &hostVolumeWithMountParams{
-		name:                 "var-run-kubo",
-		path:                 "/var/vcap/sys/run/docker",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteralWhenNotOpenShift(
+		isOpenShift,
+		&hostVolumeWithMountParams{
+			name:                 "var-run-kubo",
+			path:                 "/var/vcap/sys/run/docker",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
+}
+
+func VarRunContainerdVolume(isOpenShift bool) optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteralWhenNotOpenShift(
+		isOpenShift,
+		&hostVolumeWithMountParams{
+			name:                 "var-run-containerd",
+			path:                 "/var/vcap/sys/run/containerd",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
+}
+
+func VarContainerdConfigVolume(isOpenShift bool) optional.Optional[VolumeWithMount] {
+	return hostVolumeWithMountLiteralWhenNotOpenShift(
+		isOpenShift,
+		&hostVolumeWithMountParams{
+			name:                 "var-containerd-config",
+			path:                 "/var/vcap/jobs/containerd/config",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
