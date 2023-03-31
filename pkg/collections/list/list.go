@@ -59,3 +59,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Result type?
 // TODO: Logger settings
 // TODO: Recovery somewhere?
+// TODO: deprecation config_yaml string value and add a binary object one
