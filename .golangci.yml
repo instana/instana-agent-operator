@@ -1,4 +1,6 @@
 # TODO: replace deprecated linters and update version
+# TODO: add to pipeline for branch
+# TODO: add crd and code gen for prs
 linters-settings:
   misspell:
     locale: US

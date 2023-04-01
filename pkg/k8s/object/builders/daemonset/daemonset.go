@@ -98,6 +98,8 @@ func (d *daemonSetBuilder) getEnvBuilders() []optional.Optional[corev1.EnvVar] {
 	)
 }
 
+// TODO: Add Volumes and VolumeMounts once fully done
+
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
 		return optional.Empty[client.Object]()
