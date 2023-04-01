@@ -231,8 +231,8 @@ func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
 
 		const expectedHash = "49845soidghoijw09"
 
-		hasher := NewMockHasher(ctrl)
-		hasher.EXPECT().HashOrDie(gomock.Eq(&agent.Spec)).Return(expectedHash)
+		hasher := NewMockJsonHasher(ctrl)
+		hasher.EXPECT().HashJsonOrDie(gomock.Eq(&agent.Spec)).Return(expectedHash)
 
 		db := &daemonSetBuilder{
 			InstanaAgent: &agent,
@@ -267,8 +267,8 @@ func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
 
 		const expectedHash = "49845soidghoijw09"
 
-		hasher := NewMockHasher(ctrl)
-		hasher.EXPECT().HashOrDie(gomock.Eq(&agent.Spec)).Return(expectedHash)
+		hasher := NewMockJsonHasher(ctrl)
+		hasher.EXPECT().HashJsonOrDie(gomock.Eq(&agent.Spec)).Return(expectedHash)
 
 		db := &daemonSetBuilder{
 			InstanaAgent: &agent,
@@ -411,7 +411,7 @@ func TestDaemonSetBuilder_getImagePullSecrets(t *testing.T) {
 	})
 }
 
-func TestDaemonSetBuilder_getEnvBuilders(t *testing.T) {
+func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	assertions := require.New(t)
 
 	userProvidedEnv := map[string]string{
@@ -430,7 +430,7 @@ func TestDaemonSetBuilder_getEnvBuilders(t *testing.T) {
 		},
 		false,
 	).(*daemonSetBuilder)
-	res := db.getEnvBuilders()
+	res := db.getEnvVars()
 
 	assertions.Len(res, 18+len(userProvidedEnv))
 }
