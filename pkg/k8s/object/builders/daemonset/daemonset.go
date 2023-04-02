@@ -9,10 +9,12 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
+	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,6 +101,20 @@ func (d *daemonSetBuilder) getEnvVars() []optional.Optional[corev1.EnvVar] {
 
 // TODO: Add Volumes and VolumeMounts once fully done
 
+func (d *daemonSetBuilder) getResourceRequirements() corev1.ResourceRequirements {
+	res := d.Spec.Agent.Pod.ResourceRequirements
+
+	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&res.Requests))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
+
+	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&res.Limits))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("768Mi"))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.5"))
+
+	return res
+} // TODO: Test
+
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
 		return optional.Empty[client.Object]()
@@ -153,6 +169,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 								FailureThreshold:    3,
 							},
 							// TODO: should have readiness probe too
+							Resources: d.getResourceRequirements(),
 						},
 					},
 				},
