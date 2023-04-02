@@ -38,24 +38,19 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 	return res
 }
 
+// TODO: apply all function, basic controller tasks
+// TODO: then status later on, suite test
+
 // TODO: ~~warning (error) if not expected name and namespace (and status/event?)~~ -> shouldn't be needed with helm uninstall logic below
 // TODO: Keep Helm uninstall step for migration -> Do this step iff (old) finalizer is present as this indicates upgrade, use a different finalizer from now on (if one is still needed)
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
-// TODO: resource renderer interface?
-// TODO: general transformers interface + implement (common labels + owner refs)
-// TODO: apply all function, basic controller tasks
-// TODO: then status later on, suite test
 // TODO: new ci build with all tests running + golangci lint, fix golangci settings
-// TODO: extra: yamlified config.yaml, etc.
 // TODO: fix "controller-manager" naming convention
 // TODO: status and events (+conditions?)
 // TODO: Update status as a defer in main reconcile function just above apply logic
-// TODO: extra: runtime status from agents?
 // TODO: extra auto detect OpenShift, auto set tolerations, etc.
 // TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
-// TODO: CRD validation flags (regex, jsonschema patterns, etc)?
-// TODO: Result type?
 // TODO: Logger settings
 // TODO: Recovery somewhere?
 
@@ -66,3 +61,5 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: additional read only volumes and other additional security
 // TODO: PVs to save package downloads?
 // TODO: manage image refresh by restarting pods when update is available?
+// TODO: CRD validation flags (regex, jsonschema patterns, etc)?
+// TODO: extra: runtime status from agents?
