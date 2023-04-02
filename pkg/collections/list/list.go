@@ -58,7 +58,11 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Result type?
 // TODO: Logger settings
 // TODO: Recovery somewhere?
+
 // TODO: deprecation config_yaml string value and add a json.RawMessage version
 // TODO: Validation webhook or just status errors?
 // TODO: Readiness probe
 // TODO: Use startup probe on liveness / readiness checks?
+// TODO: additional read only volumes and other additional security
+// TODO: PVs to save package downloads?
+// TODO: manage image refresh by restarting pods when update is available?

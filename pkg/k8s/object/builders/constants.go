@@ -4,4 +4,5 @@ package builders
 const (
 	ContainersInstanaIoRegistry   = "containers.instana.io"
 	ContainersInstanaIoSecretName = "containers-instana-io"
+	AgentServerPort               = 42699
 )

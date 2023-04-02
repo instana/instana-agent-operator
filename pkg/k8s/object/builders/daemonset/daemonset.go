@@ -3,19 +3,18 @@ package daemonset
 import (
 	"strings"
 
-	"github.com/instana/instana-agent-operator/pkg/pointer"
-
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
-
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -139,6 +138,21 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),
 							},
+							LivenessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Host: "127.0.0.1", // TODO: Because of HostNet usage, but shouldn't be needed I think
+										Path: "/status",
+										Port: intstr.FromInt(builders.AgentServerPort),
+									},
+								},
+								// TODO: set this long because startupProbe wasn't available before k8s 1.16, but this should be EOL by now, so we should see if we can revise this
+								InitialDelaySeconds: 300,
+								TimeoutSeconds:      3,
+								PeriodSeconds:       10,
+								FailureThreshold:    3,
+							},
+							// TODO: should have readiness probe too
 						},
 					},
 				},
