@@ -63,3 +63,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: manage image refresh by restarting pods when update is available?
 // TODO: CRD validation flags (regex, jsonschema patterns, etc)?
 // TODO: extra: runtime status from agents?
+// TODO: storage or ephemeral storage resource limits and requests?
