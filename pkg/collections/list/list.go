@@ -60,3 +60,5 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Recovery somewhere?
 // TODO: deprecation config_yaml string value and add a json.RawMessage version
 // TODO: Validation webhook or just status errors?
+// TODO: Readiness probe
+// TODO: Use startup probe on liveness / readiness checks?
