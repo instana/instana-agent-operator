@@ -1,13 +1,16 @@
 package daemonset
 
 import (
+	"fmt"
 	"testing"
-
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/golang/mock/gomock"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
+	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -433,4 +436,80 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	res := db.getEnvVars()
 
 	assertions.Len(res, 18+len(userProvidedEnv))
+}
+
+func TestDaemonSetBuilder_getResourceRequirements(t *testing.T) {
+	metaAssertions := require.New(t)
+
+	type testParams struct {
+		providedMemRequest string
+		providedCpuRequest string
+		providedMemLimit   string
+		providedCpuLimit   string
+
+		expectedMemRequest string
+		expectedCpuRequest string
+		expectedMemLimit   string
+		expectedCpuLimit   string
+	}
+
+	tests := make([]testParams, 0, 16)
+	for _, providedMemRequest := range []string{"", "123Mi"} {
+		for _, providedCpuRequest := range []string{"", "1.2"} {
+			for _, providedMemLimit := range []string{"", "456Mi"} {
+				for _, providedCpuLimit := range []string{"", "4.5"} {
+					tests = append(tests, testParams{
+						expectedMemRequest: optional.Of(providedMemRequest).GetOrDefault("512Mi"),
+						expectedCpuRequest: optional.Of(providedCpuRequest).GetOrDefault("0.5"),
+						expectedMemLimit:   optional.Of(providedMemLimit).GetOrDefault("768Mi"),
+						expectedCpuLimit:   optional.Of(providedCpuLimit).GetOrDefault("1.5"),
+
+						providedMemRequest: providedMemRequest,
+						providedCpuRequest: providedCpuRequest,
+						providedMemLimit:   providedMemLimit,
+						providedCpuLimit:   providedCpuLimit,
+					})
+				}
+			}
+		}
+	}
+
+	metaAssertions.Len(tests, 16)
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%+v", test), func(t *testing.T) {
+			assertions := require.New(t)
+
+			provided := corev1.ResourceRequirements{}
+
+			setIfNotEmpty := func(providedVal string, key corev1.ResourceName, resourceList *corev1.ResourceList) {
+				if providedVal != "" {
+					map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(resourceList)).SetIfEmpty(key, resource.MustParse(providedVal))
+				}
+			}
+
+			setIfNotEmpty(test.providedMemLimit, corev1.ResourceMemory, &provided.Limits)
+			setIfNotEmpty(test.providedCpuLimit, corev1.ResourceCPU, &provided.Limits)
+			setIfNotEmpty(test.providedMemRequest, corev1.ResourceMemory, &provided.Requests)
+			setIfNotEmpty(test.providedCpuRequest, corev1.ResourceCPU, &provided.Requests)
+
+			db := &daemonSetBuilder{
+				InstanaAgent: &instanav1.InstanaAgent{
+					Spec: instanav1.InstanaAgentSpec{
+						Agent: instanav1.BaseAgentSpec{
+							Pod: instanav1.AgentPodSpec{
+								ResourceRequirements: provided,
+							},
+						},
+					},
+				},
+			}
+			actual := db.getResourceRequirements()
+
+			assertions.Equal(resource.MustParse(test.expectedMemLimit), actual.Limits[corev1.ResourceMemory])
+			assertions.Equal(resource.MustParse(test.expectedCpuLimit), actual.Limits[corev1.ResourceCPU])
+			assertions.Equal(resource.MustParse(test.expectedMemRequest), actual.Requests[corev1.ResourceMemory])
+			assertions.Equal(resource.MustParse(test.expectedCpuRequest), actual.Requests[corev1.ResourceCPU])
+		})
+	}
 }
