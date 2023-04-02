@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
 type Result[T any] interface {
@@ -74,6 +75,13 @@ func Of[T any](res T, err error) Result[T] {
 
 func OfInline[T any](do func() (res T, err error)) Result[T] {
 	return Of(do())
+}
+
+func OfInlineCatchingPanic[T any](do func() (res T, err error)) Result[T] {
+	return OfInline[T](func() (res T, err error) {
+		defer recovery.Catch(&err)
+		return do()
+	})
 }
 
 func OfSuccess[T any](res T) Result[T] {

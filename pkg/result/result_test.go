@@ -30,6 +30,33 @@ func TestOfInline(t *testing.T) {
 	assertions.Equal(errors.New("world"), actualErr)
 }
 
+func TestOfInlineCatchingPanic(t *testing.T) {
+	t.Run("no_panic", func(t *testing.T) {
+		assertions := require.New(t)
+
+		rslt := OfInlineCatchingPanic(func() (res string, err error) {
+			return "hello", errors.New("world")
+		})
+		actualVal, actualErr := rslt.Get()
+
+		assertions.Equal("hello", actualVal)
+		assertions.Equal(errors.New("world"), actualErr)
+	})
+	t.Run("with_panic", func(t *testing.T) {
+		assertions := require.New(t)
+
+		expectedErr := errors.New("hello")
+
+		rslt := OfInlineCatchingPanic(func() (res string, err error) {
+			panic(expectedErr)
+		})
+		actualVal, actualErr := rslt.Get()
+
+		assertions.Empty(actualVal)
+		assertions.ErrorIs(actualErr, expectedErr)
+	})
+}
+
 func TestOfSuccess(t *testing.T) {
 	assertions := require.New(t)
 
