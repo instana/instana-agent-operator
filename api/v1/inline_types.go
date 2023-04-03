@@ -301,3 +301,37 @@ type OpenTelemetry struct {
 	// +kubebuilder:validation:Optional
 	HTTP *Enabled `json:"http,omitempty"`
 }
+
+func (otlp OpenTelemetry) GrpcIsEnabled() bool {
+	if otlp.GRPC != nil {
+		if otlp.GRPC.Enabled != nil {
+			return *otlp.GRPC.Enabled
+		} else {
+			return true
+		}
+	} else {
+		if otlp.Enabled.Enabled != nil {
+			return *otlp.Enabled.Enabled
+		} else {
+			return false
+		}
+	}
+}
+
+func (otlp OpenTelemetry) HttpIsEnabled() bool {
+	if otlp.HTTP != nil {
+		if otlp.HTTP.Enabled != nil {
+			return *otlp.HTTP.Enabled
+		} else {
+			return true
+		}
+	} else {
+		return false
+	}
+}
+
+func (otlp OpenTelemetry) IsEnabled() bool {
+	return otlp.GrpcIsEnabled() || otlp.HttpIsEnabled()
+}
+
+// TODO: Test these and use to construct ports for container and svc
