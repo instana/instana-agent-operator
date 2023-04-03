@@ -5,7 +5,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
@@ -64,9 +64,9 @@ func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	res := d.Spec.Agent.ImageSpec.PullSecrets
 
-	if strings.HasPrefix(d.Spec.Agent.ImageSpec.Name, builders.ContainersInstanaIoRegistry) {
+	if strings.HasPrefix(d.Spec.Agent.ImageSpec.Name, constants.ContainersInstanaIoRegistry) {
 		res = append(res, corev1.LocalObjectReference{
-			Name: builders.ContainersInstanaIoSecretName,
+			Name: constants.ContainersInstanaIoSecretName,
 		})
 	}
 
@@ -113,7 +113,16 @@ func (d *daemonSetBuilder) getResourceRequirements() corev1.ResourceRequirements
 	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.5"))
 
 	return res
-} // TODO: Test
+}
+
+func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
+	return []corev1.ContainerPort{
+		{
+			Name:          constants.AgentAPIsPort,
+			ContainerPort: 42699,
+		},
+	} // TODO: Include other ports and build in a common way with service ports, etc. + Test
+}
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
@@ -157,9 +166,9 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
-										Host: "127.0.0.1", // TODO: Because of HostNet usage, but shouldn't be needed I think
+										Host: "127.0.0.1", // TODO: Because of HostNet usage supposedly, but shouldn't be needed I think
 										Path: "/status",
-										Port: intstr.FromInt(builders.AgentServerPort),
+										Port: intstr.FromString(constants.AgentAPIsPort),
 									},
 								},
 								// TODO: set this long because startupProbe wasn't available before k8s 1.16, but this should be EOL by now, so we should see if we can revise this
@@ -170,8 +179,12 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							},
 							// TODO: should have readiness probe too
 							Resources: d.getResourceRequirements(),
+							Ports:     d.getContainerPorts(),
 						},
 					},
+					// TODO: Leader elector container should no longer be needed right?
+					Tolerations: d.Spec.Agent.Pod.Tolerations,
+					Affinity:    &d.Spec.Agent.Pod.Affinity,
 				},
 			},
 			UpdateStrategy: d.InstanaAgent.Spec.Agent.UpdateStrategy,

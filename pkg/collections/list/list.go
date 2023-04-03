@@ -58,10 +58,12 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Validation webhook or just status errors?
 // TODO: Readiness probe
 // TODO: Use startup probe on liveness / readiness checks?
-// TODO: additional read only volumes and other additional security
+// TODO: additional read only volumes and other additional security constraints
 // TODO: PVs to save package downloads?
 // TODO: manage image refresh by restarting pods when update is available?
 // TODO: CRD validation flags (regex, jsonschema patterns, etc)?
 // TODO: extra: runtime status from agents?
 // TODO: storage or ephemeral storage resource limits and requests?
 // TODO: cert generation when available?
+// TODO: inline resource (pod, etc.) config options?
+// TODO: Network policy usage, etc?
