@@ -64,3 +64,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: CRD validation flags (regex, jsonschema patterns, etc)?
 // TODO: extra: runtime status from agents?
 // TODO: storage or ephemeral storage resource limits and requests?
+// TODO: cert generation when available?
