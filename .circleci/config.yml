@@ -32,7 +32,9 @@ jobs:
             GO111MODULE: << parameters.go111module >>
       - run:
           name: Run unit tests
-          command: make test
+          command:  |
+            export GOEXPERIMENT=loopvar
+            make test
           environment:
             GO111MODULE: << parameters.go111module >>
       - save_cache:
@@ -45,5 +47,5 @@ workflows:
   build:
     jobs:
       - build:
-          name: "go1.18"
-          go_version: "1.18"
+          name: "go1.21"
+          go_version: "1.21"
