@@ -97,6 +97,7 @@ func (d *daemonSetBuilder) getEnvVars() []optional.Optional[corev1.EnvVar] {
 			env.DownloadKeyEnv(d.Helpers),
 			env.PodNameEnv(),
 			env.PodIpEnv(),
+			// TODO: Env variable for service name
 		},
 		env.UserProvidedEnv(d.InstanaAgent)...,
 	)

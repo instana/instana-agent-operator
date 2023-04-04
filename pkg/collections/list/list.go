@@ -53,7 +53,6 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
 // TODO: Logger settings
 // TODO: Recovery somewhere?
-// TODO: Env variable for service name
 
 // TODO: deprecation config_yaml string value and add a json.RawMessage version
 // TODO: Validation webhook or just status errors?
