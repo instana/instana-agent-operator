@@ -6,6 +6,7 @@ package v1
 
 import (
 	"fmt"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 )
@@ -303,30 +304,20 @@ type OpenTelemetry struct {
 }
 
 func (otlp OpenTelemetry) GrpcIsEnabled() bool {
-	if otlp.GRPC != nil {
-		if otlp.GRPC.Enabled != nil {
-			return *otlp.GRPC.Enabled
-		} else {
-			return true
-		}
-	} else {
-		if otlp.Enabled.Enabled != nil {
-			return *otlp.Enabled.Enabled
-		} else {
-			return false
-		}
+	switch otlp.GRPC {
+	case nil:
+		return pointer.DerefOrEmpty(otlp.Enabled.Enabled)
+	default:
+		return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
 	}
 }
 
 func (otlp OpenTelemetry) HttpIsEnabled() bool {
-	if otlp.HTTP != nil {
-		if otlp.HTTP.Enabled != nil {
-			return *otlp.HTTP.Enabled
-		} else {
-			return true
-		}
-	} else {
+	switch otlp.HTTP {
+	case nil:
 		return false
+	default:
+		return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
 	}
 }
 
