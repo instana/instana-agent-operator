@@ -6,9 +6,11 @@ package v1
 
 import (
 	"fmt"
-	"github.com/instana/instana-agent-operator/pkg/pointer"
+
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
+
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type AgentMode string
@@ -325,4 +327,4 @@ func (otlp OpenTelemetry) IsEnabled() bool {
 	return otlp.GrpcIsEnabled() || otlp.HttpIsEnabled()
 }
 
-// TODO: Test these and use to construct ports for container and svc
+// TODO: Test these and use to construct ports for container and svc -> maybe move these methods into helpers for better mock-based testing?
