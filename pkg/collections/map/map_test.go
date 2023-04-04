@@ -16,9 +16,11 @@ func TestMapConverter_ToList(t *testing.T) {
 		"something": "else",
 	}
 
-	actual := NewMapConverter[string, string, string]().ToList(in, func(key string, val string) string {
-		return fmt.Sprintf("%s: %s", key, val)
-	})
+	actual := NewMapConverter[string, string, string]().ToList(
+		in, func(key string, val string) string {
+			return fmt.Sprintf("%s: %s", key, val)
+		},
+	)
 
 	assertions.ElementsMatch([]string{"foo: bar", "hello: world", "something: else"}, actual)
 }

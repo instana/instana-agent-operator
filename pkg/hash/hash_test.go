@@ -15,21 +15,27 @@ func TestHasher(t *testing.T) {
 
 	h := NewJsonHasher()
 
-	t.Run("ValidInput", func(t *testing.T) {
-		assertions := require.New(t)
-		testStruct := &TestStruct{
-			Field1: "test1",
-			Field2: 42,
-		}
-		const expectedHash = "\xfb\x01\x7fc\xd7~v[\xcb!\x04\xa2\xf34t "
-		resultHash := h.HashJsonOrDie(testStruct)
-		assertions.Equal(expectedHash, resultHash)
-	})
+	t.Run(
+		"ValidInput", func(t *testing.T) {
+			assertions := require.New(t)
+			testStruct := &TestStruct{
+				Field1: "test1",
+				Field2: 42,
+			}
+			const expectedHash = "\xfb\x01\x7fc\xd7~v[\xcb!\x04\xa2\xf34t "
+			resultHash := h.HashJsonOrDie(testStruct)
+			assertions.Equal(expectedHash, resultHash)
+		},
+	)
 
-	t.Run("InvalidInput", func(t *testing.T) {
-		assertions := require.New(t)
-		assertions.PanicsWithError("json: unsupported type: func()", func() {
-			h.HashJsonOrDie(func() {})
-		})
-	})
+	t.Run(
+		"InvalidInput", func(t *testing.T) {
+			assertions := require.New(t)
+			assertions.PanicsWithError(
+				"json: unsupported type: func()", func() {
+					h.HashJsonOrDie(func() {})
+				},
+			)
+		},
+	)
 }

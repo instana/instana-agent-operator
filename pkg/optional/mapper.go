@@ -19,11 +19,15 @@ func NewNonEmptyOptionalMapper[T any]() NonEmptyOptionalMapper[T] {
 }
 
 func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []Optional[T]) []T {
-	withoutEmpties := o.Filter(in, func(val Optional[T]) bool {
-		return !val.IsEmpty()
-	})
+	withoutEmpties := o.Filter(
+		in, func(val Optional[T]) bool {
+			return !val.IsEmpty()
+		},
+	)
 
-	return o.MapTo(withoutEmpties, func(val Optional[T]) T {
-		return val.Get()
-	})
+	return o.MapTo(
+		withoutEmpties, func(val Optional[T]) T {
+			return val.Get()
+		},
+	)
 }

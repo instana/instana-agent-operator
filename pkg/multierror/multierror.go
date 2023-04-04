@@ -1,10 +1,9 @@
 package multierror
 
 import (
+	"errors"
 	"fmt"
 	"strings"
-
-	"errors"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
@@ -46,9 +45,11 @@ func (m *multiErrorBuilder) Build() error {
 		return nil
 	default:
 		errMsgFmt := "Multiple Errors:\n\n" + strings.Repeat("%w\n", len(errs))
-		errsAsAny := list.NewListMapTo[error, any]().MapTo(errs, func(err error) any {
-			return err
-		})
+		errsAsAny := list.NewListMapTo[error, any]().MapTo(
+			errs, func(err error) any {
+				return err
+			},
+		)
 		return multiError{
 			error: fmt.Errorf(errMsgFmt, errsAsAny...),
 		}
@@ -64,7 +65,9 @@ func (m *multiErrorBuilder) All() []error {
 }
 
 func (m *multiErrorBuilder) AllNonNil() []error {
-	return list.NewListFilter[error]().Filter(m.errs, func(err error) bool {
-		return !errors.Is(err, nil)
-	})
+	return list.NewListFilter[error]().Filter(
+		m.errs, func(err error) bool {
+			return !errors.Is(err, nil)
+		},
+	)
 }

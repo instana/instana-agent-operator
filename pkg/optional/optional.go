@@ -16,9 +16,11 @@ func (o *optional[T]) Get() T {
 }
 
 func (o *optional[T]) GetOrDefault(val T) T {
-	return o.GetOrElse(func() T {
-		return val
-	})
+	return o.GetOrElse(
+		func() T {
+			return val
+		},
+	)
 }
 
 func (o *optional[T]) GetOrElse(f func() T) T {

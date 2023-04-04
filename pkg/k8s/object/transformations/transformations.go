@@ -3,12 +3,14 @@ package transformations
 import (
 	"os"
 
-	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/pointer"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/instana/instana-agent-operator/pkg/optional"
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
 // TODO: Support nameOverride and fullNameOverride ???
@@ -47,7 +49,11 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 	}
 }
 
-func (t *transformations) AddCommonLabelsToMap(labels map[string]string, name string, skipVersionLabel bool) map[string]string {
+func (t *transformations) AddCommonLabelsToMap(
+	labels map[string]string,
+	name string,
+	skipVersionLabel bool,
+) map[string]string {
 	labels[NameLabel] = "instana-agent"
 	labels[InstanceLabel] = name
 	if !skipVersionLabel {
@@ -63,5 +69,10 @@ func (t *transformations) AddCommonLabels(obj client.Object) {
 }
 
 func (t *transformations) AddOwnerReference(obj client.Object) {
-	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), t.OwnerReference)) // TODO: Use contorllerutils function, what to do about cluster-scoped resources?
+	obj.SetOwnerReferences(
+		append(
+			obj.GetOwnerReferences(),
+			t.OwnerReference,
+		),
+	) // TODO: Use contorllerutils function, what to do about cluster-scoped resources?
 }

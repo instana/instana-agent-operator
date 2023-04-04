@@ -7,10 +7,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 
-	"github.com/instana/instana-agent-operator/pkg/optional"
-	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func testHostLiteralVolume(
@@ -49,9 +50,11 @@ func Test_fromHostLiteral(t *testing.T) {
 		path:                 "arehasdfasdf",
 		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
 	}
-	testHostLiteralVolume(t, expected, func() optional.Optional[VolumeWithMount] {
-		return hostVolumeWithMountLiteral(expected)
-	})
+	testHostLiteralVolume(
+		t, expected, func() optional.Optional[VolumeWithMount] {
+			return hostVolumeWithMountLiteral(expected)
+		},
+	)
 }
 
 func TestDevVolume(t *testing.T) {
@@ -95,16 +98,22 @@ func testHostLiteralOnlyWhenCondition(
 	expected *hostVolumeWithMountParams,
 	f func(condition bool) optional.Optional[VolumeWithMount],
 ) {
-	t.Run("not_condition", func(t *testing.T) {
-		assertions := require.New(t)
+	t.Run(
+		"not_condition", func(t *testing.T) {
+			assertions := require.New(t)
 
-		assertions.Empty(f(false))
-	})
-	t.Run("is_condition", func(t *testing.T) {
-		testHostLiteralVolume(t, expected, func() optional.Optional[VolumeWithMount] {
-			return f(true)
-		})
-	})
+			assertions.Empty(f(false))
+		},
+	)
+	t.Run(
+		"is_condition", func(t *testing.T) {
+			testHostLiteralVolume(
+				t, expected, func() optional.Optional[VolumeWithMount] {
+					return f(true)
+				},
+			)
+		},
+	)
 }
 
 func Test_hostVolumeWithMountLiteralWhenNotCondition(t *testing.T) {
@@ -113,9 +122,11 @@ func Test_hostVolumeWithMountLiteralWhenNotCondition(t *testing.T) {
 		path:                 "arehasdfasdf",
 		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
 	}
-	testHostLiteralOnlyWhenCondition(t, expected, func(condition bool) optional.Optional[VolumeWithMount] {
-		return hostVolumeWithMountLiteralWhenCondition(condition, expected)
-	})
+	testHostLiteralOnlyWhenCondition(
+		t, expected, func(condition bool) optional.Optional[VolumeWithMount] {
+			return hostVolumeWithMountLiteralWhenCondition(condition, expected)
+		},
+	)
 }
 
 func TestVarRunKuboVolume(t *testing.T) {
@@ -215,79 +226,93 @@ func TestMachineIdVolume(t *testing.T) {
 }
 
 func TestTlsVolume(t *testing.T) {
-	t.Run("tls_not_enabled", func(t *testing.T) {
-		assertions := require.New(t)
-		ctrl := gomock.NewController(t)
+	t.Run(
+		"tls_not_enabled", func(t *testing.T) {
+			assertions := require.New(t)
+			ctrl := gomock.NewController(t)
 
-		helpers := NewMockHelpers(ctrl)
-		helpers.EXPECT().TLSIsEnabled().Return(false)
+			helpers := NewMockHelpers(ctrl)
+			helpers.EXPECT().TLSIsEnabled().Return(false)
 
-		assertions.Empty(TlsVolume(helpers))
-	})
-	t.Run("tls_is_enabled", func(t *testing.T) {
-		assertions := require.New(t)
-		ctrl := gomock.NewController(t)
+			assertions.Empty(TlsVolume(helpers))
+		},
+	)
+	t.Run(
+		"tls_is_enabled", func(t *testing.T) {
+			assertions := require.New(t)
+			ctrl := gomock.NewController(t)
 
-		helpers := NewMockHelpers(ctrl)
-		helpers.EXPECT().TLSIsEnabled().Return(true)
-		helpers.EXPECT().TLSSecretName().Return("goisoijsoigjsd")
+			helpers := NewMockHelpers(ctrl)
+			helpers.EXPECT().TLSIsEnabled().Return(true)
+			helpers.EXPECT().TLSSecretName().Return("goisoijsoigjsd")
 
-		assertions.Equal(
-			optional.Of(VolumeWithMount{
-				Volume: corev1.Volume{
-					Name: "instana-agent-tls",
-					VolumeSource: corev1.VolumeSource{
-						Secret: &corev1.SecretVolumeSource{
-							SecretName:  "goisoijsoigjsd",
-							DefaultMode: pointer.To[int32](0440),
+			assertions.Equal(
+				optional.Of(
+					VolumeWithMount{
+						Volume: corev1.Volume{
+							Name: "instana-agent-tls",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName:  "goisoijsoigjsd",
+									DefaultMode: pointer.To[int32](0440),
+								},
+							},
+						},
+						VolumeMount: corev1.VolumeMount{
+							Name:      "instana-agent-tls",
+							MountPath: "/opt/instana/agent/etc/certs",
+							ReadOnly:  true,
 						},
 					},
-				},
-				VolumeMount: corev1.VolumeMount{
-					Name:      "instana-agent-tls",
-					MountPath: "/opt/instana/agent/etc/certs",
-					ReadOnly:  true,
-				},
-			}),
-			TlsVolume(helpers),
-		)
-	})
+				),
+				TlsVolume(helpers),
+			)
+		},
+	)
 }
 
 func TestRepoVolume(t *testing.T) {
-	t.Run("host_repo_not_set", func(t *testing.T) {
-		assertions := require.New(t)
+	t.Run(
+		"host_repo_not_set", func(t *testing.T) {
+			assertions := require.New(t)
 
-		assertions.Empty(RepoVolume(&instanav1.InstanaAgent{}))
-	})
-	t.Run("host_repo_is_set", func(t *testing.T) {
-		assertions := require.New(t)
+			assertions.Empty(RepoVolume(&instanav1.InstanaAgent{}))
+		},
+	)
+	t.Run(
+		"host_repo_is_set", func(t *testing.T) {
+			assertions := require.New(t)
 
-		actual := RepoVolume(&instanav1.InstanaAgent{
-			Spec: instanav1.InstanaAgentSpec{
-				Agent: instanav1.BaseAgentSpec{
-					Host: instanav1.HostSpec{
-						Repository: "eiosoijdsgih",
-					},
-				},
-			},
-		})
-		assertions.Equal(
-			optional.Of(VolumeWithMount{
-				Volume: corev1.Volume{
-					Name: "repo",
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: "eiosoijdsgih",
+			actual := RepoVolume(
+				&instanav1.InstanaAgent{
+					Spec: instanav1.InstanaAgentSpec{
+						Agent: instanav1.BaseAgentSpec{
+							Host: instanav1.HostSpec{
+								Repository: "eiosoijdsgih",
+							},
 						},
 					},
 				},
-				VolumeMount: corev1.VolumeMount{
-					Name:      "repo",
-					MountPath: "/opt/instana/agent/data/repo",
-				},
-			}),
-			actual,
-		)
-	})
+			)
+			assertions.Equal(
+				optional.Of(
+					VolumeWithMount{
+						Volume: corev1.Volume{
+							Name: "repo",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "eiosoijdsgih",
+								},
+							},
+						},
+						VolumeMount: corev1.VolumeMount{
+							Name:      "repo",
+							MountPath: "/opt/instana/agent/data/repo",
+						},
+					},
+				),
+				actual,
+			)
+		},
+	)
 }

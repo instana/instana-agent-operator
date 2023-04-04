@@ -1,11 +1,12 @@
 package volume
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type hostVolumeWithMountParams struct {
@@ -42,27 +43,33 @@ func hostVolumeWithMountLiteral(params *hostVolumeWithMountParams) optional.Opti
 }
 
 func DevVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "dev",
-		path:                 "/dev",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "dev",
+			path:                 "/dev",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func RunVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "run",
-		path:                 "/run",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "run",
+			path:                 "/run",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func VarRunVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "var-run",
-		path:                 "/var/run",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "var-run",
+			path:                 "/var/run",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func hostVolumeWithMountLiteralWhenCondition(
@@ -111,42 +118,52 @@ func VarContainerdConfigVolume(isNotOpenShift bool) optional.Optional[VolumeWith
 }
 
 func SysVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "sys",
-		path:                 "/sys",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "sys",
+			path:                 "/sys",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func VarLogVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "var-log",
-		path:                 "/var/log",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "var-log",
+			path:                 "/var/log",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func VarLibVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "var-lib",
-		path:                 "/var/lib",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "var-lib",
+			path:                 "/var/lib",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func VarDataVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name:                 "var-data",
-		path:                 "/var/data",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name:                 "var-data",
+			path:                 "/var/data",
+			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+		},
+	)
 }
 
 func MachineIdVolume() optional.Optional[VolumeWithMount] {
-	return hostVolumeWithMountLiteral(&hostVolumeWithMountParams{
-		name: "machine-id",
-		path: "/etc/machine-id",
-	})
+	return hostVolumeWithMountLiteral(
+		&hostVolumeWithMountParams{
+			name: "machine-id",
+			path: "/etc/machine-id",
+		},
+	)
 }
 
 // TODO: Resolve config volumes
@@ -156,22 +173,24 @@ func TlsVolume(helpers helpers.Helpers) optional.Optional[VolumeWithMount] {
 
 	switch helpers.TLSIsEnabled() {
 	case true:
-		return optional.Of(VolumeWithMount{
-			Volume: corev1.Volume{
-				Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName:  helpers.TLSSecretName(),
-						DefaultMode: pointer.To[int32](0440),
+		return optional.Of(
+			VolumeWithMount{
+				Volume: corev1.Volume{
+					Name: volumeName,
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName:  helpers.TLSSecretName(),
+							DefaultMode: pointer.To[int32](0440),
+						},
 					},
 				},
+				VolumeMount: corev1.VolumeMount{
+					Name:      volumeName,
+					MountPath: "/opt/instana/agent/etc/certs",
+					ReadOnly:  true,
+				},
 			},
-			VolumeMount: corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: "/opt/instana/agent/etc/certs",
-				ReadOnly:  true,
-			},
-		})
+		)
 	default:
 		return optional.Empty[VolumeWithMount]()
 	}

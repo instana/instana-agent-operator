@@ -22,7 +22,11 @@ type instanaAgentClient struct {
 	transformations.Transformations
 }
 
-func (c *instanaAgentClient) Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) result.Result[k8sclient.Object] {
+func (c *instanaAgentClient) Apply(
+	ctx context.Context,
+	obj k8sclient.Object,
+	opts ...k8sclient.PatchOption,
+) result.Result[k8sclient.Object] {
 	c.AddCommonLabels(obj)
 	c.AddOwnerReference(obj)
 

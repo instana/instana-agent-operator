@@ -27,9 +27,11 @@ type builderProcessor[T any] struct {
 }
 
 func (b *builderProcessor[T]) BuildAll() []T {
-	asOptionals := b.MapTo(b.builders, func(builder Builder[T]) Optional[T] {
-		return builder.Build()
-	})
+	asOptionals := b.MapTo(
+		b.builders, func(builder Builder[T]) Optional[T] {
+			return builder.Build()
+		},
+	)
 	return b.AllNonEmpty(asOptionals)
 }
 

@@ -21,103 +21,109 @@ func TestMultiError(t *testing.T) {
 	meTarget := multiError{}
 	seTarget := errors.New("")
 
-	t.Run("empty_should_be_nil", func(t *testing.T) {
-		assertions := require.New(t)
+	t.Run(
+		"empty_should_be_nil", func(t *testing.T) {
+			assertions := require.New(t)
 
-		me := NewMultiErrorBuilder()
-		assertions.ErrorIs(me.Build(), nil)
+			me := NewMultiErrorBuilder()
+			assertions.ErrorIs(me.Build(), nil)
 
-		me.Add(errors.New(""))
-		assertions.NotNil(me.Build())
-	})
-	t.Run("all_nil_should_be_nil", func(t *testing.T) {
-		assertions := require.New(t)
+			me.Add(errors.New(""))
+			assertions.NotNil(me.Build())
+		},
+	)
+	t.Run(
+		"all_nil_should_be_nil", func(t *testing.T) {
+			assertions := require.New(t)
 
-		me := NewMultiErrorBuilder(nil, nil)
-		assertions.ErrorIs(me.Build(), nil)
+			me := NewMultiErrorBuilder(nil, nil)
+			assertions.ErrorIs(me.Build(), nil)
 
-		me.Add(errors.New(""))
-		assertions.NotNil(me.Build())
-	})
-	t.Run("combine_and_add", func(t *testing.T) {
-		assertions := require.New(t)
+			me.Add(errors.New(""))
+			assertions.NotNil(me.Build())
+		},
+	)
+	t.Run(
+		"combine_and_add", func(t *testing.T) {
+			assertions := require.New(t)
 
-		me := NewMultiErrorBuilder(
-			errors.New("1"),
-			nil,
-			errors.New("2"),
-			errors.New("3"),
-		)
-		assertions.Equal(
-			[]error{
+			me := NewMultiErrorBuilder(
 				errors.New("1"),
 				nil,
 				errors.New("2"),
 				errors.New("3"),
-			},
-			me.All(),
-		)
-		assertions.Equal(
-			[]error{
-				errors.New("1"),
-				errors.New("2"),
-				errors.New("3"),
-			},
-			me.AllNonNil(),
-		)
-		assertions.Equal(
-			[]error{
-				errors.New("1"),
-				errors.New("2"),
-				errors.New("3"),
-			},
-			UnwrapAll(me.Build().(multiError).Unwrap()),
-		)
-		assertions.NotNil(me.Build())
-		assertions.ErrorAs(me.Build(), &meTarget)
-		assertions.True(AsMultiError(me.Build()))
-		assertions.ErrorAs(me.Build(), &seTarget)
+			)
+			assertions.Equal(
+				[]error{
+					errors.New("1"),
+					nil,
+					errors.New("2"),
+					errors.New("3"),
+				},
+				me.All(),
+			)
+			assertions.Equal(
+				[]error{
+					errors.New("1"),
+					errors.New("2"),
+					errors.New("3"),
+				},
+				me.AllNonNil(),
+			)
+			assertions.Equal(
+				[]error{
+					errors.New("1"),
+					errors.New("2"),
+					errors.New("3"),
+				},
+				UnwrapAll(me.Build().(multiError).Unwrap()),
+			)
+			assertions.NotNil(me.Build())
+			assertions.ErrorAs(me.Build(), &meTarget)
+			assertions.True(AsMultiError(me.Build()))
+			assertions.ErrorAs(me.Build(), &seTarget)
 
-		me.Add(
-			errors.New("4"),
-			nil,
-			errors.New("5"),
-		)
-		assertions.Equal(
-			[]error{
-				errors.New("1"),
-				nil,
-				errors.New("2"),
-				errors.New("3"),
+			me.Add(
 				errors.New("4"),
 				nil,
 				errors.New("5"),
-			},
-			me.All(),
-		)
-		assertions.Equal(
-			[]error{
-				errors.New("1"),
-				errors.New("2"),
-				errors.New("3"),
-				errors.New("4"),
-				errors.New("5"),
-			},
-			me.AllNonNil(),
-		)
-		assertions.Equal(
-			[]error{
-				errors.New("1"),
-				errors.New("2"),
-				errors.New("3"),
-				errors.New("4"),
-				errors.New("5"),
-			},
-			UnwrapAll(me.Build().(multiError).Unwrap()),
-		)
-		assertions.NotNil(me.Build())
-		assertions.ErrorAs(me.Build(), &meTarget)
-		assertions.True(AsMultiError(me.Build()))
-		assertions.ErrorAs(me.Build(), &seTarget)
-	})
+			)
+			assertions.Equal(
+				[]error{
+					errors.New("1"),
+					nil,
+					errors.New("2"),
+					errors.New("3"),
+					errors.New("4"),
+					nil,
+					errors.New("5"),
+				},
+				me.All(),
+			)
+			assertions.Equal(
+				[]error{
+					errors.New("1"),
+					errors.New("2"),
+					errors.New("3"),
+					errors.New("4"),
+					errors.New("5"),
+				},
+				me.AllNonNil(),
+			)
+			assertions.Equal(
+				[]error{
+					errors.New("1"),
+					errors.New("2"),
+					errors.New("3"),
+					errors.New("4"),
+					errors.New("5"),
+				},
+				UnwrapAll(me.Build().(multiError).Unwrap()),
+			)
+			assertions.NotNil(me.Build())
+			assertions.ErrorAs(me.Build(), &meTarget)
+			assertions.True(AsMultiError(me.Build()))
+			assertions.ErrorAs(me.Build(), &seTarget)
+		},
+	)
 }

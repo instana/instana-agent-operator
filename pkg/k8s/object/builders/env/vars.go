@@ -1,12 +1,13 @@
 package env
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	_map "github.com/instana/instana-agent-operator/pkg/collections/map"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Directly From CR
@@ -72,68 +73,78 @@ func RedactK8sSecretsEnv(agent *instanav1.InstanaAgent) optional.Optional[corev1
 // From a Secret
 
 func AgentKeyEnv(helpers helpers.Helpers) optional.Optional[corev1.EnvVar] {
-	return optional.Of(corev1.EnvVar{
-		Name: "INSTANA_AGENT_KEY",
-		ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: helpers.KeysSecretName(),
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "INSTANA_AGENT_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: helpers.KeysSecretName(),
+					},
+					Key: "key",
 				},
-				Key: "key",
 			},
 		},
-	})
+	)
 }
 
 func DownloadKeyEnv(helpers helpers.Helpers) optional.Optional[corev1.EnvVar] {
-	return optional.Of(corev1.EnvVar{
-		Name: "INSTANA_DOWNLOAD_KEY",
-		ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: helpers.KeysSecretName(),
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "INSTANA_DOWNLOAD_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: helpers.KeysSecretName(),
+					},
+					Key:      "downloadKey",
+					Optional: pointer.To(true),
 				},
-				Key:      "downloadKey",
-				Optional: pointer.To(true),
 			},
 		},
-	})
+	)
 }
 
 // From Pod Reference
 
 func PodNameEnv() optional.Optional[corev1.EnvVar] {
-	return optional.Of(corev1.EnvVar{
-		Name: "INSTANA_AGENT_POD_NAME",
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "metadata.name",
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "INSTANA_AGENT_POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
 			},
 		},
-	})
+	)
 }
 
 func PodIpEnv() optional.Optional[corev1.EnvVar] {
-	return optional.Of(corev1.EnvVar{
-		Name: "POD_IP",
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "status.podIP",
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "POD_IP",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.podIP",
+				},
 			},
 		},
-	})
+	)
 }
 
 // From user-provided in CR
 
 func UserProvidedEnv(agent *instanav1.InstanaAgent) []optional.Optional[corev1.EnvVar] {
 	return _map.NewMapConverter[string, string, optional.Optional[corev1.EnvVar]]().
-		ToList(agent.Spec.Agent.Env, func(name string, value string) optional.Optional[corev1.EnvVar] {
-			return optional.Of(
-				corev1.EnvVar{
-					Name:  name,
-					Value: value,
-				},
-			)
-		})
+		ToList(
+			agent.Spec.Agent.Env, func(name string, value string) optional.Optional[corev1.EnvVar] {
+				return optional.Of(
+					corev1.EnvVar{
+						Name:  name,
+						Value: value,
+					},
+				)
+			},
+		)
 }

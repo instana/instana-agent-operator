@@ -8,37 +8,41 @@ import (
 )
 
 func TestCatch(t *testing.T) {
-	t.Run("catch_error", func(t *testing.T) {
-		assertions := require.New(t)
+	t.Run(
+		"catch_error", func(t *testing.T) {
+			assertions := require.New(t)
 
-		expected := errors.New("hello")
+			expected := errors.New("hello")
 
-		actual := func() (err error) {
-			defer Catch(&err)
+			actual := func() (err error) {
+				defer Catch(&err)
 
-			panic(expected)
-		}()
+				panic(expected)
+			}()
 
-		assertions.ErrorAs(actual, &caughtPanic{})
-		assertions.True(AsCaughtPanic(actual))
-		assertions.ErrorIs(actual, expected)
+			assertions.ErrorAs(actual, &caughtPanic{})
+			assertions.True(AsCaughtPanic(actual))
+			assertions.ErrorIs(actual, expected)
 
-		t.Log(actual.Error())
-	})
-	t.Run("catch_error", func(t *testing.T) {
-		assertions := require.New(t)
+			t.Log(actual.Error())
+		},
+	)
+	t.Run(
+		"catch_error", func(t *testing.T) {
+			assertions := require.New(t)
 
-		expected := "hello"
+			expected := "hello"
 
-		actual := func() (err error) {
-			defer Catch(&err)
+			actual := func() (err error) {
+				defer Catch(&err)
 
-			panic(expected)
-		}()
+				panic(expected)
+			}()
 
-		assertions.ErrorAs(actual, &caughtPanic{})
-		assertions.True(AsCaughtPanic(actual))
+			assertions.ErrorAs(actual, &caughtPanic{})
+			assertions.True(AsCaughtPanic(actual))
 
-		t.Log(actual.Error())
-	})
+			t.Log(actual.Error())
+		},
+	)
 }

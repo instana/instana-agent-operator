@@ -1,19 +1,23 @@
 package env
 
 import (
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"testing"
+
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 
 	"github.com/golang/mock/gomock"
+
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 
-	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/instana/instana-agent-operator/pkg/optional"
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+
 	"github.com/stretchr/testify/require"
+
+	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
 func testCRFieldEnvVar(
@@ -23,24 +27,30 @@ func testCRFieldEnvVar(
 	expectedName string,
 	expectedValue string,
 ) {
-	t.Run("when_empty", func(t *testing.T) {
-		assertions := require.New(t)
-		actual := f(&instanav1.InstanaAgent{})
+	t.Run(
+		"when_empty", func(t *testing.T) {
+			assertions := require.New(t)
+			actual := f(&instanav1.InstanaAgent{})
 
-		assertions.Empty(actual)
-	})
-	t.Run("with_value", func(t *testing.T) {
-		assertions := require.New(t)
-		actual := f(agent)
+			assertions.Empty(actual)
+		},
+	)
+	t.Run(
+		"with_value", func(t *testing.T) {
+			assertions := require.New(t)
+			actual := f(agent)
 
-		assertions.Equal(
-			optional.Of(corev1.EnvVar{
-				Name:  expectedName,
-				Value: expectedValue,
-			}),
-			actual,
-		)
-	})
+			assertions.Equal(
+				optional.Of(
+					corev1.EnvVar{
+						Name:  expectedName,
+						Value: expectedValue,
+					},
+				),
+				actual,
+			)
+		},
+	)
 }
 
 func TestAgentModeEnv(t *testing.T) {
@@ -281,18 +291,20 @@ func testKeysSecretEnvVar(
 	hlprs.EXPECT().KeysSecretName().Return("weoijsdfjjsf")
 
 	assertions.Equal(
-		optional.Of(corev1.EnvVar{
-			Name: expectedName,
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "weoijsdfjjsf",
+		optional.Of(
+			corev1.EnvVar{
+				Name: expectedName,
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "weoijsdfjjsf",
+						},
+						Key:      expectedKey,
+						Optional: expectedOptional,
 					},
-					Key:      expectedKey,
-					Optional: expectedOptional,
 				},
 			},
-		}),
+		),
 		f(hlprs),
 	)
 }
@@ -327,33 +339,39 @@ func TestPodNameEnv(t *testing.T) {
 }
 
 func TestPodIpEnv(t *testing.T) {
-	testFromPodField(t, PodIpEnv, corev1.EnvVar{
-		Name: "POD_IP",
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "status.podIP",
+	testFromPodField(
+		t, PodIpEnv, corev1.EnvVar{
+			Name: "POD_IP",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.podIP",
+				},
 			},
 		},
-	})
+	)
 }
 
 func TestUserProvidedEnv(t *testing.T) {
 	assertions := require.New(t)
 
-	opts := UserProvidedEnv(&instanav1.InstanaAgent{
-		Spec: instanav1.InstanaAgentSpec{
-			Agent: instanav1.BaseAgentSpec{
-				Env: map[string]string{
-					"foo":      "bar",
-					"hello":    "world",
-					"oijrgoij": "45ioiojdij",
+	opts := UserProvidedEnv(
+		&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Env: map[string]string{
+						"foo":      "bar",
+						"hello":    "world",
+						"oijrgoij": "45ioiojdij",
+					},
 				},
 			},
 		},
-	})
-	actual := list.NewListMapTo[optional.Optional[corev1.EnvVar], corev1.EnvVar]().MapTo(opts, func(builder optional.Optional[corev1.EnvVar]) corev1.EnvVar {
-		return builder.Get()
-	})
+	)
+	actual := list.NewListMapTo[optional.Optional[corev1.EnvVar], corev1.EnvVar]().MapTo(
+		opts, func(builder optional.Optional[corev1.EnvVar]) corev1.EnvVar {
+			return builder.Get()
+		},
+	)
 
 	assertions.ElementsMatch(
 		[]corev1.EnvVar{

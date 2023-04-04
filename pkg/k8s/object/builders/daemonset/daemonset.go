@@ -3,6 +3,13 @@ package daemonset
 import (
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
@@ -12,12 +19,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TODO: Multiple zones
@@ -65,9 +66,11 @@ func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	res := d.Spec.Agent.ImageSpec.PullSecrets
 
 	if strings.HasPrefix(d.Spec.Agent.ImageSpec.Name, constants.ContainersInstanaIoRegistry) {
-		res = append(res, corev1.LocalObjectReference{
-			Name: constants.ContainersInstanaIoSecretName,
-		})
+		res = append(
+			res, corev1.LocalObjectReference{
+				Name: constants.ContainersInstanaIoSecretName,
+			},
+		)
 	}
 
 	return res

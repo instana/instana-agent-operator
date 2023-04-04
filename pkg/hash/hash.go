@@ -12,9 +12,11 @@ type hasher struct {
 }
 
 func (h *hasher) HashJsonOrDie(obj interface{}) string {
-	jsonStr := h.ResultOrDie(func() ([]byte, error) {
-		return json.Marshal(obj)
-	})
+	jsonStr := h.ResultOrDie(
+		func() ([]byte, error) {
+			return json.Marshal(obj)
+		},
+	)
 	hash := md5.Sum(jsonStr)
 	return string(hash[:])
 }
