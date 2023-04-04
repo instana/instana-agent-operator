@@ -52,13 +52,13 @@ type LeaderElector struct {
 }
 
 /*
-	StartCoordination starts scheduling of leader elector coordination between Instana Agents.
+StartCoordination starts scheduling of leader elector coordination between Instana Agents.
 
-	Agent Coordination works by requesting the "resources" for which an Agent would be leader. This could be one or more.
-	Different Agents might request similar or different "resources".
+Agent Coordination works by requesting the "resources" for which an Agent would be leader. This could be one or more.
+Different Agents might request similar or different "resources".
 
-	The Operator should, for every requested resource, appoint one specific Agent pod as leader by calling the
-	/coordination/assigned endpoint.
+The Operator should, for every requested resource, appoint one specific Agent pod as leader by calling the
+/coordination/assigned endpoint.
 */
 func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 	if l.IsLeaderElectionScheduled() {

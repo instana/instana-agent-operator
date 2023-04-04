@@ -4,8 +4,8 @@
  */
 
 // Package v1 contains API Schema definitions for the  v1 API group
-//+kubebuilder:object:generate=true
-//+groupName=instana.io
+// +kubebuilder:object:generate=true
+// +groupName=instana.io
 package v1
 
 import (
