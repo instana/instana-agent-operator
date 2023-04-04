@@ -33,6 +33,20 @@ func (m *MockHelpers) EXPECT() *MockHelpersMockRecorder {
 	return m.recorder
 }
 
+// HeadlessServiceName mocks base method.
+func (m *MockHelpers) HeadlessServiceName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HeadlessServiceName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// HeadlessServiceName indicates an expected call of HeadlessServiceName.
+func (mr *MockHelpersMockRecorder) HeadlessServiceName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadlessServiceName", reflect.TypeOf((*MockHelpers)(nil).HeadlessServiceName))
+}
+
 // KeysSecretName mocks base method.
 func (m *MockHelpers) KeysSecretName() string {
 	m.ctrl.T.Helper()

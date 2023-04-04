@@ -133,6 +133,8 @@ func PodIpEnv() optional.Optional[corev1.EnvVar] {
 	)
 }
 
+// Referencing Another Object Created by the Operator TODO
+
 // From user-provided in CR
 
 func UserProvidedEnv(agent *instanav1.InstanaAgent) []optional.Optional[corev1.EnvVar] {

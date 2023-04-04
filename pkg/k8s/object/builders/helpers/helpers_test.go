@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 )
@@ -66,7 +66,7 @@ func TestServiceAccountName(t *testing.T) {
 
 			h := NewHelpers(
 				&instanav1.InstanaAgent{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: expected,
 					},
 					Spec: instanav1.InstanaAgentSpec{
@@ -105,7 +105,7 @@ func TestHelpers_KeysSecretName(t *testing.T) {
 
 			h := NewHelpers(
 				&instanav1.InstanaAgent{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: expected,
 					},
 				},
@@ -123,7 +123,7 @@ func TestHelpers_KeysSecretName(t *testing.T) {
 
 			h := NewHelpers(
 				&instanav1.InstanaAgent{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "oiew9oisdoijdsf",
 					},
 					Spec: instanav1.InstanaAgentSpec{
@@ -220,7 +220,7 @@ func TestHelpers_TLSSecretName(t *testing.T) {
 
 			h := NewHelpers(
 				&instanav1.InstanaAgent{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "oioijsdjdsf",
 					},
 					Spec: instanav1.InstanaAgentSpec{
@@ -241,7 +241,7 @@ func TestHelpers_TLSSecretName(t *testing.T) {
 
 			h := NewHelpers(
 				&instanav1.InstanaAgent{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "risoijsdgljs",
 					},
 				},
@@ -249,4 +249,17 @@ func TestHelpers_TLSSecretName(t *testing.T) {
 			assertions.Equal("risoijsdgljs-tls", h.TLSSecretName())
 		},
 	)
+}
+
+func TestHelpers_HeadlessServiceName(t *testing.T) {
+	assertions := require.New(t)
+
+	h := NewHelpers(
+		&instanav1.InstanaAgent{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rhjaoijdsoijoidsf",
+			},
+		},
+	)
+	assertions.Equal("rhjaoijdsoijoidsf-headless", h.HeadlessServiceName())
 }

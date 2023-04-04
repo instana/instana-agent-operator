@@ -14,6 +14,7 @@ type Helpers interface {
 	KeysSecretName() string
 	TLSIsEnabled() bool
 	TLSSecretName() string
+	HeadlessServiceName() string
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
@@ -39,6 +40,10 @@ func (h *helpers) TLSIsEnabled() bool {
 
 func (h *helpers) TLSSecretName() string {
 	return optional.Of(h.Spec.Agent.TlsSpec.SecretName).GetOrDefault(h.Name + "-tls")
+}
+
+func (h *helpers) HeadlessServiceName() string {
+	return h.Name + "-headless"
 }
 
 func NewHelpers(agent *v1.InstanaAgent) Helpers {
