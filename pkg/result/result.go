@@ -68,17 +68,23 @@ func (r *result[T]) recover(getRecoveredResult func() Result[T]) Result[T] {
 }
 
 func (r *result[T]) Recover(do func(err error) (T, error)) Result[T] {
-	return r.recover(func() Result[T] {
-		return Of(do(r.err))
-	})
+	return r.recover(
+		func() Result[T] {
+			return Of(do(r.err))
+		},
+	)
 }
 
 func (r *result[T]) RecoverCatching(do func(err error) (T, error)) Result[T] {
-	return r.recover(func() Result[T] {
-		return OfInlineCatchingPanic(func() (res T, err error) {
-			return do(r.err)
-		})
-	})
+	return r.recover(
+		func() Result[T] {
+			return OfInlineCatchingPanic(
+				func() (res T, err error) {
+					return do(r.err)
+				},
+			)
+		},
+	)
 }
 
 func Of[T any](res T, err error) Result[T] {
@@ -93,10 +99,12 @@ func OfInline[T any](do func() (res T, err error)) Result[T] {
 }
 
 func OfInlineCatchingPanic[T any](do func() (res T, err error)) Result[T] {
-	return OfInline[T](func() (res T, err error) {
-		defer recovery.Catch(&err)
-		return do()
-	})
+	return OfInline[T](
+		func() (res T, err error) {
+			defer recovery.Catch(&err)
+			return do()
+		},
+	)
 }
 
 func OfSuccess[T any](res T) Result[T] {
