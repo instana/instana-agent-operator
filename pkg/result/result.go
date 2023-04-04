@@ -14,7 +14,8 @@ type Result[T any] interface {
 	ToOptional() optional.Optional[T]
 	OnSuccess(func(T)) Result[T]
 	OnFailure(func(error)) Result[T]
-	Recover(func(error) Result[T]) Result[T]
+	Recover(func(error) (T, error)) Result[T]
+	RecoverCatching(func(error) (T, error)) Result[T]
 }
 
 type result[T any] struct {
@@ -57,10 +58,21 @@ func (r *result[T]) OnFailure(do func(err error)) Result[T] {
 	return r
 }
 
-func (r *result[T]) Recover(do func(err error) Result[T]) Result[T] {
+func (r *result[T]) Recover(do func(err error) (T, error)) Result[T] {
 	switch r.IsFailure() {
 	case true:
-		return do(r.err)
+		return Of(do(r.err))
+	default:
+		return r
+	}
+}
+
+func (r *result[T]) RecoverCatching(do func(err error) (T, error)) Result[T] {
+	switch r.IsFailure() {
+	case true:
+		return OfInlineCatchingPanic(func() (res T, err error) {
+			return do(r.err)
+		})
 	default:
 		return r
 	}

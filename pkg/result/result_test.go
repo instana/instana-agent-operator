@@ -219,8 +219,8 @@ func TestResult_Recover(t *testing.T) {
 		assertions := require.New(t)
 
 		rslt := Of("hello", nil)
-		rsltCopy := rslt.Recover(func(err error) Result[string] {
-			return OfSuccess(err.Error())
+		rsltCopy := rslt.Recover(func(err error) (string, error) {
+			return err.Error(), nil
 		})
 		assertions.Same(rslt, rsltCopy)
 		actualVal, actualErr := rsltCopy.Get()
@@ -231,12 +231,56 @@ func TestResult_Recover(t *testing.T) {
 		assertions := require.New(t)
 
 		rslt := Of("hello", errors.New("world"))
-		rsltCopy := rslt.Recover(func(err error) Result[string] {
-			return OfSuccess(err.Error())
+		rsltCopy := rslt.Recover(func(err error) (string, error) {
+			return err.Error(), nil
 		})
 		assertions.NotSame(rslt, rsltCopy)
 		actualVal, actualErr := rsltCopy.Get()
 		assertions.Equal("world", actualVal)
+		assertions.Nil(actualErr)
+	})
+}
+
+func TestResult_RecoverCatching(t *testing.T) {
+	t.Run("with_nil_error", func(t *testing.T) {
+		assertions := require.New(t)
+
+		rslt := Of("hello", nil)
+		rsltCopy := rslt.RecoverCatching(func(err error) (string, error) {
+			return err.Error(), nil
+		})
+		assertions.Same(rslt, rsltCopy)
+		actualVal, actualErr := rsltCopy.Get()
+		assertions.Equal("hello", actualVal)
+		assertions.Nil(actualErr)
+	})
+	t.Run("with_non_nil_error", func(t *testing.T) {
+		assertions := require.New(t)
+
+		rslt := Of("hello", errors.New("world"))
+		rsltCopy := rslt.RecoverCatching(func(err error) (string, error) {
+			return err.Error(), nil
+		})
+		assertions.NotSame(rslt, rsltCopy)
+		actualVal, actualErr := rsltCopy.Get()
+		assertions.Equal("world", actualVal)
+		assertions.Nil(actualErr)
+	})
+	t.Run("with_non_nil_error_then_throw", func(t *testing.T) {
+		assertions := require.New(t)
+
+		rslt := Of("hello", errors.New("world"))
+		rsltCopy :=
+			rslt.
+				RecoverCatching(func(err error) (string, error) {
+					panic(errors.New(err.Error() + "_goodbye"))
+				}).
+				Recover(func(err error) (string, error) {
+					return errors.Unwrap(errors.Unwrap(err)).Error(), nil
+				})
+		assertions.NotSame(rslt, rsltCopy)
+		actualVal, actualErr := rsltCopy.Get()
+		assertions.Equal("world_goodbye", actualVal)
 		assertions.Nil(actualErr)
 	})
 }
