@@ -58,24 +58,27 @@ func (r *result[T]) OnFailure(do func(err error)) Result[T] {
 	return r
 }
 
-func (r *result[T]) Recover(do func(err error) (T, error)) Result[T] {
+func (r *result[T]) recover(getRecoveredResult func() Result[T]) Result[T] {
 	switch r.IsFailure() {
 	case true:
-		return Of(do(r.err))
+		return getRecoveredResult()
 	default:
 		return r
 	}
 }
 
+func (r *result[T]) Recover(do func(err error) (T, error)) Result[T] {
+	return r.recover(func() Result[T] {
+		return Of(do(r.err))
+	})
+}
+
 func (r *result[T]) RecoverCatching(do func(err error) (T, error)) Result[T] {
-	switch r.IsFailure() {
-	case true:
+	return r.recover(func() Result[T] {
 		return OfInlineCatchingPanic(func() (res T, err error) {
 			return do(r.err)
 		})
-	default:
-		return r
-	}
+	})
 }
 
 func Of[T any](res T, err error) Result[T] {
