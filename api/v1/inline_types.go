@@ -293,7 +293,7 @@ type KubernetesDeploymentSpec struct {
 
 type OpenTelemetry struct {
 	// Deprecated setting for backwards compatibility
-	*Enabled `json:",inline"`
+	Enabled `json:",inline"`
 
 	// +kubebuilder:validation:Optional
 	GRPC *Enabled `json:"grpc,omitempty"`
