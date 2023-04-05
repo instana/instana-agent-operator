@@ -15,6 +15,9 @@ import (
 type InstanaAgentClient interface {
 	k8sclient.Client
 	Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) result.Result[k8sclient.Object]
+	GetAsResult(
+		ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
+	) result.Result[k8sclient.Object]
 }
 
 type instanaAgentClient struct {
@@ -23,22 +26,27 @@ type instanaAgentClient struct {
 }
 
 func (c *instanaAgentClient) Apply(
-	ctx context.Context,
-	obj k8sclient.Object,
-	opts ...k8sclient.PatchOption,
+	ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption,
 ) result.Result[k8sclient.Object] {
 	c.AddCommonLabels(obj)
 	c.AddOwnerReference(obj)
 
 	return result.Of(
-		obj,
-		c.Patch(
+		obj, c.Patch(
 			ctx,
 			obj,
 			k8sclient.Apply,
 			append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))...,
 		),
 	)
+}
+
+// TODO: test
+
+func (c *instanaAgentClient) GetAsResult(
+	ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
+) result.Result[k8sclient.Object] {
+	return result.Of(obj, c.Client.Get(ctx, key, obj, opts...))
 }
 
 func NewClient(k8sClient k8sclient.Client, agent *instanav1.InstanaAgent) InstanaAgentClient {
