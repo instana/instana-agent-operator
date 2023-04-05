@@ -2,7 +2,6 @@ package operator_utils
 
 import (
 	"golang.org/x/net/context"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,12 +43,7 @@ func (o *operatorUtils) crdIsInstalled(name string) result.Result[bool] {
 		},
 	).Recover(
 		func(err error) (bool, error) {
-			switch k8sErrors.IsNotFound(err) {
-			case true:
-				return false, nil
-			default:
-				return false, err
-			}
+			return false, k8sclient.IgnoreNotFound(err)
 		},
 	)
 }
