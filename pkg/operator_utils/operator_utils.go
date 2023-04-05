@@ -29,14 +29,12 @@ func NewOperatorUtils(ctx context.Context, client client.InstanaAgentClient) Ope
 // TODO: test
 
 func (o *operatorUtils) crdIsInstalled(name string) result.Result[bool] {
-	crdResult := o.GetAsResult(
-		o.ctx, types.NamespacedName{Name: name}, &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-			},
-		},
-	)
+	obj := &unstructured.Unstructured{}
+	obj.SetAPIVersion("apiextensions.k8s.io/v1")
+	obj.SetKind("CustomResourceDefinition")
+
+	crdResult := o.GetAsResult(o.ctx, types.NamespacedName{Name: name}, obj)
+
 	return result.Map(
 		crdResult, func(_ k8sclient.Object) result.Result[bool] {
 			return result.OfSuccess(true)
