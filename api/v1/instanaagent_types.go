@@ -27,7 +27,7 @@ type InstanaAgentSpec struct {
 	Zone Name `json:"zone,omitempty"`
 
 	// Set to `True` to indicate the Operator is being deployed in a OpenShift cluster. Provides a hint so that RBAC etc is
-	// configured correctly.
+	// configured correctly. Will attempt to auto-detect if unset.
 	// +kubebuilder:validation:Optional
 	OpenShift *bool `json:"openshift,omitempty"`
 
