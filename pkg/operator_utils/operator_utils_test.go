@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
@@ -66,7 +68,7 @@ func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName stri
 					gomock.Eq(obj),
 				).Return(result.Of[k8sclient.Object](obj, test.errOfGet))
 
-				ot := NewOperatorUtils(ctx, instanaClient)
+				ot := NewOperatorUtils(ctx, instanaClient, &instanav1.InstanaAgent{})
 
 				actual := reflect.ValueOf(ot).MethodByName(methodName).Call([]reflect.Value{})[0].Interface().(result.Result[bool])
 				assertions.Equal(test.expected, actual)
@@ -76,5 +78,45 @@ func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName stri
 }
 
 func TestOperatorUtils_ClusterIsOpenShift(t *testing.T) {
+	for _, test := range []struct {
+		name            string
+		userProvidedVal bool
+		expected        result.Result[bool]
+	}{
+		{
+			name:            "user_specifies_true",
+			userProvidedVal: true,
+			expected:        result.OfSuccess(true),
+		},
+		{
+			name:            "user_specifies_false",
+			userProvidedVal: false,
+			expected:        result.OfSuccess(false),
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+				ctrl := gomock.NewController(t)
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				instanaClient := NewMockInstanaAgentClient(ctrl)
+
+				ot := NewOperatorUtils(
+					ctx, instanaClient, &instanav1.InstanaAgent{
+						Spec: instanav1.InstanaAgentSpec{
+							OpenShift: pointer.To(test.userProvidedVal),
+						},
+					},
+				)
+
+				actual := ot.ClusterIsOpenShift()
+				assertions.Equal(test.expected, actual)
+			},
+		)
+	}
+
 	testOperatorUtils_crdIsInstalled(t, "clusteroperators.config.openshift.io", "ClusterIsOpenShift")
 }

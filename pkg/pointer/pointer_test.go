@@ -55,3 +55,32 @@ func TestDerefOrDefault(t *testing.T) {
 		},
 	)
 }
+
+func TestDerefOrElse(t *testing.T) {
+	t.Run(
+		"non_nil_pointer_given", func(t *testing.T) {
+			assertions := require.New(t)
+
+			actual := DerefOrElse(
+				To(5), func() int {
+					return 10
+				},
+			)
+
+			assertions.Equal(5, actual)
+		},
+	)
+	t.Run(
+		"nil_pointer_given", func(t *testing.T) {
+			assertions := require.New(t)
+
+			actual := DerefOrElse(
+				nil, func() int {
+					return 10
+				},
+			)
+
+			assertions.Equal(10, actual)
+		},
+	)
+}

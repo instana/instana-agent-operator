@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//+k8s:openapi-gen=true
+// +k8s:openapi-gen=true
 
 // InstanaAgentSpec defines the desired state of the Instana Agent
 type InstanaAgentSpec struct {
@@ -29,7 +29,7 @@ type InstanaAgentSpec struct {
 	// Set to `True` to indicate the Operator is being deployed in a OpenShift cluster. Provides a hint so that RBAC etc is
 	// configured correctly.
 	// +kubebuilder:validation:Optional
-	OpenShift bool `json:"openshift,omitempty"`
+	OpenShift *bool `json:"openshift,omitempty"`
 
 	// Specifies whether RBAC resources should be created.
 	// +kubebuilder:validation:Optional
@@ -72,7 +72,7 @@ type InstanaAgentSpec struct {
 	PinnedChartVersion string `json:"pinnedChartVersion,omitempty"`
 }
 
-//+k8s:openapi-gen=true
+// +k8s:openapi-gen=true
 
 // ResourceInfo holds Name and UID to given object
 type ResourceInfo struct {
@@ -92,7 +92,7 @@ const (
 	OperatorStateFailed AgentOperatorState = "Failed"
 )
 
-//+k8s:openapi-gen=true
+// +k8s:openapi-gen=true
 
 // InstanaAgentStatus defines the observed state of InstanaAgent
 type InstanaAgentStatus struct {
@@ -107,12 +107,12 @@ type InstanaAgentStatus struct {
 	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+k8s:openapi-gen=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
-//+kubebuilder:storageversion
-//+operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
+// +kubebuilder:object:root=true
+// +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
+// +kubebuilder:storageversion
+// +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
 
 // InstanaAgent is the Schema for the agents API
 type InstanaAgent struct {
@@ -123,7 +123,7 @@ type InstanaAgent struct {
 	Status InstanaAgentStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // InstanaAgentList contains a list of InstanaAgent
 type InstanaAgentList struct {

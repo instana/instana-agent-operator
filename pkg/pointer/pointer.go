@@ -17,3 +17,11 @@ func DerefOrEmpty[T any](in *T) T {
 func DerefOrDefault[T any](in *T, def T) T {
 	return *optional.Of(in).GetOrDefault(&def)
 }
+
+func DerefOrElse[T any](in *T, do func() T) T {
+	return *optional.Of(in).GetOrElse(
+		func() *T {
+			return To(do())
+		},
+	)
+}
