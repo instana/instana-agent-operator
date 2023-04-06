@@ -12,12 +12,15 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ObjectResult alias is needed to workaround issues in mockgen
+type ObjectResult = result.Result[k8sclient.Object]
+
 type InstanaAgentClient interface {
 	k8sclient.Client
-	Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) result.Result[k8sclient.Object]
+	Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) ObjectResult
 	GetAsResult(
 		ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
-	) result.Result[k8sclient.Object]
+	) ObjectResult
 }
 
 type instanaAgentClient struct {

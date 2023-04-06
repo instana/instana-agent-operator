@@ -26,8 +26,6 @@ func NewOperatorUtils(ctx context.Context, client client.InstanaAgentClient) Ope
 	}
 }
 
-// TODO: test
-
 func (o *operatorUtils) crdIsInstalled(name string) result.Result[bool] {
 	obj := &unstructured.Unstructured{}
 	obj.SetAPIVersion("apiextensions.k8s.io/v1")
@@ -45,8 +43,6 @@ func (o *operatorUtils) crdIsInstalled(name string) result.Result[bool] {
 		},
 	)
 }
-
-// TODO: test
 
 func (o *operatorUtils) ClusterIsOpenShift() result.Result[bool] {
 	return o.crdIsInstalled("clusteroperators.config.openshift.io")
