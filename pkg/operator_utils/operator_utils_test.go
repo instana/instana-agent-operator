@@ -26,12 +26,12 @@ func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName stri
 		expected result.Result[bool]
 	}{
 		{
-			name:     "exists",
+			name:     "crd_exists",
 			errOfGet: nil,
 			expected: result.OfSuccess(true),
 		},
 		{
-			name: "not_exists",
+			name: "crd_does_not_exist",
 			errOfGet: k8sErrors.NewNotFound(
 				schema.GroupResource{
 					Group:    "apiextensions.k8s.io",
@@ -41,7 +41,7 @@ func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName stri
 			expected: result.OfSuccess(false),
 		},
 		{
-			name:     "error",
+			name:     "error_getting_crd",
 			errOfGet: errors.New("qwerty"),
 			expected: result.OfFailure[bool](errors.New("qwerty")),
 		},
@@ -78,45 +78,53 @@ func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName stri
 }
 
 func TestOperatorUtils_ClusterIsOpenShift(t *testing.T) {
-	for _, test := range []struct {
-		name            string
-		userProvidedVal bool
-		expected        result.Result[bool]
-	}{
-		{
-			name:            "user_specifies_true",
-			userProvidedVal: true,
-			expected:        result.OfSuccess(true),
-		},
-		{
-			name:            "user_specifies_false",
-			userProvidedVal: false,
-			expected:        result.OfSuccess(false),
-		},
-	} {
-		t.Run(
-			test.name, func(t *testing.T) {
-				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
+	t.Run(
+		"user_provided", func(t *testing.T) {
+			for _, test := range []struct {
+				name            string
+				userProvidedVal bool
+				expected        result.Result[bool]
+			}{
+				{
+					name:            "user_specifies_true",
+					userProvidedVal: true,
+					expected:        result.OfSuccess(true),
+				},
+				{
+					name:            "user_specifies_false",
+					userProvidedVal: false,
+					expected:        result.OfSuccess(false),
+				},
+			} {
+				t.Run(
+					test.name, func(t *testing.T) {
+						assertions := require.New(t)
+						ctrl := gomock.NewController(t)
 
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+						ctx, cancel := context.WithCancel(context.Background())
+						defer cancel()
 
-				instanaClient := NewMockInstanaAgentClient(ctrl)
+						instanaClient := NewMockInstanaAgentClient(ctrl)
 
-				ot := NewOperatorUtils(
-					ctx, instanaClient, &instanav1.InstanaAgent{
-						Spec: instanav1.InstanaAgentSpec{
-							OpenShift: pointer.To(test.userProvidedVal),
-						},
+						ot := NewOperatorUtils(
+							ctx, instanaClient, &instanav1.InstanaAgent{
+								Spec: instanav1.InstanaAgentSpec{
+									OpenShift: pointer.To(test.userProvidedVal),
+								},
+							},
+						)
+
+						actual := ot.ClusterIsOpenShift()
+						assertions.Equal(test.expected, actual)
 					},
 				)
+			}
+		},
+	)
 
-				actual := ot.ClusterIsOpenShift()
-				assertions.Equal(test.expected, actual)
-			},
-		)
-	}
-
-	testOperatorUtils_crdIsInstalled(t, "clusteroperators.config.openshift.io", "ClusterIsOpenShift")
+	t.Run(
+		"auto_detect", func(t *testing.T) {
+			testOperatorUtils_crdIsInstalled(t, "clusteroperators.config.openshift.io", "ClusterIsOpenShift")
+		},
+	)
 }
