@@ -41,8 +41,6 @@ func (c *instanaAgentClient) Apply(
 	)
 }
 
-// TODO: test
-
 func (c *instanaAgentClient) GetAsResult(
 	ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
 ) result.Result[k8sclient.Object] {
