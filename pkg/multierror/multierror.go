@@ -43,8 +43,12 @@ func (m *multiErrorBuilder) Build() error {
 	switch len(errs) {
 	case 0:
 		return nil
+	case 1:
+		return multiError{
+			error: errs[0],
+		}
 	default:
-		errMsgFmt := "Multiple Errors:\n\n" + strings.Repeat("%w\n", len(errs))
+		errMsgFmt := "Multiple Errors:\n" + strings.Repeat("%w\n", len(errs))
 		errsAsAny := list.NewListMapTo[error, any]().MapTo(
 			errs, func(err error) any {
 				return err

@@ -44,6 +44,28 @@ func TestMultiError(t *testing.T) {
 		},
 	)
 	t.Run(
+		"is_all_constituent_errors", func(t *testing.T) {
+			assertions := require.New(t)
+
+			expected1 := errors.New("1")
+			expected2 := errors.New("2")
+
+			me := NewMultiErrorBuilder(nil, expected1, nil)
+
+			assertions.Equal([]error{nil, expected1, nil}, me.All())
+			assertions.Equal([]error{expected1}, me.AllNonNil())
+			assertions.ErrorIs(me.Build(), expected1)
+
+			me.Add(expected2)
+
+			assertions.Equal([]error{nil, expected1, nil, expected2}, me.All())
+			assertions.Equal([]error{expected1, expected2}, me.AllNonNil())
+			actual := me.Build()
+			assertions.ErrorIs(actual, expected1)
+			assertions.ErrorIs(actual, expected2)
+		},
+	)
+	t.Run(
 		"combine_and_add", func(t *testing.T) {
 			assertions := require.New(t)
 
