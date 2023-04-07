@@ -8,11 +8,13 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
 type OperatorUtils interface {
 	ClusterIsOpenShift() result.Result[bool]
+	ApplyAll(objects []k8sclient.Object) result.Result[[]k8sclient.Object]
 }
 
 type operatorUtils struct {
@@ -22,9 +24,7 @@ type operatorUtils struct {
 }
 
 func NewOperatorUtils(
-	ctx context.Context,
-	client client.InstanaAgentClient,
-	agent *instanav1.InstanaAgent,
+	ctx context.Context, client client.InstanaAgentClient, agent *instanav1.InstanaAgent,
 ) OperatorUtils {
 	return &operatorUtils{
 		ctx:                ctx,
@@ -57,5 +57,31 @@ func (o *operatorUtils) ClusterIsOpenShift() result.Result[bool] {
 		return o.crdIsInstalled("clusteroperators.config.openshift.io")
 	default:
 		return result.OfSuccess(*userProvided)
+	}
+}
+
+func (o *operatorUtils) applyAll(
+	objects []k8sclient.Object, opts ...k8sclient.PatchOption,
+) result.Result[[]k8sclient.Object] {
+	errBuilder := multierror.NewMultiErrorBuilder()
+
+	for _, obj := range objects {
+		o.Apply(o.ctx, obj, opts...).
+			OnFailure(
+				func(err error) {
+					errBuilder.Add(err)
+				},
+			)
+	}
+
+	return result.Of(objects, errBuilder.Build())
+}
+
+func (o *operatorUtils) ApplyAll(objects []k8sclient.Object) result.Result[[]k8sclient.Object] {
+	switch res := o.applyAll(objects, k8sclient.DryRunAll); res.IsSuccess() {
+	case true:
+		return o.applyAll(objects)
+	default:
+		return res
 	}
 }
