@@ -2,6 +2,8 @@ package optional
 
 import "reflect"
 
+// TODO: IsNotEmpty
+
 type optional[T any] struct {
 	val T
 }
