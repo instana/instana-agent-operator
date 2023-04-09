@@ -7,7 +7,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
-// TODO: Possible additions: isError / asError + onIsError / onAsError
+// TODO: Possible additions: isError / asError + onIsError / onAsError + recoverIsError / recoverAsError
 
 type Result[T any] interface {
 	IsSuccess() bool
