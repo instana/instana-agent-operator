@@ -34,7 +34,7 @@ type daemonSetBuilder struct {
 	helpers.Helpers
 }
 
-// TODO: Implement check for OpenShift in controller util
+// TODO: Optional Zone configuration
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) optional.Builder[client.Object] {
 	return &daemonSetBuilder{
