@@ -128,6 +128,8 @@ func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 	} // TODO: Include other ports and build in a common way with service ports, etc. + Test
 }
 
+// TODO: test Build()
+
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
 		return optional.Empty[client.Object]()
