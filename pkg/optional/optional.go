@@ -2,8 +2,6 @@ package optional
 
 import "reflect"
 
-// TODO: IsNotEmpty
-
 type optional[T any] struct {
 	val T
 }
@@ -11,6 +9,10 @@ type optional[T any] struct {
 func (o *optional[T]) IsEmpty() bool {
 	valueOf := reflect.ValueOf(o.val)
 	return !valueOf.IsValid() || valueOf.IsZero()
+}
+
+func (o *optional[T]) IsNotEmpty() bool {
+	return !o.IsEmpty()
 }
 
 func (o *optional[T]) Get() T {
@@ -42,6 +44,7 @@ func (o *optional[T]) IfPresent(do func(val T)) {
 
 type Optional[T any] interface {
 	IsEmpty() bool
+	IsNotEmpty() bool
 	Get() T
 	GetOrDefault(val T) T
 	GetOrElse(func() T) T

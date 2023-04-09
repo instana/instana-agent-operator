@@ -12,6 +12,7 @@ func assertIsEmpty[T any](t *testing.T, opt Optional[T]) {
 	assertions := require.New(t)
 
 	assertions.True(opt.IsEmpty())
+	assertions.False(opt.IsNotEmpty())
 	assertions.Zero(opt.Get())
 }
 
@@ -19,6 +20,7 @@ func assertIsNotEmpty[T any](t *testing.T, opt Optional[T]) {
 	assertions := require.New(t)
 
 	assertions.False(opt.IsEmpty())
+	assertions.True(opt.IsNotEmpty())
 	assertions.NotZero(opt.Get())
 }
 

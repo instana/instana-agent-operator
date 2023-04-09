@@ -1,27 +1,31 @@
 package pointer
 
-import "github.com/instana/instana-agent-operator/pkg/optional"
-
 func To[T any](in T) *T {
 	return &in
 }
 
 func DerefOrEmpty[T any](in *T) T {
-	return optional.Map[*T, T](
-		optional.Of(in), func(in *T) T {
-			return *in
+	return DerefOrElse(
+		in, func() T {
+			var zero T
+			return zero
 		},
-	).Get()
+	)
 }
 
 func DerefOrDefault[T any](in *T, def T) T {
-	return *optional.Of(in).GetOrDefault(&def)
+	return DerefOrElse(
+		in, func() T {
+			return def
+		},
+	)
 }
 
 func DerefOrElse[T any](in *T, do func() T) T {
-	return *optional.Of(in).GetOrElse(
-		func() *T {
-			return To(do())
-		},
-	)
+	switch in {
+	case nil:
+		return do()
+	default:
+		return *in
+	}
 }
