@@ -44,7 +44,7 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Use Configmap as extra owner reference to track generational ownership in order to delete resources unused in subsequent generation?
 
 // TODO: ~~warning (error) if not expected name and namespace (and status/event?)~~ -> shouldn't be needed with helm uninstall logic below
-// TODO: Keep Helm uninstall step for migration -> Do this step iff (old) finalizer is present as this indicates upgrade, use a different finalizer from now on (if one is still needed)
+// TODO: Keep Helm uninstall step for migration -> Do this step iff (old) finalizer is present as this indicates upgrade, use a different finalizer from now on to track cluster-scoped resources
 // TODO: owned resources in controller watch
 // TODO: exponential backoff config
 // TODO: new ci build with all tests running + golangci lint, fix golangci settings
@@ -52,7 +52,7 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: status and events (+conditions?)
 // TODO: Update status as a defer in main reconcile function just above apply logic
 // TODO: extra auto detect OpenShift, auto set tolerations, etc.
-// TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels? Or just do it the "wrong" way?
+// TODO: finalizers to delete cluster-scoped resource types via deletecollection on labels?
 // TODO: Logger settings
 // TODO: Recovery somewhere?
 
