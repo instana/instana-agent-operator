@@ -9,12 +9,11 @@ import (
 )
 
 func fromCRField[T any](name string, val T) optional.Optional[corev1.EnvVar] {
-	providedVal := optional.Of(val)
 	return optional.Map(
-		providedVal, func(in T) corev1.EnvVar {
+		optional.Of(val), func(v T) corev1.EnvVar {
 			return corev1.EnvVar{
 				Name:  name,
-				Value: fmt.Sprintf("%v", providedVal.Get()),
+				Value: fmt.Sprintf("%v", v),
 			}
 		},
 	)
