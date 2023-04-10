@@ -39,7 +39,7 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 }
 
 // TODO: apply all function, basic controller tasks
-// TODO: then status later on, suite test
+// TODO: then status later on, suite test with crud including deprectaed resource removal
 // TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD) + deletecollection
 // TODO: Delete resources with previous gen label for all possible dependent types after successful apply
 
