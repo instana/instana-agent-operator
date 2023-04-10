@@ -41,6 +41,7 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: apply all function, basic controller tasks
 // TODO: then status later on, suite test
 // TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD)
+// TODO: Use Configmap as extra owner reference to track generational ownership in order to delete resources unused in subsequent generation?
 
 // TODO: ~~warning (error) if not expected name and namespace (and status/event?)~~ -> shouldn't be needed with helm uninstall logic below
 // TODO: Keep Helm uninstall step for migration -> Do this step iff (old) finalizer is present as this indicates upgrade, use a different finalizer from now on (if one is still needed)
@@ -68,3 +69,5 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: cert generation when available?
 // TODO: inline resource (pod, etc.) config options?
 // TODO: Network policy usage, etc?
+
+// TODO: Is multizone needed?
