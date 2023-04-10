@@ -2,6 +2,7 @@ package transformations
 
 import (
 	"os"
+	"strconv"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -21,9 +22,10 @@ var (
 
 // labels
 const (
-	NameLabel     = "app.kubernetes.io/name"
-	InstanceLabel = "app.kubernetes.io/instance"
-	VersionLabel  = "app.kubernetes.io/version"
+	NameLabel       = "app.kubernetes.io/name"
+	InstanceLabel   = "app.kubernetes.io/instance"
+	VersionLabel    = "app.kubernetes.io/version"
+	GenerationLabel = "agent.instana.io/generation"
 )
 
 type Transformations interface {
@@ -34,6 +36,7 @@ type Transformations interface {
 
 type transformations struct {
 	v1.OwnerReference
+	generation string
 }
 
 func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
@@ -46,6 +49,7 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
+		generation: strconv.Itoa(int(agent.Generation)),
 	}
 }
 
@@ -54,17 +58,31 @@ func (t *transformations) AddCommonLabelsToMap(
 	name string,
 	skipVersionLabel bool,
 ) map[string]string {
+	return t.addCommonLabelsToMap(labels, name, skipVersionLabel, optional.Empty[string]())
+}
+
+func (t *transformations) addCommonLabelsToMap(
+	labels map[string]string,
+	name string,
+	skipVersionLabel bool,
+	generation optional.Optional[string],
+) map[string]string {
 	labels[NameLabel] = "instana-agent"
 	labels[InstanceLabel] = name
 	if !skipVersionLabel {
 		labels[VersionLabel] = version
 	}
+	generation.IfPresent(
+		func(gen string) {
+			labels[GenerationLabel] = gen
+		},
+	)
 	return labels
 }
 
 func (t *transformations) AddCommonLabels(obj client.Object) {
-	labels := optional.Of(obj.GetLabels()).GetOrDefault(make(map[string]string, 3))
-	t.AddCommonLabelsToMap(labels, t.Name, false)
+	labels := optional.Of(obj.GetLabels()).GetOrDefault(make(map[string]string, 4))
+	t.addCommonLabelsToMap(labels, t.Name, false, optional.Of(t.generation))
 	obj.SetLabels(labels)
 }
 

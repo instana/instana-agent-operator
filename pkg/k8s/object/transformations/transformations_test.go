@@ -20,7 +20,8 @@ func TestAddCommonLabels(t *testing.T) {
 			NewTransformations(
 				&instanav1.InstanaAgent{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "asdf",
+						Name:       "asdf",
+						Generation: 3,
 					},
 				},
 			).AddCommonLabels(&obj)
@@ -29,9 +30,10 @@ func TestAddCommonLabels(t *testing.T) {
 
 			assertions.Equal(
 				map[string]string{
-					"app.kubernetes.io/name":     "instana-agent",
-					"app.kubernetes.io/instance": "asdf",
-					"app.kubernetes.io/version":  "v0.0.0",
+					"app.kubernetes.io/name":      "instana-agent",
+					"app.kubernetes.io/instance":  "asdf",
+					"app.kubernetes.io/version":   "v0.0.0",
+					"agent.instana.io/generation": "3",
 				}, obj.GetLabels(),
 			)
 		},
@@ -50,7 +52,8 @@ func TestAddCommonLabels(t *testing.T) {
 			NewTransformations(
 				&instanav1.InstanaAgent{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foo",
+						Name:       "foo",
+						Generation: 3,
 					},
 				},
 			).AddCommonLabels(&obj)
@@ -59,11 +62,12 @@ func TestAddCommonLabels(t *testing.T) {
 
 			assertions.Equal(
 				map[string]string{
-					"foo":                        "bar",
-					"hello":                      "world",
-					"app.kubernetes.io/name":     "instana-agent",
-					"app.kubernetes.io/instance": "foo",
-					"app.kubernetes.io/version":  "v0.0.0",
+					"foo":                         "bar",
+					"hello":                       "world",
+					"app.kubernetes.io/name":      "instana-agent",
+					"app.kubernetes.io/instance":  "foo",
+					"app.kubernetes.io/version":   "v0.0.0",
+					"agent.instana.io/generation": "3",
 				}, obj.GetLabels(),
 			)
 		},
