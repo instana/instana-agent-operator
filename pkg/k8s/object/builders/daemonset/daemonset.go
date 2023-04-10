@@ -34,7 +34,7 @@ type daemonSetBuilder struct {
 	helpers.Helpers
 }
 
-// TODO: Optional Zone configuration
+// TODO: Optional Zone configuration (one initialization per zone)
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) optional.Builder[client.Object] {
 	return &daemonSetBuilder{
@@ -155,7 +155,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: d.ServiceAccountName(),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
-					HostNetwork:        true,
+					HostNetwork:        true, // TODO: Test for ServiceEntry later
 					HostPID:            true,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
