@@ -15,6 +15,8 @@ import (
 type OperatorUtils interface {
 	ClusterIsOpenShift() result.Result[bool]
 	ApplyAll(objects []k8sclient.Object) result.Result[[]k8sclient.Object]
+	// TODO: Delete cluster-scoped for finalizer logic
+	// TODO: delete previous generation leftovers -> behavior of namespace restriction for cluster-scoped resources?
 }
 
 type operatorUtils struct {

@@ -21,6 +21,7 @@ type InstanaAgentClient interface {
 	GetAsResult(
 		ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
 	) ObjectResult
+	// TODO: Delete Collection
 }
 
 type instanaAgentClient struct {
