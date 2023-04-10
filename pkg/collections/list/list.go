@@ -40,7 +40,7 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 
 // TODO: apply all function, basic controller tasks
 // TODO: then status later on, suite test
-// TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD)
+// TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD) + deletecollection
 // TODO: Delete resources with previous gen label for all possible dependent types after successful apply
 
 // TODO: ~~warning (error) if not expected name and namespace (and status/event?)~~ -> shouldn't be needed with helm uninstall logic below
