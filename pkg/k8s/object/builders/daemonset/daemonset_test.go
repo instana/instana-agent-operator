@@ -472,7 +472,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	).(*daemonSetBuilder)
 	res := db.getEnvVars()
 
-	assertions.Len(res, 18+len(userProvidedEnv))
+	assertions.Len(res, 19+len(userProvidedEnv))
 }
 
 func TestDaemonSetBuilder_getResourceRequirements(t *testing.T) {

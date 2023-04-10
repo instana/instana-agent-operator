@@ -1,6 +1,8 @@
 package env
 
 import (
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -133,7 +135,16 @@ func PodIpEnv() optional.Optional[corev1.EnvVar] {
 	)
 }
 
-// Referencing Another Object Created by the Operator TODO
+// Referencing Another Object Created by the Operator
+
+func K8sServiceDomainEnv(agent *instanav1.InstanaAgent, helpers helpers.Helpers) optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name:  "K8S_SERVICE_DOMAIN",
+			Value: strings.Join([]string{helpers.HeadlessServiceName(), agent.Namespace, "svc"}, "."),
+		},
+	)
+}
 
 // From user-provided in CR
 

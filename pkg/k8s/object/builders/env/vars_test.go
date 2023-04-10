@@ -3,21 +3,16 @@ package env
 import (
 	"testing"
 
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
-
-	"github.com/instana/instana-agent-operator/pkg/collections/list"
-
 	"github.com/golang/mock/gomock"
-
-	"github.com/instana/instana-agent-operator/pkg/pointer"
-
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-
-	"github.com/stretchr/testify/require"
-
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func testCRFieldEnvVar(
@@ -389,5 +384,30 @@ func TestUserProvidedEnv(t *testing.T) {
 			},
 		},
 		actual,
+	)
+}
+
+func TestK8sServiceDomainEnv(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	hlprs := NewMockHelpers(ctrl)
+	hlprs.EXPECT().HeadlessServiceName().Return("roidilmsdgo")
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "goijesdlkvlk",
+		},
+	}
+
+	actual := K8sServiceDomainEnv(agent, hlprs)
+
+	assertions.Equal(
+		optional.Of(
+			corev1.EnvVar{
+				Name:  "K8S_SERVICE_DOMAIN",
+				Value: "roidilmsdgo.goijesdlkvlk.svc",
+			},
+		), actual,
 	)
 }
