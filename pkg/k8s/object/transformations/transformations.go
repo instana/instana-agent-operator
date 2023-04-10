@@ -32,6 +32,7 @@ type Transformations interface {
 	AddCommonLabels(obj client.Object)
 	AddOwnerReference(obj client.Object)
 	AddCommonLabelsToMap(labels map[string]string, name string, skipVersionLabel bool) map[string]string
+	// TODO: label selector for deletecollection on previous versions
 }
 
 type transformations struct {
@@ -49,7 +50,7 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
-		generation: strconv.Itoa(int(agent.Generation)),
+		generation: strconv.Itoa(int(agent.Generation)) + "_" + version,
 	}
 }
 

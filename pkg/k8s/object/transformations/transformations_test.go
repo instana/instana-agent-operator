@@ -33,7 +33,7 @@ func TestAddCommonLabels(t *testing.T) {
 					"app.kubernetes.io/name":      "instana-agent",
 					"app.kubernetes.io/instance":  "asdf",
 					"app.kubernetes.io/version":   "v0.0.0",
-					"agent.instana.io/generation": "3",
+					"agent.instana.io/generation": "3_v0.0.0",
 				}, obj.GetLabels(),
 			)
 		},
@@ -67,7 +67,7 @@ func TestAddCommonLabels(t *testing.T) {
 					"app.kubernetes.io/name":      "instana-agent",
 					"app.kubernetes.io/instance":  "foo",
 					"app.kubernetes.io/version":   "v0.0.0",
-					"agent.instana.io/generation": "3",
+					"agent.instana.io/generation": "3_v0.0.0",
 				}, obj.GetLabels(),
 			)
 		},
