@@ -34,7 +34,7 @@ type Create struct {
 
 type Enabled struct {
 	// +kubebuilder:validation:Optional
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // BaseAgentSpec defines the desired state info related to the running Agent
@@ -296,13 +296,13 @@ type KubernetesDeploymentSpec struct {
 
 type OpenTelemetry struct {
 	// Deprecated setting for backwards compatibility
-	Enabled `json:",inline"`
+	Enabled `json:",inline" yaml:",inline"`
 
 	// +kubebuilder:validation:Optional
-	GRPC *Enabled `json:"grpc,omitempty"`
+	GRPC *Enabled `json:"grpc,omitempty" yaml:"grpc,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	HTTP *Enabled `json:"http,omitempty"`
+	HTTP *Enabled `json:"http,omitempty" yaml:"http,omitempty"`
 }
 
 func (otlp OpenTelemetry) GrpcIsEnabled() bool {

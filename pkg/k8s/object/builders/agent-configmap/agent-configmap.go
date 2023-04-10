@@ -15,8 +15,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-// TODO: Test
-
 type agentConfigMapBuilder struct {
 	*instanav1.InstanaAgent
 }
@@ -42,7 +40,6 @@ func keyEqualsValue(key string, value string) string {
 	return key + "=" + value
 }
 
-// TODO: break apart
 func (a *agentConfigMapBuilder) getData() map[string]string {
 	res := make(map[string]string)
 
@@ -92,6 +89,7 @@ func (a *agentConfigMapBuilder) getData() map[string]string {
 			keyEqualsValue("host", backend.EndpointHost),
 			keyEqualsValue("port", optional.Of(backend.EndpointPort).GetOrDefault("443")),
 			keyEqualsValue("key", backend.Key),
+			keyEqualsValue("protocol", "HTTP/2"),
 		)
 
 		optional.Of(a.Spec.Agent.ProxyHost).IfPresent(
@@ -123,7 +121,7 @@ func (a *agentConfigMapBuilder) getData() map[string]string {
 			lines = append(lines, keyEqualsValue("proxyUseDNS", "true"))
 		}
 
-		res["additional-backend-"+strconv.Itoa(i)] = strings.Join(lines, "\n")
+		res["additional-backend-"+strconv.Itoa(i+2)] = strings.Join(lines, "\n")
 	}
 
 	return res
