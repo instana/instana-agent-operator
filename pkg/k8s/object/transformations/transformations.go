@@ -20,6 +20,7 @@ var (
 	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.0")
 )
 
+// TODO: Add and integrate Compoent label
 // labels
 const (
 	NameLabel       = "app.kubernetes.io/name"
@@ -28,6 +29,7 @@ const (
 	GenerationLabel = "agent.instana.io/generation"
 )
 
+// TODO Labeling needs cleanup
 type Transformations interface {
 	AddCommonLabels(obj client.Object)
 	AddOwnerReference(obj client.Object)
