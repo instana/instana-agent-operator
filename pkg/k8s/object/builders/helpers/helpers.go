@@ -15,6 +15,7 @@ type Helpers interface {
 	TLSIsEnabled() bool
 	TLSSecretName() string
 	HeadlessServiceName() string
+	K8sSensorResourcesName() string
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
@@ -44,6 +45,10 @@ func (h *helpers) TLSSecretName() string {
 
 func (h *helpers) HeadlessServiceName() string {
 	return h.Name + "-headless"
+}
+
+func (h *helpers) K8sSensorResourcesName() string {
+	return h.Name + "-k8sensor"
 }
 
 func NewHelpers(agent *v1.InstanaAgent) Helpers {

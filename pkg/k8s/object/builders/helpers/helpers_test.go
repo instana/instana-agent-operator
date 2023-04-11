@@ -263,3 +263,16 @@ func TestHelpers_HeadlessServiceName(t *testing.T) {
 	)
 	assertions.Equal("rhjaoijdsoijoidsf-headless", h.HeadlessServiceName())
 }
+
+func TestHelpers_K8sSensorResourcesName(t *testing.T) {
+	assertions := require.New(t)
+
+	h := NewHelpers(
+		&instanav1.InstanaAgent{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rhjaoijdsoijoidsf",
+			},
+		},
+	)
+	assertions.Equal("rhjaoijdsoijoidsf-k8sensor", h.K8sSensorResourcesName())
+}
