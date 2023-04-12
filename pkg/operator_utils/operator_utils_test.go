@@ -17,7 +17,6 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -134,18 +133,6 @@ func TestOperatorUtils_ClusterIsOpenShift(t *testing.T) {
 	)
 }
 
-func mockBuildersOf(ctrl *gomock.Controller, objects []k8sclient.Object) []builder.ObjectBuilder {
-	return list.NewListMapTo[k8sclient.Object, builder.ObjectBuilder]().MapTo(
-		objects,
-		func(obj k8sclient.Object) builder.ObjectBuilder {
-			bldr := NewMockObjectBuilder(ctrl)
-			bldr.EXPECT().Build().Return(optional.Of(obj))
-
-			return bldr
-		},
-	)
-}
-
 func TestOperatorUtils_ApplyAll(t *testing.T) {
 	cmError := errors.New("cm")
 	poError := errors.New("po")
@@ -251,7 +238,7 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				assertions := require.New(t)
 				ctrl := gomock.NewController(t)
 
-				objects := []k8sclient.Object{
+				expectedObjects := []k8sclient.Object{
 					&corev1.ConfigMap{},
 					&corev1.Pod{},
 					&appsv1.DaemonSet{},
@@ -263,12 +250,15 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				client := NewMockInstanaAgentClient(ctrl)
 				test.clientBehavior(ctx, client)
 
+				mockBuilders := make([]builder.ObjectBuilder, 0, len(expectedObjects))
+				for range expectedObjects {
+					mockBuilders = append(mockBuilders, NewMockObjectBuilder(ctrl))
+				}
+
 				builderTransformer := NewMockBuilderTransformer(ctrl)
-				builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
-					func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
-						return bldr.Build()
-					},
-				).Times(3)
+				for i, mockBuilder := range mockBuilders {
+					builderTransformer.EXPECT().Apply(mockBuilder).Return(optional.Of[k8sclient.Object](expectedObjects[i]))
+				}
 
 				ot := &operatorUtils{
 					ctx:                ctx,
@@ -277,8 +267,8 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 					builderTransformer: builderTransformer,
 				}
 
-				actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
-				assertions.Equal(objects, actualObjects)
+				actualObjects, actualError := ot.ApplyAll(mockBuilders).Get()
+				assertions.Equal(expectedObjects, actualObjects)
 				for _, expectedErr := range test.expectedErrors {
 					assertions.ErrorIs(actualError, expectedErr)
 				}
