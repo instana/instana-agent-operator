@@ -8,7 +8,6 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 )
@@ -23,17 +22,20 @@ func TestAddCommonLabels(t *testing.T) {
 						Name:       "asdf",
 						Generation: 3,
 					},
-				},
+				}, "eoisdijsdf",
 			).AddCommonLabels(&obj)
 
 			assertions := require.New(t)
 
 			assertions.Equal(
 				map[string]string{
-					"app.kubernetes.io/name":      "instana-agent",
-					"app.kubernetes.io/instance":  "asdf",
-					"app.kubernetes.io/version":   "v0.0.0",
-					"agent.instana.io/generation": "3_v0.0.0",
+					"app.kubernetes.io/name":       "instana-agent",
+					"app.kubernetes.io/component":  "eoisdijsdf",
+					"app.kubernetes.io/instance":   "asdf",
+					"app.kubernetes.io/version":    "v0.0.0",
+					"app.kubernetes.io/part-of":    "instana",
+					"app.kubernetes.io/managed-by": "instana-agent-operator",
+					"agent.instana.io/generation":  "v0.0.0-3",
 				}, obj.GetLabels(),
 			)
 		},
@@ -55,19 +57,22 @@ func TestAddCommonLabels(t *testing.T) {
 						Name:       "foo",
 						Generation: 3,
 					},
-				},
+				}, "roisoijdsf",
 			).AddCommonLabels(&obj)
 
 			assertions := require.New(t)
 
 			assertions.Equal(
 				map[string]string{
-					"foo":                         "bar",
-					"hello":                       "world",
-					"app.kubernetes.io/name":      "instana-agent",
-					"app.kubernetes.io/instance":  "foo",
-					"app.kubernetes.io/version":   "v0.0.0",
-					"agent.instana.io/generation": "3_v0.0.0",
+					"foo":                          "bar",
+					"hello":                        "world",
+					"app.kubernetes.io/name":       "instana-agent",
+					"app.kubernetes.io/component":  "roisoijdsf",
+					"app.kubernetes.io/instance":   "foo",
+					"app.kubernetes.io/version":    "v0.0.0",
+					"app.kubernetes.io/part-of":    "instana",
+					"app.kubernetes.io/managed-by": "instana-agent-operator",
+					"agent.instana.io/generation":  "v0.0.0-3",
 				}, obj.GetLabels(),
 			)
 		},
@@ -89,7 +94,7 @@ func TestAddOwnerReference(t *testing.T) {
 		"with_no_previous_references", func(t *testing.T) {
 			cm := v1.ConfigMap{}
 
-			NewTransformations(&agent).AddOwnerReference(&cm)
+			NewTransformations(&agent, "eoijsodf").AddOwnerReference(&cm)
 
 			assertions := require.New(t)
 
@@ -124,7 +129,7 @@ func TestAddOwnerReference(t *testing.T) {
 				},
 			}
 
-			NewTransformations(&agent).AddOwnerReference(&cm)
+			NewTransformations(&agent, "oiesoijdf").AddOwnerReference(&cm)
 
 			assertions := require.New(t)
 
@@ -140,73 +145,6 @@ func TestAddOwnerReference(t *testing.T) {
 						BlockOwnerDeletion: pointer.To(true),
 					},
 				}, cm.OwnerReferences,
-			)
-		},
-	)
-}
-
-func TestAddCommonLabelsToMap(t *testing.T) {
-	const name = "my-instance"
-	transformer := &transformations{}
-
-	t.Run(
-		"should add all common labels to an empty map", func(t *testing.T) {
-			labels := transformer.AddCommonLabelsToMap(map[string]string{}, name, false)
-			assert.Equal(
-				t, map[string]string{
-					NameLabel:     "instana-agent",
-					InstanceLabel: name,
-					VersionLabel:  version,
-				}, labels,
-			)
-		},
-	)
-
-	t.Run(
-		"should add only app name and instance name to an empty map if skipVersionLabel is true", func(t *testing.T) {
-			labels := transformer.AddCommonLabelsToMap(map[string]string{}, name, true)
-			assert.Equal(
-				t, map[string]string{
-					NameLabel:     "instana-agent",
-					InstanceLabel: name,
-				}, labels,
-			)
-		},
-	)
-
-	t.Run(
-		"should add all common labels to an existing map", func(t *testing.T) {
-			labels := map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			}
-			labels = transformer.AddCommonLabelsToMap(labels, name, false)
-			assert.Equal(
-				t, map[string]string{
-					"key1":        "value1",
-					"key2":        "value2",
-					NameLabel:     "instana-agent",
-					InstanceLabel: name,
-					VersionLabel:  version,
-				}, labels,
-			)
-		},
-	)
-
-	t.Run(
-		"should overwrite existing common labels", func(t *testing.T) {
-			labels := map[string]string{
-				NameLabel:     "my-app",
-				InstanceLabel: "my-instance",
-				VersionLabel:  "0.0.0",
-			}
-			labels = transformer.AddCommonLabelsToMap(labels, name, false)
-			assert.Equal(
-				t, map[string]string{
-					NameLabel:     "instana-agent",
-					InstanceLabel: name,
-					VersionLabel:  version,
-				}, labels,
 			)
 		},
 	)

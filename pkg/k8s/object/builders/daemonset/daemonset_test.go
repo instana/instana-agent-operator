@@ -6,49 +6,16 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
-
-func TestDaemonSetBuilder_getSelectorMatchLabels(t *testing.T) {
-	const name = "soijdfoijsfdoij"
-
-	ctrl := gomock.NewController(t)
-
-	expected := map[string]string{
-		"adsf":      "eroinsvd",
-		"osdgoiego": "rwuriunsv",
-		"e8uriunv":  "rrudsiu",
-	}
-
-	transform := NewMockTransformations(ctrl)
-	transform.EXPECT().AddCommonLabelsToMap(
-		gomock.Eq(map[string]string{}),
-		gomock.Eq(name),
-		gomock.Eq(true),
-	).Return(expected)
-
-	d := &daemonSetBuilder{
-		InstanaAgent: &instanav1.InstanaAgent{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
-		},
-		Transformations: transform,
-	}
-
-	actual := d.getSelectorMatchLabels()
-
-	assertions := require.New(t)
-
-	assertions.Equal(expected, actual)
-
-}
 
 func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 	t.Run(
@@ -64,15 +31,21 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 			}
 
 			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabelsToMap(
+			transform.EXPECT().AddCommonLabels(
 				gomock.Eq(
-					map[string]string{
-						"instana/agent-mode": string(instanav1.APM),
+					&v1.DaemonSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"instana/agent-mode": string(instanav1.APM),
+							},
+						},
 					},
 				),
-				gomock.Eq(name),
-				gomock.Eq(false),
-			).Return(expected)
+			).Do(
+				func(obj client.Object) {
+					obj.SetLabels(expected)
+				},
+			)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -103,15 +76,21 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 			}
 
 			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabelsToMap(
+			transform.EXPECT().AddCommonLabels(
 				gomock.Eq(
-					map[string]string{
-						"instana/agent-mode": string(instanav1.KUBERNETES),
+					&v1.DaemonSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"instana/agent-mode": string(instanav1.KUBERNETES),
+							},
+						},
 					},
 				),
-				gomock.Eq(name),
-				gomock.Eq(false),
-			).Return(expected)
+			).Do(
+				func(obj client.Object) {
+					obj.SetLabels(expected)
+				},
+			)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -147,17 +126,23 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 			}
 
 			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabelsToMap(
+			transform.EXPECT().AddCommonLabels(
 				gomock.Eq(
-					map[string]string{
-						"asdfasdf":           "eoisdgoinv",
-						"reoirionv":          "98458hgoisjdf",
-						"instana/agent-mode": string(instanav1.APM),
+					&v1.DaemonSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"asdfasdf":           "eoisdgoinv",
+								"reoirionv":          "98458hgoisjdf",
+								"instana/agent-mode": string(instanav1.APM),
+							},
+						},
 					},
 				),
-				gomock.Eq(name),
-				gomock.Eq(false),
-			).Return(expected)
+			).Do(
+				func(obj client.Object) {
+					obj.SetLabels(expected)
+				},
+			)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -198,17 +183,23 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 			}
 
 			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabelsToMap(
+			transform.EXPECT().AddCommonLabels(
 				gomock.Eq(
-					map[string]string{
-						"asdfasdf":           "eoisdgoinv",
-						"reoirionv":          "98458hgoisjdf",
-						"instana/agent-mode": string(instanav1.KUBERNETES),
+					&v1.DaemonSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"asdfasdf":           "eoisdgoinv",
+								"reoirionv":          "98458hgoisjdf",
+								"instana/agent-mode": string(instanav1.KUBERNETES),
+							},
+						},
 					},
 				),
-				gomock.Eq(name),
-				gomock.Eq(false),
-			).Return(expected)
+			).Do(
+				func(obj client.Object) {
+					obj.SetLabels(expected)
+				},
+			)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{

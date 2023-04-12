@@ -6,3 +6,9 @@ const (
 	ContainersInstanaIoSecretName = "containers-instana-io"
 	AgentAPIsPort                 = "agent-apis"
 )
+
+// components
+const (
+	ComponentInstanaAgent = "instana-agent"
+	K8SensorComponent     = "instana-agent-k8sensor"
+)

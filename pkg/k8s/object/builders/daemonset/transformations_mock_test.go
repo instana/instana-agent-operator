@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	labels "k8s.io/apimachinery/pkg/labels"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -46,20 +47,6 @@ func (mr *MockTransformationsMockRecorder) AddCommonLabels(obj interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCommonLabels", reflect.TypeOf((*MockTransformations)(nil).AddCommonLabels), obj)
 }
 
-// AddCommonLabelsToMap mocks base method.
-func (m *MockTransformations) AddCommonLabelsToMap(labels map[string]string, name string, skipVersionLabel bool) map[string]string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddCommonLabelsToMap", labels, name, skipVersionLabel)
-	ret0, _ := ret[0].(map[string]string)
-	return ret0
-}
-
-// AddCommonLabelsToMap indicates an expected call of AddCommonLabelsToMap.
-func (mr *MockTransformationsMockRecorder) AddCommonLabelsToMap(labels, name, skipVersionLabel interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCommonLabelsToMap", reflect.TypeOf((*MockTransformations)(nil).AddCommonLabelsToMap), labels, name, skipVersionLabel)
-}
-
 // AddOwnerReference mocks base method.
 func (m *MockTransformations) AddOwnerReference(obj client.Object) {
 	m.ctrl.T.Helper()
@@ -70,4 +57,32 @@ func (m *MockTransformations) AddOwnerReference(obj client.Object) {
 func (mr *MockTransformationsMockRecorder) AddOwnerReference(obj interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOwnerReference", reflect.TypeOf((*MockTransformations)(nil).AddOwnerReference), obj)
+}
+
+// GetPodSelectorLabels mocks base method.
+func (m *MockTransformations) GetPodSelectorLabels() map[string]string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPodSelectorLabels")
+	ret0, _ := ret[0].(map[string]string)
+	return ret0
+}
+
+// GetPodSelectorLabels indicates an expected call of GetPodSelectorLabels.
+func (mr *MockTransformationsMockRecorder) GetPodSelectorLabels() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockTransformations)(nil).GetPodSelectorLabels))
+}
+
+// PreviousGenerationsSelector mocks base method.
+func (m *MockTransformations) PreviousGenerationsSelector() labels.Selector {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PreviousGenerationsSelector")
+	ret0, _ := ret[0].(labels.Selector)
+	return ret0
+}
+
+// PreviousGenerationsSelector indicates an expected call of PreviousGenerationsSelector.
+func (mr *MockTransformationsMockRecorder) PreviousGenerationsSelector() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PreviousGenerationsSelector", reflect.TypeOf((*MockTransformations)(nil).PreviousGenerationsSelector))
 }

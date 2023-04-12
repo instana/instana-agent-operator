@@ -40,20 +40,24 @@ func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) option
 	return &daemonSetBuilder{
 		InstanaAgent:    agent,
 		isOpenShift:     isOpenshift,
-		Transformations: transformations.NewTransformations(agent),
+		Transformations: transformations.NewTransformations(agent, constants.ComponentInstanaAgent),
 		JsonHasher:      hash.NewJsonHasher(),
 		Helpers:         helpers.NewHelpers(agent),
 	}
 }
 
-func (d *daemonSetBuilder) getSelectorMatchLabels() map[string]string {
-	return d.AddCommonLabelsToMap(map[string]string{}, d.Name, true)
-}
-
 func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
 	podLabels["instana/agent-mode"] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
-	return d.AddCommonLabelsToMap(podLabels, d.Name, false)
+
+	holder := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: podLabels,
+		},
+	}
+	d.AddCommonLabels(holder)
+
+	return holder.Labels
 }
 
 func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
@@ -145,7 +149,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: d.getSelectorMatchLabels(),
+				MatchLabels: d.GetPodSelectorLabels(),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
