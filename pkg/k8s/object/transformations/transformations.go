@@ -14,7 +14,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-// TODO: Track list of cluster-scoped and namespace-scoped dependents + Forbid Create/Update/Patch if unregistered (possibly use runtime.Scheme for this)
+// TODO: Track list of cluster-scoped and namespace-scoped dependents (to cleanup deprecated resources) + Forbid Create/Update/Patch if unregistered (possibly use runtime.Scheme for this)
 
 var (
 	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.0")
