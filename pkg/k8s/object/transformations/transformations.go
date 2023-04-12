@@ -40,7 +40,6 @@ var (
 type Transformations interface {
 	AddCommonLabels(obj client.Object)
 	AddOwnerReference(obj client.Object)
-	GetPodSelectorLabels() map[string]string
 	PreviousGenerationsSelector() labels.Selector
 }
 
@@ -62,16 +61,6 @@ func (t *transformations) AddCommonLabels(obj client.Object) {
 	objLabels[GenerationLabel] = t.generation
 
 	obj.SetLabels(objLabels)
-}
-
-// TODO: Test
-
-func (t *transformations) GetPodSelectorLabels() map[string]string {
-	return map[string]string{
-		NameLabel:      name,
-		InstanceLabel:  t.Name,
-		ComponentLabel: t.component,
-	}
 }
 
 // TODO: Test

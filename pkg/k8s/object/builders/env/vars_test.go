@@ -364,7 +364,7 @@ func TestUserProvidedEnv(t *testing.T) {
 	)
 	actual := list.NewListMapTo[optional.Optional[corev1.EnvVar], corev1.EnvVar]().MapTo(
 		opts, func(builder optional.Optional[corev1.EnvVar]) corev1.EnvVar {
-			return builder.Get()
+			return builder.GetPodSelectorLabels()
 		},
 	)
 

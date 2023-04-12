@@ -30,6 +30,7 @@ type daemonSetBuilder struct {
 	isOpenShift bool
 
 	transformations.Transformations
+	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
 	helpers.Helpers
 }
@@ -38,11 +39,12 @@ type daemonSetBuilder struct {
 
 func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) optional.Builder[client.Object] {
 	return &daemonSetBuilder{
-		InstanaAgent:    agent,
-		isOpenShift:     isOpenshift,
-		Transformations: transformations.NewTransformations(agent, constants.ComponentInstanaAgent),
-		JsonHasher:      hash.NewJsonHasher(),
-		Helpers:         helpers.NewHelpers(agent),
+		InstanaAgent:              agent,
+		isOpenShift:               isOpenshift,
+		Transformations:           transformations.NewTransformations(agent, constants.ComponentInstanaAgent),
+		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, constants.ComponentInstanaAgent),
+		JsonHasher:                hash.NewJsonHasher(),
+		Helpers:                   helpers.NewHelpers(agent),
 	}
 }
 

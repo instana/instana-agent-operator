@@ -13,7 +13,7 @@ func assertIsEmpty[T any](t *testing.T, opt Optional[T]) {
 
 	assertions.True(opt.IsEmpty())
 	assertions.False(opt.IsNotEmpty())
-	assertions.Zero(opt.Get())
+	assertions.Zero(opt.GetPodSelectorLabels())
 }
 
 func assertIsNotEmpty[T any](t *testing.T, opt Optional[T]) {
@@ -21,7 +21,7 @@ func assertIsNotEmpty[T any](t *testing.T, opt Optional[T]) {
 
 	assertions.False(opt.IsEmpty())
 	assertions.True(opt.IsNotEmpty())
-	assertions.NotZero(opt.Get())
+	assertions.NotZero(opt.GetPodSelectorLabels())
 }
 
 func TestIsEmpty(t *testing.T) {
