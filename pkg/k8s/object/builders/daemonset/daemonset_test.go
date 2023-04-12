@@ -6,11 +6,9 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
@@ -30,22 +28,12 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 				"e8uriunv":  "rrudsiu",
 			}
 
-			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabels(
-				gomock.Eq(
-					&v1.DaemonSet{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"instana/agent-mode": string(instanav1.APM),
-							},
-						},
-					},
-				),
-			).Do(
-				func(obj client.Object) {
-					obj.SetLabels(expected)
+			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
+			podSelector.EXPECT().GetPodLabels(
+				map[string]string{
+					"instana/agent-mode": string(instanav1.APM),
 				},
-			)
+			).Return(expected)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -53,7 +41,7 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 						Name: name,
 					},
 				},
-				Transformations: transform,
+				PodSelectorLabelGenerator: podSelector,
 			}
 
 			actual := d.getPodTemplateLabels()
@@ -75,22 +63,12 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 				"e8uriunv":  "rrudsiu",
 			}
 
-			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabels(
-				gomock.Eq(
-					&v1.DaemonSet{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"instana/agent-mode": string(instanav1.KUBERNETES),
-							},
-						},
-					},
-				),
-			).Do(
-				func(obj client.Object) {
-					obj.SetLabels(expected)
+			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
+			podSelector.EXPECT().GetPodLabels(
+				map[string]string{
+					"instana/agent-mode": string(instanav1.KUBERNETES),
 				},
-			)
+			).Return(expected)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -103,7 +81,7 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 						},
 					},
 				},
-				Transformations: transform,
+				PodSelectorLabelGenerator: podSelector,
 			}
 
 			actual := d.getPodTemplateLabels()
@@ -125,24 +103,14 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 				"e8uriunv":  "rrudsiu",
 			}
 
-			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabels(
-				gomock.Eq(
-					&v1.DaemonSet{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"asdfasdf":           "eoisdgoinv",
-								"reoirionv":          "98458hgoisjdf",
-								"instana/agent-mode": string(instanav1.APM),
-							},
-						},
-					},
-				),
-			).Do(
-				func(obj client.Object) {
-					obj.SetLabels(expected)
+			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
+			podSelector.EXPECT().GetPodLabels(
+				map[string]string{
+					"asdfasdf":           "eoisdgoinv",
+					"reoirionv":          "98458hgoisjdf",
+					"instana/agent-mode": string(instanav1.APM),
 				},
-			)
+			).Return(expected)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -160,7 +128,7 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 						},
 					},
 				},
-				Transformations: transform,
+				PodSelectorLabelGenerator: podSelector,
 			}
 
 			actual := d.getPodTemplateLabels()
@@ -182,24 +150,14 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 				"e8uriunv":  "rrudsiu",
 			}
 
-			transform := NewMockTransformations(ctrl)
-			transform.EXPECT().AddCommonLabels(
-				gomock.Eq(
-					&v1.DaemonSet{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"asdfasdf":           "eoisdgoinv",
-								"reoirionv":          "98458hgoisjdf",
-								"instana/agent-mode": string(instanav1.KUBERNETES),
-							},
-						},
-					},
-				),
-			).Do(
-				func(obj client.Object) {
-					obj.SetLabels(expected)
+			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
+			podSelector.EXPECT().GetPodLabels(
+				map[string]string{
+					"asdfasdf":           "eoisdgoinv",
+					"reoirionv":          "98458hgoisjdf",
+					"instana/agent-mode": string(instanav1.KUBERNETES),
 				},
-			)
+			).Return(expected)
 
 			d := &daemonSetBuilder{
 				InstanaAgent: &instanav1.InstanaAgent{
@@ -218,7 +176,7 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 						},
 					},
 				},
-				Transformations: transform,
+				PodSelectorLabelGenerator: podSelector,
 			}
 
 			actual := d.getPodTemplateLabels()

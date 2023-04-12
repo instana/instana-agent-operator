@@ -47,14 +47,7 @@ func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
 	podLabels["instana/agent-mode"] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
 
-	holder := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: podLabels,
-		},
-	}
-	d.AddCommonLabels(holder)
-
-	return holder.Labels
+	return d.GetPodLabels(podLabels)
 }
 
 func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
@@ -206,7 +199,6 @@ func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) builde
 	return &daemonSetBuilder{
 		InstanaAgent:              agent,
 		isOpenShift:               isOpenshift,
-		Transformations:           transformations.NewTransformations(agent, constants.ComponentInstanaAgent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, constants.ComponentInstanaAgent),
 		JsonHasher:                hash.NewJsonHasher(),
 		Helpers:                   helpers.NewHelpers(agent),
