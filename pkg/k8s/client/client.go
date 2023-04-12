@@ -5,10 +5,6 @@ import (
 
 	"github.com/instana/instana-agent-operator/pkg/result"
 
-	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
-
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,15 +22,11 @@ type InstanaAgentClient interface {
 
 type instanaAgentClient struct {
 	k8sclient.Client
-	transformations.Transformations
 }
 
 func (c *instanaAgentClient) Apply(
 	ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption,
 ) result.Result[k8sclient.Object] {
-	c.AddCommonLabels(obj)
-	c.AddOwnerReference(obj)
-
 	return result.Of(
 		obj, c.Patch(
 			ctx,
@@ -51,9 +43,8 @@ func (c *instanaAgentClient) GetAsResult(
 	return result.Of(obj, c.Client.Get(ctx, key, obj, opts...))
 }
 
-func NewClient(k8sClient k8sclient.Client, agent *instanav1.InstanaAgent) InstanaAgentClient {
+func NewClient(k8sClient k8sclient.Client) InstanaAgentClient {
 	return &instanaAgentClient{
-		Client:          k8sClient,
-		Transformations: transformations.NewTransformations(agent),
+		Client: k8sClient,
 	}
 }

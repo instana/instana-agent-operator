@@ -15,7 +15,7 @@ func (o *optional[T]) IsNotEmpty() bool {
 	return !o.IsEmpty()
 }
 
-func (o *optional[T]) GetPodSelectorLabels() T {
+func (o *optional[T]) Get() T {
 	return o.val
 }
 
@@ -38,14 +38,14 @@ func (o *optional[T]) GetOrElse(f func() T) T {
 
 func (o *optional[T]) IfPresent(do func(val T)) {
 	if !o.IsEmpty() {
-		do(o.GetPodSelectorLabels())
+		do(o.Get())
 	}
 }
 
 type Optional[T any] interface {
 	IsEmpty() bool
 	IsNotEmpty() bool
-	GetPodSelectorLabels() T
+	Get() T
 	GetOrDefault(val T) T
 	GetOrElse(func() T) T
 	IfPresent(func(T))
@@ -66,6 +66,6 @@ func Map[T any, U any](in Optional[T], transform func(in T) U) Optional[U] {
 	case true:
 		return Empty[U]()
 	default:
-		return Of(transform(in.GetPodSelectorLabels()))
+		return Of(transform(in.Get()))
 	}
 }

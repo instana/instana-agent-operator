@@ -121,7 +121,7 @@ func (m *MockInstanaAgentClient) Get(ctx context.Context, key client0.ObjectKey,
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels", varargs...)
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -130,7 +130,7 @@ func (m *MockInstanaAgentClient) Get(ctx context.Context, key client0.ObjectKey,
 func (mr *MockInstanaAgentClientMockRecorder) Get(ctx, key, obj interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, key, obj}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockInstanaAgentClient)(nil).Get), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockInstanaAgentClient)(nil).Get), varargs...)
 }
 
 // GetAsResult mocks base method.

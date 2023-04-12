@@ -36,15 +36,15 @@ func (m *MockTransformations) EXPECT() *MockTransformationsMockRecorder {
 }
 
 // AddCommonLabels mocks base method.
-func (m *MockTransformations) AddCommonLabels(obj client.Object) {
+func (m *MockTransformations) AddCommonLabels(obj client.Object, component string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddCommonLabels", obj)
+	m.ctrl.Call(m, "AddCommonLabels", obj, component)
 }
 
 // AddCommonLabels indicates an expected call of AddCommonLabels.
-func (mr *MockTransformationsMockRecorder) AddCommonLabels(obj interface{}) *gomock.Call {
+func (mr *MockTransformationsMockRecorder) AddCommonLabels(obj, component interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCommonLabels", reflect.TypeOf((*MockTransformations)(nil).AddCommonLabels), obj)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCommonLabels", reflect.TypeOf((*MockTransformations)(nil).AddCommonLabels), obj, component)
 }
 
 // AddOwnerReference mocks base method.
@@ -57,20 +57,6 @@ func (m *MockTransformations) AddOwnerReference(obj client.Object) {
 func (mr *MockTransformationsMockRecorder) AddOwnerReference(obj interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOwnerReference", reflect.TypeOf((*MockTransformations)(nil).AddOwnerReference), obj)
-}
-
-// GetPodSelectorLabels mocks base method.
-func (m *MockTransformations) GetPodSelectorLabels() map[string]string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels")
-	ret0, _ := ret[0].(map[string]string)
-	return ret0
-}
-
-// GetPodSelectorLabels indicates an expected call of GetPodSelectorLabels.
-func (mr *MockTransformationsMockRecorder) GetPodSelectorLabels() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockTransformations)(nil).GetPodSelectorLabels))
 }
 
 // PreviousGenerationsSelector mocks base method.

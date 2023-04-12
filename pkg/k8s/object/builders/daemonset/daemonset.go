@@ -12,6 +12,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/hash"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
@@ -29,23 +30,17 @@ type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
 	isOpenShift bool
 
-	transformations.Transformations
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
 	helpers.Helpers
 }
 
-// TODO: Optional Zone configuration (one initialization per zone)
+func (d *daemonSetBuilder) ComponentName() string {
+	return constants.ComponentInstanaAgent
+}
 
-func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) optional.Builder[client.Object] {
-	return &daemonSetBuilder{
-		InstanaAgent:              agent,
-		isOpenShift:               isOpenshift,
-		Transformations:           transformations.NewTransformations(agent, constants.ComponentInstanaAgent),
-		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, constants.ComponentInstanaAgent),
-		JsonHasher:                hash.NewJsonHasher(),
-		Helpers:                   helpers.NewHelpers(agent),
-	}
+func (d *daemonSetBuilder) IsNamespaced() bool {
+	return true
 }
 
 func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
@@ -203,4 +198,17 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 		},
 	}
 	return optional.Of[client.Object](ds)
+}
+
+// TODO: Optional Zone configuration (one initialization per zone)
+
+func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) builder.ObjectBuilder {
+	return &daemonSetBuilder{
+		InstanaAgent:              agent,
+		isOpenShift:               isOpenshift,
+		Transformations:           transformations.NewTransformations(agent, constants.ComponentInstanaAgent),
+		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, constants.ComponentInstanaAgent),
+		JsonHasher:                hash.NewJsonHasher(),
+		Helpers:                   helpers.NewHelpers(agent),
+	}
 }

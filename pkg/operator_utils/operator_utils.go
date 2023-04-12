@@ -7,14 +7,17 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
+	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
 type OperatorUtils interface {
 	ClusterIsOpenShift() result.Result[bool]
-	ApplyAll(objects []k8sclient.Object) result.Result[[]k8sclient.Object]
+	ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object]
 	// TODO: Delete cluster-scoped for finalizer logic
 	// TODO: delete previous generation leftovers -> behavior of namespace restriction for cluster-scoped resources?
 }
@@ -23,6 +26,7 @@ type operatorUtils struct {
 	ctx context.Context
 	client.InstanaAgentClient
 	*instanav1.InstanaAgent
+	builderTransformer builder.BuilderTransformer
 }
 
 func NewOperatorUtils(
@@ -32,6 +36,7 @@ func NewOperatorUtils(
 		ctx:                ctx,
 		InstanaAgentClient: client,
 		InstanaAgent:       agent,
+		builderTransformer: builder.NewBuilderTransformer(agent),
 	}
 }
 
@@ -79,7 +84,16 @@ func (o *operatorUtils) applyAll(
 	return result.Of(objects, errBuilder.Build())
 }
 
-func (o *operatorUtils) ApplyAll(objects []k8sclient.Object) result.Result[[]k8sclient.Object] {
+func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
+	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
+		builders,
+		func(builder builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
+			return o.builderTransformer.Apply(builder)
+		},
+	)
+
+	objects := optional.NewNonEmptyOptionalMapper[k8sclient.Object]().AllNonEmpty(optionals)
+
 	switch res := o.applyAll(objects, k8sclient.DryRunAll); res.IsSuccess() {
 	case true:
 		return o.applyAll(objects)

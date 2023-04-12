@@ -17,6 +17,9 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
+	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
@@ -131,6 +134,18 @@ func TestOperatorUtils_ClusterIsOpenShift(t *testing.T) {
 	)
 }
 
+func mockBuildersOf(ctrl *gomock.Controller, objects []k8sclient.Object) []builder.ObjectBuilder {
+	return list.NewListMapTo[k8sclient.Object, builder.ObjectBuilder]().MapTo(
+		objects,
+		func(obj k8sclient.Object) builder.ObjectBuilder {
+			bldr := NewMockObjectBuilder(ctrl)
+			bldr.EXPECT().Build().Return(optional.Of(obj))
+
+			return bldr
+		},
+	)
+}
+
 func TestOperatorUtils_ApplyAll(t *testing.T) {
 	cmError := errors.New("cm")
 	poError := errors.New("po")
@@ -167,9 +182,21 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				gomock.Eq(k8sclient.DryRunAll),
 			).Return(result.OfFailure[k8sclient.Object](dsError))
 
-			ot := NewOperatorUtils(ctx, client, nil)
+			builderTransformer := NewMockBuilderTransformer(ctrl)
+			builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
+				func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
+					return bldr.Build()
+				},
+			).Times(3)
 
-			actualObjects, actualError := ot.ApplyAll(objects).Get()
+			ot := &operatorUtils{
+				ctx:                ctx,
+				InstanaAgentClient: client,
+				InstanaAgent:       nil,
+				builderTransformer: builderTransformer,
+			}
+
+			actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
 
 			assertions.Equal(objects, actualObjects)
 			assertions.ErrorIs(actualError, cmError)
@@ -222,9 +249,21 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				gomock.Eq(&appsv1.DaemonSet{}),
 			).Return(result.OfFailure[k8sclient.Object](dsError))
 
-			ot := NewOperatorUtils(ctx, client, nil)
+			builderTransformer := NewMockBuilderTransformer(ctrl)
+			builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
+				func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
+					return bldr.Build()
+				},
+			).Times(3)
 
-			actualObjects, actualError := ot.ApplyAll(objects).Get()
+			ot := &operatorUtils{
+				ctx:                ctx,
+				InstanaAgentClient: client,
+				InstanaAgent:       nil,
+				builderTransformer: builderTransformer,
+			}
+
+			actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
 
 			assertions.Equal(objects, actualObjects)
 			assertions.ErrorIs(actualError, cmError)
@@ -277,9 +316,21 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				gomock.Eq(&appsv1.DaemonSet{}),
 			).Return(result.OfSuccess[k8sclient.Object](nil))
 
-			ot := NewOperatorUtils(ctx, client, nil)
+			builderTransformer := NewMockBuilderTransformer(ctrl)
+			builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
+				func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
+					return bldr.Build()
+				},
+			).Times(3)
 
-			actualObjects, actualError := ot.ApplyAll(objects).Get()
+			ot := &operatorUtils{
+				ctx:                ctx,
+				InstanaAgentClient: client,
+				InstanaAgent:       nil,
+				builderTransformer: builderTransformer,
+			}
+
+			actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
 
 			assertions.Equal(objects, actualObjects)
 			assertions.ErrorIs(actualError, nil)

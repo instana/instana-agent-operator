@@ -38,7 +38,7 @@ var (
 )
 
 type Transformations interface {
-	AddCommonLabels(obj client.Object)
+	AddCommonLabels(obj client.Object, component string)
 	AddOwnerReference(obj client.Object)
 	PreviousGenerationsSelector() labels.Selector
 }
@@ -46,16 +46,15 @@ type Transformations interface {
 type transformations struct {
 	metav1.OwnerReference
 	generation string
-	component  string
 }
 
-func (t *transformations) AddCommonLabels(obj client.Object) {
+func (t *transformations) AddCommonLabels(obj client.Object, component string) {
 	objLabels := optional.Of(obj.GetLabels()).GetOrDefault(make(map[string]string, 7))
 
 	objLabels[NameLabel] = name
 	objLabels[InstanceLabel] = t.Name
 	objLabels[VersionLabel] = version
-	objLabels[ComponentLabel] = t.component
+	objLabels[ComponentLabel] = component
 	objLabels[PartOfLabel] = partOf
 	objLabels[ManagedByLabel] = managedBy
 	objLabels[GenerationLabel] = t.generation
@@ -99,10 +98,10 @@ func (t *transformations) AddOwnerReference(obj client.Object) {
 			obj.GetOwnerReferences(),
 			t.OwnerReference,
 		),
-	) // TODO: cluster-scoped resources
+	)
 }
 
-func NewTransformations(agent *instanav1.InstanaAgent, component string) Transformations {
+func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 	return &transformations{
 		OwnerReference: metav1.OwnerReference{
 			APIVersion:         agent.APIVersion,
@@ -113,6 +112,5 @@ func NewTransformations(agent *instanav1.InstanaAgent, component string) Transfo
 			BlockOwnerDeletion: pointer.To(true),
 		},
 		generation: version + "-" + strconv.Itoa(int(agent.Generation)),
-		component:  component,
 	}
 }

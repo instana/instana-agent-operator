@@ -98,7 +98,7 @@ func (m *MockReader) Get(ctx context.Context, key client.ObjectKey, obj client.O
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels", varargs...)
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -107,7 +107,7 @@ func (m *MockReader) Get(ctx context.Context, key client.ObjectKey, obj client.O
 func (mr *MockReaderMockRecorder) Get(ctx, key, obj interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, key, obj}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockReader)(nil).Get), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockReader)(nil).Get), varargs...)
 }
 
 // List mocks base method.
@@ -351,7 +351,7 @@ func (m *MockSubResourceReader) Get(ctx context.Context, obj, subResource client
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels", varargs...)
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -360,7 +360,7 @@ func (m *MockSubResourceReader) Get(ctx context.Context, obj, subResource client
 func (mr *MockSubResourceReaderMockRecorder) Get(ctx, obj, subResource interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, obj, subResource}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockSubResourceReader)(nil).Get), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSubResourceReader)(nil).Get), varargs...)
 }
 
 // MockSubResourceWriter is a mock of SubResourceWriter interface.
@@ -492,7 +492,7 @@ func (m *MockSubResourceClient) Get(ctx context.Context, obj, subResource client
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels", varargs...)
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -501,7 +501,7 @@ func (m *MockSubResourceClient) Get(ctx context.Context, obj, subResource client
 func (mr *MockSubResourceClientMockRecorder) Get(ctx, obj, subResource interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, obj, subResource}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockSubResourceClient)(nil).Get), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSubResourceClient)(nil).Get), varargs...)
 }
 
 // Patch mocks base method.
@@ -629,7 +629,7 @@ func (m *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.O
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels", varargs...)
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -638,7 +638,7 @@ func (m *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.O
 func (mr *MockClientMockRecorder) Get(ctx, key, obj interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, key, obj}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockClient)(nil).Get), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockClient)(nil).Get), varargs...)
 }
 
 // List mocks base method.
@@ -841,7 +841,7 @@ func (m *MockWithWatch) Get(ctx context.Context, key client.ObjectKey, obj clien
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetPodSelectorLabels", varargs...)
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -850,7 +850,7 @@ func (m *MockWithWatch) Get(ctx context.Context, key client.ObjectKey, obj clien
 func (mr *MockWithWatchMockRecorder) Get(ctx, key, obj interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, key, obj}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodSelectorLabels", reflect.TypeOf((*MockWithWatch)(nil).Get), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockWithWatch)(nil).Get), varargs...)
 }
 
 // List mocks base method.

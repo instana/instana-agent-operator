@@ -129,7 +129,7 @@ var _ = Describe(
 		//
 		//		// We'll need to retry getting this newly created InstanaAgent, given that creation may not immediately happen.
 		//		Eventually(func() bool {
-		//			err := k8sClient.GetPodSelectorLabels(ctx, agentOperatorLookupKey, createdAgentOperator)
+		//			err := k8sClient.Get(ctx, agentOperatorLookupKey, createdAgentOperator)
 		//			return err == nil
 		//		}, timeout, interval).Should(BeTrue())
 		//		// Let's make sure our Schedule string value was properly converted/handled.
@@ -137,7 +137,7 @@ var _ = Describe(
 		//
 		//		By("By checking the Status updated")
 		//		Eventually(func() (bool, error) {
-		//			err := k8sClient.GetPodSelectorLabels(ctx, agentOperatorLookupKey, createdAgentOperator)
+		//			err := k8sClient.Get(ctx, agentOperatorLookupKey, createdAgentOperator)
 		//			if err != nil {
 		//				return false, err
 		//			}
@@ -148,7 +148,7 @@ var _ = Describe(
 		//		agentDaemonSetKey := types.NamespacedName{Name: "instana-agent", Namespace: ns.Name}
 		//		agentDaemonSet := &appsv1.DaemonSet{}
 		//		Eventually(func() bool {
-		//			err := k8sClient.GetPodSelectorLabels(ctx, agentDaemonSetKey, agentDaemonSet)
+		//			err := k8sClient.Get(ctx, agentDaemonSetKey, agentDaemonSet)
 		//			return err == nil
 		//		}, timeout, interval).Should(BeTrue())
 		//		// Let's make sure our Schedule string value was properly converted/handled.
@@ -159,7 +159,7 @@ var _ = Describe(
 		//		}))
 		//
 		//		Consistently(func() (string, error) {
-		//			err := k8sClient.GetPodSelectorLabels(ctx, agentOperatorLookupKey, createdAgentOperator)
+		//			err := k8sClient.Get(ctx, agentOperatorLookupKey, createdAgentOperator)
 		//			if err != nil {
 		//				return "", err
 		//			}

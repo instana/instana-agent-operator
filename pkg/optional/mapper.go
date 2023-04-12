@@ -27,7 +27,7 @@ func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []Optional[T]) []T {
 
 	return o.MapTo(
 		withoutEmpties, func(val Optional[T]) T {
-			return val.GetPodSelectorLabels()
+			return val.Get()
 		},
 	)
 }

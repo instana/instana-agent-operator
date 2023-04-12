@@ -33,13 +33,8 @@ func TestInstanaAgentClient_Apply(t *testing.T) {
 		gomock.Eq(append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))),
 	).Times(1).Return(expectedErr)
 
-	mockTransformations := NewMockTransformations(ctrl)
-	mockTransformations.EXPECT().AddCommonLabels(gomock.Eq(&cm)).Times(1)
-	mockTransformations.EXPECT().AddOwnerReference(gomock.Eq(&cm)).Times(1)
-
 	client := instanaAgentClient{
-		Client:          mockK8sClient,
-		Transformations: mockTransformations,
+		Client: mockK8sClient,
 	}
 
 	actualVal, actualErr := client.Apply(ctx, &cm, opts...).Get()
@@ -80,10 +75,8 @@ func TestInstanaAgentClient_GetAsResult(t *testing.T) {
 		gomock.Eq(opts),
 	).Return(errors.New("foo"))
 
-	mockTransformations := NewMockTransformations(ctrl)
 	client := instanaAgentClient{
-		Client:          mockK8sClient,
-		Transformations: mockTransformations,
+		Client: mockK8sClient,
 	}
 
 	actual := client.GetAsResult(ctx, key, obj, opts, opts)

@@ -22,8 +22,8 @@ func TestAddCommonLabels(t *testing.T) {
 						Name:       "asdf",
 						Generation: 3,
 					},
-				}, "eoisdijsdf",
-			).AddCommonLabels(&obj)
+				},
+			).AddCommonLabels(&obj, "eoisdijsdf")
 
 			assertions := require.New(t)
 
@@ -57,8 +57,8 @@ func TestAddCommonLabels(t *testing.T) {
 						Name:       "foo",
 						Generation: 3,
 					},
-				}, "roisoijdsf",
-			).AddCommonLabels(&obj)
+				},
+			).AddCommonLabels(&obj, "roisoijdsf")
 
 			assertions := require.New(t)
 
@@ -94,7 +94,7 @@ func TestAddOwnerReference(t *testing.T) {
 		"with_no_previous_references", func(t *testing.T) {
 			cm := v1.ConfigMap{}
 
-			NewTransformations(&agent, "eoijsodf").AddOwnerReference(&cm)
+			NewTransformations(&agent).AddOwnerReference(&cm)
 
 			assertions := require.New(t)
 
@@ -129,7 +129,7 @@ func TestAddOwnerReference(t *testing.T) {
 				},
 			}
 
-			NewTransformations(&agent, "oiesoijdf").AddOwnerReference(&cm)
+			NewTransformations(&agent).AddOwnerReference(&cm)
 
 			assertions := require.New(t)
 

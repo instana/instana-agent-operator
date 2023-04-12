@@ -32,7 +32,7 @@ func testHostLiteralVolume(
 				},
 			},
 		},
-		VolumeWithMountOpt.GetPodSelectorLabels().Volume,
+		VolumeWithMountOpt.Get().Volume,
 	)
 	assertions.Equal(
 		corev1.VolumeMount{
@@ -40,7 +40,7 @@ func testHostLiteralVolume(
 			MountPath:        expected.path,
 			MountPropagation: expected.MountPropagationMode,
 		},
-		VolumeWithMountOpt.GetPodSelectorLabels().VolumeMount,
+		VolumeWithMountOpt.Get().VolumeMount,
 	)
 }
 
