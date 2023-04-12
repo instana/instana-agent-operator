@@ -138,96 +138,50 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 	poError := errors.New("po")
 	dsError := errors.New("ds")
 
+	allErrors := []error{cmError, poError, dsError}
+
 	for _, test := range []struct {
 		name           string
-		clientBehavior func(ctx context.Context, client *MockInstanaAgentClient)
+		clientBehavior func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int)
 		expectedErrors []error
 	}{
 		{
 			name: "dry_run_errors",
-			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient) {
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int) {
 				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.ConfigMap{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfFailure[k8sclient.Object](cmError))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.Pod{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfFailure[k8sclient.Object](poError))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&appsv1.DaemonSet{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfFailure[k8sclient.Object](dsError))
+					ctx,
+					obj,
+					k8sclient.DryRunAll,
+				).Return(result.OfFailure[k8sclient.Object](allErrors[i]))
 			},
-			expectedErrors: []error{cmError, poError, dsError},
+			expectedErrors: allErrors,
 		},
 		{
 			name: "cluster_persist_errors",
-			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient) {
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int) {
 				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.ConfigMap{}),
-					gomock.Eq(k8sclient.DryRunAll),
+					ctx,
+					obj,
+					k8sclient.DryRunAll,
 				).Return(result.OfSuccess[k8sclient.Object](nil))
 				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.Pod{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfSuccess[k8sclient.Object](nil))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&appsv1.DaemonSet{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfSuccess[k8sclient.Object](nil))
-
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.ConfigMap{}),
-				).Return(result.OfFailure[k8sclient.Object](cmError))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.Pod{}),
-				).Return(result.OfFailure[k8sclient.Object](poError))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&appsv1.DaemonSet{}),
-				).Return(result.OfFailure[k8sclient.Object](dsError))
+					ctx,
+					obj,
+				).Return(result.OfFailure[k8sclient.Object](allErrors[i]))
 			},
-			expectedErrors: []error{cmError, poError, dsError},
+			expectedErrors: allErrors,
 		},
 		{
 			name: "succeeds",
-			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient) {
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int) {
 				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.ConfigMap{}),
-					gomock.Eq(k8sclient.DryRunAll),
+					ctx,
+					obj,
+					k8sclient.DryRunAll,
 				).Return(result.OfSuccess[k8sclient.Object](nil))
 				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.Pod{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfSuccess[k8sclient.Object](nil))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&appsv1.DaemonSet{}),
-					gomock.Eq(k8sclient.DryRunAll),
-				).Return(result.OfSuccess[k8sclient.Object](nil))
-
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.ConfigMap{}),
-				).Return(result.OfSuccess[k8sclient.Object](nil))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&corev1.Pod{}),
-				).Return(result.OfSuccess[k8sclient.Object](nil))
-				client.EXPECT().Apply(
-					gomock.Eq(ctx),
-					gomock.Eq(&appsv1.DaemonSet{}),
+					ctx,
+					obj,
 				).Return(result.OfSuccess[k8sclient.Object](nil))
 			},
 			expectedErrors: []error{nil},
@@ -248,7 +202,9 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				defer cancel()
 
 				client := NewMockInstanaAgentClient(ctrl)
-				test.clientBehavior(ctx, client)
+				for i, obj := range expectedObjects {
+					test.clientBehavior(ctx, client, obj, i)
+				}
 
 				mockBuilders := make([]builder.ObjectBuilder, 0, len(expectedObjects))
 				for range expectedObjects {
