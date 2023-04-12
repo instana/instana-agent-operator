@@ -151,189 +151,138 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 	poError := errors.New("po")
 	dsError := errors.New("ds")
 
-	t.Run(
-		"dry_run_errors", func(t *testing.T) {
-			assertions := require.New(t)
-			ctrl := gomock.NewController(t)
-
-			objects := []k8sclient.Object{
-				&corev1.ConfigMap{},
-				&corev1.Pod{},
-				&appsv1.DaemonSet{},
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			client := NewMockInstanaAgentClient(ctrl)
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.ConfigMap{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfFailure[k8sclient.Object](cmError))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.Pod{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfFailure[k8sclient.Object](poError))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&appsv1.DaemonSet{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfFailure[k8sclient.Object](dsError))
-
-			builderTransformer := NewMockBuilderTransformer(ctrl)
-			builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
-				func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
-					return bldr.Build()
-				},
-			).Times(3)
-
-			ot := &operatorUtils{
-				ctx:                ctx,
-				InstanaAgentClient: client,
-				InstanaAgent:       nil,
-				builderTransformer: builderTransformer,
-			}
-
-			actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
-
-			assertions.Equal(objects, actualObjects)
-			assertions.ErrorIs(actualError, cmError)
-			assertions.ErrorIs(actualError, poError)
-			assertions.ErrorIs(actualError, dsError)
+	for _, test := range []struct {
+		name           string
+		clientBehavior func(ctx context.Context, client *MockInstanaAgentClient)
+		expectedErrors []error
+	}{
+		{
+			name: "dry_run_errors",
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient) {
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.ConfigMap{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfFailure[k8sclient.Object](cmError))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.Pod{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfFailure[k8sclient.Object](poError))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&appsv1.DaemonSet{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfFailure[k8sclient.Object](dsError))
+			},
+			expectedErrors: []error{cmError, poError, dsError},
 		},
-	)
-	t.Run(
-		"cluster_persist_errors", func(t *testing.T) {
-			assertions := require.New(t)
-			ctrl := gomock.NewController(t)
+		{
+			name: "cluster_persist_errors",
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient) {
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.ConfigMap{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.Pod{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&appsv1.DaemonSet{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
 
-			objects := []k8sclient.Object{
-				&corev1.ConfigMap{},
-				&corev1.Pod{},
-				&appsv1.DaemonSet{},
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			client := NewMockInstanaAgentClient(ctrl)
-
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.ConfigMap{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.Pod{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&appsv1.DaemonSet{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.ConfigMap{}),
-			).Return(result.OfFailure[k8sclient.Object](cmError))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.Pod{}),
-			).Return(result.OfFailure[k8sclient.Object](poError))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&appsv1.DaemonSet{}),
-			).Return(result.OfFailure[k8sclient.Object](dsError))
-
-			builderTransformer := NewMockBuilderTransformer(ctrl)
-			builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
-				func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
-					return bldr.Build()
-				},
-			).Times(3)
-
-			ot := &operatorUtils{
-				ctx:                ctx,
-				InstanaAgentClient: client,
-				InstanaAgent:       nil,
-				builderTransformer: builderTransformer,
-			}
-
-			actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
-
-			assertions.Equal(objects, actualObjects)
-			assertions.ErrorIs(actualError, cmError)
-			assertions.ErrorIs(actualError, poError)
-			assertions.ErrorIs(actualError, dsError)
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.ConfigMap{}),
+				).Return(result.OfFailure[k8sclient.Object](cmError))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.Pod{}),
+				).Return(result.OfFailure[k8sclient.Object](poError))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&appsv1.DaemonSet{}),
+				).Return(result.OfFailure[k8sclient.Object](dsError))
+			},
+			expectedErrors: []error{cmError, poError, dsError},
 		},
-	)
-	t.Run(
-		"success", func(t *testing.T) {
-			assertions := require.New(t)
-			ctrl := gomock.NewController(t)
+		{
+			name: "succeeds",
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient) {
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.ConfigMap{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.Pod{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&appsv1.DaemonSet{}),
+					gomock.Eq(k8sclient.DryRunAll),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
 
-			objects := []k8sclient.Object{
-				&corev1.ConfigMap{},
-				&corev1.Pod{},
-				&appsv1.DaemonSet{},
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			client := NewMockInstanaAgentClient(ctrl)
-
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.ConfigMap{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.Pod{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&appsv1.DaemonSet{}),
-				gomock.Eq(k8sclient.DryRunAll),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.ConfigMap{}),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&corev1.Pod{}),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-			client.EXPECT().Apply(
-				gomock.Eq(ctx),
-				gomock.Eq(&appsv1.DaemonSet{}),
-			).Return(result.OfSuccess[k8sclient.Object](nil))
-
-			builderTransformer := NewMockBuilderTransformer(ctrl)
-			builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
-				func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
-					return bldr.Build()
-				},
-			).Times(3)
-
-			ot := &operatorUtils{
-				ctx:                ctx,
-				InstanaAgentClient: client,
-				InstanaAgent:       nil,
-				builderTransformer: builderTransformer,
-			}
-
-			actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
-
-			assertions.Equal(objects, actualObjects)
-			assertions.ErrorIs(actualError, nil)
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.ConfigMap{}),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&corev1.Pod{}),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					gomock.Eq(ctx),
+					gomock.Eq(&appsv1.DaemonSet{}),
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+			},
+			expectedErrors: []error{nil},
 		},
-	)
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+				ctrl := gomock.NewController(t)
+
+				objects := []k8sclient.Object{
+					&corev1.ConfigMap{},
+					&corev1.Pod{},
+					&appsv1.DaemonSet{},
+				}
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				client := NewMockInstanaAgentClient(ctrl)
+				test.clientBehavior(ctx, client)
+
+				builderTransformer := NewMockBuilderTransformer(ctrl)
+				builderTransformer.EXPECT().Apply(gomock.Any()).DoAndReturn(
+					func(bldr builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
+						return bldr.Build()
+					},
+				).Times(3)
+
+				ot := &operatorUtils{
+					ctx:                ctx,
+					InstanaAgentClient: client,
+					InstanaAgent:       nil,
+					builderTransformer: builderTransformer,
+				}
+
+				actualObjects, actualError := ot.ApplyAll(mockBuildersOf(ctrl, objects)).Get()
+				assertions.Equal(objects, actualObjects)
+				for _, expectedErr := range test.expectedErrors {
+					assertions.ErrorIs(actualError, expectedErr)
+				}
+			},
+		)
+	}
 }
