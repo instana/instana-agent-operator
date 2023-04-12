@@ -42,6 +42,7 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: then status later on, suite test with crud including deprectaed resource removal
 // TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD) + deletecollection
 // TODO: Delete resources with previous gen label for all possible dependent types after successful apply
+// TODO: Cleanup tests
 
 // TODO: ~~warning (error) if not expected name and namespace (and status/event?)~~ -> shouldn't be needed with helm uninstall logic below
 // TODO: Keep Helm uninstall step for migration -> Do this step iff (old) finalizer is present as this indicates upgrade, use a different finalizer from now on to track cluster-scoped resources

@@ -15,6 +15,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
+// TODO: Cleanup these and tests in other files
+
 func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 	t.Run(
 		"agent_mode_unset", func(t *testing.T) {
