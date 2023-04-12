@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,6 +20,14 @@ func TestRbacBaseBuilder_Build(t *testing.T) {
 				fmt.Sprintf("isOpenShift=%v_rbacCreateSetByUser=%v", isOpenShift, rbacCreateSetByUser),
 				func(t *testing.T) {
 					assertions := require.New(t)
+					ctrl := gomock.NewController(t)
+
+					shouldCallChild := isOpenShift || rbacCreateSetByUser
+
+					mockBuilder := NewMockObjectBuilder(ctrl)
+					if shouldCallChild {
+						mockBuilder.EXPECT().Build().Return(optional.Of[client.Object](&corev1.ConfigMap{}))
+					}
 
 					rbacBuilder := newRbacBuilder(
 						&instanav1.InstanaAgent{
@@ -27,12 +36,12 @@ func TestRbacBaseBuilder_Build(t *testing.T) {
 									Create: rbacCreateSetByUser,
 								},
 							},
-						}, isOpenShift, optional.BuilderFromLiteral[client.Object](&corev1.ConfigMap{}),
+						}, isOpenShift, mockBuilder,
 					)
 
 					actual := rbacBuilder.Build()
 
-					switch isOpenShift || rbacCreateSetByUser {
+					switch shouldCallChild {
 					case true:
 						assertions.Equal(optional.Of[client.Object](&corev1.ConfigMap{}), actual)
 					default:

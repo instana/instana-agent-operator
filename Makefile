@@ -233,5 +233,6 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/volume/helpers_mock_test.go --package volume
 	mockgen --source ./pkg/k8s/client/client.go --destination ./pkg/operator_utils/instana_agent_client_mock_test.go --package operator_utils
 	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/operator_utils/builder_mock_test.go --package operator_utils
+	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/k8s/object/builders/rbac/builder_mock_test.go --package rbac
 
 

@@ -10,5 +10,5 @@ const (
 // components
 const (
 	ComponentInstanaAgent = "instana-agent"
-	K8SensorComponent     = "instana-agent-k8sensor"
+	ComponentK8Sensor     = "instana-agent-k8sensor"
 )

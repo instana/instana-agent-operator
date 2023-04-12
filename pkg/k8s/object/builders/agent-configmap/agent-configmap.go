@@ -10,6 +10,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/or_die"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -19,10 +21,12 @@ type agentConfigMapBuilder struct {
 	*instanav1.InstanaAgent
 }
 
-func NewAgentConfigMapBuilder(agent *instanav1.InstanaAgent) optional.Builder[client.Object] {
-	return &agentConfigMapBuilder{
-		InstanaAgent: agent,
-	}
+func (a *agentConfigMapBuilder) ComponentName() string {
+	return constants.ComponentInstanaAgent
+}
+
+func (a *agentConfigMapBuilder) IsNamespaced() bool {
+	return true
 }
 
 func yamlOrDie(obj any) string {
@@ -142,4 +146,10 @@ func (a *agentConfigMapBuilder) Build() optional.Optional[client.Object] {
 			Data: a.getData(),
 		},
 	)
+}
+
+func NewAgentConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &agentConfigMapBuilder{
+		InstanaAgent: agent,
+	}
 }
