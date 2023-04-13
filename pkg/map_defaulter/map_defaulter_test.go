@@ -7,24 +7,37 @@ import (
 )
 
 func TestMapDefaulter_SetIfEmpty(t *testing.T) {
-	t.Run(
-		"sets_default", func(t *testing.T) {
-			assertions := require.New(t)
-
-			var m map[string]interface{} = nil
-
-			NewMapDefaulter(&m).SetIfEmpty("hello", "world")
-			assertions.Equal("world", m["hello"])
+	for _, tc := range []struct {
+		name     string
+		input    map[string]interface{}
+		key      string
+		value    interface{}
+		expected interface{}
+	}{
+		{
+			name:     "sets_default",
+			input:    nil,
+			key:      "hello",
+			value:    "world",
+			expected: "world",
 		},
-	)
-	t.Run(
-		"already_set", func(t *testing.T) {
-			assertions := require.New(t)
-
-			m := map[string]interface{}{"hello": "goodbye"}
-
-			NewMapDefaulter(&m).SetIfEmpty("hello", "world")
-			assertions.Equal("goodbye", m["hello"])
+		{
+			name:     "already_set",
+			input:    map[string]interface{}{"hello": "goodbye"},
+			key:      "hello",
+			value:    "world",
+			expected: "goodbye",
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				m := tc.input
+
+				NewMapDefaulter(&m).SetIfEmpty(tc.key, tc.value)
+				assertions.Equal(tc.expected, m[tc.key])
+			},
+		)
+	}
 }
