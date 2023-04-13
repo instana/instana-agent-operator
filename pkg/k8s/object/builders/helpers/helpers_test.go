@@ -191,41 +191,49 @@ func TestHelpers_TLSIsEnabled(t *testing.T) {
 }
 
 func TestHelpers_TLSSecretName(t *testing.T) {
-	t.Run(
-		"secret_name_set_explicitly", func(t *testing.T) {
-			assertions := require.New(t)
-
-			h := NewHelpers(
-				&instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "oioijsdjdsf",
-					},
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							TlsSpec: instanav1.TlsSpec{
-								SecretName: "prpojdg",
-							},
+	for _, tc := range []struct {
+		name       string
+		agent      *instanav1.InstanaAgent
+		wantSecret string
+	}{
+		{
+			name: "secret_name_set_explicitly",
+			agent: &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "oioijsdjdsf",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						TlsSpec: instanav1.TlsSpec{
+							SecretName: "prpojdg",
 						},
 					},
 				},
-			)
-			assertions.Equal("prpojdg", h.TLSSecretName())
+			},
+			wantSecret: "prpojdg",
 		},
-	)
-	t.Run(
-		"secret_name_not_set_explicitly", func(t *testing.T) {
-			assertions := require.New(t)
-
-			h := NewHelpers(
-				&instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "risoijsdgljs",
-					},
+		{
+			name: "secret_name_not_set_explicitly",
+			agent: &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "risoijsdgljs",
 				},
-			)
-			assertions.Equal("risoijsdgljs-tls", h.TLSSecretName())
+			},
+			wantSecret: "risoijsdgljs-tls",
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				h := NewHelpers(tc.agent)
+
+				gotSecret := h.TLSSecretName()
+
+				assertions.Equal(tc.wantSecret, gotSecret)
+			},
+		)
+	}
 }
 
 func TestHelpers_HeadlessServiceName(t *testing.T) {
