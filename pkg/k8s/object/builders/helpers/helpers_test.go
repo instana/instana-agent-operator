@@ -9,91 +9,71 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 )
 
-func TestServiceAccountName(t *testing.T) {
-
-	t.Run(
-		"ServiceAccount name is set in spec", func(t *testing.T) {
-			assertions := require.New(t)
-
-			const expected = "0wegoijsdgo"
-
-			h := NewHelpers(
-				&instanav1.InstanaAgent{
-					Spec: instanav1.InstanaAgentSpec{
-						ServiceAccountSpec: instanav1.ServiceAccountSpec{
-							Name: instanav1.Name{
-								Name: expected,
-							},
+func TestHelpers_ServiceAccountName(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		agent *instanav1.InstanaAgent
+		want  string
+	}{
+		{
+			name: "ServiceAccount name is set in spec",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					ServiceAccountSpec: instanav1.ServiceAccountSpec{
+						Name: instanav1.Name{
+							Name: "0wegoijsdgo",
 						},
 					},
 				},
-			)
-
-			assertions.Equal(expected, h.ServiceAccountName())
+			},
+			want: "0wegoijsdgo",
 		},
-	)
-
-	t.Run(
-		"ServiceAccount name is set in spec and create is true", func(t *testing.T) {
-			assertions := require.New(t)
-
-			const expected = "erhpoijsg94"
-
-			h := NewHelpers(
-				&instanav1.InstanaAgent{
-					Spec: instanav1.InstanaAgentSpec{
-						ServiceAccountSpec: instanav1.ServiceAccountSpec{
-							Name: instanav1.Name{
-								Name: expected,
-							},
-							Create: instanav1.Create{
-								Create: true,
-							},
+		{
+			name: "ServiceAccount name is set in spec and create is true",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					ServiceAccountSpec: instanav1.ServiceAccountSpec{
+						Name: instanav1.Name{
+							Name: "erhpoijsg94",
+						},
+						Create: instanav1.Create{
+							Create: true,
 						},
 					},
 				},
-			)
-
-			assertions.Equal(expected, h.ServiceAccountName())
+			},
+			want: "erhpoijsg94",
 		},
-	)
-
-	t.Run(
-		"ServiceAccount create is true in spec", func(t *testing.T) {
-			assertions := require.New(t)
-
-			const expected = "-94jsdogijoijwgt"
-
-			h := NewHelpers(
-				&instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: expected,
-					},
-					Spec: instanav1.InstanaAgentSpec{
-						ServiceAccountSpec: instanav1.ServiceAccountSpec{
-							Create: instanav1.Create{
-								Create: true,
-							},
+		{
+			name: "ServiceAccount create is true in spec",
+			agent: &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "-94jsdogijoijwgt",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					ServiceAccountSpec: instanav1.ServiceAccountSpec{
+						Create: instanav1.Create{
+							Create: true,
 						},
 					},
 				},
-			)
-
-			assertions.Equal(expected, h.ServiceAccountName())
+			},
+			want: "-94jsdogijoijwgt",
 		},
-	)
-
-	t.Run(
-		"No ServiceAccount options specified", func(t *testing.T) {
-			assertions := require.New(t)
-
-			const expected = "default"
-
-			h := NewHelpers(&instanav1.InstanaAgent{})
-
-			assertions.Equal(expected, h.ServiceAccountName())
+		{
+			name:  "No ServiceAccount options specified",
+			agent: &instanav1.InstanaAgent{},
+			want:  "default",
 		},
-	)
+	} {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				assertions := require.New(t)
+				h := NewHelpers(tt.agent)
+				assertions.Equal(tt.want, h.ServiceAccountName())
+			},
+		)
+	}
 }
 
 func TestHelpers_KeysSecretName(t *testing.T) {
