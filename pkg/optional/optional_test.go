@@ -24,7 +24,7 @@ func assertIsNotEmpty[T any](t *testing.T, opt Optional[T]) {
 	assertions.NotZero(opt.Get())
 }
 
-func TestIsEmpty(t *testing.T) {
+func TestOptional_IsEmpty(t *testing.T) {
 	for _, test := range []struct {
 		name string
 		f    func(t *testing.T)
@@ -64,43 +64,40 @@ func TestIsEmpty(t *testing.T) {
 	}
 }
 
-func TestGetOrElseDo(t *testing.T) {
-	t.Run(
-		"nil_given", func(t *testing.T) {
-			assertions := require.New(t)
-
-			opt := Empty[string]()
-			expected := "apoiwejgoisag"
-
-			actual := opt.GetOrElse(
-				func() string {
-					return expected
-				},
-			)
-
-			assertions.Equal(expected, actual)
-
+func TestOptional_GetOrElse(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    Optional[string]
+		expected string
+	}{
+		{
+			name:     "nil_given",
+			input:    Empty[string](),
+			expected: "proijrognasoieojsg",
 		},
-	)
-	t.Run(
-		"non_nil_given", func(t *testing.T) {
-			assertions := require.New(t)
-
-			expected := "opasegoihsegoihsg"
-
-			opt := Of(expected)
-			actual := opt.GetOrElse(
-				func() string {
-					return "proijrognasoieojsg"
-				},
-			)
-
-			assertions.Equal(expected, actual)
+		{
+			name:     "non_nil_given",
+			input:    Of("opasegoihsegoihsg"),
+			expected: "opasegoihsegoihsg",
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				actual := tc.input.GetOrElse(
+					func() string {
+						return "proijrognasoieojsg"
+					},
+				)
+
+				assertions.Equal(tc.expected, actual)
+			},
+		)
+	}
 }
 
-func TestGetOrElse(t *testing.T) {
+func TestOptional_GetOrDefault(t *testing.T) {
 	t.Run(
 		"nil_given", func(t *testing.T) {
 			assertions := require.New(t)
