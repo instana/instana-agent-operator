@@ -25,31 +25,43 @@ func assertIsNotEmpty[T any](t *testing.T, opt Optional[T]) {
 }
 
 func TestIsEmpty(t *testing.T) {
-	t.Run(
-		"empty_created", func(t *testing.T) {
-			assertIsEmpty(t, Empty[any]())
+	for _, test := range []struct {
+		name string
+		f    func(t *testing.T)
+	}{
+		{
+			name: "empty_created",
+			f: func(t *testing.T) {
+				assertIsEmpty(t, Empty[any]())
+			},
 		},
-	)
-	t.Run(
-		"nil_provided", func(t *testing.T) {
-			assertIsEmpty(t, Of[any](nil))
+		{
+			name: "nil_provided",
+			f: func(t *testing.T) {
+				assertIsEmpty(t, Of[any](nil))
+			},
 		},
-	)
-	t.Run(
-		"non_zero_pointer_to_zero_val", func(t *testing.T) {
-			assertIsNotEmpty[*bool](t, Of[*bool](pointer.To(false)))
+		{
+			name: "non_zero_pointer_to_zero_val",
+			f: func(t *testing.T) {
+				assertIsNotEmpty[*bool](t, Of[*bool](pointer.To(false)))
+			},
 		},
-	)
-	t.Run(
-		"non_zero_explicit", func(t *testing.T) {
-			assertIsNotEmpty[bool](t, Of[bool](true))
+		{
+			name: "non_zero_explicit",
+			f: func(t *testing.T) {
+				assertIsNotEmpty[bool](t, Of[bool](true))
+			},
 		},
-	)
-	t.Run(
-		"zero_explicit", func(t *testing.T) {
-			assertIsEmpty[bool](t, Of[bool](false))
+		{
+			name: "zero_explicit",
+			f: func(t *testing.T) {
+				assertIsEmpty[bool](t, Of[bool](false))
+			},
 		},
-	)
+	} {
+		t.Run(test.name, test.f)
+	}
 }
 
 func TestGetOrElseDo(t *testing.T) {
