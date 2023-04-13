@@ -127,39 +127,36 @@ func TestOptional_GetOrDefault(t *testing.T) {
 }
 
 func TestMap(t *testing.T) {
-	type myType string
-
-	t.Run(
-		"when_empty", func(t *testing.T) {
-			assertions := require.New(t)
-
-			in := Empty[string]()
-
-			actual := Map[string, myType](
-				in, func(in string) myType {
-					return myType(in)
-				},
-			)
-
-			assertions.Equal(Empty[myType](), actual)
+	for _, tc := range []struct {
+		name string
+		in   Optional[string]
+		want Optional[*string]
+	}{
+		{
+			name: "when_empty",
+			in:   Empty[string](),
+			want: Empty[*string](),
 		},
-	)
-
-	t.Run(
-		"when_not_empty", func(t *testing.T) {
-			assertions := require.New(t)
-
-			in := Of[string]("oiw4eoijsoidjdsgf")
-
-			actual := Map[string, myType](
-				in, func(in string) myType {
-					return myType(in)
-				},
-			)
-
-			assertions.Equal(Of[myType]("oiw4eoijsoidjdsgf"), actual)
+		{
+			name: "when_not_empty",
+			in:   Of[string]("oiw4eoijsoidjdsgf"),
+			want: Of[*string](pointer.To("oiw4eoijsoidjdsgf")),
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				actual := Map[string, *string](
+					tc.in, func(in string) *string {
+						return &in
+					},
+				)
+
+				assertions.Equal(tc.want, actual)
+			},
+		)
+	}
 }
 
 func TestIfPresent(t *testing.T) {
