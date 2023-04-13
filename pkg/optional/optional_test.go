@@ -98,31 +98,32 @@ func TestOptional_GetOrElse(t *testing.T) {
 }
 
 func TestOptional_GetOrDefault(t *testing.T) {
-	t.Run(
-		"nil_given", func(t *testing.T) {
-			assertions := require.New(t)
-
-			opt := Empty[string]()
-			expected := "apoiwejgoisag"
-
-			actual := opt.GetOrDefault(expected)
-
-			assertions.Equal(expected, actual)
-
+	for _, tc := range []struct {
+		name     string
+		input    Optional[string]
+		expected string
+	}{
+		{
+			name:     "nil_given",
+			input:    Empty[string](),
+			expected: "proijrognasoieojsg",
 		},
-	)
-	t.Run(
-		"non_nil_given", func(t *testing.T) {
-			assertions := require.New(t)
-
-			expected := "opasegoihsegoihsg"
-
-			opt := Of(expected)
-			actual := opt.GetOrDefault("proijrognasoieojsg")
-
-			assertions.Equal(expected, actual)
+		{
+			name:     "non_nil_given",
+			input:    Of("opasegoihsegoihsg"),
+			expected: "opasegoihsegoihsg",
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				actual := tc.input.GetOrDefault("proijrognasoieojsg")
+
+				assertions.Equal(tc.expected, actual)
+			},
+		)
+	}
 }
 
 func TestMap(t *testing.T) {
