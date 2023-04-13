@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
@@ -81,8 +80,7 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
-				const name = "soijdfoijsfdoij"
-
+				assertions := require.New(t)
 				ctrl := gomock.NewController(t)
 
 				expected := map[string]string{
@@ -96,17 +94,12 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 
 				d := &daemonSetBuilder{
 					InstanaAgent: &instanav1.InstanaAgent{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: name,
-						},
 						Spec: test.agentSpec,
 					},
 					PodSelectorLabelGenerator: podSelector,
 				}
 
 				actual := d.getPodTemplateLabels()
-
-				assertions := require.New(t)
 
 				assertions.Equal(expected, actual)
 			},
