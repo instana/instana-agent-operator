@@ -92,74 +92,52 @@ func TestOfFailure(t *testing.T) {
 	assertions.Equal(errors.New("world"), actualErr)
 }
 
-func TestResult_IsSuccess(t *testing.T) {
-	t.Run(
-		"empty_val_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
+func TestResult_IsSuccess_IsFailure(t *testing.T) {
+	type testCase struct {
+		name  string
+		input string
+		err   error
+		want  bool
+	}
 
-			rslt := Of("", nil)
-			assertions.True(rslt.IsSuccess())
+	testCases := []testCase{
+		{
+			name:  "empty_val_nil_error",
+			input: "",
+			err:   nil,
+			want:  true,
 		},
-	)
-	t.Run(
-		"empty_val_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("", errors.New("asdf"))
-			assertions.False(rslt.IsSuccess())
+		{
+			name:  "empty_val_non_nil_error",
+			input: "",
+			err:   errors.New("asdf"),
+			want:  false,
 		},
-	)
-	t.Run(
-		"non_empty_val_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("jljsd;lfjads", nil)
-			assertions.True(rslt.IsSuccess())
+		{
+			name:  "non_empty_val_nil_error",
+			input: "jljsd;lfjads",
+			err:   nil,
+			want:  true,
 		},
-	)
-	t.Run(
-		"non_empty_val_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("kjasldjldsaf", errors.New(";ljkasldjf;lkdsf"))
-			assertions.False(rslt.IsSuccess())
+		{
+			name:  "non_empty_val_non_nil_error",
+			input: "kjasldjldsaf",
+			err:   errors.New(";ljkasldjf;lkdsf"),
+			want:  false,
 		},
-	)
-}
+	}
 
-func TestResult_IsFailure(t *testing.T) {
-	t.Run(
-		"empty_val_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
+	for _, tc := range testCases {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
 
-			rslt := Of("", nil)
-			assertions.False(rslt.IsFailure())
-		},
-	)
-	t.Run(
-		"empty_val_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("", errors.New("asdf"))
-			assertions.True(rslt.IsFailure())
-		},
-	)
-	t.Run(
-		"non_empty_val_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("jljsd;lfjads", nil)
-			assertions.False(rslt.IsFailure())
-		},
-	)
-	t.Run(
-		"non_empty_val_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("kjasldjldsaf", errors.New(";ljkasldjf;lkdsf"))
-			assertions.True(rslt.IsFailure())
-		},
-	)
+				rslt := Of(tc.input, tc.err)
+				assertions.Equal(tc.want, rslt.IsSuccess())
+				assertions.Equal(tc.want, !rslt.IsFailure())
+			},
+		)
+	}
 }
 
 func TestResult_ToOptional(t *testing.T) {
