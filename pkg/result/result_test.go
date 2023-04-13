@@ -33,38 +33,43 @@ func TestOfInline(t *testing.T) {
 }
 
 func TestOfInlineCatchingPanic(t *testing.T) {
-	t.Run(
-		"no_panic", func(t *testing.T) {
-			assertions := require.New(t)
+	expectedErr := errors.New("err")
 
-			rslt := OfInlineCatchingPanic(
-				func() (res string, err error) {
-					return "hello", errors.New("world")
-				},
-			)
-			actualVal, actualErr := rslt.Get()
-
-			assertions.Equal("hello", actualVal)
-			assertions.Equal(errors.New("world"), actualErr)
+	for _, test := range []struct {
+		name        string
+		do          func() (res string, err error)
+		expectedVal string
+		expectedErr error
+	}{
+		{
+			name: "no_panic",
+			do: func() (res string, err error) {
+				return "val", expectedErr
+			},
+			expectedVal: "val",
+			expectedErr: expectedErr,
 		},
-	)
-	t.Run(
-		"with_panic", func(t *testing.T) {
-			assertions := require.New(t)
-
-			expectedErr := errors.New("hello")
-
-			rslt := OfInlineCatchingPanic(
-				func() (res string, err error) {
-					panic(expectedErr)
-				},
-			)
-			actualVal, actualErr := rslt.Get()
-
-			assertions.Empty(actualVal)
-			assertions.ErrorIs(actualErr, expectedErr)
+		{
+			name: "with_panic",
+			do: func() (res string, err error) {
+				panic(expectedErr)
+			},
+			expectedVal: "",
+			expectedErr: expectedErr,
 		},
-	)
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				rslt := OfInlineCatchingPanic(test.do)
+				actualVal, actualErr := rslt.Get()
+
+				assertions.Equal(test.expectedVal, actualVal)
+				assertions.ErrorIs(actualErr, test.expectedErr)
+			},
+		)
+	}
 }
 
 func TestOfSuccess(t *testing.T) {
