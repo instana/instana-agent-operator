@@ -89,73 +89,81 @@ func TestTransformations_AddCommonLabels(t *testing.T) {
 	}
 }
 
-func TestAddOwnerReference(t *testing.T) {
-	agent := instanav1.InstanaAgent{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "instana.io/v1",
-			Kind:       "InstanaAgent",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "instana-agent",
-			UID:  "iowegihsdgoijwefoih",
-		},
-	}
-	t.Run(
-		"with_no_previous_references", func(t *testing.T) {
-			cm := v1.ConfigMap{}
-
-			NewTransformations(&agent).AddOwnerReference(&cm)
-
-			assertions := require.New(t)
-
-			assertions.Equal(
-				[]metav1.OwnerReference{
-					{
-						APIVersion:         "instana.io/v1",
-						Kind:               "InstanaAgent",
-						Name:               "instana-agent",
-						UID:                "iowegihsdgoijwefoih",
-						Controller:         pointer.To(true),
-						BlockOwnerDeletion: pointer.To(true),
-					},
-				}, cm.OwnerReferences,
-			)
-		},
-	)
-	t.Run(
-		"with_previous_references", func(t *testing.T) {
-			otherOwner := metav1.OwnerReference{
-				APIVersion:         "adsf",
-				Kind:               "pojg",
-				Name:               "ojregoi",
-				UID:                "owjgepos",
-				Controller:         pointer.To(false),
-				BlockOwnerDeletion: pointer.To(false),
-			}
-
-			cm := v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{otherOwner},
+func TestTransformations_AddOwnerReference(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		configMap    v1.ConfigMap
+		expectedRefs []metav1.OwnerReference
+	}{
+		{
+			name:      "with_no_previous_references",
+			configMap: v1.ConfigMap{},
+			expectedRefs: []metav1.OwnerReference{
+				{
+					APIVersion:         "instana.io/v1",
+					Kind:               "InstanaAgent",
+					Name:               "instana-agent",
+					UID:                "iowegihsdgoijwefoih",
+					Controller:         pointer.To(true),
+					BlockOwnerDeletion: pointer.To(true),
 				},
-			}
-
-			NewTransformations(&agent).AddOwnerReference(&cm)
-
-			assertions := require.New(t)
-
-			assertions.Equal(
-				[]metav1.OwnerReference{
-					otherOwner,
-					{
-						APIVersion:         "instana.io/v1",
-						Kind:               "InstanaAgent",
-						Name:               "instana-agent",
-						UID:                "iowegihsdgoijwefoih",
-						Controller:         pointer.To(true),
-						BlockOwnerDeletion: pointer.To(true),
-					},
-				}, cm.OwnerReferences,
-			)
+			},
 		},
-	)
+		{
+			name: "with_previous_references",
+			configMap: v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "adsf",
+							Kind:               "pojg",
+							Name:               "ojregoi",
+							UID:                "owjgepos",
+							Controller:         pointer.To(false),
+							BlockOwnerDeletion: pointer.To(false),
+						},
+					},
+				},
+			},
+			expectedRefs: []metav1.OwnerReference{
+				{
+					APIVersion:         "adsf",
+					Kind:               "pojg",
+					Name:               "ojregoi",
+					UID:                "owjgepos",
+					Controller:         pointer.To(false),
+					BlockOwnerDeletion: pointer.To(false),
+				},
+				{
+					APIVersion:         "instana.io/v1",
+					Kind:               "InstanaAgent",
+					Name:               "instana-agent",
+					UID:                "iowegihsdgoijwefoih",
+					Controller:         pointer.To(true),
+					BlockOwnerDeletion: pointer.To(true),
+				},
+			},
+		},
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				agent := instanav1.InstanaAgent{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "instana.io/v1",
+						Kind:       "InstanaAgent",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "instana-agent",
+						UID:  "iowegihsdgoijwefoih",
+					},
+				}
+
+				NewTransformations(&agent).AddOwnerReference(&tc.configMap)
+
+				assertions.Equal(tc.expectedRefs, tc.configMap.OwnerReferences)
+			},
+		)
+	}
 }
