@@ -74,30 +74,31 @@ func TestDerefOrDefault(t *testing.T) {
 }
 
 func TestDerefOrElse(t *testing.T) {
-	t.Run(
-		"non_nil_pointer_given", func(t *testing.T) {
-			assertions := require.New(t)
-
-			actual := DerefOrElse(
-				To(5), func() int {
-					return 10
-				},
-			)
-
-			assertions.Equal(5, actual)
+	for _, tc := range []struct {
+		name          string
+		pointer       *int
+		defaultValue  func() int
+		expectedValue int
+	}{
+		{
+			name:          "non_nil_pointer_given",
+			pointer:       To(5),
+			defaultValue:  func() int { return 10 },
+			expectedValue: 5,
 		},
-	)
-	t.Run(
-		"nil_pointer_given", func(t *testing.T) {
-			assertions := require.New(t)
-
-			actual := DerefOrElse(
-				nil, func() int {
-					return 10
-				},
-			)
-
-			assertions.Equal(10, actual)
+		{
+			name:          "nil_pointer_given",
+			pointer:       nil,
+			defaultValue:  func() int { return 10 },
+			expectedValue: 10,
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+				actual := DerefOrElse(tc.pointer, tc.defaultValue)
+				assertions.Equal(tc.expectedValue, actual)
+			},
+		)
+	}
 }
