@@ -184,38 +184,41 @@ func TestResult_ToOptional(t *testing.T) {
 }
 
 func TestResult_OnSuccess(t *testing.T) {
-	t.Run(
-		"with_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			actual := 0
-
-			rslt := Of(5, nil)
-			rsltCopy := rslt.OnSuccess(
-				func(i int) {
-					actual = i
-				},
-			)
-			assertions.Same(rslt, rsltCopy)
-			assertions.Equal(5, actual)
+	testCases := []struct {
+		name   string
+		result Result[int]
+		expect int
+	}{
+		{
+			name:   "with_nil_error",
+			result: Of(5, nil),
+			expect: 5,
 		},
-	)
-	t.Run(
-		"with_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			actual := 0
-
-			rslt := Of(5, errors.New("asdfds"))
-			rsltCopy := rslt.OnSuccess(
-				func(i int) {
-					actual = i
-				},
-			)
-			assertions.Same(rslt, rsltCopy)
-			assertions.Equal(0, actual)
+		{
+			name:   "with_non_nil_error",
+			result: Of(5, errors.New("asdfds")),
+			expect: 0,
 		},
-	)
+	}
+
+	for _, tc := range testCases {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				actual := 0
+
+				rsltCopy := tc.result.OnSuccess(
+					func(i int) {
+						actual = i
+					},
+				)
+
+				assertions.Same(tc.result, rsltCopy)
+				assertions.Equal(tc.expect, actual)
+			},
+		)
+	}
 }
 
 func TestResult_OnFailure(t *testing.T) {
