@@ -393,34 +393,42 @@ func TestResult_RecoverCatching(t *testing.T) {
 }
 
 func TestMap(t *testing.T) {
-	t.Run(
-		"with_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("9", nil)
-			mappedResult := Map[string, int](
-				rslt, func(str string) Result[int] {
-					return Of(strconv.Atoi(str))
-				},
-			)
-			actualVal, actualErr := mappedResult.Get()
-			assertions.Equal(9, actualVal)
-			assertions.Nil(actualErr)
+	for _, tc := range []struct {
+		name        string
+		input       string
+		inputErr    error
+		expectedVal int
+		expectedErr error
+	}{
+		{
+			name:        "with_nil_error",
+			input:       "9",
+			inputErr:    nil,
+			expectedVal: 9,
+			expectedErr: nil,
 		},
-	)
-	t.Run(
-		"with_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("9", errors.New("qwerty"))
-			mappedResult := Map[string, int](
-				rslt, func(str string) Result[int] {
-					return Of(strconv.Atoi(str))
-				},
-			)
-			actualVal, actualErr := mappedResult.Get()
-			assertions.Equal(0, actualVal)
-			assertions.Equal(actualErr, errors.New("qwerty"))
+		{
+			name:        "with_non_nil_error",
+			input:       "9",
+			inputErr:    errors.New("qwerty"),
+			expectedVal: 0,
+			expectedErr: errors.New("qwerty"),
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				rslt := Of(tc.input, tc.inputErr)
+				mappedResult := Map[string, int](
+					rslt, func(str string) Result[int] {
+						return Of(strconv.Atoi(str))
+					},
+				)
+				actualVal, actualErr := mappedResult.Get()
+				assertions.Equal(tc.expectedVal, actualVal)
+				assertions.Equal(tc.expectedErr, actualErr)
+			},
+		)
+	}
 }
