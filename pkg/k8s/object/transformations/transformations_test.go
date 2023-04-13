@@ -12,71 +12,81 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func TestAddCommonLabels(t *testing.T) {
-	t.Run(
-		"with_empty_labels_initially", func(t *testing.T) {
-			obj := v1.ConfigMap{}
-			NewTransformations(
-				&instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:       "asdf",
-						Generation: 3,
-					},
-				},
-			).AddCommonLabels(&obj, "eoisdijsdf")
-
-			assertions := require.New(t)
-
-			assertions.Equal(
-				map[string]string{
-					"app.kubernetes.io/name":       "instana-agent",
-					"app.kubernetes.io/component":  "eoisdijsdf",
-					"app.kubernetes.io/instance":   "asdf",
-					"app.kubernetes.io/version":    "v0.0.0",
-					"app.kubernetes.io/part-of":    "instana",
-					"app.kubernetes.io/managed-by": "instana-agent-operator",
-					"agent.instana.io/generation":  "v0.0.0-3",
-				}, obj.GetLabels(),
-			)
-		},
-	)
-	t.Run(
-		"with_initial_labels", func(t *testing.T) {
-			obj := v1.ConfigMap{
+func TestTransformations_AddCommonLabels(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		initialLabels  map[string]string
+		instanaAgent   instanav1.InstanaAgent
+		componentLabel string
+		versionEnv     string
+		expectedLabels map[string]string
+	}{
+		{
+			name:          "with_empty_labels_initially",
+			initialLabels: nil,
+			instanaAgent: instanav1.InstanaAgent{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"foo":   "bar",
-						"hello": "world",
-					},
+					Name:       "asdf",
+					Generation: 4,
 				},
-			}
-
-			NewTransformations(
-				&instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:       "foo",
-						Generation: 3,
-					},
-				},
-			).AddCommonLabels(&obj, "roisoijdsf")
-
-			assertions := require.New(t)
-
-			assertions.Equal(
-				map[string]string{
-					"foo":                          "bar",
-					"hello":                        "world",
-					"app.kubernetes.io/name":       "instana-agent",
-					"app.kubernetes.io/component":  "roisoijdsf",
-					"app.kubernetes.io/instance":   "foo",
-					"app.kubernetes.io/version":    "v0.0.0",
-					"app.kubernetes.io/part-of":    "instana",
-					"app.kubernetes.io/managed-by": "instana-agent-operator",
-					"agent.instana.io/generation":  "v0.0.0-3",
-				}, obj.GetLabels(),
-			)
+			},
+			componentLabel: "eoisdijsdf",
+			versionEnv:     "v0.0.1",
+			expectedLabels: map[string]string{
+				"app.kubernetes.io/name":       "instana-agent",
+				"app.kubernetes.io/component":  "eoisdijsdf",
+				"app.kubernetes.io/instance":   "asdf",
+				"app.kubernetes.io/version":    "v0.0.1",
+				"app.kubernetes.io/part-of":    "instana",
+				"app.kubernetes.io/managed-by": "instana-agent-operator",
+				"agent.instana.io/generation":  "v0.0.1-4",
+			},
 		},
-	)
+		{
+			name: "with_initial_labels",
+			initialLabels: map[string]string{
+				"foo":   "bar",
+				"hello": "world",
+			},
+			instanaAgent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "yrsthsdht",
+					Generation: 3,
+				},
+			},
+			componentLabel: "roisoijdsf",
+			versionEnv:     "v0.0.2",
+			expectedLabels: map[string]string{
+				"foo":                          "bar",
+				"hello":                        "world",
+				"app.kubernetes.io/name":       "instana-agent",
+				"app.kubernetes.io/component":  "roisoijdsf",
+				"app.kubernetes.io/instance":   "yrsthsdht",
+				"app.kubernetes.io/version":    "v0.0.2",
+				"app.kubernetes.io/part-of":    "instana",
+				"app.kubernetes.io/managed-by": "instana-agent-operator",
+				"agent.instana.io/generation":  "v0.0.2-3",
+			},
+		},
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				version = tc.versionEnv
+
+				obj := v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: tc.initialLabels,
+					},
+				}
+
+				NewTransformations(&tc.instanaAgent).AddCommonLabels(&obj, tc.componentLabel)
+
+				assertions.Equal(tc.expectedLabels, obj.GetLabels())
+			},
+		)
+	}
 }
 
 func TestAddOwnerReference(t *testing.T) {
