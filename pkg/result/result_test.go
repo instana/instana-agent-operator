@@ -256,38 +256,57 @@ func TestResult_OnFailure(t *testing.T) {
 }
 
 func TestResult_Recover(t *testing.T) {
-	t.Run(
-		"with_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("hello", nil)
-			rsltCopy := rslt.Recover(
-				func(err error) (string, error) {
-					return err.Error(), nil
-				},
-			)
-			assertions.Same(rslt, rsltCopy)
-			actualVal, actualErr := rsltCopy.Get()
-			assertions.Equal("hello", actualVal)
-			assertions.Nil(actualErr)
+	for _, tc := range []struct {
+		name          string
+		inputValue    string
+		inputError    error
+		expectedValue string
+		expectedError error
+		recoverFunc   func(error) (string, error)
+		expectedSame  bool
+	}{
+		{
+			name:          "with_nil_error",
+			inputValue:    "hello",
+			inputError:    nil,
+			expectedValue: "hello",
+			expectedError: nil,
+			recoverFunc: func(err error) (string, error) {
+				return err.Error(), nil
+			},
+			expectedSame: true,
 		},
-	)
-	t.Run(
-		"with_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("hello", errors.New("world"))
-			rsltCopy := rslt.Recover(
-				func(err error) (string, error) {
-					return err.Error(), nil
-				},
-			)
-			assertions.NotSame(rslt, rsltCopy)
-			actualVal, actualErr := rsltCopy.Get()
-			assertions.Equal("world", actualVal)
-			assertions.Nil(actualErr)
+		{
+			name:          "with_non_nil_error",
+			inputValue:    "hello",
+			inputError:    errors.New("world"),
+			expectedValue: "world",
+			expectedError: nil,
+			recoverFunc: func(err error) (string, error) {
+				return err.Error(), nil
+			},
+			expectedSame: false,
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				rslt := Of(tc.inputValue, tc.inputError)
+				rsltCopy := rslt.Recover(tc.recoverFunc)
+
+				if tc.expectedSame {
+					assertions.Same(rslt, rsltCopy)
+				} else {
+					assertions.NotSame(rslt, rsltCopy)
+				}
+
+				actualVal, actualErr := rsltCopy.Get()
+				assertions.Equal(tc.expectedValue, actualVal)
+				assertions.Equal(tc.expectedError, actualErr)
+			},
+		)
+	}
 }
 
 func TestResult_RecoverCatching(t *testing.T) {
