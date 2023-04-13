@@ -310,60 +310,86 @@ func TestResult_Recover(t *testing.T) {
 }
 
 func TestResult_RecoverCatching(t *testing.T) {
-	t.Run(
-		"with_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("hello", nil)
-			rsltCopy := rslt.RecoverCatching(
-				func(err error) (string, error) {
-					return err.Error(), nil
-				},
-			)
-			assertions.Same(rslt, rsltCopy)
-			actualVal, actualErr := rsltCopy.Get()
-			assertions.Equal("hello", actualVal)
-			assertions.Nil(actualErr)
-		},
-	)
-	t.Run(
-		"with_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("hello", errors.New("world"))
-			rsltCopy := rslt.RecoverCatching(
-				func(err error) (string, error) {
-					return err.Error(), nil
-				},
-			)
-			assertions.NotSame(rslt, rsltCopy)
-			actualVal, actualErr := rsltCopy.Get()
-			assertions.Equal("world", actualVal)
-			assertions.Nil(actualErr)
-		},
-	)
-	t.Run(
-		"with_non_nil_error_then_throw", func(t *testing.T) {
-			assertions := require.New(t)
-
-			rslt := Of("hello", errors.New("world"))
-			rsltCopy := rslt.
-				RecoverCatching(
+	for _, tc := range []struct {
+		name          string
+		inputValue    string
+		inputError    error
+		expectedValue string
+		expectedError error
+		getRsltCopy   func(rslt Result[string]) Result[string]
+		expectedSame  bool
+	}{
+		{
+			name:          "with_nil_error",
+			inputValue:    "hello",
+			inputError:    nil,
+			expectedValue: "hello",
+			expectedError: nil,
+			getRsltCopy: func(rslt Result[string]) Result[string] {
+				return rslt.RecoverCatching(
 					func(err error) (string, error) {
-						panic(errors.New(err.Error() + "_goodbye"))
-					},
-				).
-				Recover(
-					func(err error) (string, error) {
-						return errors.Unwrap(errors.Unwrap(err)).Error(), nil
+						return err.Error(), nil
 					},
 				)
-			assertions.NotSame(rslt, rsltCopy)
-			actualVal, actualErr := rsltCopy.Get()
-			assertions.Equal("world_goodbye", actualVal)
-			assertions.Nil(actualErr)
+			},
+			expectedSame: true,
 		},
-	)
+		{
+			name:          "with_non_nil_error",
+			inputValue:    "hello",
+			inputError:    errors.New("world"),
+			expectedValue: "world",
+			expectedError: nil,
+			getRsltCopy: func(rslt Result[string]) Result[string] {
+				return rslt.RecoverCatching(
+					func(err error) (string, error) {
+						return err.Error(), nil
+					},
+				)
+			},
+			expectedSame: false,
+		},
+		{
+			name:          "with_non_nil_error_then_throw",
+			inputValue:    "hello",
+			inputError:    errors.New("world"),
+			expectedValue: "world_goodbye",
+			expectedError: nil,
+			getRsltCopy: func(rslt Result[string]) Result[string] {
+				return rslt.
+					RecoverCatching(
+						func(err error) (string, error) {
+							panic(errors.New(err.Error() + "_goodbye"))
+						},
+					).
+					Recover(
+						func(err error) (string, error) {
+							return errors.Unwrap(errors.Unwrap(err)).Error(), nil
+						},
+					)
+			},
+			expectedSame: false,
+		},
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				rslt := Of(tc.inputValue, tc.inputError)
+				rsltCopy := tc.getRsltCopy(rslt)
+
+				if tc.expectedSame {
+					assertions.Same(rslt, rsltCopy)
+				} else {
+					assertions.NotSame(rslt, rsltCopy)
+				}
+
+				actualVal, actualErr := rsltCopy.Get()
+				assertions.Equal(tc.expectedValue, actualVal)
+				assertions.Equal(tc.expectedError, actualErr)
+			},
+		)
+	}
 }
 
 func TestMap(t *testing.T) {
