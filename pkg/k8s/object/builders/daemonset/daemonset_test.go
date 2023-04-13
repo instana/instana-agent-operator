@@ -18,177 +18,100 @@ import (
 // TODO: Cleanup these and tests in other files
 
 func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
-	t.Run(
-		"agent_mode_unset", func(t *testing.T) {
-			const name = "soijdfoijsfdoij"
-
-			ctrl := gomock.NewController(t)
-
-			expected := map[string]string{
-				"adsf":      "eroinsvd",
-				"osdgoiego": "rwuriunsv",
-				"e8uriunv":  "rrudsiu",
-			}
-
-			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
-			podSelector.EXPECT().GetPodLabels(
-				map[string]string{
-					"instana/agent-mode": string(instanav1.APM),
-				},
-			).Return(expected)
-
-			d := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: name,
-					},
-				},
-				PodSelectorLabelGenerator: podSelector,
-			}
-
-			actual := d.getPodTemplateLabels()
-
-			assertions := require.New(t)
-
-			assertions.Equal(expected, actual)
+	for _, test := range []struct {
+		name              string
+		getPodLabelsInput map[string]string
+		agentSpec         instanav1.InstanaAgentSpec
+	}{
+		{
+			name: "agent_mode_unset",
+			getPodLabelsInput: map[string]string{
+				"instana/agent-mode": string(instanav1.APM),
+			},
+			agentSpec: instanav1.InstanaAgentSpec{},
 		},
-	)
-	t.Run(
-		"agent_mode_set_by_user", func(t *testing.T) {
-			const name = "soijdfoijsfdoij"
-
-			ctrl := gomock.NewController(t)
-
-			expected := map[string]string{
-				"adsf":      "eroinsvd",
-				"osdgoiego": "rwuriunsv",
-				"e8uriunv":  "rrudsiu",
-			}
-
-			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
-			podSelector.EXPECT().GetPodLabels(
-				map[string]string{
-					"instana/agent-mode": string(instanav1.KUBERNETES),
+		{
+			name: "agent_mode_set_by_user",
+			getPodLabelsInput: map[string]string{
+				"instana/agent-mode": string(instanav1.KUBERNETES),
+			},
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Mode: instanav1.KUBERNETES,
 				},
-			).Return(expected)
-
-			d := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: name,
-					},
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							Mode: instanav1.KUBERNETES,
+			},
+		},
+		{
+			name: "agent_mode_unset_with_user_given_pod_labels",
+			getPodLabelsInput: map[string]string{
+				"asdfasdf":           "eoisdgoinv",
+				"reoirionv":          "98458hgoisjdf",
+				"instana/agent-mode": string(instanav1.APM),
+			},
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Pod: instanav1.AgentPodSpec{
+						Labels: map[string]string{
+							"asdfasdf":  "eoisdgoinv",
+							"reoirionv": "98458hgoisjdf",
 						},
 					},
 				},
-				PodSelectorLabelGenerator: podSelector,
-			}
-
-			actual := d.getPodTemplateLabels()
-
-			assertions := require.New(t)
-
-			assertions.Equal(expected, actual)
+			},
 		},
-	)
-	t.Run(
-		"agent_mode_unset_with_user_given_pod_labels", func(t *testing.T) {
-			const name = "soijdfoijsfdoij"
-
-			ctrl := gomock.NewController(t)
-
-			expected := map[string]string{
-				"adsf":      "eroinsvd",
-				"osdgoiego": "rwuriunsv",
-				"e8uriunv":  "rrudsiu",
-			}
-
-			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
-			podSelector.EXPECT().GetPodLabels(
-				map[string]string{
-					"asdfasdf":           "eoisdgoinv",
-					"reoirionv":          "98458hgoisjdf",
-					"instana/agent-mode": string(instanav1.APM),
-				},
-			).Return(expected)
-
-			d := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: name,
-					},
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							Pod: instanav1.AgentPodSpec{
-								Labels: map[string]string{
-									"asdfasdf":  "eoisdgoinv",
-									"reoirionv": "98458hgoisjdf",
-								},
-							},
+		{
+			name: "agent_mode_set_by_user_with_user_given_pod_labels",
+			getPodLabelsInput: map[string]string{
+				"asdfasdf":           "eoisdgoinv",
+				"reoirionv":          "98458hgoisjdf",
+				"instana/agent-mode": string(instanav1.KUBERNETES),
+			},
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Mode: instanav1.KUBERNETES,
+					Pod: instanav1.AgentPodSpec{
+						Labels: map[string]string{
+							"asdfasdf":  "eoisdgoinv",
+							"reoirionv": "98458hgoisjdf",
 						},
 					},
 				},
-				PodSelectorLabelGenerator: podSelector,
-			}
-
-			actual := d.getPodTemplateLabels()
-
-			assertions := require.New(t)
-
-			assertions.Equal(expected, actual)
+			},
 		},
-	)
-	t.Run(
-		"agent_mode_set_by_user_with_user_given_pod_labels", func(t *testing.T) {
-			const name = "soijdfoijsfdoij"
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				const name = "soijdfoijsfdoij"
 
-			ctrl := gomock.NewController(t)
+				ctrl := gomock.NewController(t)
 
-			expected := map[string]string{
-				"adsf":      "eroinsvd",
-				"osdgoiego": "rwuriunsv",
-				"e8uriunv":  "rrudsiu",
-			}
+				expected := map[string]string{
+					"adsf":      "eroinsvd",
+					"osdgoiego": "rwuriunsv",
+					"e8uriunv":  "rrudsiu",
+				}
 
-			podSelector := NewMockPodSelectorLabelGenerator(ctrl)
-			podSelector.EXPECT().GetPodLabels(
-				map[string]string{
-					"asdfasdf":           "eoisdgoinv",
-					"reoirionv":          "98458hgoisjdf",
-					"instana/agent-mode": string(instanav1.KUBERNETES),
-				},
-			).Return(expected)
+				podSelector := NewMockPodSelectorLabelGenerator(ctrl)
+				podSelector.EXPECT().GetPodLabels(gomock.Eq(test.getPodLabelsInput)).Return(expected)
 
-			d := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: name,
-					},
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							Mode: instanav1.KUBERNETES,
-							Pod: instanav1.AgentPodSpec{
-								Labels: map[string]string{
-									"asdfasdf":  "eoisdgoinv",
-									"reoirionv": "98458hgoisjdf",
-								},
-							},
+				d := &daemonSetBuilder{
+					InstanaAgent: &instanav1.InstanaAgent{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name,
 						},
+						Spec: test.agentSpec,
 					},
-				},
-				PodSelectorLabelGenerator: podSelector,
-			}
+					PodSelectorLabelGenerator: podSelector,
+				}
 
-			actual := d.getPodTemplateLabels()
+				actual := d.getPodTemplateLabels()
 
-			assertions := require.New(t)
+				assertions := require.New(t)
 
-			assertions.Equal(expected, actual)
-		},
-	)
-
+				assertions.Equal(expected, actual)
+			},
+		)
+	}
 }
 
 func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
