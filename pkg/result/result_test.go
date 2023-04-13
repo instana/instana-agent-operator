@@ -184,7 +184,7 @@ func TestResult_ToOptional(t *testing.T) {
 }
 
 func TestResult_OnSuccess(t *testing.T) {
-	testCases := []struct {
+	for _, tc := range []struct {
 		name   string
 		result Result[int]
 		expect int
@@ -199,9 +199,7 @@ func TestResult_OnSuccess(t *testing.T) {
 			result: Of(5, errors.New("asdfds")),
 			expect: 0,
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(
 			tc.name, func(t *testing.T) {
 				assertions := require.New(t)
