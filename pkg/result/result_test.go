@@ -220,40 +220,39 @@ func TestResult_OnSuccess(t *testing.T) {
 }
 
 func TestResult_OnFailure(t *testing.T) {
-	t.Run(
-		"with_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			actual := 0
-
-			rslt := Of(5, nil)
-			rsltCopy := rslt.OnFailure(
-				func(err error) {
-					i, _ := strconv.Atoi(err.Error())
-					actual = i
-				},
-			)
-			assertions.Same(rslt, rsltCopy)
-			assertions.Equal(0, actual)
+	for _, tc := range []struct {
+		name     string
+		input    Result[int]
+		expected int
+	}{
+		{
+			name:     "with_nil_error",
+			input:    Of(5, nil),
+			expected: 0,
 		},
-	)
-	t.Run(
-		"with_non_nil_error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			actual := 0
-
-			rslt := Of(5, errors.New("7"))
-			rsltCopy := rslt.OnFailure(
-				func(err error) {
-					i, _ := strconv.Atoi(err.Error())
-					actual = i
-				},
-			)
-			assertions.Same(rslt, rsltCopy)
-			assertions.Equal(7, actual)
+		{
+			name:     "with_non_nil_error",
+			input:    Of(5, errors.New("7")),
+			expected: 7,
 		},
-	)
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				actual := 0
+
+				rsltCopy := tc.input.OnFailure(
+					func(err error) {
+						i, _ := strconv.Atoi(err.Error())
+						actual = i
+					},
+				)
+				assertions.Same(tc.input, rsltCopy)
+				assertions.Equal(tc.expected, actual)
+			},
+		)
+	}
 }
 
 func TestResult_Recover(t *testing.T) {
