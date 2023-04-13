@@ -168,137 +168,120 @@ func TestDaemonSetBuilder_getPodTemplateAnnotations(t *testing.T) {
 }
 
 func TestDaemonSetBuilder_getImagePullSecrets(t *testing.T) {
-	t.Run(
-		"no_user_secrets_and_image_not_from_instana_io", func(t *testing.T) {
-			assertions := require.New(t)
-
-			db := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{},
-			}
-
-			actual := db.getImagePullSecrets()
-			assertions.Empty(actual)
+	testCases := []struct {
+		name             string
+		instanaAgentSpec instanav1.InstanaAgentSpec
+		expectedSecrets  []corev1.LocalObjectReference
+	}{
+		{
+			name: "no_user_secrets_and_image_not_from_instana_io",
+			instanaAgentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ImageSpec: instanav1.ImageSpec{},
+				},
+			},
+			expectedSecrets: nil,
 		},
-	)
-	t.Run(
-		"with_user_secrets_and_image_not_from_instana_io", func(t *testing.T) {
-			assertions := require.New(t)
-
-			db := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							ImageSpec: instanav1.ImageSpec{
-								PullSecrets: []corev1.LocalObjectReference{
-									{
-										Name: "oirewigojsdf",
-									},
-									{
-										Name: "o4gpoijsfd",
-									},
-									{
-										Name: "po5hpojdfijs",
-									},
-								},
+		{
+			name: "with_user_secrets_and_image_not_from_instana_io",
+			instanaAgentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ImageSpec: instanav1.ImageSpec{
+						PullSecrets: []corev1.LocalObjectReference{
+							{
+								Name: "oirewigojsdf",
+							},
+							{
+								Name: "o4gpoijsfd",
+							},
+							{
+								Name: "po5hpojdfijs",
 							},
 						},
 					},
 				},
-			}
-
-			actual := db.getImagePullSecrets()
-
-			assertions.Equal(
-				[]corev1.LocalObjectReference{
-					{
-						Name: "oirewigojsdf",
-					},
-					{
-						Name: "o4gpoijsfd",
-					},
-					{
-						Name: "po5hpojdfijs",
+			},
+			expectedSecrets: []corev1.LocalObjectReference{
+				{
+					Name: "oirewigojsdf",
+				},
+				{
+					Name: "o4gpoijsfd",
+				},
+				{
+					Name: "po5hpojdfijs",
+				},
+			},
+		},
+		{
+			name: "no_user_secrets_and_image_is_from_instana_io",
+			instanaAgentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ImageSpec: instanav1.ImageSpec{
+						Name: "containers.instana.io/instana-agent",
 					},
 				},
-				actual,
-			)
+			},
+			expectedSecrets: []corev1.LocalObjectReference{
+				{
+					Name: "containers-instana-io",
+				},
+			},
 		},
-	)
-	t.Run(
-		"no_user_secrets_and_image_is_from_instana_io", func(t *testing.T) {
-			assertions := require.New(t)
-
-			db := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							ImageSpec: instanav1.ImageSpec{
-								Name: "containers.instana.io/instana-agent",
+		{
+			name: "with_user_secrets_and_image_is_from_instana_io",
+			instanaAgentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ImageSpec: instanav1.ImageSpec{
+						Name: "containers.instana.io/instana-agent",
+						PullSecrets: []corev1.LocalObjectReference{
+							{
+								Name: "oirewigojsdf",
+							},
+							{
+								Name: "o4gpoijsfd",
+							},
+							{
+								Name: "po5hpojdfijs",
 							},
 						},
 					},
 				},
-			}
-
-			actual := db.getImagePullSecrets()
-			assertions.Equal(
-				[]corev1.LocalObjectReference{
-					{
-						Name: "containers-instana-io",
-					},
+			},
+			expectedSecrets: []corev1.LocalObjectReference{
+				{
+					Name: "oirewigojsdf",
 				},
-				actual,
-			)
+				{
+					Name: "o4gpoijsfd",
+				},
+				{
+					Name: "po5hpojdfijs",
+				},
+				{
+					Name: "containers-instana-io",
+				},
+			},
 		},
-	)
-	t.Run(
-		"with_user_secrets_and_image_is_from_instana_io", func(t *testing.T) {
-			assertions := require.New(t)
+	}
 
-			db := &daemonSetBuilder{
-				InstanaAgent: &instanav1.InstanaAgent{
-					Spec: instanav1.InstanaAgentSpec{
-						Agent: instanav1.BaseAgentSpec{
-							ImageSpec: instanav1.ImageSpec{
-								Name: "containers.instana.io/instana-agent",
-								PullSecrets: []corev1.LocalObjectReference{
-									{
-										Name: "oirewigojsdf",
-									},
-									{
-										Name: "o4gpoijsfd",
-									},
-									{
-										Name: "po5hpojdfijs",
-									},
-								},
-							},
-						},
-					},
-				},
-			}
+	for _, tc := range testCases {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				assertions := require.New(t)
 
-			actual := db.getImagePullSecrets()
+				db := &daemonSetBuilder{
+					InstanaAgent: &instanav1.InstanaAgent{
+						Spec: tc.instanaAgentSpec,
+					},
+				}
 
-			assertions.Equal(
-				[]corev1.LocalObjectReference{
-					{
-						Name: "oirewigojsdf",
-					},
-					{
-						Name: "o4gpoijsfd",
-					},
-					{
-						Name: "po5hpojdfijs",
-					},
-					{
-						Name: "containers-instana-io",
-					},
-				},
-				actual,
-			)
-		},
-	)
+				actualSecrets := db.getImagePullSecrets()
+
+				assertions.Equal(tc.expectedSecrets, actualSecrets)
+			},
+		)
+	}
 }
 
 func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
