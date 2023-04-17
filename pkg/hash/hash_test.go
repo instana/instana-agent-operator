@@ -22,7 +22,7 @@ func TestHasher(t *testing.T) {
 				Field1: "test1",
 				Field2: 42,
 			}
-			const expectedHash = "\xfb\x01\x7fc\xd7~v[\xcb!\x04\xa2\xf34t "
+			const expectedHash = "+wF/Y9d+dlvLIQSi8zR0IA=="
 			resultHash := h.HashJsonOrDie(testStruct)
 			assertions.Equal(expectedHash, resultHash)
 		},

@@ -2,6 +2,7 @@ package hash
 
 import (
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 
 	"github.com/instana/instana-agent-operator/pkg/or_die"
@@ -18,7 +19,7 @@ func (h *hasher) HashJsonOrDie(obj interface{}) string {
 		},
 	)
 	hash := md5.Sum(jsonStr)
-	return string(hash[:])
+	return base64.StdEncoding.EncodeToString(hash[:])
 }
 
 type JsonHasher interface {
