@@ -302,6 +302,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 			},
 		},
 		false,
+		optional.Empty[instanav1.Zone](),
 	).(*daemonSetBuilder)
 	res := db.getEnvVars()
 

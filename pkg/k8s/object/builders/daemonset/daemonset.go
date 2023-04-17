@@ -1,6 +1,7 @@
 package daemonset
 
 import (
+	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,8 +22,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
-
-// TODO: Multiple zones
 
 // TODO: Test and finish
 
@@ -193,9 +192,26 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	return optional.Of[client.Object](ds)
 }
 
-// TODO: Optional Zone configuration (one initialization per zone)
+// TODO: Test this function and include multizone test case for Build()
 
-func NewDaemonSetBuilder(agent *instanav1.InstanaAgent, isOpenshift bool) builder.ObjectBuilder {
+func NewDaemonSetBuilder(
+	agent *instanav1.InstanaAgent,
+	isOpenshift bool,
+	zone optional.Optional[instanav1.Zone],
+) builder.ObjectBuilder {
+	zone.IfPresent(
+		func(zone instanav1.Zone) {
+			agent = agent.DeepCopy()
+
+			agent.Name = fmt.Sprintf("%s-%s", agent.Name, zone.Name.Name)
+			agent.Spec.Zone.Name = zone.Name.Name
+			agent.Spec.Agent.Pod.Tolerations = zone.Tolerations
+			agent.Spec.Agent.Pod.Affinity = zone.Affinity
+			agent.Spec.Agent.Mode = zone.Mode
+
+		},
+	)
+
 	return &daemonSetBuilder{
 		InstanaAgent:              agent,
 		isOpenShift:               isOpenshift,
