@@ -72,3 +72,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: Network policy usage, etc?
 
 // TODO: Possibly auto-detect zones via topology.kubernetes.io/zone label?
+// TODO: Toggle to tolerate masters automatically?
