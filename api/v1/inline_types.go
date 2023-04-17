@@ -327,4 +327,15 @@ func (otlp OpenTelemetry) IsEnabled() bool {
 	return otlp.GrpcIsEnabled() || otlp.HttpIsEnabled()
 }
 
+type Zone struct {
+	// +kubebuilder:validation:Optional
+	Name `json:",inline"`
+	// +kubebuilder:validation:Optional
+	Tolerations []coreV1.Toleration `json:"tolerations,omitempty"`
+	// +kubebuilder:validation:Optional
+	Affinity coreV1.Affinity `json:"affinity,omitempty"`
+	// +kubebuilder:validation:Optional
+	Mode AgentMode `json:"mode,omitempty"`
+}
+
 // TODO: possibly construct ports for container and svc -> maybe move these methods into helpers for better mock-based testing?

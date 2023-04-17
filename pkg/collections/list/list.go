@@ -71,4 +71,4 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 // TODO: inline resource (pod, etc.) config options?
 // TODO: Network policy usage, etc?
 
-// TODO: Is multizone needed?
+// TODO: Possibly auto-detect zones via topology.kubernetes.io/zone label?

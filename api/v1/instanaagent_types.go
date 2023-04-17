@@ -70,6 +70,10 @@ type InstanaAgentSpec struct {
 	// The Operator will check and make sure no 'unsupported' Chart versions can be selected.
 	// +kubebuilder:validation:Optional
 	PinnedChartVersion string `json:"pinnedChartVersion,omitempty"`
+
+	// Zones can be used to specify agents in multiple zones split across different nodes in the cluster
+	// +kubebuilder:validation:Optional
+	Zones []Zone `json:"zones,omitempty"`
 }
 
 // +k8s:openapi-gen=true
