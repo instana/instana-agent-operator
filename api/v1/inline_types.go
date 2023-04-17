@@ -327,4 +327,4 @@ func (otlp OpenTelemetry) IsEnabled() bool {
 	return otlp.GrpcIsEnabled() || otlp.HttpIsEnabled()
 }
 
-// TODO: Test these and use to construct ports for container and svc -> maybe move these methods into helpers for better mock-based testing?
+// TODO: possibly construct ports for container and svc -> maybe move these methods into helpers for better mock-based testing?
