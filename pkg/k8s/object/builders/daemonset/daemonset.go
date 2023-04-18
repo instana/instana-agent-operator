@@ -25,6 +25,10 @@ import (
 
 // TODO: Test and finish
 
+const (
+	componentName = constants.ComponentInstanaAgent
+)
+
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
 	isOpenShift bool
@@ -35,7 +39,7 @@ type daemonSetBuilder struct {
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
-	return constants.ComponentInstanaAgent
+	return componentName
 }
 
 func (d *daemonSetBuilder) IsNamespaced() bool {
@@ -130,7 +134,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	ds := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DaemonSet",
-			APIVersion: "apps/appsv1",
+			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.Name,
@@ -148,7 +152,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: d.ServiceAccountName(),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
-					HostNetwork:        true, // TODO: Test for ServiceEntry later
+					HostNetwork:        true, // TODO: Test for ServiceEntry later: may not be needed on 1.26+ with internal traffic policy
 					HostPID:            true,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
@@ -215,7 +219,7 @@ func NewDaemonSetBuilder(
 	return &daemonSetBuilder{
 		InstanaAgent:              agent,
 		isOpenShift:               isOpenshift,
-		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, constants.ComponentInstanaAgent),
+		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		JsonHasher:                hash.NewJsonHasher(),
 		Helpers:                   helpers.NewHelpers(agent),
 	}
