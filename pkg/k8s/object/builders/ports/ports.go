@@ -10,6 +10,7 @@ import (
 )
 
 // TODO: Test + add to services and daemonset
+// TODO: Possibly refactor EnvVars to be more like this?
 
 type InstanaAgentPort string
 
