@@ -7,12 +7,15 @@ type ContainsElementChecker[T comparable] interface {
 type containsElementChecker[T comparable] struct{}
 
 func (c *containsElementChecker[T]) Contains(in []T, expected T) bool {
+	set := make(map[T]bool, len(in))
+
 	for _, val := range in {
-		if val == expected {
-			return true
-		}
+		set[val] = true
 	}
-	return false
+
+	_, res := set[expected]
+
+	return res
 }
 
 func NewContainsElementChecker[T comparable]() ContainsElementChecker[T] {

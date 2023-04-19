@@ -51,7 +51,7 @@ var (
 		OpenTelemetryHTTPPort: func(agent *instanav1.InstanaAgent) optional.Optional[int32] {
 			switch agent.Spec.OpenTelemetry.HttpIsEnabled() {
 			case true:
-				return optional.Of[int32](4317)
+				return optional.Of[int32](4318)
 			default:
 				return optional.Empty[int32]()
 			}
