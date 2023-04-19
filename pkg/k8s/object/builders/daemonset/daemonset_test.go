@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -390,4 +391,33 @@ func TestDaemonSetBuilder_getResourceRequirements(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	expected := []corev1.ContainerPort{
+		{
+			Name:          "something",
+			ContainerPort: 12345,
+		},
+	}
+
+	portsBuilder := NewMockPortsBuilder(ctrl)
+	portsBuilder.EXPECT().GetContainerPorts(
+		ports.AgentAPIsPort,
+		ports.AgentSocketPort,
+		ports.OpenTelemetryLegacyPort,
+		ports.OpenTelemetryGRPCPort,
+		ports.OpenTelemetryHTTPPort,
+	).Return(expected)
+
+	db := &daemonSetBuilder{
+		PortsBuilder: portsBuilder,
+	}
+
+	actual := db.getContainerPorts()
+
+	assertions.Equal(expected, actual)
 }

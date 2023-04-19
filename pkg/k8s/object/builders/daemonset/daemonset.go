@@ -17,6 +17,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -38,6 +39,7 @@ type daemonSetBuilder struct {
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
 	helpers.Helpers
+	ports.PortsBuilder
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
@@ -119,12 +121,13 @@ func (d *daemonSetBuilder) getResourceRequirements() corev1.ResourceRequirements
 }
 
 func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{
-		{
-			Name:          constants.AgentAPIsPort,
-			ContainerPort: 42699,
-		},
-	} // TODO: Include other ports and build in a common way with service ports, etc. + Test
+	return d.GetContainerPorts(
+		ports.AgentAPIsPort,
+		ports.AgentSocketPort,
+		ports.OpenTelemetryLegacyPort,
+		ports.OpenTelemetryGRPCPort,
+		ports.OpenTelemetryHTTPPort,
+	)
 }
 
 // TODO: test Build()
@@ -173,7 +176,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 									HTTPGet: &corev1.HTTPGetAction{
 										Host: "127.0.0.1", // TODO: Because of HostNet usage supposedly, but shouldn't be needed I think
 										Path: "/status",
-										Port: intstr.FromString(constants.AgentAPIsPort),
+										Port: intstr.FromString(string(ports.AgentAPIsPort)),
 									},
 								},
 								// TODO: set this long because startupProbe wasn't available before k8s 1.16, but this should be EOL by now, so we should see if we can revise this
@@ -224,5 +227,6 @@ func NewDaemonSetBuilder(
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		JsonHasher:                hash.NewJsonHasher(),
 		Helpers:                   helpers.NewHelpers(agent),
+		PortsBuilder:              ports.NewPortsBuilder(agent),
 	}
 }
