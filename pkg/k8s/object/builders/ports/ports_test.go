@@ -8,79 +8,95 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
 func TestPortMappings(t *testing.T) {
 	for _, test := range []struct {
-		name      string
-		portName  InstanaAgentPort
-		agentSpec instanav1.InstanaAgentSpec
-		expected  optional.Optional[int32]
+		name               string
+		port               InstanaAgentPort
+		agentSpec          instanav1.InstanaAgentSpec
+		expectedPortNumber int32
+		expectEnabled      bool
+		expectPanic        bool
 	}{
 		{
-			name:      string(AgentAPIsPort),
-			portName:  AgentAPIsPort,
-			agentSpec: instanav1.InstanaAgentSpec{},
-			expected:  optional.Of[int32](42699),
+			name:               string(AgentAPIsPort),
+			port:               AgentAPIsPort,
+			agentSpec:          instanav1.InstanaAgentSpec{},
+			expectedPortNumber: 42699,
+			expectEnabled:      true,
 		},
 
 		{
-			name:      string(AgentSocketPort),
-			portName:  AgentSocketPort,
-			agentSpec: instanav1.InstanaAgentSpec{},
-			expected:  optional.Of[int32](42666),
+			name:               string(AgentSocketPort),
+			port:               AgentSocketPort,
+			agentSpec:          instanav1.InstanaAgentSpec{},
+			expectedPortNumber: 42666,
+			expectEnabled:      true,
 		},
 
 		{
-			name:      string(OpenTelemetryLegacyPort) + "_not_enabled",
-			portName:  OpenTelemetryLegacyPort,
-			agentSpec: instanav1.InstanaAgentSpec{},
-			expected:  optional.Empty[int32](),
+			name:               string(OpenTelemetryLegacyPort) + "_not_enabled",
+			port:               OpenTelemetryLegacyPort,
+			agentSpec:          instanav1.InstanaAgentSpec{},
+			expectedPortNumber: 55680,
+			expectEnabled:      false,
 		},
 		{
-			name:     string(OpenTelemetryLegacyPort) + "_enabled",
-			portName: OpenTelemetryLegacyPort,
+			name: string(OpenTelemetryLegacyPort) + "_enabled",
+			port: OpenTelemetryLegacyPort,
 			agentSpec: instanav1.InstanaAgentSpec{
 				OpenTelemetry: instanav1.OpenTelemetry{
 					GRPC: &instanav1.Enabled{},
 				},
 			},
-			expected: optional.Of[int32](55680),
+			expectedPortNumber: 55680,
+			expectEnabled:      true,
 		},
 
 		{
-			name:      string(OpenTelemetryGRPCPort) + "_not_enabled",
-			portName:  OpenTelemetryGRPCPort,
-			agentSpec: instanav1.InstanaAgentSpec{},
-			expected:  optional.Empty[int32](),
+			name:               string(OpenTelemetryGRPCPort) + "_not_enabled",
+			port:               OpenTelemetryGRPCPort,
+			agentSpec:          instanav1.InstanaAgentSpec{},
+			expectedPortNumber: 4317,
+			expectEnabled:      false,
 		},
 		{
-			name:     string(OpenTelemetryGRPCPort) + "_enabled",
-			portName: OpenTelemetryGRPCPort,
+			name: string(OpenTelemetryGRPCPort) + "_enabled",
+			port: OpenTelemetryGRPCPort,
 			agentSpec: instanav1.InstanaAgentSpec{
 				OpenTelemetry: instanav1.OpenTelemetry{
 					GRPC: &instanav1.Enabled{},
 				},
 			},
-			expected: optional.Of[int32](4317),
+			expectedPortNumber: 4317,
+			expectEnabled:      true,
 		},
 
 		{
-			name:      string(OpenTelemetryHTTPPort) + "_not_enabled",
-			portName:  OpenTelemetryHTTPPort,
-			agentSpec: instanav1.InstanaAgentSpec{},
-			expected:  optional.Empty[int32](),
+			name:               string(OpenTelemetryHTTPPort) + "_not_enabled",
+			port:               OpenTelemetryHTTPPort,
+			agentSpec:          instanav1.InstanaAgentSpec{},
+			expectedPortNumber: 4318,
+			expectEnabled:      false,
 		},
 		{
-			name:     string(OpenTelemetryHTTPPort) + "_enabled",
-			portName: OpenTelemetryHTTPPort,
+			name: string(OpenTelemetryHTTPPort) + "_enabled",
+			port: OpenTelemetryHTTPPort,
 			agentSpec: instanav1.InstanaAgentSpec{
 				OpenTelemetry: instanav1.OpenTelemetry{
 					HTTP: &instanav1.Enabled{},
 				},
 			},
-			expected: optional.Of[int32](4318),
+			expectedPortNumber: 4318,
+			expectEnabled:      true,
+		},
+		{
+			name:          "unknown_port",
+			port:          InstanaAgentPort("unknown"),
+			agentSpec:     instanav1.InstanaAgentSpec{},
+			expectEnabled: true,
+			expectPanic:   true,
 		},
 	} {
 		t.Run(
@@ -91,9 +107,17 @@ func TestPortMappings(t *testing.T) {
 					Spec: test.agentSpec,
 				}
 
-				actual := portMappings[test.portName](agent)
+				assertions.Equal(test.expectEnabled, test.port.isEnabled(agent))
 
-				assertions.Equal(test.expected, actual)
+				if test.expectPanic {
+					assertions.PanicsWithError(
+						"unknown port requested", func() {
+							test.port.portNumber()
+						},
+					)
+				} else {
+					assertions.Equal(test.expectedPortNumber, test.port.portNumber())
+				}
 			},
 		)
 	}
@@ -143,6 +167,11 @@ func TestPortsBuilder_GetServicePorts_GetContainerPorts(t *testing.T) {
 					ContainerPort: 4317,
 					Protocol:      corev1.ProtocolTCP,
 				},
+				{
+					Name:          string(OpenTelemetryHTTPPort),
+					ContainerPort: 4318,
+					Protocol:      corev1.ProtocolTCP,
+				},
 			},
 		},
 		{
@@ -189,6 +218,58 @@ func TestPortsBuilder_GetServicePorts_GetContainerPorts(t *testing.T) {
 					Name:       string(OpenTelemetryHTTPPort),
 					TargetPort: intstr.FromString(string(OpenTelemetryHTTPPort)),
 					Port:       4318,
+					Protocol:   corev1.ProtocolTCP,
+				},
+			},
+			expectedContainerPorts: []corev1.ContainerPort{
+				{
+					Name:          string(AgentAPIsPort),
+					ContainerPort: 42699,
+					Protocol:      corev1.ProtocolTCP,
+				},
+				{
+					Name:          string(AgentSocketPort),
+					ContainerPort: 42666,
+					Protocol:      corev1.ProtocolTCP,
+				},
+				{
+					Name:          string(OpenTelemetryLegacyPort),
+					ContainerPort: 55680,
+					Protocol:      corev1.ProtocolTCP,
+				},
+				{
+					Name:          string(OpenTelemetryGRPCPort),
+					ContainerPort: 4317,
+					Protocol:      corev1.ProtocolTCP,
+				},
+				{
+					Name:          string(OpenTelemetryHTTPPort),
+					ContainerPort: 4318,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			},
+		},
+		{
+			name:      "all_optionals_disabled",
+			agentSpec: instanav1.InstanaAgentSpec{},
+			requested: []InstanaAgentPort{
+				AgentAPIsPort,
+				AgentSocketPort,
+				OpenTelemetryLegacyPort,
+				OpenTelemetryGRPCPort,
+				OpenTelemetryHTTPPort,
+			},
+			expectedServicePorts: []corev1.ServicePort{
+				{
+					Name:       string(AgentAPIsPort),
+					TargetPort: intstr.FromString(string(AgentAPIsPort)),
+					Port:       42699,
+					Protocol:   corev1.ProtocolTCP,
+				},
+				{
+					Name:       string(AgentSocketPort),
+					TargetPort: intstr.FromString(string(AgentSocketPort)),
+					Port:       42666,
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
