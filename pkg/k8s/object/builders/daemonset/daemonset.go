@@ -25,6 +25,8 @@ import (
 
 // TODO: Test and finish
 
+// TODO: use an init container to copy original contents of etc/instana to an empty volume then copy them onto cm mounted contents before executing run.sh
+
 const (
 	componentName = constants.ComponentInstanaAgent
 )
