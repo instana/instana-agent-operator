@@ -112,6 +112,7 @@ func (p *portsBuilder) GetContainerPorts(ports ...InstanaAgentPort) []corev1.Con
 			return corev1.ContainerPort{
 				Name:          string(port.name),
 				ContainerPort: port.port,
+				Protocol:      corev1.ProtocolTCP,
 			}
 		},
 	)
