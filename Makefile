@@ -227,15 +227,25 @@ get-mockgen:
 
 gen-mocks: get-mockgen
 	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.14.5/pkg/client/interfaces.go --destination ./pkg/k8s/client/k8s_client_mock_test.go --package client
+
 	mockgen --source ./pkg/hash/hash.go --destination ./pkg/k8s/object/builders/daemonset/hash_mock_test.go --package daemonset
 	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/daemonset/pod_selector_mock_test.go --package daemonset
 	mockgen --source ./pkg/k8s/object/builders/ports/ports.go --destination ./pkg/k8s/object/builders/daemonset/ports_mock_test.go --package daemonset
+
 	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/env/helpers_mock_test.go --package env
+
 	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/volume/helpers_mock_test.go --package volume
+
 	mockgen --source ./pkg/k8s/client/client.go --destination ./pkg/operator_utils/instana_agent_client_mock_test.go --package operator_utils
 	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/operator_utils/builder_mock_test.go --package operator_utils
+
 	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/k8s/object/builders/rbac/builder_mock_test.go --package rbac
+
 	mockgen --source ./pkg/k8s/object/builders/ports/ports.go --destination ./pkg/k8s/object/builders/ports/ports_mock_test.go --package ports
+
+	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/headless-service/helpers_mock_test.go --package headless_service
+	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/headless-service/pod_selector_mock_test.go --package headless_service
+	mockgen --source ./pkg/k8s/object/builders/ports/ports.go --destination ./pkg/k8s/object/builders/headless-service/ports_mock_test.go --package headless_service
 
 
 

@@ -9,6 +9,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -19,8 +20,10 @@ const (
 
 type headlessServiceBuilder struct {
 	*instanav1.InstanaAgent
+
 	helpers.Helpers
 	transformations.PodSelectorLabelGenerator
+	ports.PortsBuilder
 }
 
 func (h *headlessServiceBuilder) Build() builder.OptionalObject {
@@ -37,7 +40,7 @@ func (h *headlessServiceBuilder) Build() builder.OptionalObject {
 			Spec: corev1.ServiceSpec{
 				ClusterIP: corev1.ClusterIPNone,
 				Selector:  h.GetPodSelectorLabels(),
-				// TODO continue and test
+				Ports:     h.GetServicePorts(ports.AgentAPIsPort, ports.AgentSocketPort),
 			},
 		},
 	)
@@ -53,8 +56,10 @@ func (h *headlessServiceBuilder) IsNamespaced() bool {
 
 func NewHeadlessServiceBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
 	return &headlessServiceBuilder{
-		InstanaAgent:              agent,
+		InstanaAgent: agent,
+
 		Helpers:                   helpers.NewHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
+		PortsBuilder:              ports.NewPortsBuilder(agent),
 	}
 }
