@@ -111,6 +111,6 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
-		generation: version + "-" + strconv.Itoa(int(agent.Generation)),
+		generation: version + "-" + strconv.Itoa(int(agent.Generation)), // TODO: Maybe just generation w/o version and track diff elsewhere?
 	}
 }
