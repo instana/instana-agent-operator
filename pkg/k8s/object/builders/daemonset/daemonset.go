@@ -15,7 +15,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
@@ -80,27 +79,27 @@ func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 func (d *daemonSetBuilder) getEnvVars() []optional.Optional[corev1.EnvVar] {
 	return append(
 		[]optional.Optional[corev1.EnvVar]{
-			env.AgentModeEnv(d.InstanaAgent),
-			env.ZoneNameEnv(d.InstanaAgent),
-			env.ClusterNameEnv(d.InstanaAgent),
-			env.AgentEndpointEnv(d.InstanaAgent),
-			env.AgentEndpointPortEnv(d.InstanaAgent),
-			env.MavenRepoUrlEnv(d.InstanaAgent),
-			env.ProxyHostEnv(d.InstanaAgent),
-			env.ProxyPortEnv(d.InstanaAgent),
-			env.ProxyProtocolEnv(d.InstanaAgent),
-			env.ProxyUserEnv(d.InstanaAgent),
-			env.ProxyPasswordEnv(d.InstanaAgent),
-			env.ProxyUseDNSEnv(d.InstanaAgent),
-			env.ListenAddressEnv(d.InstanaAgent),
-			env.RedactK8sSecretsEnv(d.InstanaAgent),
-			env.AgentKeyEnv(d.Helpers),
-			env.DownloadKeyEnv(d.Helpers),
-			env.PodNameEnv(),
-			env.PodIpEnv(),
-			env.K8sServiceDomainEnv(d.InstanaAgent, d.Helpers),
+			// env.agentModeEnv(d.InstanaAgent),
+			// env.ZoneNameEnv(d.InstanaAgent),
+			// env.ClusterNameEnv(d.InstanaAgent),
+			// env.AgentEndpointEnv(d.InstanaAgent),
+			// env.AgentEndpointPortEnv(d.InstanaAgent),
+			// env.MavenRepoUrlEnv(d.InstanaAgent),
+			// env.ProxyHostEnv(d.InstanaAgent),
+			// env.ProxyPortEnv(d.InstanaAgent),
+			// env.ProxyProtocolEnv(d.InstanaAgent),
+			// env.ProxyUserEnv(d.InstanaAgent),
+			// env.ProxyPasswordEnv(d.InstanaAgent),
+			// env.ProxyUseDNSEnv(d.InstanaAgent),
+			// env.ListenAddressEnv(d.InstanaAgent),
+			// env.RedactK8sSecretsEnv(d.InstanaAgent),
+			// env.AgentKeyEnv(d.Helpers),
+			// env.DownloadKeyEnv(d.Helpers),
+			// env.PodNameEnv(),
+			// env.PodIpEnv(),
+			// env.K8sServiceDomainEnv(d.InstanaAgent, d.Helpers),
 		},
-		env.UserProvidedEnv(d.InstanaAgent)...,
+		// env.UserProvidedEnv(d.InstanaAgent)...,
 	)
 }
 

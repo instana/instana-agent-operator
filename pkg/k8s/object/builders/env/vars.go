@@ -14,8 +14,8 @@ import (
 
 // Directly From CR
 
-func AgentModeEnv(agent *instanav1.InstanaAgent) optional.Optional[corev1.EnvVar] {
-	return fromCRField("INSTANA_AGENT_MODE", agent.Spec.Agent.Mode)
+func (e *envBuilder) agentModeEnv() optional.Optional[corev1.EnvVar] {
+	return fromCRField("INSTANA_AGENT_MODE", e.agent.Spec.Agent.Mode)
 }
 
 func ZoneNameEnv(agent *instanav1.InstanaAgent) optional.Optional[corev1.EnvVar] {
