@@ -2,6 +2,7 @@ package ports
 
 import (
 	"errors"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -9,6 +10,13 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
+
+type Port interface {
+	fmt.Stringer
+
+	portNumber() int32
+	isEnabled(agent *instanav1.InstanaAgent) bool
+}
 
 type InstanaAgentPort string
 
@@ -19,6 +27,10 @@ const (
 	OpenTelemetryGRPCPort   InstanaAgentPort = "opentelemetry-grpc"
 	OpenTelemetryHTTPPort   InstanaAgentPort = "opentelemetry-http"
 )
+
+func (p InstanaAgentPort) String() string {
+	return string(p)
+}
 
 func (p InstanaAgentPort) portNumber() int32 {
 	switch p {
@@ -50,46 +62,44 @@ func (p InstanaAgentPort) isEnabled(agent *instanav1.InstanaAgent) bool {
 	}
 }
 
+func toServicePort(port Port) corev1.ServicePort {
+	return corev1.ServicePort{
+		Name:       port.String(),
+		Protocol:   corev1.ProtocolTCP,
+		Port:       port.portNumber(),
+		TargetPort: intstr.FromString(port.String()),
+	}
+}
+
+func toContainerPort(port Port) corev1.ContainerPort {
+	return corev1.ContainerPort{
+		Name:          port.String(),
+		ContainerPort: port.portNumber(),
+		Protocol:      corev1.ProtocolTCP,
+	}
+}
+
 type PortsBuilder interface {
-	GetServicePorts(ports ...InstanaAgentPort) []corev1.ServicePort
-	GetContainerPorts(ports ...InstanaAgentPort) []corev1.ContainerPort
+	GetServicePorts(ports ...Port) []corev1.ServicePort
+	GetContainerPorts(ports ...Port) []corev1.ContainerPort
 }
 
 type portsBuilder struct {
 	*instanav1.InstanaAgent
 }
 
-func (p *portsBuilder) GetServicePorts(ports ...InstanaAgentPort) []corev1.ServicePort {
-	enabledPorts := list.NewListFilter[InstanaAgentPort]().Filter(
-		ports, func(port InstanaAgentPort) bool {
+func (p *portsBuilder) GetServicePorts(ports ...Port) []corev1.ServicePort {
+	enabledPorts := list.NewListFilter[Port]().Filter(
+		ports, func(port Port) bool {
 			return port.isEnabled(p.InstanaAgent)
 		},
 	)
 
-	return list.NewListMapTo[InstanaAgentPort, corev1.ServicePort]().MapTo(
-		enabledPorts,
-		func(port InstanaAgentPort) corev1.ServicePort {
-			return corev1.ServicePort{
-				Name:       string(port),
-				Protocol:   corev1.ProtocolTCP,
-				Port:       port.portNumber(),
-				TargetPort: intstr.FromString(string(port)),
-			}
-		},
-	)
+	return list.NewListMapTo[Port, corev1.ServicePort]().MapTo(enabledPorts, toServicePort)
 }
 
-func (p *portsBuilder) GetContainerPorts(ports ...InstanaAgentPort) []corev1.ContainerPort {
-	return list.NewListMapTo[InstanaAgentPort, corev1.ContainerPort]().MapTo(
-		ports,
-		func(port InstanaAgentPort) corev1.ContainerPort {
-			return corev1.ContainerPort{
-				Name:          string(port),
-				ContainerPort: port.portNumber(),
-				Protocol:      corev1.ProtocolTCP,
-			}
-		},
-	)
+func (p *portsBuilder) GetContainerPorts(ports ...Port) []corev1.ContainerPort {
+	return list.NewListMapTo[Port, corev1.ContainerPort]().MapTo(ports, toContainerPort)
 }
 
 func NewPortsBuilder(agent *instanav1.InstanaAgent) PortsBuilder {

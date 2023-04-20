@@ -3,8 +3,10 @@ package ports
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -103,6 +105,8 @@ func TestPortMappings(t *testing.T) {
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
 
+				assertions.Equal(string(test.port), test.port.String())
+
 				agent := &instanav1.InstanaAgent{
 					Spec: test.agentSpec,
 				}
@@ -123,196 +127,126 @@ func TestPortMappings(t *testing.T) {
 	}
 }
 
-func TestPortsBuilder_GetServicePorts_GetContainerPorts(t *testing.T) {
-	for _, test := range []struct {
-		name                   string
-		agentSpec              instanav1.InstanaAgentSpec
-		requested              []InstanaAgentPort
-		expectedServicePorts   []corev1.ServicePort
-		expectedContainerPorts []corev1.ContainerPort
-	}{
-		{
-			name:                   "none",
-			agentSpec:              instanav1.InstanaAgentSpec{},
-			requested:              []InstanaAgentPort{},
-			expectedServicePorts:   []corev1.ServicePort{},
-			expectedContainerPorts: []corev1.ContainerPort{},
-		},
-		{
-			name:      "some",
-			agentSpec: instanav1.InstanaAgentSpec{OpenTelemetry: instanav1.OpenTelemetry{GRPC: &instanav1.Enabled{}}},
-			requested: []InstanaAgentPort{AgentAPIsPort, OpenTelemetryGRPCPort, OpenTelemetryHTTPPort},
-			expectedServicePorts: []corev1.ServicePort{
-				{
-					Name:       string(AgentAPIsPort),
-					TargetPort: intstr.FromString(string(AgentAPIsPort)),
-					Port:       42699,
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       string(OpenTelemetryGRPCPort),
-					TargetPort: intstr.FromString(string(OpenTelemetryGRPCPort)),
-					Port:       4317,
-					Protocol:   corev1.ProtocolTCP,
-				},
-			},
-			expectedContainerPorts: []corev1.ContainerPort{
-				{
-					Name:          string(AgentAPIsPort),
-					ContainerPort: 42699,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryGRPCPort),
-					ContainerPort: 4317,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryHTTPPort),
-					ContainerPort: 4318,
-					Protocol:      corev1.ProtocolTCP,
-				},
-			},
-		},
-		{
-			name: "all",
-			agentSpec: instanav1.InstanaAgentSpec{
-				OpenTelemetry: instanav1.OpenTelemetry{
-					GRPC: &instanav1.Enabled{},
-					HTTP: &instanav1.Enabled{},
-				},
-			},
-			requested: []InstanaAgentPort{
-				AgentAPIsPort,
-				AgentSocketPort,
-				OpenTelemetryLegacyPort,
-				OpenTelemetryGRPCPort,
-				OpenTelemetryHTTPPort,
-			},
-			expectedServicePorts: []corev1.ServicePort{
-				{
-					Name:       string(AgentAPIsPort),
-					TargetPort: intstr.FromString(string(AgentAPIsPort)),
-					Port:       42699,
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       string(AgentSocketPort),
-					TargetPort: intstr.FromString(string(AgentSocketPort)),
-					Port:       42666,
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       string(OpenTelemetryLegacyPort),
-					TargetPort: intstr.FromString(string(OpenTelemetryLegacyPort)),
-					Port:       55680,
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       string(OpenTelemetryGRPCPort),
-					TargetPort: intstr.FromString(string(OpenTelemetryGRPCPort)),
-					Port:       4317,
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       string(OpenTelemetryHTTPPort),
-					TargetPort: intstr.FromString(string(OpenTelemetryHTTPPort)),
-					Port:       4318,
-					Protocol:   corev1.ProtocolTCP,
-				},
-			},
-			expectedContainerPorts: []corev1.ContainerPort{
-				{
-					Name:          string(AgentAPIsPort),
-					ContainerPort: 42699,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(AgentSocketPort),
-					ContainerPort: 42666,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryLegacyPort),
-					ContainerPort: 55680,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryGRPCPort),
-					ContainerPort: 4317,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryHTTPPort),
-					ContainerPort: 4318,
-					Protocol:      corev1.ProtocolTCP,
-				},
-			},
-		},
-		{
-			name:      "all_optionals_disabled",
-			agentSpec: instanav1.InstanaAgentSpec{},
-			requested: []InstanaAgentPort{
-				AgentAPIsPort,
-				AgentSocketPort,
-				OpenTelemetryLegacyPort,
-				OpenTelemetryGRPCPort,
-				OpenTelemetryHTTPPort,
-			},
-			expectedServicePorts: []corev1.ServicePort{
-				{
-					Name:       string(AgentAPIsPort),
-					TargetPort: intstr.FromString(string(AgentAPIsPort)),
-					Port:       42699,
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       string(AgentSocketPort),
-					TargetPort: intstr.FromString(string(AgentSocketPort)),
-					Port:       42666,
-					Protocol:   corev1.ProtocolTCP,
-				},
-			},
-			expectedContainerPorts: []corev1.ContainerPort{
-				{
-					Name:          string(AgentAPIsPort),
-					ContainerPort: 42699,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(AgentSocketPort),
-					ContainerPort: 42666,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryLegacyPort),
-					ContainerPort: 55680,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryGRPCPort),
-					ContainerPort: 4317,
-					Protocol:      corev1.ProtocolTCP,
-				},
-				{
-					Name:          string(OpenTelemetryHTTPPort),
-					ContainerPort: 4318,
-					Protocol:      corev1.ProtocolTCP,
-				},
-			},
-		},
-	} {
-		t.Run(
-			test.name, func(t *testing.T) {
-				assertions := require.New(t)
+func Test_toServicePort(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
 
-				pb := NewPortsBuilder(&instanav1.InstanaAgent{Spec: test.agentSpec})
+	p := NewMockPort(ctrl)
+	p.EXPECT().String().Return("roijdoijsglkjsdf").Times(2)
+	p.EXPECT().portNumber().Return(int32(98798))
 
-				assertions.Equal(test.expectedServicePorts, pb.GetServicePorts(test.requested...))
-				assertions.Equal(test.expectedContainerPorts, pb.GetContainerPorts(test.requested...))
-			},
-		)
+	expected := corev1.ServicePort{
+		Name:       "roijdoijsglkjsdf",
+		Protocol:   corev1.ProtocolTCP,
+		Port:       98798,
+		TargetPort: intstr.FromString("roijdoijsglkjsdf"),
 	}
+
+	actual := toServicePort(p)
+
+	assertions.Equal(expected, actual)
+}
+
+func Test_toContainerPort(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	p := NewMockPort(ctrl)
+	p.EXPECT().String().Return("roijdoijsglkjsdf")
+	p.EXPECT().portNumber().Return(int32(98798))
+
+	expected := corev1.ContainerPort{
+		Name:          "roijdoijsglkjsdf",
+		ContainerPort: 98798,
+		Protocol:      corev1.ProtocolTCP,
+	}
+
+	actual := toContainerPort(p)
+
+	assertions.Equal(expected, actual)
+}
+
+func TestPortsBuilder_GetServicePorts(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "eoidoijdsg",
+		},
+	}
+
+	p1 := NewMockPort(ctrl)
+	p1.EXPECT().isEnabled(gomock.Eq(agent)).Return(true)
+	p1.EXPECT().String().Return("p1").Times(2)
+	p1.EXPECT().portNumber().Return(int32(1))
+
+	p2 := NewMockPort(ctrl)
+	p2.EXPECT().isEnabled(gomock.Eq(agent)).Return(false)
+
+	p3 := NewMockPort(ctrl)
+	p3.EXPECT().isEnabled(gomock.Eq(agent)).Return(true)
+	p3.EXPECT().String().Return("p3").Times(2)
+	p3.EXPECT().portNumber().Return(int32(3))
+
+	expected := []corev1.ServicePort{
+		{
+			Name:       "p1",
+			Port:       1,
+			TargetPort: intstr.FromString("p1"),
+			Protocol:   corev1.ProtocolTCP,
+		},
+		{
+			Name:       "p3",
+			Port:       3,
+			TargetPort: intstr.FromString("p3"),
+			Protocol:   corev1.ProtocolTCP,
+		},
+	}
+
+	pb := NewPortsBuilder(agent)
+	actual := pb.GetServicePorts(p1, p2, p3)
+
+	assertions.Equal(expected, actual)
+}
+
+func TestPortsBuilder_GetContainerPorts(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	p1 := NewMockPort(ctrl)
+	p1.EXPECT().String().Return("p1")
+	p1.EXPECT().portNumber().Return(int32(1))
+
+	p2 := NewMockPort(ctrl)
+	p2.EXPECT().String().Return("p2")
+	p2.EXPECT().portNumber().Return(int32(2))
+
+	p3 := NewMockPort(ctrl)
+	p3.EXPECT().String().Return("p3")
+	p3.EXPECT().portNumber().Return(int32(3))
+
+	expected := []corev1.ContainerPort{
+		{
+			Name:          "p1",
+			ContainerPort: 1,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          "p2",
+			ContainerPort: 2,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          "p3",
+			ContainerPort: 3,
+			Protocol:      corev1.ProtocolTCP,
+		},
+	}
+
+	actual := NewPortsBuilder(&instanav1.InstanaAgent{}).GetContainerPorts(p1, p2, p3)
+
+	assertions.Equal(expected, actual)
 }
 
 func TestNewPortsBuilder(t *testing.T) {
