@@ -39,6 +39,7 @@ func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
 	return optional.NewNonEmptyOptionalMapper[corev1.EnvVar]().AllNonEmpty(optionals)
 }
 
+// TODO: Need to ensure no risk of overlooking panic in production if additional vars are added later, possibly use exhaustive linter?
 func (e *envBuilder) initializeBuildersMap() {
 	e.builders = map[EnvVar]func() optional.Optional[corev1.EnvVar]{
 		AgentModeEnv: e.agentModeEnv,
