@@ -9,6 +9,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
+// TODO: Refactor
+
 type hostVolumeWithMountParams struct {
 	name string
 	path string
