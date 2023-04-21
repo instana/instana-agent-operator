@@ -33,7 +33,7 @@ const (
 	AgentKeyEnv
 	DownloadKeyEnv
 	PodNameEnv
-	PodIpEnv
+	PodIPEnv
 	K8sServiceDomainEnv
 )
 
@@ -83,8 +83,8 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.downloadKeyEnv
 	case PodNameEnv:
 		return e.podNameEnv
-	case PodIpEnv:
-		return e.podIpEnv
+	case PodIPEnv:
+		return e.podIPEnv
 	case K8sServiceDomainEnv:
 		return e.k8sServiceDomainEnv
 	default:

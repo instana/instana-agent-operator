@@ -4,11 +4,13 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type varMethodTest struct {
@@ -342,6 +344,145 @@ func TestEnvBuilder_redactK8sSecretsEnv(t *testing.T) {
 					RedactKubernetesSecrets: expectedValue,
 				},
 			},
+		},
+	)
+}
+
+type fromSecretTest struct {
+	t                  *testing.T
+	expectedSecretName string
+	expected           optional.Optional[corev1.EnvVar]
+	getMethod          func(builder *envBuilder) func() optional.Optional[corev1.EnvVar]
+}
+
+func testFromSecretMethod(test *fromSecretTest) {
+
+	assertions := require.New(test.t)
+	ctrl := gomock.NewController(test.t)
+
+	hlprs := NewMockHelpers(ctrl)
+	hlprs.EXPECT().KeysSecretName().Return(test.expectedSecretName)
+
+	builder := &envBuilder{
+		Helpers: hlprs,
+	}
+	method := test.getMethod(builder)
+
+	actual := method()
+
+	assertions.Equal(test.expected, actual)
+}
+
+func TestEnvBuilder_agentKeyEnv(t *testing.T) {
+	const expectedSecretName = "agent-key-secret"
+
+	testFromSecretMethod(
+		&fromSecretTest{
+			t:                  t,
+			expectedSecretName: expectedSecretName,
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "INSTANA_AGENT_KEY",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: expectedSecretName,
+							},
+							Key: "key",
+						},
+					},
+				},
+			),
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.agentKeyEnv
+			},
+		},
+	)
+}
+
+func TestEnvBuilder_downloadKeyEnv(t *testing.T) {
+	const expectedSecretName = "download-key-secret"
+
+	testFromSecretMethod(
+		&fromSecretTest{
+			t:                  t,
+			expectedSecretName: expectedSecretName,
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "INSTANA_DOWNLOAD_KEY",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: expectedSecretName,
+							},
+							Key:      "downloadKey",
+							Optional: pointer.To(true),
+						},
+					},
+				},
+			),
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.downloadKeyEnv
+			},
+		},
+	)
+}
+
+type literalAlwaysTest struct {
+	t         *testing.T
+	getMethod func(builder *envBuilder) func() optional.Optional[corev1.EnvVar]
+	expected  optional.Optional[corev1.EnvVar]
+}
+
+func testLiteralAlways(test *literalAlwaysTest) {
+	assertions := require.New(test.t)
+
+	builder := NewEnvBuilder(nil).(*envBuilder)
+	method := test.getMethod(builder)
+
+	actual := method()
+
+	assertions.Equal(test.expected, actual)
+}
+
+func TestEnvBuilder_podNameEnv(t *testing.T) {
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.podNameEnv
+			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "INSTANA_AGENT_POD_NAME",
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+			),
+		},
+	)
+}
+
+func TestEnvBuilder_podIPEnv(t *testing.T) {
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.podIPEnv
+			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "POD_IP",
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "status.podIP",
+						},
+					},
+				},
+			),
 		},
 	)
 }

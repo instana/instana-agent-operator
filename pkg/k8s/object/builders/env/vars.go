@@ -120,7 +120,7 @@ func (e *envBuilder) podNameEnv() optional.Optional[corev1.EnvVar] {
 	)
 }
 
-func (e *envBuilder) podIpEnv() optional.Optional[corev1.EnvVar] {
+func (e *envBuilder) podIPEnv() optional.Optional[corev1.EnvVar] {
 	return optional.Of(
 		corev1.EnvVar{
 			Name: "POD_IP",
