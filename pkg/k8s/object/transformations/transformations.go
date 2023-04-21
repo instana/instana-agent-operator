@@ -14,8 +14,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-// TODO: Track list of cluster-scoped and namespace-scoped dependents (to cleanup deprecated resources) + Forbid Create/Update/Patch if unregistered (possibly use runtime.Scheme for this)
-
 // labels
 const (
 	NameLabel       = "app.kubernetes.io/name"
@@ -111,6 +109,6 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
-		generation: version + "-" + strconv.Itoa(int(agent.Generation)), // TODO: Maybe just generation w/o version and track diff elsewhere?
+		generation: strconv.Itoa(int(agent.Generation)),
 	}
 }

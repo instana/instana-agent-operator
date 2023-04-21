@@ -39,7 +39,7 @@ func TestTransformations_AddCommonLabels(t *testing.T) {
 				"app.kubernetes.io/version":    "v0.0.1",
 				"app.kubernetes.io/part-of":    "instana",
 				"app.kubernetes.io/managed-by": "instana-agent-operator",
-				"agent.instana.io/generation":  "v0.0.1-4",
+				"agent.instana.io/generation":  "4",
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestTransformations_AddCommonLabels(t *testing.T) {
 				"app.kubernetes.io/version":    "v0.0.2",
 				"app.kubernetes.io/part-of":    "instana",
 				"app.kubernetes.io/managed-by": "instana-agent-operator",
-				"agent.instana.io/generation":  "v0.0.2-3",
+				"agent.instana.io/generation":  "3",
 			},
 		},
 	} {
