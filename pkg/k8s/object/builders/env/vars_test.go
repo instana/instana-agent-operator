@@ -7,17 +7,20 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type varMethodTest struct {
-	name      string
-	getMethod func(builder *envBuilder) func() optional.Optional[corev1.EnvVar]
-	agent     *instanav1.InstanaAgent
-	expected  optional.Optional[corev1.EnvVar]
+	name          string
+	getMethod     func(builder *envBuilder) func() optional.Optional[corev1.EnvVar]
+	agent         *instanav1.InstanaAgent
+	helpersExpect func(hlprs *MockHelpers)
+	expected      optional.Optional[corev1.EnvVar]
 }
 
 func testVarMethod(t *testing.T, tests []varMethodTest) {
@@ -25,8 +28,17 @@ func testVarMethod(t *testing.T, tests []varMethodTest) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
+				ctrl := gomock.NewController(t)
 
-				builder := NewEnvBuilder(test.agent).(*envBuilder)
+				hlprs := NewMockHelpers(ctrl)
+				if helpersExpect := test.helpersExpect; helpersExpect != nil {
+					helpersExpect(hlprs)
+				}
+
+				builder := &envBuilder{
+					agent:   test.agent,
+					Helpers: hlprs,
+				}
 				method := test.getMethod(builder)
 				actual := method()
 
@@ -356,21 +368,19 @@ type fromSecretTest struct {
 }
 
 func testFromSecretMethod(test *fromSecretTest) {
-
-	assertions := require.New(test.t)
-	ctrl := gomock.NewController(test.t)
-
-	hlprs := NewMockHelpers(ctrl)
-	hlprs.EXPECT().KeysSecretName().Return(test.expectedSecretName)
-
-	builder := &envBuilder{
-		Helpers: hlprs,
-	}
-	method := test.getMethod(builder)
-
-	actual := method()
-
-	assertions.Equal(test.expected, actual)
+	testVarMethod(
+		test.t, []varMethodTest{
+			{
+				name:      "build",
+				getMethod: test.getMethod,
+				agent:     nil,
+				helpersExpect: func(hlprs *MockHelpers) {
+					hlprs.EXPECT().KeysSecretName().Return(test.expectedSecretName)
+				},
+				expected: test.expected,
+			},
+		},
+	)
 }
 
 func TestEnvBuilder_agentKeyEnv(t *testing.T) {
@@ -435,14 +445,15 @@ type literalAlwaysTest struct {
 }
 
 func testLiteralAlways(test *literalAlwaysTest) {
-	assertions := require.New(test.t)
-
-	builder := NewEnvBuilder(nil).(*envBuilder)
-	method := test.getMethod(builder)
-
-	actual := method()
-
-	assertions.Equal(test.expected, actual)
+	testVarMethod(
+		test.t, []varMethodTest{
+			{
+				name:      "build",
+				getMethod: test.getMethod,
+				expected:  test.expected,
+			},
+		},
+	)
 }
 
 func TestEnvBuilder_podNameEnv(t *testing.T) {
@@ -485,4 +496,73 @@ func TestEnvBuilder_podIPEnv(t *testing.T) {
 			),
 		},
 	)
+}
+
+func TestK8sServiceDomainEnv(t *testing.T) {
+	testVarMethod(
+		t, []varMethodTest{
+			{
+				name: "build",
+				getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+					return builder.k8sServiceDomainEnv
+				},
+				agent: &instanav1.InstanaAgent{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "goijesdlkvlk",
+					},
+				},
+				helpersExpect: func(hlprs *MockHelpers) {
+					hlprs.EXPECT().HeadlessServiceName().Return("roidilmsdgo")
+				},
+				expected: optional.Of(
+					corev1.EnvVar{
+						Name:  "K8S_SERVICE_DOMAIN",
+						Value: "roidilmsdgo.goijesdlkvlk.svc",
+					},
+				),
+			},
+		},
+	)
+}
+
+func TestUserProvidedEnv(t *testing.T) {
+	assertions := require.New(t)
+
+	builder := &envBuilder{
+		agent: &instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					Env: map[string]string{
+						"foo":      "bar",
+						"hello":    "world",
+						"oijrgoij": "45ioiojdij",
+					},
+				},
+			},
+		},
+	}
+
+	expected := []corev1.EnvVar{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "hello",
+			Value: "world",
+		},
+		{
+			Name:  "oijrgoij",
+			Value: "45ioiojdij",
+		},
+	}
+
+	opts := builder.userProvidedEnv()
+	actual := list.NewListMapTo[optional.Optional[corev1.EnvVar], corev1.EnvVar]().MapTo(
+		opts, func(builder optional.Optional[corev1.EnvVar]) corev1.EnvVar {
+			return builder.Get()
+		},
+	)
+
+	assertions.ElementsMatch(expected, actual)
 }
