@@ -1,6 +1,8 @@
 package env
 
 import (
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -14,7 +16,25 @@ import (
 type EnvVar int
 
 const (
-	AgentModeEnv EnvVar = iota // TODO: Rest
+	AgentModeEnv EnvVar = iota
+	ZoneNameEnv
+	ClusterNameEnv
+	AgentEndpointEnv
+	AgentEndpointPortEnv
+	MavenRepoURLEnv
+	ProxyHostEnv
+	ProxyPortEnv
+	ProxyProtocolEnv
+	ProxyUserEnv
+	ProxyPasswordEnv
+	ProxyUseDNSEnv
+	ListenAddressEnv
+	RedactK8sSecretsEnv
+	AgentKeyEnv
+	DownloadKeyEnv
+	PodNameEnv
+	PodIpEnv
+	K8sServiceDomainEnv
 )
 
 type EnvBuilder interface {
@@ -24,35 +44,70 @@ type EnvBuilder interface {
 type envBuilder struct {
 	agent *instanav1.InstanaAgent
 	helpers.Helpers
+}
 
-	builders map[EnvVar]func() optional.Optional[corev1.EnvVar]
+// Mapping between EnvVar constants and the functions that build them must be included here
+func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.EnvVar] {
+	switch envVar {
+	case AgentModeEnv:
+		return e.agentModeEnv
+	case ZoneNameEnv:
+		return e.zoneNameEnv
+	case ClusterNameEnv:
+		return e.clusterNameEnv
+	case AgentEndpointEnv:
+		return e.agentEndpointEnv
+	case AgentEndpointPortEnv:
+		return e.agentEndpointPortEnv
+	case MavenRepoURLEnv:
+		return e.mavenRepoURLEnv
+	case ProxyHostEnv:
+		return e.proxyHostEnv
+	case ProxyPortEnv:
+		return e.proxyPortEnv
+	case ProxyProtocolEnv:
+		return e.proxyProtocolEnv
+	case ProxyUserEnv:
+		return e.proxyUserEnv
+	case ProxyPasswordEnv:
+		return e.proxyPasswordEnv
+	case ProxyUseDNSEnv:
+		return e.proxyUseDNSEnv
+	case ListenAddressEnv:
+		return e.listenAddressEnv
+	case RedactK8sSecretsEnv:
+		return e.redactK8sSecretsEnv
+	case AgentKeyEnv:
+		return e.agentKeyEnv
+	case DownloadKeyEnv:
+		return e.downloadKeyEnv
+	case PodNameEnv:
+		return e.podNameEnv
+	case PodIpEnv:
+		return e.podIpEnv
+	case K8sServiceDomainEnv:
+		return e.k8sServiceDomainEnv
+	default:
+		panic(errors.New("unknown environment variable requested"))
+	}
 }
 
 func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
-	optionals := list.NewListMapTo[EnvVar, optional.Optional[corev1.EnvVar]]().MapTo(
+	userProvided := e.userProvidedEnv()
+
+	builtFromSpec := list.NewListMapTo[EnvVar, optional.Optional[corev1.EnvVar]]().MapTo(
 		envVars,
 		func(envVar EnvVar) optional.Optional[corev1.EnvVar] {
-			return e.builders[envVar]()
+			return e.getBuilder(envVar)()
 		},
 	)
 
-	return optional.NewNonEmptyOptionalMapper[corev1.EnvVar]().AllNonEmpty(optionals)
-}
-
-// TODO: Need to ensure no risk of overlooking panic in production if additional vars are added later, possibly use exhaustive linter + comment?
-func (e *envBuilder) initializeBuildersMap() {
-	e.builders = map[EnvVar]func() optional.Optional[corev1.EnvVar]{
-		AgentModeEnv: e.agentModeEnv,
-	}
+	return optional.NewNonEmptyOptionalMapper[corev1.EnvVar]().AllNonEmpty(append(userProvided, builtFromSpec...))
 }
 
 func NewEnvBuilder(agent *instanav1.InstanaAgent) EnvBuilder {
-	res := &envBuilder{
+	return &envBuilder{
 		agent:   agent,
 		Helpers: helpers.NewHelpers(agent),
 	}
-
-	res.initializeBuildersMap()
-
-	return res
 }
