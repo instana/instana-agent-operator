@@ -15,6 +15,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/hash"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
@@ -39,6 +40,7 @@ type daemonSetBuilder struct {
 	hash.JsonHasher
 	helpers.Helpers
 	ports.PortsBuilder
+	env.EnvBuilder
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
@@ -76,30 +78,27 @@ func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
 	return res
 }
 
-func (d *daemonSetBuilder) getEnvVars() []optional.Optional[corev1.EnvVar] {
-	return append(
-		[]optional.Optional[corev1.EnvVar]{
-			// env.agentModeEnv(d.InstanaAgent),
-			// env.ZoneNameEnv(d.InstanaAgent),
-			// env.ClusterNameEnv(d.InstanaAgent),
-			// env.AgentEndpointEnv(d.InstanaAgent),
-			// env.AgentEndpointPortEnv(d.InstanaAgent),
-			// env.MavenRepoUrlEnv(d.InstanaAgent),
-			// env.ProxyHostEnv(d.InstanaAgent),
-			// env.ProxyPortEnv(d.InstanaAgent),
-			// env.ProxyProtocolEnv(d.InstanaAgent),
-			// env.ProxyUserEnv(d.InstanaAgent),
-			// env.ProxyPasswordEnv(d.InstanaAgent),
-			// env.ProxyUseDNSEnv(d.InstanaAgent),
-			// env.ListenAddressEnv(d.InstanaAgent),
-			// env.RedactK8sSecretsEnv(d.InstanaAgent),
-			// env.AgentKeyEnv(d.Helpers),
-			// env.DownloadKeyEnv(d.Helpers),
-			// env.PodNameEnv(),
-			// env.PodIpEnv(),
-			// env.K8sServiceDomainEnv(d.InstanaAgent, d.Helpers),
-		},
-		// env.UserProvidedEnv(d.InstanaAgent)...,
+func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
+	return d.EnvBuilder.Build(
+		env.AgentModeEnv,
+		env.ZoneNameEnv,
+		env.ClusterNameEnv,
+		env.AgentEndpointEnv,
+		env.AgentEndpointPortEnv,
+		env.MavenRepoURLEnv,
+		env.ProxyHostEnv,
+		env.ProxyPortEnv,
+		env.ProxyProtocolEnv,
+		env.ProxyUserEnv,
+		env.ProxyPasswordEnv,
+		env.ProxyUseDNSEnv,
+		env.ListenAddressEnv,
+		env.RedactK8sSecretsEnv,
+		env.AgentKeyEnv,
+		env.DownloadKeyEnv,
+		env.PodNameEnv,
+		env.PodIPEnv,
+		env.K8sServiceDomainEnv,
 	)
 }
 
@@ -166,7 +165,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							Env:             optional.NewNonEmptyOptionalMapper[corev1.EnvVar]().AllNonEmpty(d.getEnvVars()),
+							Env:             d.getEnvVars(),
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),
 							},
@@ -221,11 +220,13 @@ func NewDaemonSetBuilder(
 	)
 
 	return &daemonSetBuilder{
-		InstanaAgent:              agent,
-		isOpenShift:               isOpenshift,
+		InstanaAgent: agent,
+		isOpenShift:  isOpenshift,
+
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		JsonHasher:                hash.NewJsonHasher(),
 		Helpers:                   helpers.NewHelpers(agent),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
+		EnvBuilder:                env.NewEnvBuilder(agent),
 	}
 }

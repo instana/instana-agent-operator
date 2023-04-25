@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -287,27 +288,50 @@ func TestDaemonSetBuilder_getImagePullSecrets(t *testing.T) {
 
 func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
 
-	userProvidedEnv := map[string]string{
-		"foo":   "bar",
-		"hello": "world",
-		"eodgh": "oijdsgnso",
+	expected := []corev1.EnvVar{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "hello",
+			Value: "world",
+		},
 	}
 
-	db := NewDaemonSetBuilder(
-		&instanav1.InstanaAgent{
-			Spec: instanav1.InstanaAgentSpec{
-				Agent: instanav1.BaseAgentSpec{
-					Env: userProvidedEnv,
-				},
-			},
-		},
-		false,
-		optional.Empty[instanav1.Zone](),
-	).(*daemonSetBuilder)
-	res := db.getEnvVars()
+	envBuilder := NewMockEnvBuilder(ctrl)
+	envBuilder.EXPECT().Build(
+		env.AgentModeEnv,
+		env.ZoneNameEnv,
+		env.ClusterNameEnv,
+		env.AgentEndpointEnv,
+		env.AgentEndpointPortEnv,
+		env.MavenRepoURLEnv,
+		env.ProxyHostEnv,
+		env.ProxyPortEnv,
+		env.ProxyProtocolEnv,
+		env.ProxyUserEnv,
+		env.ProxyPasswordEnv,
+		env.ProxyUseDNSEnv,
+		env.ListenAddressEnv,
+		env.RedactK8sSecretsEnv,
+		env.AgentKeyEnv,
+		env.DownloadKeyEnv,
+		env.PodNameEnv,
+		env.PodIPEnv,
+		env.K8sServiceDomainEnv,
+	).
+		Return(expected)
 
-	assertions.Len(res, 19+len(userProvidedEnv))
+	db := &daemonSetBuilder{
+		EnvBuilder: envBuilder,
+	}
+
+	actual := db.getEnvVars()
+
+	assertions.Equal(expected, actual)
 }
 
 func TestDaemonSetBuilder_getResourceRequirements(t *testing.T) {
