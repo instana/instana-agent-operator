@@ -1,23 +1,30 @@
 package list
 
-type ContainsElementChecker[T comparable] interface {
-	Contains(in []T, v T) bool
-}
+func toSet[T comparable](list []T) map[T]bool {
+	res := make(map[T]bool, len(list))
 
-type containsElementChecker[T comparable] struct{}
-
-func (c *containsElementChecker[T]) Contains(in []T, expected T) bool {
-	set := make(map[T]bool, len(in))
-
-	for _, val := range in {
-		set[val] = true
+	for _, item := range list {
+		res[item] = true
 	}
-
-	_, res := set[expected]
 
 	return res
 }
 
-func NewContainsElementChecker[T comparable]() ContainsElementChecker[T] {
-	return &containsElementChecker[T]{}
+type ContainsElementChecker[T comparable] interface {
+	Contains(v T) bool
+}
+
+type containsElementChecker[T comparable] struct {
+	set map[T]bool
+}
+
+func (c *containsElementChecker[T]) Contains(expected T) bool {
+	_, res := c.set[expected]
+	return res
+}
+
+func NewContainsElementChecker[T comparable](in []T) ContainsElementChecker[T] {
+	return &containsElementChecker[T]{
+		set: toSet(in),
+	}
 }

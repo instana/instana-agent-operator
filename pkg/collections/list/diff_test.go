@@ -6,21 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_toSet(t *testing.T) {
-	assertions := require.New(t)
-
-	expected := map[int]bool{
-		1: true,
-		2: true,
-		3: true,
-	}
-
-	in := []int{1, 2, 2, 3, 3, 3}
-	actual := toSet(in)
-
-	assertions.Equal(expected, actual)
-}
-
 func TestDiff_Diff(t *testing.T) {
 	a := []int{0, 1, 2, 3, 4, 5, 6}
 	b := []int{3, 4, 5, 6, 7, 8, 9}

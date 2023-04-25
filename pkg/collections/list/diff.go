@@ -1,15 +1,5 @@
 package list
 
-func toSet[T comparable](list []T) map[T]bool {
-	res := make(map[T]bool, len(list))
-
-	for _, item := range list {
-		res[item] = true
-	}
-
-	return res
-}
-
 type Diff[T comparable] interface {
 	Diff(old []T, new []T) []T
 }
@@ -17,13 +7,12 @@ type Diff[T comparable] interface {
 type diff[T comparable] struct{}
 
 func (d *diff[T]) Diff(old []T, new []T) []T {
-	oldSet := toSet(old)
-	newSet := toSet(new)
+	newSet := NewContainsElementChecker(new)
 
-	res := make([]T, 0, len(oldSet))
+	res := make([]T, 0, len(old))
 
-	for item := range oldSet {
-		if _, inNewSet := newSet[item]; !inNewSet {
+	for _, item := range old {
+		if !newSet.Contains(item) {
 			res = append(res, item)
 		}
 	}
