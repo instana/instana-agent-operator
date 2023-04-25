@@ -9,10 +9,11 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	client "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	client0 "sigs.k8s.io/controller-runtime/pkg/client"
+
+	client "github.com/instana/instana-agent-operator/pkg/k8s/client"
 )
 
 // MockInstanaAgentClient is a mock of InstanaAgentClient interface.
