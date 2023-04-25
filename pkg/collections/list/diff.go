@@ -1,13 +1,15 @@
 package list
 
-type Diff[T comparable] interface {
+type Diff[T any] interface {
 	Diff(old []T, new []T) []T
 }
 
-type diff[T comparable] struct{}
+type diff[T any] struct {
+	newContainsElementChecker func(in []T) ContainsElementChecker[T]
+}
 
 func (d *diff[T]) Diff(old []T, new []T) []T {
-	newSet := NewContainsElementChecker(new)
+	newSet := d.newContainsElementChecker(new)
 
 	res := make([]T, 0, len(old))
 
@@ -21,5 +23,13 @@ func (d *diff[T]) Diff(old []T, new []T) []T {
 }
 
 func NewDiff[T comparable]() Diff[T] {
-	return &diff[T]{}
+	return &diff[T]{
+		newContainsElementChecker: NewContainsElementChecker[T],
+	}
+}
+
+func NewDeepDiff[T any]() Diff[T] {
+	return &diff[T]{
+		newContainsElementChecker: NewDeepContainsElementChecker[T],
+	}
 }

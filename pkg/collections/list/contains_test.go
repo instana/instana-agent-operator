@@ -48,6 +48,10 @@ func TestContainsElementChecker_Contains(t *testing.T) {
 				cec := NewContainsElementChecker[int](test.list)
 
 				assertions.Equal(test.expected, cec.Contains(test.testElement))
+
+				dec := NewDeepContainsElementChecker(test.list)
+
+				assertions.Equal(test.expected, dec.Contains(test.testElement))
 			},
 		)
 	}

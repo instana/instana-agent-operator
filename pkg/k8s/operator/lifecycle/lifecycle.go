@@ -69,10 +69,14 @@ func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.Config
 	)
 }
 
+func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCmFromCluster result.Result[corev1.ConfigMap]) result.Result[corev1.ConfigMap] {
+
+}
+
 func (d *dependentLifecycleManager) DeleteOrphanedDependents() result.Result[corev1.ConfigMap] {
 	switch lifecycleCmFromCluster := d.getLifecycleCm(); lifecycleCmFromCluster.IsSuccess() {
 	case true:
-
+		return d.deleteOrphanedDependents(lifecycleCmFromCluster)
 	default:
 		return lifecycleCmFromCluster
 	}

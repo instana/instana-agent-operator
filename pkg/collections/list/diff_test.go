@@ -11,6 +11,7 @@ func TestDiff_Diff(t *testing.T) {
 	b := []int{3, 4, 5, 6, 7, 8, 9}
 
 	df := NewDiff[int]()
+	ddf := NewDeepDiff[int]()
 
 	for _, test := range []struct {
 		name string
@@ -38,8 +39,10 @@ func TestDiff_Diff(t *testing.T) {
 				assertions := require.New(t)
 
 				actual := df.Diff(test.old, test.new)
-
 				assertions.ElementsMatch(test.expected, actual)
+
+				deepActual := ddf.Diff(test.old, test.new)
+				assertions.ElementsMatch(test.expected, deepActual)
 			},
 		)
 	}
