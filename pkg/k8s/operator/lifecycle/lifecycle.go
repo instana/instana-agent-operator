@@ -69,17 +69,21 @@ func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.Config
 	)
 }
 
-func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCmFromCluster result.Result[corev1.ConfigMap]) result.Result[corev1.ConfigMap] {
-
+func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
+	return result.OfInlineCatchingPanic[corev1.ConfigMap](
+		func() (res corev1.ConfigMap, err error) {
+			// TODO
+		},
+	)
 }
 
 func (d *dependentLifecycleManager) DeleteOrphanedDependents() result.Result[corev1.ConfigMap] {
-	switch lifecycleCmFromCluster := d.getLifecycleCm(); lifecycleCmFromCluster.IsSuccess() {
-	case true:
-		return d.deleteOrphanedDependents(lifecycleCmFromCluster)
-	default:
-		return lifecycleCmFromCluster
-	}
+	return result.Map[corev1.ConfigMap, corev1.ConfigMap](
+		d.getLifecycleCm(),
+		func(lifecycleCm corev1.ConfigMap) result.Result[corev1.ConfigMap] {
+			return d.deleteOrphanedDependents(&lifecycleCm)
+		},
+	)
 }
 
 func NewDependentLifecycleManager(
