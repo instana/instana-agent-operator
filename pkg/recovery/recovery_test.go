@@ -28,7 +28,7 @@ func TestCatch(t *testing.T) {
 		},
 	)
 	t.Run(
-		"catch_error", func(t *testing.T) {
+		"catch_other", func(t *testing.T) {
 			assertions := require.New(t)
 
 			expected := "hello"
