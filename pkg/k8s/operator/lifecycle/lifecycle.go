@@ -80,12 +80,15 @@ func (d *dependentLifecycleManager) getGeneration(
 	lifecycleCm *corev1.ConfigMap,
 	generationNumber int,
 ) []unstructured.Unstructured {
-	switch generationRaw, isPresent := lifecycleCm.Data[strconv.Itoa(generationNumber)]; isPresent {
-	case true:
-		return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(generationRaw))
-	default:
-		return make([]unstructured.Unstructured, 0)
-	}
+	return result.OfInlineCatchingPanic[[]unstructured.Unstructured](
+		func() (res []unstructured.Unstructured, err error) {
+			return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(lifecycleCm.Data[strconv.Itoa(generationNumber)])), nil
+		},
+	).ToOptional().GetOrElse(
+		func() []unstructured.Unstructured {
+			return make([]unstructured.Unstructured, 0)
+		},
+	)
 }
 
 func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]unstructured.Unstructured] {
@@ -97,40 +100,37 @@ func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructur
 		errBuilder.Add(d.Delete(d.ctx, &obj))
 	}
 
+	// TODO: Ensure delete within timeframe
 	return result.Of(toDelete, errBuilder.Build())
 }
 
 func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
-	return result.OfInlineCatchingPanic[corev1.ConfigMap](
-		func() (res corev1.ConfigMap, err error) {
-			errBuilder := multierror.NewMultiErrorBuilder()
-			addErr := func(err error) {
-				errBuilder.Add(err)
-			}
+	errBuilder := multierror.NewMultiErrorBuilder()
+	addErr := func(err error) {
+		errBuilder.Add(err)
+	}
 
-			generationNumber := int(d.agent.GetGeneration())
+	generationNumber := int(d.agent.GetGeneration())
 
-			currentGeneration := d.getGeneration(lifecycleCm, generationNumber)
+	currentGeneration := d.getGeneration(lifecycleCm, generationNumber)
 
-			for i := generationNumber - 1; i > 0; i-- {
-				olderGeneration := d.getGeneration(lifecycleCm, i)
-				deprecatedDependents := list.NewDeepDiff[unstructured.Unstructured]().Diff(
-					olderGeneration,
-					currentGeneration,
-				)
+	for i := generationNumber - 1; i > 0; i-- {
+		olderGeneration := d.getGeneration(lifecycleCm, i)
+		deprecatedDependents := list.NewDeepDiff[unstructured.Unstructured]().Diff(
+			olderGeneration,
+			currentGeneration,
+		)
 
-				d.deleteAll(deprecatedDependents).OnSuccess(
-					func(_ []unstructured.Unstructured) {
-						delete(lifecycleCm.Data, strconv.Itoa(i))
-					},
-				).OnFailure(addErr)
-			}
+		d.deleteAll(deprecatedDependents).OnSuccess(
+			func(_ []unstructured.Unstructured) {
+				delete(lifecycleCm.Data, strconv.Itoa(i))
+			},
+		).OnFailure(addErr)
+	}
 
-			d.Apply(d.ctx, lifecycleCm).OnFailure(addErr)
+	d.Apply(d.ctx, lifecycleCm).OnFailure(addErr)
 
-			return *lifecycleCm, errBuilder.Build()
-		},
-	)
+	return result.Of(*lifecycleCm, errBuilder.Build())
 }
 
 func (d *dependentLifecycleManager) DeleteOrphanedDependents() result.Result[corev1.ConfigMap] {
