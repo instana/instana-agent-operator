@@ -7,8 +7,8 @@ import (
 )
 
 type JsonOrDieMarshaler[T any] interface {
-	marshalOrDie(obj T) []byte
-	unMarshalOrDie(raw []byte) T
+	MarshalOrDie(obj T) []byte
+	UnMarshalOrDie(raw []byte) T
 }
 
 type jsonOrDie[T any] struct {
@@ -16,7 +16,7 @@ type jsonOrDie[T any] struct {
 	obj T
 }
 
-func (j *jsonOrDie[T]) marshalOrDie(obj T) []byte {
+func (j *jsonOrDie[T]) MarshalOrDie(obj T) []byte {
 	return j.ResultOrDie(
 		func() ([]byte, error) {
 			return json.Marshal(obj)
@@ -24,7 +24,7 @@ func (j *jsonOrDie[T]) marshalOrDie(obj T) []byte {
 	)
 }
 
-func (j *jsonOrDie[T]) unMarshalOrDie(raw []byte) T {
+func (j *jsonOrDie[T]) UnMarshalOrDie(raw []byte) T {
 	j.ResultOrDie(
 		func() ([]byte, error) {
 			return nil, json.Unmarshal(raw, &j.obj)

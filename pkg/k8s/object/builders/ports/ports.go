@@ -57,6 +57,10 @@ func (p InstanaAgentPort) isEnabled(agent *instanav1.InstanaAgent) bool {
 		return agent.Spec.OpenTelemetry.GrpcIsEnabled()
 	case OpenTelemetryHTTPPort:
 		return agent.Spec.OpenTelemetry.HttpIsEnabled()
+	case AgentAPIsPort:
+		fallthrough
+	case AgentSocketPort:
+		fallthrough
 	default:
 		return true
 	}

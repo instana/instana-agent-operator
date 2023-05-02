@@ -20,7 +20,7 @@ func testJsonOrDie[T any](t *testing.T, name string, createFunction func() JsonO
 					execute: func(assertions *require.Assertions, j JsonOrDieMarshaler[T]) {
 						assertions.Panics(
 							func() {
-								j.unMarshalOrDie([]byte("{"))
+								j.UnMarshalOrDie([]byte("{"))
 							},
 						)
 					},
@@ -30,8 +30,8 @@ func testJsonOrDie[T any](t *testing.T, name string, createFunction func() JsonO
 					execute: func(assertions *require.Assertions, j JsonOrDieMarshaler[T]) {
 						expected := j.(*jsonOrDie[T]).obj
 
-						marshaled := j.marshalOrDie(expected)
-						actual := j.unMarshalOrDie(marshaled)
+						marshaled := j.MarshalOrDie(expected)
+						actual := j.UnMarshalOrDie(marshaled)
 
 						assertions.Equal(expected, actual)
 					},

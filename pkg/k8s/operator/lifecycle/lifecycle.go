@@ -6,15 +6,19 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/json_or_die"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
-	"github.com/instana/instana-agent-operator/pkg/or_die"
+	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
+
+// TODO: Test
 
 type DependentLifecycleManager interface {
 	UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap]
@@ -28,7 +32,7 @@ type dependentLifecycleManager struct {
 
 	instanaclient.InstanaAgentClient
 	objectStrip
-	jsonMarshaler
+	json_or_die.JsonOrDieMarshaler[[]unstructured.Unstructured]
 }
 
 func (d *dependentLifecycleManager) getCmName() string {
@@ -36,9 +40,12 @@ func (d *dependentLifecycleManager) getCmName() string {
 }
 
 func (d *dependentLifecycleManager) marshalDependents() []byte {
-	stripped := list.NewListMapTo[client.Object, client.Object]().MapTo(d.currentGenerationDependents, d.stripObject)
+	stripped := list.NewListMapTo[client.Object, unstructured.Unstructured]().MapTo(
+		d.currentGenerationDependents,
+		d.stripObject,
+	)
 
-	return d.marshalOrDie(&stripped)
+	return d.MarshalOrDie(stripped)
 }
 
 func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap] {
@@ -69,10 +76,59 @@ func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.Config
 	)
 }
 
+func (d *dependentLifecycleManager) getGeneration(
+	lifecycleCm *corev1.ConfigMap,
+	generationNumber int,
+) []unstructured.Unstructured {
+	switch generationRaw, isPresent := lifecycleCm.Data[strconv.Itoa(generationNumber)]; isPresent {
+	case true:
+		return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(generationRaw))
+	default:
+		return make([]unstructured.Unstructured, 0)
+	}
+}
+
+func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]unstructured.Unstructured] {
+	errBuilder := multierror.NewMultiErrorBuilder()
+
+	for _, obj := range toDelete {
+		obj := obj
+
+		errBuilder.Add(d.Delete(d.ctx, &obj))
+	}
+
+	return result.Of(toDelete, errBuilder.Build())
+}
+
 func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
 	return result.OfInlineCatchingPanic[corev1.ConfigMap](
 		func() (res corev1.ConfigMap, err error) {
-			// TODO
+			errBuilder := multierror.NewMultiErrorBuilder()
+			addErr := func(err error) {
+				errBuilder.Add(err)
+			}
+
+			generationNumber := int(d.agent.GetGeneration())
+
+			currentGeneration := d.getGeneration(lifecycleCm, generationNumber)
+
+			for i := generationNumber - 1; i > 0; i-- {
+				olderGeneration := d.getGeneration(lifecycleCm, i)
+				deprecatedDependents := list.NewDeepDiff[unstructured.Unstructured]().Diff(
+					olderGeneration,
+					currentGeneration,
+				)
+
+				d.deleteAll(deprecatedDependents).OnSuccess(
+					func(_ []unstructured.Unstructured) {
+						delete(lifecycleCm.Data, strconv.Itoa(i))
+					},
+				).OnFailure(addErr)
+			}
+
+			d.Apply(d.ctx, lifecycleCm).OnFailure(addErr)
+
+			return *lifecycleCm, errBuilder.Build()
 		},
 	)
 }
@@ -99,8 +155,6 @@ func NewDependentLifecycleManager(
 
 		InstanaAgentClient: instanaClient,
 		objectStrip:        &strip{},
-		jsonMarshaler: &jsonOrDie{
-			OrDie: or_die.New[[]byte](),
-		},
+		JsonOrDieMarshaler: json_or_die.NewJsonOrDieArray[unstructured.Unstructured](),
 	}
 }
