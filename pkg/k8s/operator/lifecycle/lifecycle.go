@@ -92,16 +92,14 @@ func (d *dependentLifecycleManager) getGeneration(
 }
 
 func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]unstructured.Unstructured] {
-	errBuilder := multierror.NewMultiErrorBuilder()
+	errors := list.NewListMapTo[unstructured.Unstructured, error]().MapTo(
+		toDelete, func(obj unstructured.Unstructured) error {
+			// TODO: Ensure delete within timeframe
+			return d.Delete(d.ctx, &obj)
+		},
+	)
 
-	for _, obj := range toDelete {
-		obj := obj
-
-		errBuilder.Add(d.Delete(d.ctx, &obj))
-	}
-
-	// TODO: Ensure delete within timeframe
-	return result.Of(toDelete, errBuilder.Build())
+	return result.Of(toDelete, multierror.NewMultiErrorBuilder(errors...).Build())
 }
 
 func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
