@@ -77,6 +77,8 @@ func (o *operatorUtils) applyAll(
 	return result.Of(objects, errBuilder.Build())
 }
 
+// TODO: Add lifecycle stuff
+
 func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
 	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
 		builders,

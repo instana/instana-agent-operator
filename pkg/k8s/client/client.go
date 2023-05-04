@@ -2,10 +2,14 @@ package client
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,10 +28,97 @@ type InstanaAgentClient interface {
 		ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
 	) ObjectResult
 	Exists(ctx context.Context, gvk schema.GroupVersionKind, key k8sclient.ObjectKey) BoolResult
+	DeleteAllInTimeLimit(
+		ctx context.Context,
+		objects []k8sclient.Object,
+		timeout time.Duration,
+		waitTime time.Duration,
+		opts ...k8sclient.DeleteOption,
+	) BoolResult // TODO: test
 }
 
 type instanaAgentClient struct {
 	k8sclient.Client
+}
+
+func (c *instanaAgentClient) objectsExist(
+	ctx context.Context,
+	objects []k8sclient.Object,
+) []BoolResult {
+	res := make([]BoolResult, 0, len(objects))
+
+	for _, obj := range objects {
+		res = append(res, c.Exists(ctx, obj.GetObjectKind().GroupVersionKind(), k8sclient.ObjectKeyFromObject(obj)))
+	}
+
+	return res
+}
+
+func (c *instanaAgentClient) verifyDeletionStep(
+	ctx context.Context,
+	objects []k8sclient.Object,
+	waitTime time.Duration,
+) BoolResult {
+	objectsExistResults := c.objectsExist(ctx, objects)
+
+	switch list.NewConditions(objectsExistResults).All(
+		func(res BoolResult) bool {
+			return res.IsSuccess() && !res.ToOptional().Get()
+		},
+	) {
+	case true:
+		return result.OfSuccess(true)
+	default:
+		// TODO: Log errors?
+		time.Sleep(waitTime)
+		return c.verifyDeletion(ctx, objects, waitTime)
+	}
+}
+
+func (c *instanaAgentClient) verifyDeletion(
+	ctx context.Context,
+	objects []k8sclient.Object,
+	waitTime time.Duration,
+) BoolResult {
+	switch err := ctx.Err(); errors.Is(err, nil) {
+	case true:
+		return c.verifyDeletionStep(ctx, objects, waitTime)
+	default:
+		return result.OfFailure[bool](err)
+	}
+}
+
+func (c *instanaAgentClient) deleteAll(
+	ctx context.Context,
+	objects []k8sclient.Object,
+	opts ...k8sclient.DeleteOption,
+) error {
+	errBuilder := multierror.NewMultiErrorBuilder()
+
+	for _, obj := range objects {
+		err := c.Delete(ctx, obj, opts...)
+		errBuilder.Add(err)
+	}
+
+	return errBuilder.Build()
+}
+
+func (c *instanaAgentClient) DeleteAllInTimeLimit(
+	ctx context.Context,
+	objects []k8sclient.Object,
+	timeout time.Duration,
+	waitTime time.Duration,
+	opts ...k8sclient.DeleteOption,
+) BoolResult {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	switch err := c.deleteAll(ctx, objects, opts...); errors.Is(err, nil) {
+	case true:
+		return c.verifyDeletion(ctx, objects, waitTime)
+	default:
+		return result.OfFailure[bool](err)
+	}
 }
 
 func (c *instanaAgentClient) Exists(

@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"context"
 	"strconv"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,15 +92,15 @@ func (d *dependentLifecycleManager) getGeneration(
 	)
 }
 
-func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]unstructured.Unstructured] {
-	errors := list.NewListMapTo[unstructured.Unstructured, error]().MapTo(
-		toDelete, func(obj unstructured.Unstructured) error {
-			// TODO: Ensure delete within timeframe
-			return d.Delete(d.ctx, &obj)
+func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[bool] {
+	toDeleteCasted := list.NewListMapTo[unstructured.Unstructured, client.Object]().MapTo(
+		toDelete,
+		func(val unstructured.Unstructured) client.Object {
+			return &val
 		},
 	)
 
-	return result.Of(toDelete, multierror.NewMultiErrorBuilder(errors...).Build())
+	return d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second)
 }
 
 func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
@@ -120,8 +121,10 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1
 		)
 
 		d.deleteAll(deprecatedDependents).OnSuccess(
-			func(_ []unstructured.Unstructured) {
-				delete(lifecycleCm.Data, strconv.Itoa(i))
+			func(deleted bool) {
+				if deleted {
+					delete(lifecycleCm.Data, strconv.Itoa(i))
+				}
 			},
 		).OnFailure(addErr)
 	}
