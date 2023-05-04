@@ -45,6 +45,7 @@ rules:
   - 'daemonsets'
   - 'namespaces'
   - 'services'
+  - 'deployments'
   verbs:
   - create
   - delete
@@ -166,3 +167,27 @@ rules:
   - 'securitycontextconstraints'
   verbs:
   - 'use'
+- apiGroups:
+  - autoscaling/v1
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling/v2
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
