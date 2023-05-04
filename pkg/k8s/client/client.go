@@ -30,7 +30,6 @@ type InstanaAgentClient interface {
 	Exists(ctx context.Context, gvk schema.GroupVersionKind, key k8sclient.ObjectKey) BoolResult
 
 	// TODO: test
-	// TODO: contract issue
 
 	DeleteAllInTimeLimit(
 		ctx context.Context,
@@ -38,7 +37,7 @@ type InstanaAgentClient interface {
 		timeout time.Duration,
 		waitTime time.Duration,
 		opts ...k8sclient.DeleteOption,
-	) BoolResult
+	) error
 }
 
 type instanaAgentClient struct {
@@ -62,7 +61,7 @@ func (c *instanaAgentClient) verifyDeletionStep(
 	ctx context.Context,
 	objects []k8sclient.Object,
 	waitTime time.Duration,
-) BoolResult {
+) error {
 	objectsExistResults := c.objectsExist(ctx, objects)
 
 	switch list.NewConditions(objectsExistResults).All(
@@ -71,7 +70,7 @@ func (c *instanaAgentClient) verifyDeletionStep(
 		},
 	) {
 	case true:
-		return result.OfSuccess(true)
+		return nil
 	default:
 		// TODO: Log errors?
 		time.Sleep(waitTime)
@@ -83,12 +82,12 @@ func (c *instanaAgentClient) verifyDeletion(
 	ctx context.Context,
 	objects []k8sclient.Object,
 	waitTime time.Duration,
-) BoolResult {
+) error {
 	switch err := ctx.Err(); errors.Is(err, nil) {
 	case true:
 		return c.verifyDeletionStep(ctx, objects, waitTime)
 	default:
-		return result.OfFailure[bool](err)
+		return err
 	}
 }
 
@@ -113,7 +112,7 @@ func (c *instanaAgentClient) DeleteAllInTimeLimit(
 	timeout time.Duration,
 	waitTime time.Duration,
 	opts ...k8sclient.DeleteOption,
-) BoolResult {
+) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -121,7 +120,7 @@ func (c *instanaAgentClient) DeleteAllInTimeLimit(
 	case true:
 		return c.verifyDeletion(ctx, objects, waitTime)
 	default:
-		return result.OfFailure[bool](err)
+		return err
 	}
 }
 

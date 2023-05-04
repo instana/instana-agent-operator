@@ -92,7 +92,7 @@ func (d *dependentLifecycleManager) getGeneration(
 	)
 }
 
-func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[bool] {
+func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) error {
 	toDeleteCasted := list.NewListMapTo[unstructured.Unstructured, client.Object]().MapTo(
 		toDelete,
 		func(val unstructured.Unstructured) client.Object {
@@ -120,11 +120,9 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1
 			currentGeneration,
 		)
 
-		d.deleteAll(deprecatedDependents).OnSuccess(
-			func(deleted bool) {
-				if deleted {
-					delete(lifecycleCm.Data, strconv.Itoa(i))
-				}
+		result.OfFailure[any](d.deleteAll(deprecatedDependents)).OnSuccess(
+			func(_ any) {
+				delete(lifecycleCm.Data, strconv.Itoa(i))
 			},
 		).OnFailure(addErr)
 	}
