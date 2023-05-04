@@ -19,12 +19,15 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
-// TODO: Needs to include operator version and generation
+// TODO: +Delete All version for finalizer logic
 
 // TODO: Test
 
 type DependentLifecycleManager interface {
 	UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap]
+
+	// TODO: Needs to include operator version and generation
+
 	DeleteOrphanedDependents() result.Result[corev1.ConfigMap]
 }
 
