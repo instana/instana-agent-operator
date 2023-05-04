@@ -19,6 +19,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
+// TODO: Needs to include operator version and generation
+
 // TODO: Test
 
 type DependentLifecycleManager interface {
