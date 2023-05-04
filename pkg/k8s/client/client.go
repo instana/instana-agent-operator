@@ -97,7 +97,7 @@ func (c *instanaAgentClient) deleteAll(
 
 	for _, obj := range objects {
 		err := c.Delete(ctx, obj, opts...)
-		errBuilder.Add(err)
+		errBuilder.Add(k8sclient.IgnoreNotFound(err))
 	}
 
 	return errBuilder.Build()
