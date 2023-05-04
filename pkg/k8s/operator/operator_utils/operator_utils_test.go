@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,27 +24,18 @@ import (
 func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName string) {
 	for _, test := range []struct {
 		name     string
-		errOfGet error
 		expected result.Result[bool]
 	}{
 		{
 			name:     "crd_exists",
-			errOfGet: nil,
 			expected: result.OfSuccess(true),
 		},
 		{
-			name: "crd_does_not_exist",
-			errOfGet: k8sErrors.NewNotFound(
-				schema.GroupResource{
-					Group:    "apiextensions.k8s.io",
-					Resource: "customresourcedefinitions",
-				}, name,
-			),
+			name:     "crd_does_not_exist",
 			expected: result.OfSuccess(false),
 		},
 		{
 			name:     "error_getting_crd",
-			errOfGet: errors.New("qwerty"),
 			expected: result.OfFailure[bool](errors.New("qwerty")),
 		},
 	} {
@@ -58,19 +47,17 @@ func testOperatorUtils_crdIsInstalled(t *testing.T, name string, methodName stri
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
+				gvk := schema.GroupVersionKind{
+					Group:   "apiextensions.k8s.io",
+					Version: "v1",
+					Kind:    "CustomResourceDefinition",
+				}
 				key := types.NamespacedName{
 					Name: name,
 				}
-				obj := &unstructured.Unstructured{}
-				obj.SetAPIVersion("apiextensions.k8s.io/v1")
-				obj.SetKind("CustomResourceDefinition")
 
 				instanaClient := NewMockInstanaAgentClient(ctrl)
-				instanaClient.EXPECT().GetAsResult(
-					gomock.Eq(ctx),
-					gomock.Eq(key),
-					gomock.Eq(obj),
-				).Return(result.Of[k8sclient.Object](obj, test.errOfGet))
+				instanaClient.EXPECT().Exists(gomock.Eq(ctx), gomock.Eq(gvk), gomock.Eq(key)).Return(test.expected)
 
 				ot := NewOperatorUtils(ctx, instanaClient, &instanav1.InstanaAgent{})
 

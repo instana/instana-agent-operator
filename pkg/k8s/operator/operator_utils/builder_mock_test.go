@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-
 	builder "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 )
 

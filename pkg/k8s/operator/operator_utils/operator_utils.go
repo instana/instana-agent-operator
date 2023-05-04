@@ -2,7 +2,7 @@ package operator_utils
 
 import (
 	"golang.org/x/net/context"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,21 +41,14 @@ func NewOperatorUtils(
 }
 
 func (o *operatorUtils) crdIsInstalled(name string) result.Result[bool] {
-	obj := &unstructured.Unstructured{}
-	obj.SetAPIVersion("apiextensions.k8s.io/v1")
-	obj.SetKind("CustomResourceDefinition")
-
-	crdResult := o.GetAsResult(o.ctx, types.NamespacedName{Name: name}, obj)
-
-	return result.Map(
-		crdResult, func(_ k8sclient.Object) result.Result[bool] {
-			return result.OfSuccess(true)
-		},
-	).Recover(
-		func(err error) (bool, error) {
-			return false, k8sclient.IgnoreNotFound(err)
-		},
+	return o.Exists(
+		o.ctx, schema.GroupVersionKind{
+			Group:   "apiextensions.k8s.io",
+			Version: "v1",
+			Kind:    "CustomResourceDefinition",
+		}, types.NamespacedName{Name: name},
 	)
+
 }
 
 func (o *operatorUtils) ClusterIsOpenShift() result.Result[bool] {

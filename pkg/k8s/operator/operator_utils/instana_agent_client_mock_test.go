@@ -9,11 +9,11 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	client "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	client0 "sigs.k8s.io/controller-runtime/pkg/client"
-
-	client "github.com/instana/instana-agent-operator/pkg/k8s/client"
 )
 
 // MockInstanaAgentClient is a mock of InstanaAgentClient interface.
@@ -113,6 +113,20 @@ func (mr *MockInstanaAgentClientMockRecorder) DeleteAllOf(ctx, obj interface{}, 
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, obj}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllOf", reflect.TypeOf((*MockInstanaAgentClient)(nil).DeleteAllOf), varargs...)
+}
+
+// Exists mocks base method.
+func (m *MockInstanaAgentClient) Exists(ctx context.Context, gvk schema.GroupVersionKind, key client0.ObjectKey) client.BoolResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", ctx, gvk, key)
+	ret0, _ := ret[0].(client.BoolResult)
+	return ret0
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockInstanaAgentClientMockRecorder) Exists(ctx, gvk, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockInstanaAgentClient)(nil).Exists), ctx, gvk, key)
 }
 
 // Get mocks base method.
