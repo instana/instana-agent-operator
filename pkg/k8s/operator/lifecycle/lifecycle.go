@@ -2,7 +2,7 @@ package lifecycle
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +15,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/json_or_die"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
@@ -25,9 +26,6 @@ import (
 
 type DependentLifecycleManager interface {
 	UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap]
-
-	// TODO: Needs to include operator version and generation
-
 	DeleteOrphanedDependents() result.Result[corev1.ConfigMap]
 }
 
@@ -54,6 +52,10 @@ func (d *dependentLifecycleManager) marshalDependents() []byte {
 	return d.MarshalOrDie(stripped)
 }
 
+func (d *dependentLifecycleManager) getCurrentGenKey() string {
+	return fmt.Sprintf("%s_%d", transformations.GetVersion(), d.agent.GetGeneration())
+}
+
 func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap] {
 	lifecycleCm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -65,7 +67,7 @@ func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo() result.Result
 			Namespace: d.agent.GetNamespace(),
 		},
 		Data: map[string]string{
-			strconv.Itoa(int(d.agent.GetGeneration())): string(d.marshalDependents()),
+			d.getCurrentGenKey(): string(d.marshalDependents()),
 		},
 	}
 
@@ -84,11 +86,11 @@ func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.Config
 
 func (d *dependentLifecycleManager) getGeneration(
 	lifecycleCm *corev1.ConfigMap,
-	generationNumber int,
+	key string,
 ) []unstructured.Unstructured {
 	return result.OfInlineCatchingPanic[[]unstructured.Unstructured](
 		func() (res []unstructured.Unstructured, err error) {
-			return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(lifecycleCm.Data[strconv.Itoa(generationNumber)])), nil
+			return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(lifecycleCm.Data[key])), nil
 		},
 	).ToOptional().GetOrElse(
 		func() []unstructured.Unstructured {
@@ -97,7 +99,7 @@ func (d *dependentLifecycleManager) getGeneration(
 	)
 }
 
-func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) error {
+func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[any] {
 	toDeleteCasted := list.NewListMapTo[unstructured.Unstructured, client.Object]().MapTo(
 		toDelete,
 		func(val unstructured.Unstructured) client.Object {
@@ -105,7 +107,7 @@ func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructur
 		},
 	)
 
-	return d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second)
+	return result.OfFailure[any](d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second))
 }
 
 func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
@@ -114,20 +116,20 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1
 		errBuilder.Add(err)
 	}
 
-	generationNumber := int(d.agent.GetGeneration())
+	currentGenKey := d.getCurrentGenKey()
 
-	currentGeneration := d.getGeneration(lifecycleCm, generationNumber)
+	currentGeneration := d.getGeneration(lifecycleCm, currentGenKey)
 
-	for i := generationNumber - 1; i > 0; i-- {
-		olderGeneration := d.getGeneration(lifecycleCm, i)
+	for key := range lifecycleCm.Data {
+		olderGeneration := d.getGeneration(lifecycleCm, key)
 		deprecatedDependents := list.NewDeepDiff[unstructured.Unstructured]().Diff(
 			olderGeneration,
 			currentGeneration,
 		)
 
-		result.OfFailure[any](d.deleteAll(deprecatedDependents)).OnSuccess(
+		d.deleteAll(deprecatedDependents).OnSuccess(
 			func(_ any) {
-				delete(lifecycleCm.Data, strconv.Itoa(i))
+				delete(lifecycleCm.Data, key)
 			},
 		).OnFailure(addErr)
 	}

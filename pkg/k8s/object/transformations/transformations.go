@@ -35,6 +35,10 @@ var (
 	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.0")
 )
 
+func GetVersion() string {
+	return version
+}
+
 type Transformations interface {
 	AddCommonLabels(obj client.Object, component string)
 	AddOwnerReference(obj client.Object)
