@@ -18,6 +18,9 @@ import (
 // ObjectResult alias is needed to workaround issues in mockgen
 type ObjectResult = result.Result[k8sclient.Object]
 
+// MultiObjectResult alias is needed to workaround issues in mockgen
+type MultiObjectResult = result.Result[[]k8sclient.Object]
+
 // BoolResult alias is needed to workaround issues in mockgen
 type BoolResult = result.Result[bool]
 
@@ -37,7 +40,7 @@ type InstanaAgentClient interface {
 		timeout time.Duration,
 		waitTime time.Duration,
 		opts ...k8sclient.DeleteOption,
-	) error
+	) MultiObjectResult
 }
 
 type instanaAgentClient struct {
@@ -106,7 +109,7 @@ func (c *instanaAgentClient) deleteAll(
 	return errBuilder.Build()
 }
 
-func (c *instanaAgentClient) DeleteAllInTimeLimit(
+func (c *instanaAgentClient) deleteAllInTimeLimit(
 	ctx context.Context,
 	objects []k8sclient.Object,
 	timeout time.Duration,
@@ -122,6 +125,16 @@ func (c *instanaAgentClient) DeleteAllInTimeLimit(
 	default:
 		return err
 	}
+}
+
+func (c *instanaAgentClient) DeleteAllInTimeLimit(
+	ctx context.Context,
+	objects []k8sclient.Object,
+	timeout time.Duration,
+	waitTime time.Duration,
+	opts ...k8sclient.DeleteOption,
+) MultiObjectResult {
+	return result.Of(objects, c.deleteAllInTimeLimit(ctx, objects, timeout, waitTime, opts...))
 }
 
 func (c *instanaAgentClient) Exists(

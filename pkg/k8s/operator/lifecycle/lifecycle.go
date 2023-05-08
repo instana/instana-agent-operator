@@ -99,7 +99,7 @@ func (d *dependentLifecycleManager) getGeneration(
 	)
 }
 
-func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[any] {
+func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]client.Object] {
 	toDeleteCasted := list.NewListMapTo[unstructured.Unstructured, client.Object]().MapTo(
 		toDelete,
 		func(val unstructured.Unstructured) client.Object {
@@ -107,18 +107,13 @@ func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructur
 		},
 	)
 
-	return result.OfFailure[any](d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second))
+	return d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second)
 }
 
 func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
 	errBuilder := multierror.NewMultiErrorBuilder()
-	addErr := func(err error) {
-		errBuilder.Add(err)
-	}
 
-	currentGenKey := d.getCurrentGenKey()
-
-	currentGeneration := d.getGeneration(lifecycleCm, currentGenKey)
+	currentGeneration := d.getGeneration(lifecycleCm, d.getCurrentGenKey())
 
 	for key := range lifecycleCm.Data {
 		olderGeneration := d.getGeneration(lifecycleCm, key)
@@ -126,15 +121,16 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1
 			olderGeneration,
 			currentGeneration,
 		)
-
-		d.deleteAll(deprecatedDependents).OnSuccess(
-			func(_ any) {
-				delete(lifecycleCm.Data, key)
-			},
-		).OnFailure(addErr)
+		d.deleteAll(deprecatedDependents).
+			OnSuccess(
+				func(_ []client.Object) {
+					delete(lifecycleCm.Data, key)
+				},
+			).
+			OnFailure(errBuilder.AddSingle)
 	}
 
-	d.Apply(d.ctx, lifecycleCm).OnFailure(addErr)
+	d.Apply(d.ctx, lifecycleCm).OnFailure(errBuilder.AddSingle)
 
 	return result.Of(*lifecycleCm, errBuilder.Build())
 }
