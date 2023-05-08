@@ -38,6 +38,8 @@ func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 	return res
 }
 
+// TODO: Remember to feed logger into context
+
 // TODO: apply all function, basic controller tasks
 // TODO: then status later on, suite test with crud including deprectaed resource removal
 // TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD) + deletecollection

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -54,7 +55,14 @@ func (c *instanaAgentClient) objectsExist(
 	res := make([]BoolResult, 0, len(objects))
 
 	for _, obj := range objects {
-		res = append(res, c.Exists(ctx, obj.GetObjectKind().GroupVersionKind(), k8sclient.ObjectKeyFromObject(obj)))
+		objExistsRes := c.Exists(ctx, obj.GetObjectKind().GroupVersionKind(), k8sclient.ObjectKeyFromObject(obj)).
+			OnFailure(
+				func(err error) {
+					log := logr.FromContextOrDiscard(ctx)
+					log.Error(err, "failed to verify if resource has finished terminating", "Resource", obj)
+				},
+			)
+		res = append(res, objExistsRes)
 	}
 
 	return res
@@ -75,7 +83,6 @@ func (c *instanaAgentClient) verifyDeletionStep(
 	case true:
 		return nil
 	default:
-		// TODO: Log errors?
 		time.Sleep(waitTime)
 		return c.verifyDeletion(ctx, objects, waitTime)
 	}
