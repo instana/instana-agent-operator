@@ -34,6 +34,7 @@ rules:
   - apps
   resources:
   - daemonsets
+  - deployments
   verbs:
   - create
   - delete
@@ -49,3 +50,27 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - autoscaling/v1
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling/v2
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
