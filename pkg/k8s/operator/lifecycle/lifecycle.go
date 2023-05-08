@@ -25,14 +25,13 @@ import (
 // TODO: Test
 
 type DependentLifecycleManager interface {
-	UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap]
+	UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) result.Result[corev1.ConfigMap]
 	DeleteOrphanedDependents() result.Result[corev1.ConfigMap]
 }
 
 type dependentLifecycleManager struct {
-	ctx                         context.Context
-	agent                       client.Object
-	currentGenerationDependents []client.Object
+	ctx   context.Context
+	agent client.Object
 
 	instanaclient.InstanaAgentClient
 	objectStrip
@@ -43,9 +42,9 @@ func (d *dependentLifecycleManager) getCmName() string {
 	return d.agent.GetName() + "-dependents"
 }
 
-func (d *dependentLifecycleManager) marshalDependents() []byte {
+func (d *dependentLifecycleManager) marshalDependents(currentGenerationDependents []client.Object) []byte {
 	stripped := list.NewListMapTo[client.Object, unstructured.Unstructured]().MapTo(
-		d.currentGenerationDependents,
+		currentGenerationDependents,
 		d.stripObject,
 	)
 
@@ -56,7 +55,7 @@ func (d *dependentLifecycleManager) getCurrentGenKey() string {
 	return fmt.Sprintf("%s_%d", transformations.GetVersion(), d.agent.GetGeneration())
 }
 
-func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo() result.Result[corev1.ConfigMap] {
+func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) result.Result[corev1.ConfigMap] {
 	lifecycleCm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -67,7 +66,7 @@ func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo() result.Result
 			Namespace: d.agent.GetNamespace(),
 		},
 		Data: map[string]string{
-			d.getCurrentGenKey(): string(d.marshalDependents()),
+			d.getCurrentGenKey(): string(d.marshalDependents(currentGenerationDependents)),
 		},
 	}
 
@@ -147,13 +146,11 @@ func (d *dependentLifecycleManager) DeleteOrphanedDependents() result.Result[cor
 func NewDependentLifecycleManager(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
-	currentGenerationDependents []client.Object,
 	instanaClient instanaclient.InstanaAgentClient,
 ) DependentLifecycleManager {
 	return &dependentLifecycleManager{
-		ctx:                         ctx,
-		agent:                       agent,
-		currentGenerationDependents: currentGenerationDependents,
+		ctx:   ctx,
+		agent: agent,
 
 		InstanaAgentClient: instanaClient,
 		objectStrip:        &strip{},

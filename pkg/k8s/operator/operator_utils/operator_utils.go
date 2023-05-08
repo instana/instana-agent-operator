@@ -2,6 +2,7 @@ package operator_utils
 
 import (
 	"golang.org/x/net/context"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -10,6 +11,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/lifecycle"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/result"
@@ -18,8 +20,6 @@ import (
 type OperatorUtils interface {
 	ClusterIsOpenShift() result.Result[bool]
 	ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object]
-	// TODO: Delete cluster-scoped for finalizer logic
-	// TODO: delete previous generation leftovers -> behavior of namespace restriction for cluster-scoped resources?
 }
 
 type operatorUtils struct {
@@ -27,16 +27,18 @@ type operatorUtils struct {
 	client.InstanaAgentClient
 	*instanav1.InstanaAgent
 	builderTransformer builder.BuilderTransformer
+	lifecycle.DependentLifecycleManager
 }
 
 func NewOperatorUtils(
 	ctx context.Context, client client.InstanaAgentClient, agent *instanav1.InstanaAgent,
 ) OperatorUtils {
 	return &operatorUtils{
-		ctx:                ctx,
-		InstanaAgentClient: client,
-		InstanaAgent:       agent,
-		builderTransformer: builder.NewBuilderTransformer(agent),
+		ctx:                       ctx,
+		InstanaAgentClient:        client,
+		InstanaAgent:              agent,
+		builderTransformer:        builder.NewBuilderTransformer(agent),
+		DependentLifecycleManager: lifecycle.NewDependentLifecycleManager(ctx, agent, client),
 	}
 }
 
@@ -77,7 +79,8 @@ func (o *operatorUtils) applyAll(
 	return result.Of(objects, errBuilder.Build())
 }
 
-// TODO: Add lifecycle stuff
+// TODO: Update Test
+// TODO: possible cleanup around redundant type changes ?
 
 func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
 	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
@@ -89,10 +92,28 @@ func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result
 
 	objects := optional.NewNonEmptyOptionalMapper[k8sclient.Object]().AllNonEmpty(optionals)
 
-	switch res := o.applyAll(objects, k8sclient.DryRunAll); res.IsSuccess() {
-	case true:
-		return o.applyAll(objects)
-	default:
-		return res
-	}
+	dryRunRes := o.applyAll(objects, k8sclient.DryRunAll)
+
+	updateLifecycleCmRes := result.Map[[]k8sclient.Object, corev1.ConfigMap](dryRunRes, o.UpdateDependentLifecycleInfo)
+
+	applyRes := result.Map[corev1.ConfigMap, []k8sclient.Object](
+		updateLifecycleCmRes,
+		func(_ corev1.ConfigMap) result.Result[[]k8sclient.Object] {
+			return o.applyAll(objects)
+		},
+	)
+
+	deleteOrphanedDependentsRes := result.Map[[]k8sclient.Object, corev1.ConfigMap](
+		applyRes,
+		func(_ []k8sclient.Object) result.Result[corev1.ConfigMap] {
+			return o.DeleteOrphanedDependents()
+		},
+	)
+
+	return result.Map[corev1.ConfigMap, []k8sclient.Object](
+		deleteOrphanedDependentsRes,
+		func(_ corev1.ConfigMap) result.Result[[]k8sclient.Object] {
+			return result.OfSuccess(objects)
+		},
+	)
 }
