@@ -2,7 +2,6 @@ package operator_utils
 
 import (
 	"golang.org/x/net/context"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,21 +61,24 @@ func (o *operatorUtils) ClusterIsOpenShift() result.Result[bool] {
 	}
 }
 
-func (o *operatorUtils) applyAll(
+func (o *operatorUtils) applyAllWithOpts(
 	objects []k8sclient.Object, opts ...k8sclient.PatchOption,
 ) result.Result[[]k8sclient.Object] {
 	errBuilder := multierror.NewMultiErrorBuilder()
 
 	for _, obj := range objects {
-		o.Apply(o.ctx, obj, opts...).
-			OnFailure(
-				func(err error) {
-					errBuilder.Add(err)
-				},
-			)
+		o.Apply(o.ctx, obj, opts...).OnFailure(errBuilder.AddSingle)
 	}
 
 	return result.Of(objects, errBuilder.Build())
+}
+
+func (o *operatorUtils) applyAll(objects []k8sclient.Object) result.Result[[]k8sclient.Object] {
+	return o.applyAllWithOpts(objects)
+}
+
+func (o *operatorUtils) applyAllDryRun(objects []k8sclient.Object) result.Result[[]k8sclient.Object] {
+	return o.applyAllWithOpts(objects, k8sclient.DryRunAll)
 }
 
 // TODO: Update Test
@@ -85,35 +87,22 @@ func (o *operatorUtils) applyAll(
 func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
 	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
 		builders,
-		func(builder builder.ObjectBuilder) optional.Optional[k8sclient.Object] {
-			return o.builderTransformer.Apply(builder)
-		},
+		o.builderTransformer.Apply,
 	)
 
 	objects := optional.NewNonEmptyOptionalMapper[k8sclient.Object]().AllNonEmpty(optionals)
 
-	dryRunRes := o.applyAll(objects, k8sclient.DryRunAll)
+	dryRunRes := o.applyAllDryRun(objects)
 
-	updateLifecycleCmRes := result.Map[[]k8sclient.Object, corev1.ConfigMap](dryRunRes, o.UpdateDependentLifecycleInfo)
-
-	applyRes := result.Map[corev1.ConfigMap, []k8sclient.Object](
-		updateLifecycleCmRes,
-		func(_ corev1.ConfigMap) result.Result[[]k8sclient.Object] {
-			return o.applyAll(objects)
-		},
+	updateLifecycleCmRes := result.Map[[]k8sclient.Object, []k8sclient.Object](
+		dryRunRes,
+		o.UpdateDependentLifecycleInfo,
 	)
 
-	deleteOrphanedDependentsRes := result.Map[[]k8sclient.Object, corev1.ConfigMap](
+	applyRes := result.Map[[]k8sclient.Object, []k8sclient.Object](updateLifecycleCmRes, o.applyAll)
+
+	return result.Map[[]k8sclient.Object, []k8sclient.Object](
 		applyRes,
-		func(_ []k8sclient.Object) result.Result[corev1.ConfigMap] {
-			return o.DeleteOrphanedDependents()
-		},
-	)
-
-	return result.Map[corev1.ConfigMap, []k8sclient.Object](
-		deleteOrphanedDependentsRes,
-		func(_ corev1.ConfigMap) result.Result[[]k8sclient.Object] {
-			return result.OfSuccess(objects)
-		},
+		o.DeleteOrphanedDependents,
 	)
 }

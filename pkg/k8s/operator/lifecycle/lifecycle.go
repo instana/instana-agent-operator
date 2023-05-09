@@ -25,8 +25,8 @@ import (
 // TODO: Test
 
 type DependentLifecycleManager interface {
-	UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) result.Result[corev1.ConfigMap]
-	DeleteOrphanedDependents() result.Result[corev1.ConfigMap]
+	UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult
+	DeleteOrphanedDependents(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult
 }
 
 type dependentLifecycleManager struct {
@@ -42,20 +42,22 @@ func (d *dependentLifecycleManager) getCmName() string {
 	return d.agent.GetName() + "-dependents"
 }
 
-func (d *dependentLifecycleManager) marshalDependents(currentGenerationDependents []client.Object) []byte {
-	stripped := list.NewListMapTo[client.Object, unstructured.Unstructured]().MapTo(
-		currentGenerationDependents,
+func (d *dependentLifecycleManager) toStripped(objects []client.Object) []unstructured.Unstructured {
+	return list.NewListMapTo[client.Object, unstructured.Unstructured]().MapTo(
+		objects,
 		d.stripObject,
 	)
+}
 
-	return d.MarshalOrDie(stripped)
+func (d *dependentLifecycleManager) marshalDependents(currentGenerationDependents []client.Object) []byte {
+	return d.MarshalOrDie(d.toStripped(currentGenerationDependents))
 }
 
 func (d *dependentLifecycleManager) getCurrentGenKey() string {
 	return fmt.Sprintf("%s_%d", transformations.GetVersion(), d.agent.GetGeneration())
 }
 
-func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) result.Result[corev1.ConfigMap] {
+func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult {
 	lifecycleCm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -71,7 +73,7 @@ func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerati
 	}
 
 	_, err := d.Apply(d.ctx, &lifecycleCm).Get()
-	return result.Of(lifecycleCm, err)
+	return result.Of(currentGenerationDependents, err)
 }
 
 func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.ConfigMap] {
@@ -109,10 +111,13 @@ func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructur
 	return d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second)
 }
 
-func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1.ConfigMap) result.Result[corev1.ConfigMap] {
+func (d *dependentLifecycleManager) deleteOrphanedDependents(
+	lifecycleCm *corev1.ConfigMap,
+	currentGenerationDependents []client.Object,
+) result.Result[[]client.Object] {
 	errBuilder := multierror.NewMultiErrorBuilder()
 
-	currentGeneration := d.getGeneration(lifecycleCm, d.getCurrentGenKey())
+	currentGeneration := d.toStripped(currentGenerationDependents)
 
 	for key := range lifecycleCm.Data {
 		olderGeneration := d.getGeneration(lifecycleCm, key)
@@ -131,14 +136,14 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(lifecycleCm *corev1
 
 	d.Apply(d.ctx, lifecycleCm).OnFailure(errBuilder.AddSingle)
 
-	return result.Of(*lifecycleCm, errBuilder.Build())
+	return result.Of(currentGenerationDependents, errBuilder.Build())
 }
 
-func (d *dependentLifecycleManager) DeleteOrphanedDependents() result.Result[corev1.ConfigMap] {
-	return result.Map[corev1.ConfigMap, corev1.ConfigMap](
+func (d *dependentLifecycleManager) DeleteOrphanedDependents(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult {
+	return result.Map[corev1.ConfigMap, []client.Object](
 		d.getLifecycleCm(),
-		func(lifecycleCm corev1.ConfigMap) result.Result[corev1.ConfigMap] {
-			return d.deleteOrphanedDependents(&lifecycleCm)
+		func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
+			return d.deleteOrphanedDependents(&lifecycleCm, currentGenerationDependents)
 		},
 	)
 }
