@@ -7,6 +7,7 @@ package operator_utils
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	client "github.com/instana/instana-agent-operator/pkg/k8s/client"
@@ -94,6 +95,25 @@ func (mr *MockInstanaAgentClientMockRecorder) Delete(ctx, obj interface{}, opts 
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, obj}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockInstanaAgentClient)(nil).Delete), varargs...)
+}
+
+// DeleteAllInTimeLimit mocks base method.
+func (m *MockInstanaAgentClient) DeleteAllInTimeLimit(ctx context.Context, objects []client0.Object, timeout, waitTime time.Duration, opts ...client0.DeleteOption) client.MultiObjectResult {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, objects, timeout, waitTime}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteAllInTimeLimit", varargs...)
+	ret0, _ := ret[0].(client.MultiObjectResult)
+	return ret0
+}
+
+// DeleteAllInTimeLimit indicates an expected call of DeleteAllInTimeLimit.
+func (mr *MockInstanaAgentClientMockRecorder) DeleteAllInTimeLimit(ctx, objects, timeout, waitTime interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, objects, timeout, waitTime}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllInTimeLimit", reflect.TypeOf((*MockInstanaAgentClient)(nil).DeleteAllInTimeLimit), varargs...)
 }
 
 // DeleteAllOf mocks base method.
