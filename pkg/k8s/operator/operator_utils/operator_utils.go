@@ -82,7 +82,6 @@ func (o *operatorUtils) applyAllDryRun(objects []k8sclient.Object) result.Result
 }
 
 // TODO: Update Test
-// TODO: possible cleanup around redundant type changes ?
 
 func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
 	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
