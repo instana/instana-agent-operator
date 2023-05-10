@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,6 +141,138 @@ func TestInstanaAgentClient_Exists(t *testing.T) {
 
 				actual := instanaClient.Exists(ctx, gvk, key)
 				assertions.Equal(test.expected, actual)
+			},
+		)
+	}
+}
+
+func expectExistsInvocation(client *MockClient, ctx context.Context, obj k8sclient.Object, shouldReturn error) {
+	unstructuredObject := &unstructured.Unstructured{}
+	unstructuredObject.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	client.EXPECT().Get(
+		gomock.Eq(ctx),
+		gomock.Eq(k8sclient.ObjectKeyFromObject(obj)),
+		gomock.Eq(unstructuredObject),
+	).Return(shouldReturn)
+}
+
+// TODO: Fix ctx
+// TODO: verify multiple attempts performed
+
+func TestInstanaAgentClient_DeleteAllInTimeLimit(t *testing.T) {
+	cmError := errors.New("cm")
+	poError := errors.New("po")
+	dsError := errors.New("ds")
+
+	k8sObjectErrors := []error{cmError, poError, dsError}
+
+	for _, test := range []struct {
+		name           string
+		clientBehavior func(client *MockClient, ctx context.Context, obj k8sclient.Object, i int)
+		expectedErrors []error
+	}{
+		{
+			name: "delete_errors",
+			clientBehavior: func(client *MockClient, ctx context.Context, obj k8sclient.Object, i int) {
+				client.EXPECT().Delete(gomock.Eq(ctx), gomock.Eq(obj)).Return(k8sObjectErrors[i])
+			},
+			expectedErrors: k8sObjectErrors,
+		},
+		{
+			name: "verify_errors_until_timeout",
+			clientBehavior: func(client *MockClient, ctx context.Context, obj k8sclient.Object, i int) {
+				client.EXPECT().Delete(gomock.Eq(ctx), gomock.Eq(obj)).Return(nil)
+				expectExistsInvocation(client, ctx, obj, k8sObjectErrors[i])
+			},
+			expectedErrors: []error{context.DeadlineExceeded},
+		},
+		{
+			name: "objects_exist_until_timeout",
+			clientBehavior: func(client *MockClient, ctx context.Context, obj k8sclient.Object, i int) {
+				client.EXPECT().Delete(gomock.Eq(ctx), gomock.Eq(obj)).Return(nil)
+				expectExistsInvocation(
+					client, ctx, obj, k8sErrors.NewNotFound(
+						schema.GroupResource{
+							Group:    "apiextensions.k8s.io",
+							Resource: "customresourcedefinitions",
+						}, "some-resource",
+					),
+				)
+			},
+			expectedErrors: []error{context.DeadlineExceeded},
+		},
+		{
+			name: "succeeds",
+			clientBehavior: func(client *MockClient, ctx context.Context, obj k8sclient.Object, i int) {
+				client.EXPECT().Delete(gomock.Eq(ctx), gomock.Eq(obj)).Return(nil)
+				expectExistsInvocation(client, ctx, obj, nil)
+			},
+			expectedErrors: []error{nil},
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+				ctrl := gomock.NewController(t)
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				expectedObjects := []k8sclient.Object{
+					&corev1.ConfigMap{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "mycm",
+							Namespace: "myns",
+						},
+					},
+					&corev1.Pod{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "mypod",
+							Namespace: "myns",
+						},
+					},
+					&appsv1.DaemonSet{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "appsv1",
+							Kind:       "DaemonSet",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "myds",
+							Namespace: "myns",
+						},
+					},
+				}
+
+				k8sClient := NewMockClient(ctrl)
+
+				for i, obj := range expectedObjects {
+					test.clientBehavior(k8sClient, ctx, obj, i)
+				}
+
+				instanaClient := &instanaAgentClient{
+					Client: k8sClient,
+				}
+
+				actualObjects, actualError := instanaClient.DeleteAllInTimeLimit(
+					ctx,
+					expectedObjects,
+					time.Second,
+					time.Second,
+				).Get()
+
+				assertions.Equal(expectedObjects, actualObjects)
+
+				for _, expectedErr := range test.expectedErrors {
+					assertions.ErrorIs(actualError, expectedErr)
+				}
 			},
 		)
 	}
