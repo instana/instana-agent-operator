@@ -125,12 +125,16 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 	poError := errors.New("po")
 	dsError := errors.New("ds")
 
-	allErrors := []error{cmError, poError, dsError}
+	k8sObjectErrors := []error{cmError, poError, dsError}
+
+	lifecycleError := errors.New("lifecycle")
 
 	for _, test := range []struct {
-		name           string
-		clientBehavior func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int)
-		expectedErrors []error
+		name                string
+		clientBehavior      func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int)
+		lifecycleBehavior   func(lifecycle *MockDependentLifecycleManager, expectedObjects []k8sclient.Object)
+		expectedErrors      []error
+		shouldReturnObjects bool
 	}{
 		{
 			name: "dry_run_errors",
@@ -139,9 +143,29 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 					ctx,
 					obj,
 					k8sclient.DryRunAll,
-				).Return(result.OfFailure[k8sclient.Object](allErrors[i]))
+				).Return(result.OfFailure[k8sclient.Object](k8sObjectErrors[i]))
 			},
-			expectedErrors: allErrors,
+			lifecycleBehavior: func(lifecycle *MockDependentLifecycleManager, expectedObjects []k8sclient.Object) {},
+			expectedErrors:    k8sObjectErrors,
+		},
+		{
+			name: "update_lifecycle_cm_errors",
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int) {
+				client.EXPECT().Apply(
+					ctx,
+					obj,
+					k8sclient.DryRunAll,
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+			},
+			lifecycleBehavior: func(lifecycle *MockDependentLifecycleManager, expectedObjects []k8sclient.Object) {
+				lifecycle.EXPECT().UpdateDependentLifecycleInfo(gomock.Eq(expectedObjects)).Return(
+					result.Of(
+						expectedObjects,
+						lifecycleError,
+					),
+				)
+			},
+			expectedErrors: []error{lifecycleError},
 		},
 		{
 			name: "cluster_persist_errors",
@@ -154,9 +178,36 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 				client.EXPECT().Apply(
 					ctx,
 					obj,
-				).Return(result.OfFailure[k8sclient.Object](allErrors[i]))
+				).Return(result.OfFailure[k8sclient.Object](k8sObjectErrors[i]))
 			},
-			expectedErrors: allErrors,
+			lifecycleBehavior: func(lifecycle *MockDependentLifecycleManager, expectedObjects []k8sclient.Object) {
+				lifecycle.EXPECT().UpdateDependentLifecycleInfo(gomock.Eq(expectedObjects)).Return(result.OfSuccess(expectedObjects))
+			},
+			expectedErrors: k8sObjectErrors,
+		},
+		{
+			name: "delete_orphaned_dependents_errors",
+			clientBehavior: func(ctx context.Context, client *MockInstanaAgentClient, obj k8sclient.Object, i int) {
+				client.EXPECT().Apply(
+					ctx,
+					obj,
+					k8sclient.DryRunAll,
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+				client.EXPECT().Apply(
+					ctx,
+					obj,
+				).Return(result.OfSuccess[k8sclient.Object](nil))
+			},
+			lifecycleBehavior: func(lifecycle *MockDependentLifecycleManager, expectedObjects []k8sclient.Object) {
+				lifecycle.EXPECT().UpdateDependentLifecycleInfo(gomock.Eq(expectedObjects)).Return(result.OfSuccess(expectedObjects))
+				lifecycle.EXPECT().DeleteOrphanedDependents(gomock.Eq(expectedObjects)).Return(
+					result.Of(
+						expectedObjects,
+						lifecycleError,
+					),
+				)
+			},
+			expectedErrors: []error{lifecycleError},
 		},
 		{
 			name: "succeeds",
@@ -171,7 +222,12 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 					obj,
 				).Return(result.OfSuccess[k8sclient.Object](nil))
 			},
-			expectedErrors: []error{nil},
+			lifecycleBehavior: func(lifecycle *MockDependentLifecycleManager, expectedObjects []k8sclient.Object) {
+				lifecycle.EXPECT().UpdateDependentLifecycleInfo(gomock.Eq(expectedObjects)).Return(result.OfSuccess(expectedObjects))
+				lifecycle.EXPECT().DeleteOrphanedDependents(gomock.Eq(expectedObjects)).Return(result.OfSuccess(expectedObjects))
+			},
+			expectedErrors:      []error{nil},
+			shouldReturnObjects: true,
 		},
 	} {
 		t.Run(
@@ -203,15 +259,23 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 					builderTransformer.EXPECT().Apply(mockBuilder).Return(optional.Of[k8sclient.Object](expectedObjects[i]))
 				}
 
+				mockDependentLifecycleManager := NewMockDependentLifecycleManager(ctrl)
+				test.lifecycleBehavior(mockDependentLifecycleManager, expectedObjects)
+
 				ot := &operatorUtils{
-					ctx:                ctx,
-					InstanaAgentClient: client,
-					InstanaAgent:       nil,
-					builderTransformer: builderTransformer,
+					ctx:                       ctx,
+					InstanaAgentClient:        client,
+					InstanaAgent:              nil,
+					builderTransformer:        builderTransformer,
+					DependentLifecycleManager: mockDependentLifecycleManager,
 				}
 
 				actualObjects, actualError := ot.ApplyAll(mockBuilders).Get()
-				assertions.Equal(expectedObjects, actualObjects)
+
+				if test.shouldReturnObjects {
+					assertions.Equal(expectedObjects, actualObjects)
+				}
+
 				for _, expectedErr := range test.expectedErrors {
 					assertions.ErrorIs(actualError, expectedErr)
 				}
