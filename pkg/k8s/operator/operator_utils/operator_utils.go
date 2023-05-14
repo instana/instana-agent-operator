@@ -81,8 +81,6 @@ func (o *operatorUtils) applyAllDryRun(objects []k8sclient.Object) result.Result
 	return o.applyAllWithOpts(objects, k8sclient.DryRunAll)
 }
 
-// TODO: Update Test
-
 func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
 	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
 		builders,
