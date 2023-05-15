@@ -249,5 +249,9 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/headless-service/pod_selector_mock_test.go --package headless_service
 	mockgen --source ./pkg/k8s/object/builders/ports/ports.go --destination ./pkg/k8s/object/builders/headless-service/ports_mock_test.go --package headless_service
 
+	mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./pkg/k8s/object/builders/builder/transformations_mock_test.go --package builder
+	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/k8s/object/builders/builder/builder_mock_test.go --package builder
+
+
 
 
