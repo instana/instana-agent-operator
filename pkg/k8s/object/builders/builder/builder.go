@@ -8,8 +8,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-// TODO: Test
-
 type OptionalObject = optional.Optional[client.Object]
 
 type ObjectBuilder interface {
