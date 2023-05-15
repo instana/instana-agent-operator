@@ -120,6 +120,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 
 func NewClusterRoleBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) builder.ObjectBuilder {
 	return newRbacBuilder(
+		// TODO: For k8s sensor rbac always create?
 		agent, isOpenShift, &clusterRoleBuilder{
 			InstanaAgent: agent,
 			Helpers:      helpers.NewHelpers(agent),
