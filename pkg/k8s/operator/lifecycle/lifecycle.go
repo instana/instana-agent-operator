@@ -20,6 +20,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
+// TODO: Lifecycle CM should have owner ref and labels
+
 // TODO: +Delete All version for finalizer logic
 
 // TODO: Test
