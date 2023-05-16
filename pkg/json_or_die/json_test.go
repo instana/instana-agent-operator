@@ -52,5 +52,6 @@ func testJsonOrDie[T any](t *testing.T, name string, createFunction func() JsonO
 func TestJsonOrDie(t *testing.T) {
 	testJsonOrDie(t, "struct", NewJsonOrDie[instanav1.InstanaAgent])
 	testJsonOrDie(t, "map", NewJsonOrDieMap[string, any])
-	testJsonOrDie(t, "array", NewJsonOrDie[string])
+	testJsonOrDie(t, "literal", NewJsonOrDie[string])
+	testJsonOrDie(t, "array", NewJsonOrDieArray[string])
 }
