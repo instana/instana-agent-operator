@@ -132,7 +132,9 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(
 		d.deleteAll(deprecatedDependents).
 			OnSuccess(
 				func(_ []client.Object) {
-					delete(lifecycleCm.Data, key)
+					if key != d.getCurrentGenKey() {
+						delete(lifecycleCm.Data, key)
+					}
 				},
 			).
 			OnFailure(errBuilder.AddSingle)
