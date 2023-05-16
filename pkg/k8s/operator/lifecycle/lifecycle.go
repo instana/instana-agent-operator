@@ -21,8 +21,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
-// TODO: +Delete All version for finalizer logic
-
 // TODO: Test
 
 type DependentLifecycleManager interface {
