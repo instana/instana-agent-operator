@@ -28,6 +28,7 @@ import (
 type DependentLifecycleManager interface {
 	UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult
 	DeleteOrphanedDependents(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult
+	DeleteAllDependents() instanaclient.MultiObjectResult
 }
 
 type dependentLifecycleManager struct {
@@ -151,6 +152,10 @@ func (d *dependentLifecycleManager) DeleteOrphanedDependents(currentGenerationDe
 			return d.deleteOrphanedDependents(&lifecycleCm, currentGenerationDependents)
 		},
 	)
+}
+
+func (d *dependentLifecycleManager) DeleteAllDependents() instanaclient.MultiObjectResult {
+	return d.DeleteOrphanedDependents(nil)
 }
 
 func NewDependentLifecycleManager(

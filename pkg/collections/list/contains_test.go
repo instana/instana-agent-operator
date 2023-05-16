@@ -40,6 +40,12 @@ func TestContainsElementChecker_Contains(t *testing.T) {
 			testElement: 8,
 			expected:    false,
 		},
+		{
+			name:        "not_contains_because_nil",
+			list:        nil,
+			testElement: 8,
+			expected:    false,
+		},
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {

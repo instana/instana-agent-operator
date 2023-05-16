@@ -33,6 +33,18 @@ func TestDiff_Diff(t *testing.T) {
 			new:      a,
 			expected: []int{7, 8, 9},
 		},
+		{
+			name:     "a-empty",
+			old:      a,
+			new:      nil,
+			expected: a,
+		},
+		{
+			name:     "empty-a",
+			old:      nil,
+			new:      a,
+			expected: []int{},
+		},
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
