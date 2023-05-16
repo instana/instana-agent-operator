@@ -2,6 +2,7 @@ package transformations
 
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	_map "github.com/instana/instana-agent-operator/pkg/collections/map"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
@@ -18,7 +19,7 @@ type podSelectorLabelGenerator struct {
 // TODO: Test
 
 func (p *podSelectorLabelGenerator) GetPodLabels(userLabels map[string]string) map[string]string {
-	podLabels := optional.Of(userLabels).GetOrDefault(make(map[string]string, 7))
+	podLabels := optional.Of(_map.NewCopier(userLabels).Copy()).GetOrDefault(make(map[string]string, 5))
 
 	podLabels[NameLabel] = name
 	podLabels[InstanceLabel] = p.Name
