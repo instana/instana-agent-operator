@@ -15,12 +15,11 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/json_or_die"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
-
-// TODO: Lifecycle CM should have owner ref and labels
 
 // TODO: +Delete All version for finalizer logic
 
@@ -38,6 +37,7 @@ type dependentLifecycleManager struct {
 	instanaclient.InstanaAgentClient
 	objectStrip
 	json_or_die.JsonOrDieMarshaler[[]unstructured.Unstructured]
+	transformations.Transformations
 }
 
 func (d *dependentLifecycleManager) getCmName() string {
@@ -73,6 +73,9 @@ func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerati
 			d.getCurrentGenKey(): string(d.marshalDependents(currentGenerationDependents)),
 		},
 	}
+
+	d.AddCommonLabels(&lifecycleCm, constants.ComponentInstanaAgent)
+	d.AddOwnerReference(&lifecycleCm)
 
 	_, err := d.Apply(d.ctx, &lifecycleCm).Get()
 	return result.Of(currentGenerationDependents, err)
@@ -162,5 +165,6 @@ func NewDependentLifecycleManager(
 		InstanaAgentClient: instanaClient,
 		objectStrip:        &strip{},
 		JsonOrDieMarshaler: json_or_die.NewJsonOrDieArray[unstructured.Unstructured](),
+		Transformations:    transformations.NewTransformations(agent),
 	}
 }
