@@ -35,6 +35,20 @@ func (m *MockDependentLifecycleManager) EXPECT() *MockDependentLifecycleManagerM
 	return m.recorder
 }
 
+// DeleteAllDependents mocks base method.
+func (m *MockDependentLifecycleManager) DeleteAllDependents() client.MultiObjectResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAllDependents")
+	ret0, _ := ret[0].(client.MultiObjectResult)
+	return ret0
+}
+
+// DeleteAllDependents indicates an expected call of DeleteAllDependents.
+func (mr *MockDependentLifecycleManagerMockRecorder) DeleteAllDependents() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllDependents", reflect.TypeOf((*MockDependentLifecycleManager)(nil).DeleteAllDependents))
+}
+
 // DeleteOrphanedDependents mocks base method.
 func (m *MockDependentLifecycleManager) DeleteOrphanedDependents(currentGenerationDependents []client0.Object) client.MultiObjectResult {
 	m.ctrl.T.Helper()
