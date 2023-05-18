@@ -52,7 +52,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) func() optional.Optional[Volum
 	case VarRunContainerdVolume:
 		return v.VarRunContainerdVolume
 	case VarContainerdConfigVolume:
-		return v.VarRunContainerdVolume
+		return v.VarContainerdConfigVolume
 	case SysVolume:
 		return v.SysVolume
 	case VarLogVolume:

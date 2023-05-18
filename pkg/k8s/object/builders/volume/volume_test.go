@@ -17,11 +17,15 @@ import (
 func testHostLiteralVolume(
 	t *testing.T,
 	expected *hostVolumeWithMountParams,
-	f func() optional.Optional[VolumeWithMount],
+	volume Volume,
 ) {
 	assertions := require.New(t)
 
-	VolumeWithMountOpt := f()
+	v := &volumeBuilder{
+		isNotOpenShift: true,
+	}
+
+	VolumeWithMountOpt := v.getBuilder(volume)()
 
 	assertions.Equal(
 		corev1.Volume{
@@ -41,19 +45,6 @@ func testHostLiteralVolume(
 			MountPropagation: expected.MountPropagationMode,
 		},
 		VolumeWithMountOpt.Get().VolumeMount,
-	)
-}
-
-func Test_fromHostLiteral(t *testing.T) {
-	expected := &hostVolumeWithMountParams{
-		name:                 "erasgasd",
-		path:                 "arehasdfasdf",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	}
-	testHostLiteralVolume(
-		t, expected, func() optional.Optional[VolumeWithMount] {
-			return hostVolumeWithMountLiteral(expected)
-		},
 	)
 }
 
@@ -96,35 +87,22 @@ func TestVarRunVolume(t *testing.T) {
 func testHostLiteralOnlyWhenCondition(
 	t *testing.T,
 	expected *hostVolumeWithMountParams,
-	f func(condition bool) optional.Optional[VolumeWithMount],
+	volume Volume,
 ) {
 	t.Run(
 		"not_condition", func(t *testing.T) {
 			assertions := require.New(t)
 
-			assertions.Empty(f(false))
+			v := &volumeBuilder{}
+
+			assertions.Empty(v.getBuilder(volume)())
 		},
 	)
 	t.Run(
 		"is_condition", func(t *testing.T) {
 			testHostLiteralVolume(
-				t, expected, func() optional.Optional[VolumeWithMount] {
-					return f(true)
-				},
+				t, expected, volume,
 			)
-		},
-	)
-}
-
-func Test_hostVolumeWithMountLiteralWhenNotCondition(t *testing.T) {
-	expected := &hostVolumeWithMountParams{
-		name:                 "erasgasd",
-		path:                 "arehasdfasdf",
-		MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
-	}
-	testHostLiteralOnlyWhenCondition(
-		t, expected, func(condition bool) optional.Optional[VolumeWithMount] {
-			return hostVolumeWithMountLiteralWhenCondition(condition, expected)
 		},
 	)
 }
@@ -234,7 +212,11 @@ func TestTlsVolume(t *testing.T) {
 			helpers := NewMockHelpers(ctrl)
 			helpers.EXPECT().TLSIsEnabled().Return(false)
 
-			assertions.Empty(TlsVolume(helpers))
+			v := &volumeBuilder{
+				Helpers: helpers,
+			}
+
+			assertions.Empty(v.TlsVolume())
 		},
 	)
 	t.Run(
@@ -245,6 +227,10 @@ func TestTlsVolume(t *testing.T) {
 			helpers := NewMockHelpers(ctrl)
 			helpers.EXPECT().TLSIsEnabled().Return(true)
 			helpers.EXPECT().TLSSecretName().Return("goisoijsoigjsd")
+
+			v := &volumeBuilder{
+				Helpers: helpers,
+			}
 
 			assertions.Equal(
 				optional.Of(
@@ -265,7 +251,7 @@ func TestTlsVolume(t *testing.T) {
 						},
 					},
 				),
-				TlsVolume(helpers),
+				v.TlsVolume(),
 			)
 		},
 	)
@@ -276,15 +262,19 @@ func TestRepoVolume(t *testing.T) {
 		"host_repo_not_set", func(t *testing.T) {
 			assertions := require.New(t)
 
-			assertions.Empty(RepoVolume(&instanav1.InstanaAgent{}))
+			v := &volumeBuilder{
+				InstanaAgent: &instanav1.InstanaAgent{},
+			}
+
+			assertions.Empty(v.RepoVolume())
 		},
 	)
 	t.Run(
 		"host_repo_is_set", func(t *testing.T) {
 			assertions := require.New(t)
 
-			actual := RepoVolume(
-				&instanav1.InstanaAgent{
+			v := &volumeBuilder{
+				InstanaAgent: &instanav1.InstanaAgent{
 					Spec: instanav1.InstanaAgentSpec{
 						Agent: instanav1.BaseAgentSpec{
 							Host: instanav1.HostSpec{
@@ -293,7 +283,9 @@ func TestRepoVolume(t *testing.T) {
 						},
 					},
 				},
-			)
+			}
+
+			actual := v.RepoVolume()
 			assertions.Equal(
 				optional.Of(
 					VolumeWithMount{
