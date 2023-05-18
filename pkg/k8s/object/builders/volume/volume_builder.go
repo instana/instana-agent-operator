@@ -42,31 +42,31 @@ type volumeBuilder struct {
 func (v *volumeBuilder) getBuilder(volume Volume) func() optional.Optional[VolumeWithMount] {
 	switch volume {
 	case DevVolume:
-		return v.DevVolume
+		return v.devVolume
 	case RunVolume:
-		return v.RunVolume
+		return v.runVolume
 	case VarRunVolume:
-		return v.VarRunVolume
+		return v.varRunVolume
 	case VarRunKuboVolume:
-		return v.VarRunKuboVolume
+		return v.varRunKuboVolume
 	case VarRunContainerdVolume:
-		return v.VarRunContainerdVolume
+		return v.varRunContainerdVolume
 	case VarContainerdConfigVolume:
-		return v.VarContainerdConfigVolume
+		return v.varContainerdConfigVolume
 	case SysVolume:
-		return v.SysVolume
+		return v.sysVolume
 	case VarLogVolume:
-		return v.VarLogVolume
+		return v.varLogVolume
 	case VarLibVolume:
-		return v.VarLibVolume
+		return v.varLibVolume
 	case VarDataVolume:
-		return v.VarDataVolume
+		return v.varDataVolume
 	case MachineIdVolume:
-		return v.MachineIdVolume
+		return v.machineIdVolume
 	case TlsVolume:
-		return v.TlsVolume
+		return v.tlsVolume
 	case RepoVolume:
-		return v.RepoVolume
+		return v.repoVolume
 	default:
 		panic(errors.New("unknown volume requested"))
 	}

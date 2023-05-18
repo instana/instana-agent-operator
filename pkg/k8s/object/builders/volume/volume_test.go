@@ -216,7 +216,7 @@ func TestTlsVolume(t *testing.T) {
 				Helpers: helpers,
 			}
 
-			assertions.Empty(v.TlsVolume())
+			assertions.Empty(v.tlsVolume())
 		},
 	)
 	t.Run(
@@ -251,7 +251,7 @@ func TestTlsVolume(t *testing.T) {
 						},
 					},
 				),
-				v.TlsVolume(),
+				v.tlsVolume(),
 			)
 		},
 	)
@@ -266,7 +266,7 @@ func TestRepoVolume(t *testing.T) {
 				InstanaAgent: &instanav1.InstanaAgent{},
 			}
 
-			assertions.Empty(v.RepoVolume())
+			assertions.Empty(v.repoVolume())
 		},
 	)
 	t.Run(
@@ -285,7 +285,7 @@ func TestRepoVolume(t *testing.T) {
 				},
 			}
 
-			actual := v.RepoVolume()
+			actual := v.repoVolume()
 			assertions.Equal(
 				optional.Of(
 					VolumeWithMount{
