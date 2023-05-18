@@ -11,8 +11,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-// TODO: Test
-
 type EnvVar int
 
 const (

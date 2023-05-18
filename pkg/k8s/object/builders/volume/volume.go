@@ -3,8 +3,6 @@ package volume
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -44,7 +42,7 @@ func hostVolumeWithMountLiteral(params *hostVolumeWithMountParams) optional.Opti
 	return optional.Of(hostVolumeWithMount(params))
 }
 
-func DevVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) DevVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "dev",
@@ -54,7 +52,7 @@ func DevVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-func RunVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) RunVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "run",
@@ -64,7 +62,7 @@ func RunVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-func VarRunVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarRunVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "var-run",
@@ -86,9 +84,9 @@ func hostVolumeWithMountLiteralWhenCondition(
 	}
 }
 
-func VarRunKuboVolume(isNotOpenShift bool) optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarRunKuboVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteralWhenCondition(
-		isNotOpenShift,
+		v.isNotOpenShift,
 		&hostVolumeWithMountParams{
 			name:                 "var-run-kubo",
 			path:                 "/var/vcap/sys/run/docker",
@@ -97,9 +95,9 @@ func VarRunKuboVolume(isNotOpenShift bool) optional.Optional[VolumeWithMount] {
 	)
 }
 
-func VarRunContainerdVolume(isNotOpenShift bool) optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarRunContainerdVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteralWhenCondition(
-		isNotOpenShift,
+		v.isNotOpenShift,
 		&hostVolumeWithMountParams{
 			name:                 "var-run-containerd",
 			path:                 "/var/vcap/sys/run/containerd",
@@ -108,9 +106,9 @@ func VarRunContainerdVolume(isNotOpenShift bool) optional.Optional[VolumeWithMou
 	)
 }
 
-func VarContainerdConfigVolume(isNotOpenShift bool) optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarContainerdConfigVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteralWhenCondition(
-		isNotOpenShift,
+		v.isNotOpenShift,
 		&hostVolumeWithMountParams{
 			name:                 "var-containerd-config",
 			path:                 "/var/vcap/jobs/containerd/config",
@@ -119,7 +117,7 @@ func VarContainerdConfigVolume(isNotOpenShift bool) optional.Optional[VolumeWith
 	)
 }
 
-func SysVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) SysVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "sys",
@@ -129,7 +127,7 @@ func SysVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-func VarLogVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarLogVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "var-log",
@@ -139,7 +137,7 @@ func VarLogVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-func VarLibVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarLibVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "var-lib",
@@ -149,7 +147,7 @@ func VarLibVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-func VarDataVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) VarDataVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name:                 "var-data",
@@ -159,7 +157,7 @@ func VarDataVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-func MachineIdVolume() optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) MachineIdVolume() optional.Optional[VolumeWithMount] {
 	return hostVolumeWithMountLiteral(
 		&hostVolumeWithMountParams{
 			name: "machine-id",
@@ -170,10 +168,10 @@ func MachineIdVolume() optional.Optional[VolumeWithMount] {
 
 // TODO: Resolve config volumes
 
-func TlsVolume(helpers helpers.Helpers) optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) TlsVolume() optional.Optional[VolumeWithMount] {
 	const volumeName = "instana-agent-tls"
 
-	switch helpers.TLSIsEnabled() {
+	switch v.TLSIsEnabled() {
 	case true:
 		return optional.Of(
 			VolumeWithMount{
@@ -181,7 +179,7 @@ func TlsVolume(helpers helpers.Helpers) optional.Optional[VolumeWithMount] {
 					Name: volumeName,
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
-							SecretName:  helpers.TLSSecretName(),
+							SecretName:  v.TLSSecretName(),
 							DefaultMode: pointer.To[int32](0440),
 						},
 					},
@@ -198,11 +196,11 @@ func TlsVolume(helpers helpers.Helpers) optional.Optional[VolumeWithMount] {
 	}
 }
 
-func RepoVolume(agent *instanav1.InstanaAgent) optional.Optional[VolumeWithMount] {
+func (v *volumeBuilder) RepoVolume() optional.Optional[VolumeWithMount] {
 	const volumeName = "repo"
 
 	return optional.Map[string, VolumeWithMount](
-		optional.Of(agent.Spec.Agent.Host.Repository),
+		optional.Of(v.Spec.Agent.Host.Repository),
 		func(path string) VolumeWithMount {
 			return VolumeWithMount{
 				Volume: corev1.Volume{
