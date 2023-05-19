@@ -3,6 +3,9 @@ package volume
 import (
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 
 	"github.com/golang/mock/gomock"
@@ -201,6 +204,45 @@ func TestMachineIdVolume(t *testing.T) {
 		},
 		MachineIdVolume,
 	)
+}
+
+func TestConfigVolume(t *testing.T) {
+	assertions := require.New(t)
+
+	agentName := rand.String(10)
+
+	expected := []VolumeWithMount{
+		{
+			Volume: corev1.Volume{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: agentName,
+						},
+					},
+				},
+			},
+			VolumeMount: corev1.VolumeMount{
+				Name:      "config",
+				MountPath: "/opt/instana/agent/etc/instana",
+				// Must be false since we need to copy the tpl files into here
+				ReadOnly: false,
+			},
+		},
+	}
+
+	v := NewVolumeBuilder(
+		&instanav1.InstanaAgent{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: agentName,
+			},
+		}, false,
+	)
+
+	actual := v.Build(ConfigVolume)
+
+	assertions.Equal(expected, actual)
 }
 
 func TestTlsVolume(t *testing.T) {

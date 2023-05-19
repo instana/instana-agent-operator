@@ -7,6 +7,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
+const (
+	InstanaConfigDirectory = "/opt/instana/agent/etc/instana"
+)
+
 type hostVolumeWithMountParams struct {
 	name string
 	path string
@@ -164,7 +168,32 @@ func (v *volumeBuilder) machineIdVolume() optional.Optional[VolumeWithMount] {
 	)
 }
 
-// TODO: Resolve config volumes
+func (v *volumeBuilder) configVolume() optional.Optional[VolumeWithMount] {
+	const volumeName = "config"
+
+	return optional.Of[VolumeWithMount](
+		VolumeWithMount{
+			Volume: corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: v.Name,
+						},
+					},
+				},
+			},
+			VolumeMount: corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: InstanaConfigDirectory,
+				// Must be false since we need to copy the tpl files into here
+				ReadOnly: false,
+			},
+		},
+	)
+}
+
+// TODO: .tpl copy volume
 
 func (v *volumeBuilder) tlsVolume() optional.Optional[VolumeWithMount] {
 	const volumeName = "instana-agent-tls"
@@ -217,5 +246,3 @@ func (v *volumeBuilder) repoVolume() optional.Optional[VolumeWithMount] {
 		},
 	)
 }
-
-// TODO: Additional Backends -> potentially part of conifguration volume

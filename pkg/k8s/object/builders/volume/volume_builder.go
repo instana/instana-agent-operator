@@ -25,6 +25,7 @@ const (
 	VarLibVolume
 	VarDataVolume
 	MachineIdVolume
+	ConfigVolume
 	TlsVolume
 	RepoVolume
 )
@@ -63,6 +64,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) func() optional.Optional[Volum
 		return v.varDataVolume
 	case MachineIdVolume:
 		return v.machineIdVolume
+	case ConfigVolume:
+		return v.configVolume
 	case TlsVolume:
 		return v.tlsVolume
 	case RepoVolume:
