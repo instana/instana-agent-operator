@@ -245,6 +245,32 @@ func TestConfigVolume(t *testing.T) {
 	assertions.Equal(expected, actual)
 }
 
+func TestTPLFilesTmpVolume(t *testing.T) {
+	assertions := require.New(t)
+
+	expected := []VolumeWithMount{
+		{
+			Volume: corev1.Volume{
+				Name: "tpl-files-volume",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			VolumeMount: corev1.VolumeMount{
+				Name:      "tpl-files-volume",
+				MountPath: "/tmp/agent_tpl_files",
+				ReadOnly:  false,
+			},
+		},
+	}
+
+	v := NewVolumeBuilder(nil, false)
+
+	actual := v.Build(TPLFilesTmpVolume)
+
+	assertions.Equal(expected, actual)
+}
+
 func TestTlsVolume(t *testing.T) {
 	t.Run(
 		"tls_not_enabled", func(t *testing.T) {
