@@ -3,6 +3,8 @@ package volume
 import (
 	"errors"
 
+	corev1 "k8s.io/api/core/v1"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
@@ -32,7 +34,7 @@ const (
 )
 
 type VolumeBuilder interface {
-	Build(volumes ...Volume) []VolumeWithMount
+	Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount)
 }
 
 type volumeBuilder struct {
@@ -78,7 +80,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) func() optional.Optional[Volum
 	}
 }
 
-func (v *volumeBuilder) Build(volumes ...Volume) []VolumeWithMount {
+func (v *volumeBuilder) Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumeOptionals := list.NewListMapTo[Volume, optional.Optional[VolumeWithMount]]().MapTo(
 		volumes,
 		func(volume Volume) optional.Optional[VolumeWithMount] {
@@ -86,7 +88,23 @@ func (v *volumeBuilder) Build(volumes ...Volume) []VolumeWithMount {
 		},
 	)
 
-	return optional.NewNonEmptyOptionalMapper[VolumeWithMount]().AllNonEmpty(volumeOptionals)
+	volumesWithMounts := optional.NewNonEmptyOptionalMapper[VolumeWithMount]().AllNonEmpty(volumeOptionals)
+
+	volumeSpecs := list.NewListMapTo[VolumeWithMount, corev1.Volume]().MapTo(
+		volumesWithMounts,
+		func(val VolumeWithMount) corev1.Volume {
+			return val.Volume
+		},
+	)
+
+	volumeMounts := list.NewListMapTo[VolumeWithMount, corev1.VolumeMount]().MapTo(
+		volumesWithMounts,
+		func(val VolumeWithMount) corev1.VolumeMount {
+			return val.VolumeMount
+		},
+	)
+
+	return volumeSpecs, volumeMounts
 }
 
 func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBuilder {

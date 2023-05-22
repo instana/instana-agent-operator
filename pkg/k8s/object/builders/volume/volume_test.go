@@ -211,24 +211,24 @@ func TestConfigVolume(t *testing.T) {
 
 	agentName := rand.String(10)
 
-	expected := []VolumeWithMount{
+	expectedVolume := []corev1.Volume{
 		{
-			Volume: corev1.Volume{
-				Name: "config",
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: agentName,
-						},
+			Name: "config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: agentName,
 					},
 				},
 			},
-			VolumeMount: corev1.VolumeMount{
-				Name:      "config",
-				MountPath: "/opt/instana/agent/etc/instana",
-				// Must be false since we need to copy the tpl files into here
-				ReadOnly: false,
-			},
+		},
+	}
+	expectedVolumeMount := []corev1.VolumeMount{
+		{
+			Name:      "config",
+			MountPath: "/opt/instana/agent/etc/instana",
+			// Must be false since we need to copy the tpl files into here
+			ReadOnly: false,
 		},
 	}
 
@@ -240,35 +240,37 @@ func TestConfigVolume(t *testing.T) {
 		}, false,
 	)
 
-	actual := v.Build(ConfigVolume)
+	actualVolume, actualVolumeMount := v.Build(ConfigVolume)
 
-	assertions.Equal(expected, actual)
+	assertions.Equal(expectedVolume, actualVolume)
+	assertions.Equal(expectedVolumeMount, actualVolumeMount)
 }
 
 func TestTPLFilesTmpVolume(t *testing.T) {
 	assertions := require.New(t)
 
-	expected := []VolumeWithMount{
+	expectedVolume := []corev1.Volume{
 		{
-			Volume: corev1.Volume{
-				Name: "tpl-files-volume",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+			Name: "tpl-files-volume",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
-			VolumeMount: corev1.VolumeMount{
-				Name:      "tpl-files-volume",
-				MountPath: "/tmp/agent_tpl_files",
-				ReadOnly:  false,
-			},
+		},
+	}
+	expectedVolumeMount := []corev1.VolumeMount{
+		{
+			Name:      "tpl-files-volume",
+			MountPath: "/tmp/agent_tpl_files",
+			ReadOnly:  false,
 		},
 	}
 
 	v := NewVolumeBuilder(nil, false)
 
-	actual := v.Build(TPLFilesTmpVolume)
+	actualVolume, actualVolumeMount := v.Build(TPLFilesTmpVolume)
 
-	assertions.Equal(expected, actual)
+	assertions.Equal(expectedVolume, actualVolume)
+	assertions.Equal(expectedVolumeMount, actualVolumeMount)
 }
 
 func TestTlsVolume(t *testing.T) {

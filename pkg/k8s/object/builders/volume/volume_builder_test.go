@@ -93,9 +93,10 @@ func TestVolumeBuilder_Build(t *testing.T) {
 
 				vb := NewVolumeBuilder(&instanav1.InstanaAgent{}, test.isOpenShift)
 
-				actual := vb.Build(rangeUntil(numDefinedVolumes)...)
+				actualvolumes, actualVolumeMounts := vb.Build(rangeUntil(numDefinedVolumes)...)
 
-				assertions.Len(actual, test.expectedNumVolumes)
+				assertions.Len(actualvolumes, test.expectedNumVolumes)
+				assertions.Len(actualVolumeMounts, test.expectedNumVolumes)
 			},
 		)
 	}
