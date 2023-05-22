@@ -37,7 +37,7 @@ func (o *optional[T]) GetOrElse(f func() T) T {
 }
 
 func (o *optional[T]) IfPresent(do func(val T)) {
-	if !o.IsEmpty() {
+	if o.IsNotEmpty() {
 		do(o.Get())
 	}
 }
