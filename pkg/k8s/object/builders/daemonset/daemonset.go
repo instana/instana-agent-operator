@@ -18,6 +18,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -41,6 +42,7 @@ type daemonSetBuilder struct {
 	helpers.Helpers
 	ports.PortsBuilder
 	env.EnvBuilder
+	volume.VolumeBuilder
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
@@ -128,12 +130,44 @@ func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 	)
 }
 
+// TODO: Test
+
+func (d *daemonSetBuilder) getInitContainerVolumeMounts() []corev1.VolumeMount {
+	_, res := d.VolumeBuilder.Build(volume.TPLFilesTmpVolume)
+	return res
+}
+
+// TODO: Test
+
+func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	return d.VolumeBuilder.Build(
+		volume.DevVolume,
+		volume.RunVolume,
+		volume.VarRunVolume,
+		volume.VarRunKuboVolume,
+		volume.VarRunContainerdVolume,
+		volume.VarContainerdConfigVolume,
+		volume.SysVolume,
+		volume.VarLogVolume,
+		volume.VarLibVolume,
+		volume.VarDataVolume,
+		volume.MachineIdVolume,
+		volume.ConfigVolume,
+		volume.TPLFilesTmpVolume,
+		volume.TlsVolume,
+		volume.RepoVolume,
+	)
+}
+
 // TODO: test Build()
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
 		return optional.Empty[client.Object]()
 	}
+
+	volumes, volumeMounts := d.getVolumes()
+
 	ds := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DaemonSet",
@@ -153,6 +187,7 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 					Annotations: d.getPodTemplateAnnotations(),
 				},
 				Spec: corev1.PodSpec{
+					Volumes:            volumes,
 					ServiceAccountName: d.ServiceAccountName(),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
 					HostNetwork:        true, // TODO: Test for ServiceEntry later: may not be needed on 1.26+ with internal traffic policy
@@ -160,12 +195,31 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
 					ImagePullSecrets:   d.getImagePullSecrets(),
+					InitContainers: []corev1.Container{
+						{
+							Name:            "copy-tpl-files",
+							Image:           d.Spec.Agent.Image(),
+							ImagePullPolicy: d.Spec.Agent.PullPolicy,
+							Command:         []string{"bash"},
+							Args: []string{
+								"-c",
+								"cp " + volume.InstanaConfigDirectory + "/*.tpl " + volume.InstanaConfigTPLFilesTmpDirectory,
+							},
+							VolumeMounts: d.getInitContainerVolumeMounts(),
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							Env:             d.getEnvVars(),
+							Command:         []string{"bash"},
+							Args: []string{
+								"-c",
+								"cp " + volume.InstanaConfigTPLFilesTmpDirectory + "/*.tpl " + volume.InstanaConfigDirectory + " && /opt/instana/agent/bin/run.sh",
+							},
+							VolumeMounts: volumeMounts,
+							Env:          d.getEnvVars(),
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),
 							},
@@ -228,5 +282,6 @@ func NewDaemonSetBuilder(
 		Helpers:                   helpers.NewHelpers(agent),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
 		EnvBuilder:                env.NewEnvBuilder(agent),
+		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenshift),
 	}
 }
