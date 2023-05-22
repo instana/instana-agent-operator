@@ -16,3 +16,8 @@ spec:
     configuration_yaml: |
       # You can leave this empty, or use this to configure your instana agent.
       # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
+  # Example on how to limit Agent Resources
+  agent.cpuLimit: "1.0"
+  agent.cpuReq: "0.5"
+  agent.memLimit: "512Mi"
+  agent.memReq: "256Mi"
