@@ -148,6 +148,8 @@ func (a *agentConfigMapBuilder) Build() optional.Optional[client.Object] {
 	)
 }
 
+// TODO: standardize constructors for cleaner initialization
+
 func NewAgentConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
 	return &agentConfigMapBuilder{
 		InstanaAgent: agent,
