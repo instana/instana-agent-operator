@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -28,12 +27,6 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
 
-	namespace := rand.String(10)
-	agent := &instanav1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-		},
-	}
 	sensorResourcesName := rand.String(10)
 
 	expected := optional.Of[client.Object](
@@ -43,8 +36,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 				Kind:       "ClusterRole",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      sensorResourcesName,
-				Namespace: namespace,
+				Name: sensorResourcesName,
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
@@ -121,8 +113,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName).Times(2)
 
 	cb := &clusterRoleBuilder{
-		InstanaAgent: agent,
-		Helpers:      helpers,
+		Helpers: helpers,
 	}
 
 	actual := cb.Build()

@@ -33,12 +33,11 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 	return optional.Of[client.Object](
 		&rbacv1.ClusterRole{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "rbac.authorization.k8s.io/v1",
-				Kind:       "ClusterRole",
+				APIVersion: rbacApiVersion,
+				Kind:       roleKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      c.K8sSensorResourcesName(),
-				Namespace: c.Namespace,
+				Name: c.K8sSensorResourcesName(),
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
