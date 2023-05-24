@@ -15,7 +15,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/json_or_die"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
