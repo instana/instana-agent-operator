@@ -54,6 +54,7 @@ func (p InstanaAgentPort) isEnabled(agent *instanav1.InstanaAgent) bool {
 	case OpenTelemetryLegacyPort:
 		fallthrough
 	case OpenTelemetryGRPCPort:
+		// TODO: Possibly call these via interface so mocks can be used in test
 		return agent.Spec.OpenTelemetry.GrpcIsEnabled()
 	case OpenTelemetryHTTPPort:
 		return agent.Spec.OpenTelemetry.HttpIsEnabled()
