@@ -246,6 +246,8 @@ gen-mocks: get-mockgen
 
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/serviceaccount/helpers_mock_test.go --package serviceaccount
 
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/serviceaccount/helpers_mock_test.go --package serviceaccount
+
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/configmap/helpers_mock_test.go --package configmap
 
 	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/common/ports/ports_mock_test.go --package ports
