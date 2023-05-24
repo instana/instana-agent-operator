@@ -153,16 +153,10 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 	)
 }
 
-// TODO: test Build()
-
-func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
-	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
-		return optional.Empty[client.Object]()
-	}
-
+func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 	volumes, volumeMounts := d.getVolumes()
 
-	ds := &appsv1.DaemonSet{
+	return &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DaemonSet",
 			APIVersion: "apps/v1",
@@ -244,7 +238,16 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 			UpdateStrategy: d.InstanaAgent.Spec.Agent.UpdateStrategy,
 		},
 	}
-	return optional.Of[client.Object](ds)
+}
+
+// TODO: test Build()
+
+func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
+	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
+		return optional.Empty[client.Object]()
+	} else {
+		return optional.Of[client.Object](d.build())
+	}
 }
 
 // TODO: Test this function and include multizone test case for Build()
