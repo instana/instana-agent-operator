@@ -102,8 +102,6 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 	)
 }
 
-// TODO: Add Volumes and VolumeMounts once fully done
-
 func (d *daemonSetBuilder) getResourceRequirements() corev1.ResourceRequirements {
 	res := d.Spec.Agent.Pod.ResourceRequirements
 
@@ -230,7 +228,6 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Ports:     d.getContainerPorts(),
 						},
 					},
-					// TODO: Leader elector container should no longer be needed right?
 					Tolerations: d.Spec.Agent.Pod.Tolerations,
 					Affinity:    &d.Spec.Agent.Pod.Affinity,
 				},

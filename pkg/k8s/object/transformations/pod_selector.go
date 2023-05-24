@@ -16,8 +16,6 @@ type podSelectorLabelGenerator struct {
 	component string
 }
 
-// TODO: Test
-
 func (p *podSelectorLabelGenerator) GetPodLabels(userLabels map[string]string) map[string]string {
 	podLabels := optional.Of(_map.NewCopier(userLabels).Copy()).GetOrDefault(make(map[string]string, 5))
 
