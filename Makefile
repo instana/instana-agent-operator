@@ -242,7 +242,7 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/k8s/operator/operator_utils/builder_mock_test.go --package operator_utils
 	mockgen --source ./pkg/k8s/operator/lifecycle/lifecycle.go --destination ./pkg/k8s/operator/operator_utils/lifecycle_mock_test.go --package operator_utils
 
-	mockgen --source ./pkg/k8s/object/builders/builder/builder.go --destination ./pkg/k8s/object/builders/rbac/builder_mock_test.go --package rbac
+	mockgen --source ./pkg/k8s/object/builders/helpers/helpers.go --destination ./pkg/k8s/object/builders/rbac/helpers_mock_test.go --package rbac
 
 	mockgen --source ./pkg/k8s/object/builders/ports/ports.go --destination ./pkg/k8s/object/builders/ports/ports_mock_test.go --package ports
 

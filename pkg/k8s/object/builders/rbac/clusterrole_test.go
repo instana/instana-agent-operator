@@ -1,44 +1,50 @@
 package rbac
 
 import (
+	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/constants"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-func readerVerbs() []string {
-	return []string{"get", "list", "watch"}
+func TestClusterRoleBuilder_IsNamespaced_ComponentName(t *testing.T) {
+	assertions := require.New(t)
+
+	cb := NewClusterRoleBuilder(nil)
+
+	assertions.Equal(false, cb.IsNamespaced())
+	assertions.Equal(constants.ComponentK8Sensor, cb.ComponentName())
 }
 
-type clusterRoleBuilder struct {
-	*instanav1.InstanaAgent
-	helpers.Helpers
-}
+func TestClusterRoleBuilder_Build(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
 
-func (c *clusterRoleBuilder) ComponentName() string {
-	return constants.ComponentK8Sensor
-}
+	namespace := rand.String(10)
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+		},
+	}
+	sensorResourcesName := rand.String(10)
 
-func (c *clusterRoleBuilder) IsNamespaced() bool {
-	return false
-}
-
-func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
-	return optional.Of[client.Object](
+	expected := optional.Of[client.Object](
 		&rbacv1.ClusterRole{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "rbac.authorization.k8s.io/v1",
 				Kind:       "ClusterRole",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      c.K8sSensorResourcesName(),
-				Namespace: c.Namespace,
+				Name:      sensorResourcesName,
+				Namespace: namespace,
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
@@ -50,7 +56,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				{
 					APIGroups: []string{"extensions"},
 					Resources: []string{"deployments", "replicasets", "ingresses"},
-					Verbs:     readerVerbs(),
+					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups: []string{""},
@@ -68,32 +74,32 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 						"persistentvolumes",
 						"persistentvolumeclaims",
 					},
-					Verbs: readerVerbs(),
+					Verbs: []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups: []string{"apps"},
 					Resources: []string{"daemonsets", "deployments", "replicasets", "statefulsets"},
-					Verbs:     readerVerbs(),
+					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups: []string{"batch"},
 					Resources: []string{"cronjobs", "jobs"},
-					Verbs:     readerVerbs(),
+					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups: []string{"networking.k8s.io"},
 					Resources: []string{"ingresses"},
-					Verbs:     readerVerbs(),
+					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups: []string{"autoscaling"},
 					Resources: []string{"horizontalpodautoscalers"},
-					Verbs:     readerVerbs(),
+					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups: []string{"apps.openshift.io"},
 					Resources: []string{"deploymentconfigs"},
-					Verbs:     readerVerbs(),
+					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
 					APIGroups:     []string{"security.openshift.io"},
@@ -103,18 +109,23 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				},
 				{
 					APIGroups:     []string{"policy"},
-					ResourceNames: []string{c.K8sSensorResourcesName()},
+					ResourceNames: []string{sensorResourcesName},
 					Resources:     []string{"podsecuritypolicies"},
 					Verbs:         []string{"use"},
 				},
 			},
 		},
 	)
-}
 
-func NewClusterRoleBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &clusterRoleBuilder{
+	helpers := NewMockHelpers(ctrl)
+	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName).Times(2)
+
+	cb := &clusterRoleBuilder{
 		InstanaAgent: agent,
-		Helpers:      helpers.NewHelpers(agent),
+		Helpers:      helpers,
 	}
+
+	actual := cb.Build()
+
+	assertions.Equal(expected, actual)
 }
