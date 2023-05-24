@@ -27,8 +27,6 @@ import (
 
 // TODO: Test and finish
 
-// TODO: use an init container to copy original contents of etc/instana to an empty volume then copy them onto cm mounted contents before executing run.sh
-
 const (
 	componentName = constants.ComponentInstanaAgent
 )
@@ -130,14 +128,10 @@ func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 	)
 }
 
-// TODO: Test
-
 func (d *daemonSetBuilder) getInitContainerVolumeMounts() []corev1.VolumeMount {
 	_, res := d.VolumeBuilder.Build(volume.TPLFilesTmpVolume)
 	return res
 }
-
-// TODO: Test
 
 func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	return d.VolumeBuilder.Build(

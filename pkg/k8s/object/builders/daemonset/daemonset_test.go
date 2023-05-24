@@ -8,15 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/ports"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/volume"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
-
-// TODO: Cleanup these and tests in other files
 
 func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 	for _, test := range []struct {
@@ -444,4 +444,58 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 	actual := db.getContainerPorts()
 
 	assertions.Equal(expected, actual)
+}
+
+func TestDaemonSetBuilder_getInitContainerVolumeMounts(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	expected := []corev1.VolumeMount{{Name: rand.String(10)}}
+
+	volumeBuilder := NewMockVolumeBuilder(ctrl)
+	volumeBuilder.EXPECT().Build(gomock.Eq(volume.TPLFilesTmpVolume)).Return(nil, expected)
+
+	db := &daemonSetBuilder{
+		VolumeBuilder: volumeBuilder,
+	}
+
+	actual := db.getInitContainerVolumeMounts()
+
+	assertions.Equal(expected, actual)
+}
+
+func TestDaemonSetBuilder_getVolumes(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	expectedVolumes := []corev1.Volume{{Name: rand.String(10)}}
+	expectedVolumeMounts := []corev1.VolumeMount{{Name: rand.String(10)}}
+
+	volumeBuilder := NewMockVolumeBuilder(ctrl)
+	volumeBuilder.EXPECT().Build(
+		gomock.Eq(volume.DevVolume),
+		gomock.Eq(volume.RunVolume),
+		gomock.Eq(volume.VarRunVolume),
+		gomock.Eq(volume.VarRunKuboVolume),
+		gomock.Eq(volume.VarRunContainerdVolume),
+		gomock.Eq(volume.VarContainerdConfigVolume),
+		gomock.Eq(volume.SysVolume),
+		gomock.Eq(volume.VarLogVolume),
+		gomock.Eq(volume.VarLibVolume),
+		gomock.Eq(volume.VarDataVolume),
+		gomock.Eq(volume.MachineIdVolume),
+		gomock.Eq(volume.ConfigVolume),
+		gomock.Eq(volume.TPLFilesTmpVolume),
+		gomock.Eq(volume.TlsVolume),
+		gomock.Eq(volume.RepoVolume),
+	).Return(expectedVolumes, expectedVolumeMounts)
+
+	db := &daemonSetBuilder{
+		VolumeBuilder: volumeBuilder,
+	}
+
+	actualVolumes, actualVolumeMounts := db.getVolumes()
+
+	assertions.Equal(expectedVolumes, actualVolumes)
+	assertions.Equal(expectedVolumeMounts, actualVolumeMounts)
 }
