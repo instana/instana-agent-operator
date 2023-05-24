@@ -1,7 +1,6 @@
 package daemonset
 
 import (
-	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -247,26 +246,10 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	}
 }
 
-// TODO: Test this function and include multizone test case for Build()
-
 func NewDaemonSetBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenshift bool,
-	zone optional.Optional[instanav1.Zone],
 ) builder.ObjectBuilder {
-	zone.IfPresent(
-		func(zone instanav1.Zone) {
-			agent = agent.DeepCopy()
-
-			agent.Name = fmt.Sprintf("%s-%s", agent.Name, zone.Name.Name)
-			agent.Spec.Zone.Name = zone.Name.Name
-			agent.Spec.Agent.Pod.Tolerations = zone.Tolerations
-			agent.Spec.Agent.Pod.Affinity = zone.Affinity
-			agent.Spec.Agent.Mode = zone.Mode
-
-		},
-	)
-
 	return &daemonSetBuilder{
 		InstanaAgent: agent,
 		isOpenShift:  isOpenshift,
