@@ -1,4 +1,4 @@
-package agent_configmap
+package configmap
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ import (
 func TestAgentConfigMapBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
 
-	builder := NewAgentConfigMapBuilder(
+	builder := NewConfigMapBuilder(
 		&instanav1.InstanaAgent{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "llsdfoije",

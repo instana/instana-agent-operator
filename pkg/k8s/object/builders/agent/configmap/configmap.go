@@ -1,4 +1,4 @@
-package agent_configmap
+package configmap
 
 import (
 	"strconv"
@@ -17,15 +17,15 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-type agentConfigMapBuilder struct {
+type configMapBuilder struct {
 	*instanav1.InstanaAgent
 }
 
-func (a *agentConfigMapBuilder) ComponentName() string {
+func (c *configMapBuilder) ComponentName() string {
 	return constants.ComponentInstanaAgent
 }
 
-func (a *agentConfigMapBuilder) IsNamespaced() bool {
+func (c *configMapBuilder) IsNamespaced() bool {
 	return true
 }
 
@@ -44,26 +44,26 @@ func keyEqualsValue(key string, value string) string {
 	return key + "=" + value
 }
 
-func (a *agentConfigMapBuilder) getData() map[string]string {
+func (c *configMapBuilder) getData() map[string]string {
 	res := make(map[string]string)
 
-	optional.Of(a.Spec.Cluster.Name).IfPresent(
+	optional.Of(c.Spec.Cluster.Name).IfPresent(
 		func(clusterName string) {
 			res["cluster_name"] = clusterName
 		},
 	)
 
-	optional.Of(a.Spec.Agent.ConfigurationYaml).IfPresent(
+	optional.Of(c.Spec.Agent.ConfigurationYaml).IfPresent(
 		func(configYaml string) {
 			res["configuration.yaml"] = configYaml
 		},
 	)
 
-	if otlp := a.Spec.OpenTelemetry; otlp.IsEnabled() {
+	if otlp := c.Spec.OpenTelemetry; otlp.IsEnabled() {
 		res["configuration-opentelemetry.yaml"] = yamlOrDie(&otlp)
 	}
 
-	if pointer.DerefOrEmpty(a.Spec.Prometheus.RemoteWrite.Enabled) {
+	if pointer.DerefOrEmpty(c.Spec.Prometheus.RemoteWrite.Enabled) {
 		res["configuration-prometheus-remote-write.yaml"] = yamlOrDie(
 			map[string]any{
 				"com.instana.plugin.prometheus": map[string]any{
@@ -86,7 +86,7 @@ func (a *agentConfigMapBuilder) getData() map[string]string {
 		},
 	)
 
-	for i, backend := range a.Spec.Agent.AdditionalBackends {
+	for i, backend := range c.Spec.Agent.AdditionalBackends {
 		lines := make([]string, 0, 10)
 		lines = append(
 			lines,
@@ -96,32 +96,32 @@ func (a *agentConfigMapBuilder) getData() map[string]string {
 			keyEqualsValue("protocol", "HTTP/2"),
 		)
 
-		optional.Of(a.Spec.Agent.ProxyHost).IfPresent(
+		optional.Of(c.Spec.Agent.ProxyHost).IfPresent(
 			func(proxyHost string) {
 				lines = append(
 					lines,
 					keyEqualsValue("proxy.type", "HTTP"),
 					keyEqualsValue("proxy.host", proxyHost),
 					keyEqualsValue(
-						"proxy.port", optional.Of(a.Spec.Agent.ProxyPort).GetOrDefault("80"),
+						"proxy.port", optional.Of(c.Spec.Agent.ProxyPort).GetOrDefault("80"),
 					),
 				)
 			},
 		)
 
-		optional.Of(a.Spec.Agent.ProxyUser).IfPresent(
+		optional.Of(c.Spec.Agent.ProxyUser).IfPresent(
 			func(proxyUser string) {
 				lines = append(lines, keyEqualsValue("proxy.user", proxyUser))
 			},
 		)
 
-		optional.Of(a.Spec.Agent.ProxyPassword).IfPresent(
+		optional.Of(c.Spec.Agent.ProxyPassword).IfPresent(
 			func(proxyPassword string) {
 				lines = append(lines, keyEqualsValue("proxy.password", proxyPassword))
 			},
 		)
 
-		if a.Spec.Agent.ProxyUseDNS {
+		if c.Spec.Agent.ProxyUseDNS {
 			lines = append(lines, keyEqualsValue("proxyUseDNS", "true"))
 		}
 
@@ -132,7 +132,7 @@ func (a *agentConfigMapBuilder) getData() map[string]string {
 
 }
 
-func (a *agentConfigMapBuilder) Build() optional.Optional[client.Object] {
+func (c *configMapBuilder) Build() optional.Optional[client.Object] {
 	return optional.Of[client.Object](
 		&corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -140,18 +140,18 @@ func (a *agentConfigMapBuilder) Build() optional.Optional[client.Object] {
 				Kind:       "ConfigMap",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      a.Name,
-				Namespace: a.Namespace,
+				Name:      c.Name,
+				Namespace: c.Namespace,
 			},
-			Data: a.getData(),
+			Data: c.getData(),
 		},
 	)
 }
 
 // TODO: standardize constructors for cleaner initialization
 
-func NewAgentConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &agentConfigMapBuilder{
+func NewConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &configMapBuilder{
 		InstanaAgent: agent,
 	}
 }
