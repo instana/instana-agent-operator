@@ -1,6 +1,7 @@
 // TODO: Remember to feed logger into context
 // TODO: Multiple zones -- when k8s_sensor is always in use?
 // TODO: PodSecurityPolicy -- can this be dropped or wait until EOL on k8s/ocp versions that support it?
+// TODO: Secrets and should sensitive data even be allowed in the CR?
 
 // TODO: apply all function, basic controller tasks
 // TODO: then status later on, suite test with crud including deprectaed resource removal
