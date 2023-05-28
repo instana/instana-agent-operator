@@ -15,7 +15,7 @@ type Port interface {
 	fmt.Stringer
 
 	portNumber() int32
-	isEnabled(agent *instanav1.InstanaAgent) bool
+	isEnabled(openTelemetrySettings instanav1.OpenTelemetrySettings) bool
 }
 
 type InstanaAgentPort string
@@ -49,15 +49,14 @@ func (p InstanaAgentPort) portNumber() int32 {
 	}
 }
 
-func (p InstanaAgentPort) isEnabled(agent *instanav1.InstanaAgent) bool {
+func (p InstanaAgentPort) isEnabled(openTelemetrySettings instanav1.OpenTelemetrySettings) bool {
 	switch p {
 	case OpenTelemetryLegacyPort:
 		fallthrough
 	case OpenTelemetryGRPCPort:
-		// TODO: Possibly call these via interface so mocks can be used in test
-		return agent.Spec.OpenTelemetry.GrpcIsEnabled()
+		return openTelemetrySettings.GrpcIsEnabled()
 	case OpenTelemetryHTTPPort:
-		return agent.Spec.OpenTelemetry.HttpIsEnabled()
+		return openTelemetrySettings.HttpIsEnabled()
 	case AgentAPIsPort:
 		fallthrough
 	case AgentSocketPort:
@@ -96,7 +95,7 @@ type portsBuilder struct {
 func (p *portsBuilder) GetServicePorts(ports ...Port) []corev1.ServicePort {
 	enabledPorts := list.NewListFilter[Port]().Filter(
 		ports, func(port Port) bool {
-			return port.isEnabled(p.InstanaAgent)
+			return port.isEnabled(p.Spec.OpenTelemetry)
 		},
 	)
 

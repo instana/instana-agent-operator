@@ -14,104 +14,103 @@ import (
 
 func TestPortMappings(t *testing.T) {
 	for _, test := range []struct {
-		name               string
-		port               InstanaAgentPort
-		agentSpec          instanav1.InstanaAgentSpec
-		expectedPortNumber int32
-		expectEnabled      bool
-		expectPanic        bool
+		name                   string
+		port                   InstanaAgentPort
+		otlpSettingsConditions func(openTelemetrySettings *MockOpenTelemetrySettings)
+		expectedPortNumber     int32
+		expectEnabled          bool
+		expectPanic            bool
 	}{
 		{
-			name:               string(AgentAPIsPort),
-			port:               AgentAPIsPort,
-			agentSpec:          instanav1.InstanaAgentSpec{},
-			expectedPortNumber: 42699,
-			expectEnabled:      true,
+			name:                   string(AgentAPIsPort),
+			port:                   AgentAPIsPort,
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {},
+			expectedPortNumber:     42699,
+			expectEnabled:          true,
 		},
 
 		{
-			name:               string(AgentSocketPort),
-			port:               AgentSocketPort,
-			agentSpec:          instanav1.InstanaAgentSpec{},
-			expectedPortNumber: 42666,
-			expectEnabled:      true,
+			name:                   string(AgentSocketPort),
+			port:                   AgentSocketPort,
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {},
+			expectedPortNumber:     42666,
+			expectEnabled:          true,
 		},
 
 		{
-			name:               string(OpenTelemetryLegacyPort) + "_not_enabled",
-			port:               OpenTelemetryLegacyPort,
-			agentSpec:          instanav1.InstanaAgentSpec{},
+			name: string(OpenTelemetryLegacyPort) + "_not_enabled",
+			port: OpenTelemetryLegacyPort,
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {
+				openTelemetrySettings.EXPECT().GrpcIsEnabled().Return(false)
+			},
 			expectedPortNumber: 55680,
 			expectEnabled:      false,
 		},
 		{
 			name: string(OpenTelemetryLegacyPort) + "_enabled",
 			port: OpenTelemetryLegacyPort,
-			agentSpec: instanav1.InstanaAgentSpec{
-				OpenTelemetry: instanav1.OpenTelemetry{
-					GRPC: &instanav1.Enabled{},
-				},
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {
+				openTelemetrySettings.EXPECT().GrpcIsEnabled().Return(true)
 			},
 			expectedPortNumber: 55680,
 			expectEnabled:      true,
 		},
 
 		{
-			name:               string(OpenTelemetryGRPCPort) + "_not_enabled",
-			port:               OpenTelemetryGRPCPort,
-			agentSpec:          instanav1.InstanaAgentSpec{},
+			name: string(OpenTelemetryGRPCPort) + "_not_enabled",
+			port: OpenTelemetryGRPCPort,
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {
+				openTelemetrySettings.EXPECT().GrpcIsEnabled().Return(false)
+			},
 			expectedPortNumber: 4317,
 			expectEnabled:      false,
 		},
 		{
 			name: string(OpenTelemetryGRPCPort) + "_enabled",
 			port: OpenTelemetryGRPCPort,
-			agentSpec: instanav1.InstanaAgentSpec{
-				OpenTelemetry: instanav1.OpenTelemetry{
-					GRPC: &instanav1.Enabled{},
-				},
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {
+				openTelemetrySettings.EXPECT().GrpcIsEnabled().Return(true)
 			},
 			expectedPortNumber: 4317,
 			expectEnabled:      true,
 		},
 
 		{
-			name:               string(OpenTelemetryHTTPPort) + "_not_enabled",
-			port:               OpenTelemetryHTTPPort,
-			agentSpec:          instanav1.InstanaAgentSpec{},
-			expectedPortNumber: 4318,
-			expectEnabled:      false,
+			name: string(OpenTelemetryHTTPPort) + "_not_enabled",
+			port: OpenTelemetryHTTPPort,
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {
+				openTelemetrySettings.EXPECT().HttpIsEnabled().Return(false)
+			}, expectedPortNumber: 4318,
+			expectEnabled: false,
 		},
 		{
 			name: string(OpenTelemetryHTTPPort) + "_enabled",
 			port: OpenTelemetryHTTPPort,
-			agentSpec: instanav1.InstanaAgentSpec{
-				OpenTelemetry: instanav1.OpenTelemetry{
-					HTTP: &instanav1.Enabled{},
-				},
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {
+				openTelemetrySettings.EXPECT().HttpIsEnabled().Return(true)
 			},
 			expectedPortNumber: 4318,
 			expectEnabled:      true,
 		},
 		{
-			name:          "unknown_port",
-			port:          InstanaAgentPort("unknown"),
-			agentSpec:     instanav1.InstanaAgentSpec{},
-			expectEnabled: true,
-			expectPanic:   true,
+			name:                   "unknown_port",
+			port:                   InstanaAgentPort("unknown"),
+			otlpSettingsConditions: func(openTelemetrySettings *MockOpenTelemetrySettings) {},
+			expectEnabled:          true,
+			expectPanic:            true,
 		},
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
+				ctrl := gomock.NewController(t)
+
+				openTelemetrySettings := NewMockOpenTelemetrySettings(ctrl)
+				test.otlpSettingsConditions(openTelemetrySettings)
 
 				assertions.Equal(string(test.port), test.port.String())
 
-				agent := &instanav1.InstanaAgent{
-					Spec: test.agentSpec,
-				}
-
-				assertions.Equal(test.expectEnabled, test.port.isEnabled(agent))
+				assertions.Equal(test.expectEnabled, test.port.isEnabled(openTelemetrySettings))
 
 				if test.expectPanic {
 					assertions.PanicsWithError(
@@ -170,22 +169,27 @@ func TestPortsBuilder_GetServicePorts(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
 
+	otlp := instanav1.OpenTelemetry{}
+
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "eoidoijdsg",
 		},
+		Spec: instanav1.InstanaAgentSpec{
+			OpenTelemetry: otlp,
+		},
 	}
 
 	p1 := NewMockPort(ctrl)
-	p1.EXPECT().isEnabled(gomock.Eq(agent)).Return(true)
+	p1.EXPECT().isEnabled(gomock.Eq(otlp)).Return(true)
 	p1.EXPECT().String().Return("p1").Times(2)
 	p1.EXPECT().portNumber().Return(int32(1))
 
 	p2 := NewMockPort(ctrl)
-	p2.EXPECT().isEnabled(gomock.Eq(agent)).Return(false)
+	p2.EXPECT().isEnabled(gomock.Eq(otlp)).Return(false)
 
 	p3 := NewMockPort(ctrl)
-	p3.EXPECT().isEnabled(gomock.Eq(agent)).Return(true)
+	p3.EXPECT().isEnabled(gomock.Eq(otlp)).Return(true)
 	p3.EXPECT().String().Return("p3").Times(2)
 	p3.EXPECT().portNumber().Return(int32(3))
 

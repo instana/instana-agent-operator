@@ -294,6 +294,12 @@ type KubernetesDeploymentSpec struct {
 	Pod coreV1.ResourceRequirements `json:"pod,omitempty"`
 }
 
+type OpenTelemetrySettings interface {
+	GrpcIsEnabled() bool
+	HttpIsEnabled() bool
+	IsEnabled() bool
+}
+
 type OpenTelemetry struct {
 	// Deprecated setting for backwards compatibility
 	Enabled `json:",inline" yaml:",inline"`

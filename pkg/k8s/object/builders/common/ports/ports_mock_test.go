@@ -50,17 +50,17 @@ func (mr *MockPortMockRecorder) String() *gomock.Call {
 }
 
 // isEnabled mocks base method.
-func (m *MockPort) isEnabled(agent *v1.InstanaAgent) bool {
+func (m *MockPort) isEnabled(openTelemetrySettings v1.OpenTelemetrySettings) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "isEnabled", agent)
+	ret := m.ctrl.Call(m, "isEnabled", openTelemetrySettings)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // isEnabled indicates an expected call of isEnabled.
-func (mr *MockPortMockRecorder) isEnabled(agent interface{}) *gomock.Call {
+func (mr *MockPortMockRecorder) isEnabled(openTelemetrySettings interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isEnabled", reflect.TypeOf((*MockPort)(nil).isEnabled), agent)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isEnabled", reflect.TypeOf((*MockPort)(nil).isEnabled), openTelemetrySettings)
 }
 
 // portNumber mocks base method.
