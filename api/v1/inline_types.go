@@ -6,6 +6,7 @@ package v1
 
 import (
 	"fmt"
+	"strconv"
 
 	appV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
@@ -35,6 +36,14 @@ type Create struct {
 type Enabled struct {
 	// +kubebuilder:validation:Optional
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+}
+
+func (e Enabled) String() string {
+	if e.Enabled == nil {
+		return "nil"
+	} else {
+		return strconv.FormatBool(*e.Enabled)
+	}
 }
 
 // BaseAgentSpec defines the desired state info related to the running Agent
