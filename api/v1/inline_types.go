@@ -38,6 +38,8 @@ type Enabled struct {
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
+// TODO: Test I guess
+
 func (e Enabled) String() string {
 	if e.Enabled == nil {
 		return "nil"
@@ -98,7 +100,7 @@ type BaseAgentSpec struct {
 
 	// Override the container image used for the Instana Agent pods.
 	// +kubebuilder:validation:Optional
-	ImageSpec `json:"image,omitempty"`
+	ExtendedImageSpec `json:"image,omitempty"`
 
 	// Control how to update the Agent DaemonSet
 	// +kubebuilder:validation:Optional
@@ -215,12 +217,19 @@ type ImageSpec struct {
 	// PullPolicy specifies when to pull the image container.
 	// +kubebuilder:validation:Optional
 	PullPolicy coreV1.PullPolicy `json:"pullPolicy,omitempty"`
+}
+
+type ExtendedImageSpec struct {
+	// +kubebuilder:validation:Required
+	ImageSpec `json:",inline"`
 
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with
 	// "containers.instana.io". Setting `agent.image.pullSecrets` prevents the creation of the default "containers-instana-io" secret.
 	// +kubebuilder:validation:Optional
 	PullSecrets []coreV1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
+
+// TODO: interface to mock
 
 func (i ImageSpec) Image() string {
 	switch {

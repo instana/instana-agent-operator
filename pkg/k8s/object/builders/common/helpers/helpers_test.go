@@ -261,3 +261,122 @@ func TestHelpers_K8sSensorResourcesName(t *testing.T) {
 	)
 	assertions.Equal("rhjaoijdsoijoidsf-k8sensor", h.K8sSensorResourcesName())
 }
+
+// TODO
+
+// func TestDaemonSetBuilder_getImagePullSecrets(t *testing.T) {
+// 	testCases := []struct {
+// 		name             string
+// 		instanaAgentSpec instanav1.InstanaAgentSpec
+// 		expectedSecrets  []corev1.LocalObjectReference
+// 	}{
+// 		{
+// 			name: "no_user_secrets_and_image_not_from_instana_io",
+// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
+// 				Agent: instanav1.BaseAgentSpec{
+// 					ImageSpec: instanav1.ImageSpec{},
+// 				},
+// 			},
+// 			expectedSecrets: nil,
+// 		},
+// 		{
+// 			name: "with_user_secrets_and_image_not_from_instana_io",
+// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
+// 				Agent: instanav1.BaseAgentSpec{
+// 					ImageSpec: instanav1.ImageSpec{
+// 						PullSecrets: []corev1.LocalObjectReference{
+// 							{
+// 								Name: "oirewigojsdf",
+// 							},
+// 							{
+// 								Name: "o4gpoijsfd",
+// 							},
+// 							{
+// 								Name: "po5hpojdfijs",
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expectedSecrets: []corev1.LocalObjectReference{
+// 				{
+// 					Name: "oirewigojsdf",
+// 				},
+// 				{
+// 					Name: "o4gpoijsfd",
+// 				},
+// 				{
+// 					Name: "po5hpojdfijs",
+// 				},
+// 			},
+// 		},
+// 		{
+// 			name: "no_user_secrets_and_image_is_from_instana_io",
+// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
+// 				Agent: instanav1.BaseAgentSpec{
+// 					ImageSpec: instanav1.ImageSpec{
+// 						Name: "containers.instana.io/instana-agent",
+// 					},
+// 				},
+// 			},
+// 			expectedSecrets: []corev1.LocalObjectReference{
+// 				{
+// 					Name: "containers-instana-io",
+// 				},
+// 			},
+// 		},
+// 		{
+// 			name: "with_user_secrets_and_image_is_from_instana_io",
+// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
+// 				Agent: instanav1.BaseAgentSpec{
+// 					ImageSpec: instanav1.ImageSpec{
+// 						Name: "containers.instana.io/instana-agent",
+// 						PullSecrets: []corev1.LocalObjectReference{
+// 							{
+// 								Name: "oirewigojsdf",
+// 							},
+// 							{
+// 								Name: "o4gpoijsfd",
+// 							},
+// 							{
+// 								Name: "po5hpojdfijs",
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expectedSecrets: []corev1.LocalObjectReference{
+// 				{
+// 					Name: "oirewigojsdf",
+// 				},
+// 				{
+// 					Name: "o4gpoijsfd",
+// 				},
+// 				{
+// 					Name: "po5hpojdfijs",
+// 				},
+// 				{
+// 					Name: "containers-instana-io",
+// 				},
+// 			},
+// 		},
+// 	}
+//
+// 	for _, tc := range testCases {
+// 		t.Run(
+// 			tc.name, func(t *testing.T) {
+// 				assertions := require.New(t)
+//
+// 				db := &daemonSetBuilder{
+// 					InstanaAgent: &instanav1.InstanaAgent{
+// 						Spec: tc.instanaAgentSpec,
+// 					},
+// 				}
+//
+// 				actualSecrets := db.getImagePullSecrets()
+//
+// 				assertions.Equal(tc.expectedSecrets, actualSecrets)
+// 			},
+// 		)
+// 	}
+// }

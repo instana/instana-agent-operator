@@ -1,12 +1,16 @@
 package helpers
 
 import (
-	v1 "github.com/instana/instana-agent-operator/api/v1"
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
 type helpers struct {
-	*v1.InstanaAgent
+	*instanav1.InstanaAgent
 }
 
 type Helpers interface {
@@ -16,6 +20,9 @@ type Helpers interface {
 	TLSSecretName() string
 	HeadlessServiceName() string
 	K8sSensorResourcesName() string
+	ContainersSecretName() string
+	UseContainersSecret() bool
+	ImagePullSecrets() []corev1.LocalObjectReference
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
@@ -51,7 +58,38 @@ func (h *helpers) K8sSensorResourcesName() string {
 	return h.Name + "-k8sensor"
 }
 
-func NewHelpers(agent *v1.InstanaAgent) Helpers {
+// TODO: Test
+
+func (h *helpers) ContainersSecretName() string {
+	return h.Name + "-containers-instana-io"
+}
+
+// TODO: Test
+
+func (h *helpers) UseContainersSecret() bool {
+	// Explicitly using e.PullSecrets != nil instead of len(e.PullSecrets) == 0 since the original chart specified that
+	// auto-generated secret shouldn't be used if the user explicitly provided an empty list of pull secrets
+	// (original logic was to only use the generated secret if the registry matches AND the pullSecrets field was
+	// omitted by the user). I don't understand why anyone would want this, but the original chart had comments
+	// specifically mentioning that this was the desired behavior, so keeping it until someone says otherwise.
+	return h.Spec.Agent.PullSecrets == nil && strings.HasPrefix(h.Spec.Agent.ImageSpec.Name, "containers.instana.io")
+}
+
+// TODO: Test
+
+func (h *helpers) ImagePullSecrets() []corev1.LocalObjectReference {
+	if h.UseContainersSecret() {
+		return []corev1.LocalObjectReference{
+			{
+				Name: h.ContainersSecretName(),
+			},
+		}
+	} else {
+		return h.Spec.Agent.ExtendedImageSpec.PullSecrets
+	}
+}
+
+func NewHelpers(agent *instanav1.InstanaAgent) Helpers {
 	return &helpers{
 		InstanaAgent: agent,
 	}

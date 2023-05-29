@@ -1,8 +1,6 @@
 package daemonset
 
 import (
-	"strings"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -61,20 +59,6 @@ func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
 	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrDefault(map[string]string{})
 	podAnnotations["instana-configuration-hash"] = d.HashJsonOrDie(&d.Spec) // TODO: do we really need to restart on any change?
 	return podAnnotations
-}
-
-func (d *daemonSetBuilder) getImagePullSecrets() []corev1.LocalObjectReference {
-	res := d.Spec.Agent.ImageSpec.PullSecrets
-
-	if strings.HasPrefix(d.Spec.Agent.ImageSpec.Name, constants.ContainersInstanaIoRegistry) {
-		res = append(
-			res, corev1.LocalObjectReference{
-				Name: constants.ContainersInstanaIoSecretName,
-			},
-		)
-	}
-
-	return res
 }
 
 func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
@@ -179,7 +163,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 					HostPID:            true,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
-					ImagePullSecrets:   d.getImagePullSecrets(),
+					ImagePullSecrets:   d.ImagePullSecrets(),
 					InitContainers: []corev1.Container{
 						{
 							Name:            "copy-tpl-files",
