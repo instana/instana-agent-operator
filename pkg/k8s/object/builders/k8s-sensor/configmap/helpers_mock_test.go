@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	v1 "k8s.io/api/core/v1"
 )
 
 // MockHelpers is a mock of Helpers interface.
@@ -33,6 +34,20 @@ func (m *MockHelpers) EXPECT() *MockHelpersMockRecorder {
 	return m.recorder
 }
 
+// ContainersSecretName mocks base method.
+func (m *MockHelpers) ContainersSecretName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ContainersSecretName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ContainersSecretName indicates an expected call of ContainersSecretName.
+func (mr *MockHelpersMockRecorder) ContainersSecretName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainersSecretName", reflect.TypeOf((*MockHelpers)(nil).ContainersSecretName))
+}
+
 // HeadlessServiceName mocks base method.
 func (m *MockHelpers) HeadlessServiceName() string {
 	m.ctrl.T.Helper()
@@ -45,6 +60,20 @@ func (m *MockHelpers) HeadlessServiceName() string {
 func (mr *MockHelpersMockRecorder) HeadlessServiceName() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadlessServiceName", reflect.TypeOf((*MockHelpers)(nil).HeadlessServiceName))
+}
+
+// ImagePullSecrets mocks base method.
+func (m *MockHelpers) ImagePullSecrets() []v1.LocalObjectReference {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ImagePullSecrets")
+	ret0, _ := ret[0].([]v1.LocalObjectReference)
+	return ret0
+}
+
+// ImagePullSecrets indicates an expected call of ImagePullSecrets.
+func (mr *MockHelpersMockRecorder) ImagePullSecrets() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ImagePullSecrets", reflect.TypeOf((*MockHelpers)(nil).ImagePullSecrets))
 }
 
 // K8sSensorResourcesName mocks base method.
@@ -115,4 +144,18 @@ func (m *MockHelpers) TLSSecretName() string {
 func (mr *MockHelpersMockRecorder) TLSSecretName() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TLSSecretName", reflect.TypeOf((*MockHelpers)(nil).TLSSecretName))
+}
+
+// UseContainersSecret mocks base method.
+func (m *MockHelpers) UseContainersSecret() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UseContainersSecret")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// UseContainersSecret indicates an expected call of UseContainersSecret.
+func (mr *MockHelpersMockRecorder) UseContainersSecret() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UseContainersSecret", reflect.TypeOf((*MockHelpers)(nil).UseContainersSecret))
 }

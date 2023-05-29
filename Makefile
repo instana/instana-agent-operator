@@ -251,7 +251,7 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/configmap/helpers_mock_test.go --package configmap
 
 	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/common/ports/ports_mock_test.go --package ports
-	mockgen --source ./api/v1/inline_types.go --destination ./pkg/k8s/object/builders/common/ports/inline_types_mock_test.go --package ports
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/agent_interfaces.go --destination ./pkg/k8s/object/builders/common/ports/agent_interfaces_mock_test.go --package ports
 
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/headless-service/helpers_mock_test.go --package headless_service
 	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/agent/headless-service/pod_selector_mock_test.go --package headless_service
@@ -259,7 +259,7 @@ gen-mocks: get-mockgen
 
 	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/agent/service/pod_selector_mock_test.go --package service
 	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/agent/service/ports_mock_test.go --package service
-	mockgen --source ./api/v1/inline_types.go --destination ./pkg/k8s/object/builders/agent/service/inline_types_mock_test.go --package service
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/agent_interfaces.go --destination ./pkg/k8s/object/builders/agent/service/agent_interfaces_mock_test.go --package service
 
 	mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./pkg/k8s/object/builders/common/builder/transformations_mock_test.go --package builder
 	mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./pkg/k8s/object/builders/common/builder/builder_mock_test.go --package builder
