@@ -9,13 +9,14 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 )
 
 type Port interface {
 	fmt.Stringer
 
 	portNumber() int32
-	isEnabled(openTelemetrySettings instanav1.OpenTelemetrySettings) bool
+	isEnabled(openTelemetrySettings helpers.OpenTelemetrySettings) bool
 }
 
 type InstanaAgentPort string
@@ -49,7 +50,7 @@ func (p InstanaAgentPort) portNumber() int32 {
 	}
 }
 
-func (p InstanaAgentPort) isEnabled(openTelemetrySettings instanav1.OpenTelemetrySettings) bool {
+func (p InstanaAgentPort) isEnabled(openTelemetrySettings helpers.OpenTelemetrySettings) bool {
 	switch p {
 	case OpenTelemetryLegacyPort:
 		fallthrough

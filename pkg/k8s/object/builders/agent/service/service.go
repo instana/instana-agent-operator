@@ -8,6 +8,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -23,7 +24,7 @@ type serviceBuilder struct {
 
 	transformations.PodSelectorLabelGenerator
 	ports.PortsBuilder
-	instanav1.OpenTelemetrySettings
+	helpers.OpenTelemetrySettings
 }
 
 func (s *serviceBuilder) ComponentName() string {
