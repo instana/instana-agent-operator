@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 )
@@ -262,121 +264,124 @@ func TestHelpers_K8sSensorResourcesName(t *testing.T) {
 	assertions.Equal("rhjaoijdsoijoidsf-k8sensor", h.K8sSensorResourcesName())
 }
 
-// TODO
+func TestHelpers_ContainersSecretName(t *testing.T) {
+	assertions := require.New(t)
 
-// func TestDaemonSetBuilder_getImagePullSecrets(t *testing.T) {
-// 	testCases := []struct {
-// 		name             string
-// 		instanaAgentSpec instanav1.InstanaAgentSpec
-// 		expectedSecrets  []corev1.LocalObjectReference
-// 	}{
-// 		{
-// 			name: "no_user_secrets_and_image_not_from_instana_io",
-// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
-// 				Agent: instanav1.BaseAgentSpec{
-// 					ImageSpec: instanav1.ImageSpec{},
-// 				},
-// 			},
-// 			expectedSecrets: nil,
-// 		},
-// 		{
-// 			name: "with_user_secrets_and_image_not_from_instana_io",
-// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
-// 				Agent: instanav1.BaseAgentSpec{
-// 					ImageSpec: instanav1.ImageSpec{
-// 						PullSecrets: []corev1.LocalObjectReference{
-// 							{
-// 								Name: "oirewigojsdf",
-// 							},
-// 							{
-// 								Name: "o4gpoijsfd",
-// 							},
-// 							{
-// 								Name: "po5hpojdfijs",
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 			expectedSecrets: []corev1.LocalObjectReference{
-// 				{
-// 					Name: "oirewigojsdf",
-// 				},
-// 				{
-// 					Name: "o4gpoijsfd",
-// 				},
-// 				{
-// 					Name: "po5hpojdfijs",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "no_user_secrets_and_image_is_from_instana_io",
-// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
-// 				Agent: instanav1.BaseAgentSpec{
-// 					ImageSpec: instanav1.ImageSpec{
-// 						Name: "containers.instana.io/instana-agent",
-// 					},
-// 				},
-// 			},
-// 			expectedSecrets: []corev1.LocalObjectReference{
-// 				{
-// 					Name: "containers-instana-io",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "with_user_secrets_and_image_is_from_instana_io",
-// 			instanaAgentSpec: instanav1.InstanaAgentSpec{
-// 				Agent: instanav1.BaseAgentSpec{
-// 					ImageSpec: instanav1.ImageSpec{
-// 						Name: "containers.instana.io/instana-agent",
-// 						PullSecrets: []corev1.LocalObjectReference{
-// 							{
-// 								Name: "oirewigojsdf",
-// 							},
-// 							{
-// 								Name: "o4gpoijsfd",
-// 							},
-// 							{
-// 								Name: "po5hpojdfijs",
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 			expectedSecrets: []corev1.LocalObjectReference{
-// 				{
-// 					Name: "oirewigojsdf",
-// 				},
-// 				{
-// 					Name: "o4gpoijsfd",
-// 				},
-// 				{
-// 					Name: "po5hpojdfijs",
-// 				},
-// 				{
-// 					Name: "containers-instana-io",
-// 				},
-// 			},
-// 		},
-// 	}
-//
-// 	for _, tc := range testCases {
-// 		t.Run(
-// 			tc.name, func(t *testing.T) {
-// 				assertions := require.New(t)
-//
-// 				db := &daemonSetBuilder{
-// 					InstanaAgent: &instanav1.InstanaAgent{
-// 						Spec: tc.instanaAgentSpec,
-// 					},
-// 				}
-//
-// 				actualSecrets := db.getImagePullSecrets()
-//
-// 				assertions.Equal(tc.expectedSecrets, actualSecrets)
-// 			},
-// 		)
-// 	}
-// }
+	agentName := rand.String(rand.Intn(15))
+
+	h := NewHelpers(
+		&instanav1.InstanaAgent{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: agentName,
+			},
+		},
+	)
+
+	assertions.Equal(agentName+"-containers-instana-io", h.ContainersSecretName())
+}
+
+func TestHelpers_UseContainersSecret(t *testing.T) {
+	for _, test := range []struct {
+		name                    string
+		userProvidedPullSecrets []corev1.LocalObjectReference
+		imageName               string
+		expected                bool
+	}{
+		{
+			name:                    "nil_secrets_random_image",
+			userProvidedPullSecrets: nil,
+			imageName:               rand.String(rand.Intn(15)),
+			expected:                false,
+		},
+		{
+			name:                    "empty_secrets_random_image",
+			userProvidedPullSecrets: []corev1.LocalObjectReference{},
+			imageName:               rand.String(rand.Intn(15)),
+			expected:                false,
+		},
+		{
+			name: "non_empty_secrets_random_image",
+			userProvidedPullSecrets: []corev1.LocalObjectReference{
+				{
+					Name: rand.String(rand.Intn(15)),
+				},
+				{
+					Name: rand.String(rand.Intn(15)),
+				},
+			},
+			imageName: rand.String(rand.Intn(15)),
+			expected:  false,
+		},
+		{
+			name:                    "nil_secrets_image_has_prefix",
+			userProvidedPullSecrets: nil,
+			imageName:               "containers.instana.io/" + rand.String(rand.Intn(15)),
+			expected:                true,
+		},
+		{
+			name:                    "empty_secrets_image_has_prefix",
+			userProvidedPullSecrets: []corev1.LocalObjectReference{},
+			imageName:               "containers.instana.io/" + rand.String(rand.Intn(15)),
+			expected:                false,
+		},
+		{
+			name: "non_empty_secrets_image_has_prefix",
+			userProvidedPullSecrets: []corev1.LocalObjectReference{
+				{
+					Name: rand.String(rand.Intn(15)),
+				},
+				{
+					Name: rand.String(rand.Intn(15)),
+				},
+			},
+			imageName: "containers.instana.io/" + rand.String(rand.Intn(15)),
+			expected:  false,
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				h := NewHelpers(
+					&instanav1.InstanaAgent{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: rand.String(rand.Intn(15)),
+						},
+						Spec: instanav1.InstanaAgentSpec{
+							Agent: instanav1.BaseAgentSpec{
+								ExtendedImageSpec: instanav1.ExtendedImageSpec{
+									PullSecrets: test.userProvidedPullSecrets,
+									ImageSpec: instanav1.ImageSpec{
+										Name: test.imageName,
+									},
+								},
+							},
+						},
+					},
+				)
+
+				actual := h.UseContainersSecret()
+
+				assertions.Equal(test.expected, actual)
+
+				expectedSecrets := func() []corev1.LocalObjectReference {
+					if test.expected {
+						containersSecretName := h.ContainersSecretName()
+
+						return []corev1.LocalObjectReference{
+							{
+								Name: containersSecretName,
+							},
+						}
+					} else {
+						return test.userProvidedPullSecrets
+					}
+				}()
+
+				actualSecrets := h.ImagePullSecrets()
+
+				assertions.Equal(expectedSecrets, actualSecrets)
+			},
+		)
+	}
+}

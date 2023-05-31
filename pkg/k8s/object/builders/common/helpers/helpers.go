@@ -58,13 +58,9 @@ func (h *helpers) K8sSensorResourcesName() string {
 	return h.Name + "-k8sensor"
 }
 
-// TODO: Test
-
 func (h *helpers) ContainersSecretName() string {
 	return h.Name + "-containers-instana-io"
 }
-
-// TODO: Test
 
 func (h *helpers) UseContainersSecret() bool {
 	// Explicitly using e.PullSecrets != nil instead of len(e.PullSecrets) == 0 since the original chart specified that
@@ -74,8 +70,6 @@ func (h *helpers) UseContainersSecret() bool {
 	// specifically mentioning that this was the desired behavior, so keeping it until someone says otherwise.
 	return h.Spec.Agent.PullSecrets == nil && strings.HasPrefix(h.Spec.Agent.ImageSpec.Name, "containers.instana.io")
 }
-
-// TODO: Test
 
 func (h *helpers) ImagePullSecrets() []corev1.LocalObjectReference {
 	if h.UseContainersSecret() {
