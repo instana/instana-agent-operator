@@ -75,7 +75,8 @@ func (s *secretBuilder) Build() optional.Optional[client.Object] {
 
 func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
 	return &secretBuilder{
-		InstanaAgent:       agent,
+		InstanaAgent: agent,
+
 		Helpers:            helpers.NewHelpers(agent),
 		JsonOrDieMarshaler: json_or_die.NewJsonOrDie[DockerConfigJson](),
 	}
