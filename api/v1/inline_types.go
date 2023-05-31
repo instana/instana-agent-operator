@@ -194,10 +194,10 @@ type TlsSpec struct {
 	SecretName string `json:"secretName,omitempty"`
 	// certificate (together with key) is the alternative to an existing Secret. Must be base64 encoded.
 	// +kubebuilder:validation:Optional
-	Certificate string `json:"certificate,omitempty"`
+	Certificate []byte `json:"certificate,omitempty"`
 	// key (together with certificate) is the alternative to an existing Secret. Must be base64 encoded.
 	// +kubebuilder:validation:Optional
-	Key string `json:"key,omitempty"`
+	Key []byte `json:"key,omitempty"`
 }
 
 type ImageSpec struct {

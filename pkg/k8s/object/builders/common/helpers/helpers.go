@@ -47,7 +47,7 @@ func (h *helpers) KeysSecretName() string {
 }
 
 func (h *helpers) TLSIsEnabled() bool {
-	return h.Spec.Agent.TlsSpec.SecretName != "" || (h.Spec.Agent.TlsSpec.Certificate != "" && h.Spec.Agent.TlsSpec.Key != "")
+	return h.Spec.Agent.TlsSpec.SecretName != "" || (len(h.Spec.Agent.TlsSpec.Certificate) > 0 && len(h.Spec.Agent.TlsSpec.Key) > 0)
 }
 
 func (h *helpers) TLSSecretName() string {

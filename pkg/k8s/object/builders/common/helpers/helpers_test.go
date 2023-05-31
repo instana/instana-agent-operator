@@ -179,8 +179,8 @@ func TestHelpers_TLSIsEnabled(t *testing.T) {
 							Agent: instanav1.BaseAgentSpec{
 								TlsSpec: instanav1.TlsSpec{
 									SecretName:  test.secretName,
-									Certificate: test.certificate,
-									Key:         test.key,
+									Certificate: []byte(test.certificate),
+									Key:         []byte(test.key),
 								},
 							},
 						},
