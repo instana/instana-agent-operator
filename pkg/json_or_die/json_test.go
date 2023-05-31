@@ -28,7 +28,7 @@ func testJsonOrDie[T any](t *testing.T, name string, createFunction func() JsonO
 				{
 					name: "round_trip",
 					execute: func(assertions *require.Assertions, j JsonOrDieMarshaler[T]) {
-						expected := j.(*jsonOrDie[T]).obj
+						expected := j.(*jsonOrDie[T]).newEmptyObject()
 
 						marshaled := j.MarshalOrDie(expected)
 						actual := j.UnMarshalOrDie(marshaled)

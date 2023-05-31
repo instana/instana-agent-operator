@@ -9,6 +9,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
+const (
+	ContainersInstanaIORegistry = "containers.instana.io"
+)
+
 type helpers struct {
 	*instanav1.InstanaAgent
 }
@@ -68,7 +72,10 @@ func (h *helpers) UseContainersSecret() bool {
 	// (original logic was to only use the generated secret if the registry matches AND the pullSecrets field was
 	// omitted by the user). I don't understand why anyone would want this, but the original chart had comments
 	// specifically mentioning that this was the desired behavior, so keeping it until someone says otherwise.
-	return h.Spec.Agent.PullSecrets == nil && strings.HasPrefix(h.Spec.Agent.ImageSpec.Name, "containers.instana.io")
+	return h.Spec.Agent.PullSecrets == nil && strings.HasPrefix(
+		h.Spec.Agent.ImageSpec.Name,
+		ContainersInstanaIORegistry,
+	)
 }
 
 func (h *helpers) ImagePullSecrets() []corev1.LocalObjectReference {

@@ -55,12 +55,6 @@ func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 	return d.GetPodLabels(podLabels)
 }
 
-func (d *daemonSetBuilder) getPodTemplateAnnotations() map[string]string {
-	podAnnotations := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Annotations).GetOrDefault(map[string]string{})
-	podAnnotations["instana-configuration-hash"] = d.HashJsonOrDie(&d.Spec) // TODO: do we really need to restart on any change?
-	return podAnnotations
-}
-
 func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 	return d.EnvBuilder.Build(
 		env.AgentModeEnv,
@@ -153,7 +147,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      d.getPodTemplateLabels(),
-					Annotations: d.getPodTemplateAnnotations(),
+					Annotations: d.InstanaAgent.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					Volumes:            volumes,

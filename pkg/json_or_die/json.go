@@ -13,7 +13,7 @@ type JsonOrDieMarshaler[T any] interface {
 
 type jsonOrDie[T any] struct {
 	or_die.OrDie[[]byte]
-	obj T
+	newEmptyObject func() T
 }
 
 func (j *jsonOrDie[T]) MarshalOrDie(obj T) []byte {
@@ -25,38 +25,41 @@ func (j *jsonOrDie[T]) MarshalOrDie(obj T) []byte {
 }
 
 func (j *jsonOrDie[T]) UnMarshalOrDie(raw []byte) T {
+	obj := j.newEmptyObject()
+
 	j.ResultOrDie(
 		func() ([]byte, error) {
-			return nil, json.Unmarshal(raw, &j.obj)
+			return nil, json.Unmarshal(raw, &obj)
 		},
 	)
 
-	return j.obj
+	return obj
 }
 
 func NewJsonOrDie[T any]() JsonOrDieMarshaler[*T] {
-	var obj T
-
 	return &jsonOrDie[*T]{
 		OrDie: or_die.New[[]byte](),
-		obj:   &obj,
+		newEmptyObject: func() *T {
+			var obj T
+			return &obj
+		},
 	}
 }
 
 func NewJsonOrDieMap[K comparable, V any]() JsonOrDieMarshaler[map[K]V] {
-	obj := make(map[K]V, 0)
-
 	return &jsonOrDie[map[K]V]{
 		OrDie: or_die.New[[]byte](),
-		obj:   obj,
+		newEmptyObject: func() map[K]V {
+			return make(map[K]V, 0)
+		},
 	}
 }
 
 func NewJsonOrDieArray[T any]() JsonOrDieMarshaler[[]T] {
-	obj := make([]T, 0)
-
 	return &jsonOrDie[[]T]{
 		OrDie: or_die.New[[]byte](),
-		obj:   obj,
+		newEmptyObject: func() []T {
+			return make([]T, 0)
+		},
 	}
 }
