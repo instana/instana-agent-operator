@@ -266,6 +266,9 @@ gen-mocks: get-mockgen
 
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/secrets/tls-secret/helpers_mock_test.go --package tls_secret
 
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/helpers_mock_test.go --package containers_instana_io_secret
+	mockgen --source ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/docker_config_json.go --destination ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/docker_config_json_mock_test.go --package containers_instana_io_secret
+
 
 
 

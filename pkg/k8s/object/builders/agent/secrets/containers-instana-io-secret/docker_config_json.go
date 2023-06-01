@@ -7,3 +7,9 @@ type DockerConfigAuth struct {
 type DockerConfigJson struct {
 	Auths map[string]DockerConfigAuth `json:"auths"`
 }
+
+// Defining this so mock-gen will work
+type dockerConfigMarshaler interface {
+	MarshalOrDie(obj *DockerConfigJson) []byte
+	UnMarshalOrDie(raw []byte) *DockerConfigJson
+}

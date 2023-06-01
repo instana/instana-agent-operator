@@ -15,13 +15,11 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-// TODO: Test
-
 type secretBuilder struct {
 	*instanav1.InstanaAgent
 
 	helpers.Helpers
-	json_or_die.JsonOrDieMarshaler[*DockerConfigJson]
+	dockerConfigMarshaler
 }
 
 func (s *secretBuilder) IsNamespaced() bool {
@@ -77,7 +75,7 @@ func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
 	return &secretBuilder{
 		InstanaAgent: agent,
 
-		Helpers:            helpers.NewHelpers(agent),
-		JsonOrDieMarshaler: json_or_die.NewJsonOrDie[DockerConfigJson](),
+		Helpers:               helpers.NewHelpers(agent),
+		dockerConfigMarshaler: json_or_die.NewJsonOrDie[DockerConfigJson](),
 	}
 }
