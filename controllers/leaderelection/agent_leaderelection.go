@@ -24,11 +24,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/go-logr/logr"
-	"github.com/instana/instana-agent-operator/controllers/leaderelection/coordination_api"
 	"github.com/procyon-projects/chrono"
 	coreV1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instana/instana-agent-operator/controllers/leaderelection/coordination_api"
 )
 
 func NewLeaderElection(client client.Client, namespacedName types.NamespacedName) *LeaderElector {
@@ -65,25 +66,27 @@ func (l *LeaderElector) StartCoordination(agentNameSpace string) error {
 		return errors.New("leader election coordination task has already been scheduled")
 	}
 
-	if task, err := l.leaderElectionTaskScheduler.ScheduleWithFixedDelay(func(ctx context.Context) {
-		fetchPodsCtx, cancelFunc := context.WithTimeout(ctx, 5*time.Second)
-		defer cancelFunc()
+	if task, err := l.leaderElectionTaskScheduler.ScheduleWithFixedDelay(
+		func(ctx context.Context) {
+			fetchPodsCtx, cancelFunc := context.WithTimeout(ctx, 5*time.Second)
+			defer cancelFunc()
 
-		activePods, err := l.fetchPods(fetchPodsCtx, agentNameSpace)
-		if err != nil {
-			l.log.Error(err, "Unable to fetch agent pods for doing election")
-			return
-		}
+			activePods, err := l.fetchPods(fetchPodsCtx, agentNameSpace)
+			if err != nil {
+				l.log.Error(err, "Unable to fetch agent pods for doing election")
+				return
+			}
 
-		assignCtx, cancelFunc := context.WithTimeout(ctx, 20*time.Second)
-		defer cancelFunc()
-		leaders := l.pollAgentsAndAssignLeaders(assignCtx, activePods)
+			assignCtx, cancelFunc := context.WithTimeout(ctx, 20*time.Second)
+			defer cancelFunc()
+			leaders := l.pollAgentsAndAssignLeaders(assignCtx, activePods)
 
-		if leaders != nil {
-			l.updateLeaderStatusInCustomResource(leaders, activePods)
-		}
+			if leaders != nil {
+				l.updateLeaderStatusInCustomResource(leaders, activePods)
+			}
 
-	}, 10*time.Second); err != nil {
+		}, 10*time.Second,
+	); err != nil {
 		return fmt.Errorf("failure scheduling leader elector coordination task: %w", err)
 	} else {
 		l.leaderElectionTask = task
@@ -129,7 +132,10 @@ func (l *LeaderElector) fetchPods(ctx context.Context, agentNameSpace string) (m
 // pollAgentsAndAssignLeaders will first get all "requested resources" from every Agent Pod. It will then calculate new
 // assignments, prioritizing any Pod that already holds that assignment.
 // The function is executed in a loop, so that should assignments fail for any Pod, determining assignments starts over from scratch.
-func (l *LeaderElector) pollAgentsAndAssignLeaders(ctx context.Context, pods map[string]coreV1.Pod) map[string][]string {
+func (l *LeaderElector) pollAgentsAndAssignLeaders(
+	ctx context.Context,
+	pods map[string]coreV1.Pod,
+) map[string][]string {
 outer:
 	for {
 		// Safeguard to prevent infinite loop should we fail to assign all pods
@@ -160,7 +166,12 @@ outer:
 		// these up although we're not interested failures as the Pod might get restarted
 		for _, pod := range leadershipStatus.getPodsWithAssignmentsNoRequests() {
 			c := pods[pod]
-			l.log.Info(fmt.Sprintf("Pod with UID %v has assignments but no requests. Resetting.", c.GetObjectMeta().GetName()))
+			l.log.Info(
+				fmt.Sprintf(
+					"Pod with UID %v has assignments but no requests. Resetting.",
+					c.GetObjectMeta().GetName(),
+				),
+			)
 			l.assign(ctx, pods, leadershipStatus, pod, []string{})
 		}
 
@@ -169,13 +180,22 @@ outer:
 	}
 }
 
-func (l *LeaderElector) assign(ctx context.Context, activePods map[string]coreV1.Pod, leadershipStatus *LeadershipStatus, desiredPod string, assignments []string) bool {
+func (l *LeaderElector) assign(
+	ctx context.Context,
+	activePods map[string]coreV1.Pod,
+	leadershipStatus *LeadershipStatus,
+	desiredPod string,
+	assignments []string,
+) bool {
 	less := func(a, b string) bool { return a < b }
 	if !cmp.Equal(assignments, leadershipStatus.getAssignmentsForPod(desiredPod), cmpopts.SortSlices(less)) {
 		// Only need to update if desired assignments are not yet equal to actual assignments
 		pod := activePods[desiredPod]
 		if err := l.coordinationApi.Assign(ctx, pod, assignments); err != nil {
-			l.log.Error(err, fmt.Sprintf("Failed to assign leadership %v to pod: %v", assignments, pod.GetObjectMeta().GetName()))
+			l.log.Error(
+				err,
+				fmt.Sprintf("Failed to assign leadership %v to pod: %v", assignments, pod.GetObjectMeta().GetName()),
+			)
 			return false
 		}
 		l.log.Info(fmt.Sprintf("Assigned leadership of %v to pod: %v", assignments, pod.GetObjectMeta().GetName()))
@@ -198,9 +218,20 @@ func (l *LeaderElector) pollLeadershipStatus(ctx context.Context, pods map[strin
 			coordinationRecord, err := l.coordinationApi.PollPod(ctx, pod)
 			if err != nil {
 				// Logging on Info level because could just happen that Pod is not ready
-				l.log.Info(fmt.Sprintf("Unable to poll coordination status for Pod %v: %v", pod.GetObjectMeta().GetName(), err))
+				l.log.Info(
+					fmt.Sprintf(
+						"Unable to poll coordination status for Pod %v: %v",
+						pod.GetObjectMeta().GetName(),
+						err,
+					),
+				)
 			} else {
-				l.log.V(1).Info(fmt.Sprintf("Coordination status was successfully polled for Pod %v", pod.GetObjectMeta().GetName()))
+				l.log.V(1).Info(
+					fmt.Sprintf(
+						"Coordination status was successfully polled for Pod %v",
+						pod.GetObjectMeta().GetName(),
+					),
+				)
 				resourcesMutex.Lock()
 				resourcesByPod[uid] = coordinationRecord
 				resourcesMutex.Unlock()
@@ -221,8 +252,8 @@ func (l *LeaderElector) calculateDesiredAssignments(leadershipStatus *Leadership
 		var ok bool
 
 		if desiredPod, ok = leadershipStatus.getCurrentLeaderPodForResource(resource); !ok {
-			// We can be certain len(podsList) > 0 and so invocation rand.Intn() is safe
-			desiredPod = podsList[rand.Intn(len(podsList))]
+			// We can be certain len(podsList) > 0 and so invocation rand.IntnRange(1, ) is safe
+			desiredPod = podsList[rand.IntnRange(1, len(podsList))]
 		}
 
 		if assignments, contains := desiredPodWithAssignments[desiredPod]; contains {
@@ -265,7 +296,11 @@ func (l *LeaderElector) updateLeaderStatusInCustomResource(leaders map[string][]
 
 	// Only update the CR if anything actually changed
 	less := func(a, b string) bool { return a < b }
-	if crdInstance.Status.LeadingAgentPod == nil || !cmp.Equal(leadershipStatus, crdInstance.Status.LeadingAgentPod, cmpopts.SortSlices(less)) {
+	if crdInstance.Status.LeadingAgentPod == nil || !cmp.Equal(
+		leadershipStatus,
+		crdInstance.Status.LeadingAgentPod,
+		cmpopts.SortSlices(less),
+	) {
 
 		crdInstance.Status.LeadingAgentPod = leadershipStatus
 		if err := l.client.Status().Update(context.Background(), crdInstance); err != nil {

@@ -81,21 +81,21 @@ func TestServiceBuilder_Build(t *testing.T) {
 
 						if serviceCreate || (remoteWriteEnabled.Enabled != nil && *remoteWriteEnabled.Enabled) || otlpIsEnabled {
 							expectedSelectorLabels := map[string]string{
-								rand.String(rand.Intn(15)): rand.String(rand.Intn(15)),
-								rand.String(rand.Intn(15)): rand.String(rand.Intn(15)),
-								rand.String(rand.Intn(15)): rand.String(rand.Intn(15)),
+								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),
+								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),
+								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),
 							}
 							podSelectorLabelGenerator.EXPECT().GetPodSelectorLabels().Return(expectedSelectorLabels)
 
 							expectedServicePorts := []corev1.ServicePort{
 								{
-									Name: rand.String(rand.Intn(15)),
+									Name: rand.String(rand.IntnRange(1, 15)),
 								},
 								{
-									Name: rand.String(rand.Intn(15)),
+									Name: rand.String(rand.IntnRange(1, 15)),
 								},
 								{
-									Name: rand.String(rand.Intn(15)),
+									Name: rand.String(rand.IntnRange(1, 15)),
 								},
 							}
 							portsBuilder.EXPECT().GetServicePorts(

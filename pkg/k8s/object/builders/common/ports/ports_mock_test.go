@@ -8,8 +8,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	v1 "github.com/instana/instana-agent-operator/api/v1"
-	v10 "k8s.io/api/core/v1"
+	helpers "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
+	v1 "k8s.io/api/core/v1"
 )
 
 // MockPort is a mock of Port interface.
@@ -50,7 +50,7 @@ func (mr *MockPortMockRecorder) String() *gomock.Call {
 }
 
 // isEnabled mocks base method.
-func (m *MockPort) isEnabled(openTelemetrySettings v1.OpenTelemetrySettings) bool {
+func (m *MockPort) isEnabled(openTelemetrySettings helpers.OpenTelemetrySettings) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "isEnabled", openTelemetrySettings)
 	ret0, _ := ret[0].(bool)
@@ -101,14 +101,14 @@ func (m *MockPortsBuilder) EXPECT() *MockPortsBuilderMockRecorder {
 }
 
 // GetContainerPorts mocks base method.
-func (m *MockPortsBuilder) GetContainerPorts(ports ...Port) []v10.ContainerPort {
+func (m *MockPortsBuilder) GetContainerPorts(ports ...Port) []v1.ContainerPort {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{}
 	for _, a := range ports {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetContainerPorts", varargs...)
-	ret0, _ := ret[0].([]v10.ContainerPort)
+	ret0, _ := ret[0].([]v1.ContainerPort)
 	return ret0
 }
 
@@ -119,14 +119,14 @@ func (mr *MockPortsBuilderMockRecorder) GetContainerPorts(ports ...interface{}) 
 }
 
 // GetServicePorts mocks base method.
-func (m *MockPortsBuilder) GetServicePorts(ports ...Port) []v10.ServicePort {
+func (m *MockPortsBuilder) GetServicePorts(ports ...Port) []v1.ServicePort {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{}
 	for _, a := range ports {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetServicePorts", varargs...)
-	ret0, _ := ret[0].([]v10.ServicePort)
+	ret0, _ := ret[0].([]v1.ServicePort)
 	return ret0
 }
 

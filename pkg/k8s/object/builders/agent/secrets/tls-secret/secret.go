@@ -35,7 +35,8 @@ func (s *secretBuilder) build() *corev1.Secret {
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: s.TLSSecretName(),
+			Name:      s.TLSSecretName(),
+			Namespace: s.Namespace,
 		},
 		Data: map[string][]byte{
 			corev1.TLSCertKey:       s.Spec.Agent.TlsSpec.Certificate,

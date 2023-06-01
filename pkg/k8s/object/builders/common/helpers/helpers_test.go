@@ -267,7 +267,7 @@ func TestHelpers_K8sSensorResourcesName(t *testing.T) {
 func TestHelpers_ContainersSecretName(t *testing.T) {
 	assertions := require.New(t)
 
-	agentName := rand.String(rand.Intn(15))
+	agentName := rand.String(rand.IntnRange(1, 15))
 
 	h := NewHelpers(
 		&instanav1.InstanaAgent{
@@ -290,51 +290,51 @@ func TestHelpers_UseContainersSecret(t *testing.T) {
 		{
 			name:                    "nil_secrets_random_image",
 			userProvidedPullSecrets: nil,
-			imageName:               rand.String(rand.Intn(15)),
+			imageName:               rand.String(rand.IntnRange(1, 15)),
 			expected:                false,
 		},
 		{
 			name:                    "empty_secrets_random_image",
 			userProvidedPullSecrets: []corev1.LocalObjectReference{},
-			imageName:               rand.String(rand.Intn(15)),
+			imageName:               rand.String(rand.IntnRange(1, 15)),
 			expected:                false,
 		},
 		{
 			name: "non_empty_secrets_random_image",
 			userProvidedPullSecrets: []corev1.LocalObjectReference{
 				{
-					Name: rand.String(rand.Intn(15)),
+					Name: rand.String(rand.IntnRange(1, 15)),
 				},
 				{
-					Name: rand.String(rand.Intn(15)),
+					Name: rand.String(rand.IntnRange(1, 15)),
 				},
 			},
-			imageName: rand.String(rand.Intn(15)),
+			imageName: rand.String(rand.IntnRange(1, 15)),
 			expected:  false,
 		},
 		{
 			name:                    "nil_secrets_image_has_prefix",
 			userProvidedPullSecrets: nil,
-			imageName:               "containers.instana.io/" + rand.String(rand.Intn(15)),
+			imageName:               "containers.instana.io/" + rand.String(rand.IntnRange(1, 15)),
 			expected:                true,
 		},
 		{
 			name:                    "empty_secrets_image_has_prefix",
 			userProvidedPullSecrets: []corev1.LocalObjectReference{},
-			imageName:               "containers.instana.io/" + rand.String(rand.Intn(15)),
+			imageName:               "containers.instana.io/" + rand.String(rand.IntnRange(1, 15)),
 			expected:                false,
 		},
 		{
 			name: "non_empty_secrets_image_has_prefix",
 			userProvidedPullSecrets: []corev1.LocalObjectReference{
 				{
-					Name: rand.String(rand.Intn(15)),
+					Name: rand.String(rand.IntnRange(1, 15)),
 				},
 				{
-					Name: rand.String(rand.Intn(15)),
+					Name: rand.String(rand.IntnRange(1, 15)),
 				},
 			},
-			imageName: "containers.instana.io/" + rand.String(rand.Intn(15)),
+			imageName: "containers.instana.io/" + rand.String(rand.IntnRange(1, 15)),
 			expected:  false,
 		},
 	} {
@@ -345,7 +345,7 @@ func TestHelpers_UseContainersSecret(t *testing.T) {
 				h := NewHelpers(
 					&instanav1.InstanaAgent{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: rand.String(rand.Intn(15)),
+							Name: rand.String(rand.IntnRange(1, 15)),
 						},
 						Spec: instanav1.InstanaAgentSpec{
 							Agent: instanav1.BaseAgentSpec{

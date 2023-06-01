@@ -264,6 +264,8 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./pkg/k8s/object/builders/common/builder/transformations_mock_test.go --package builder
 	mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./pkg/k8s/object/builders/common/builder/builder_mock_test.go --package builder
 
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/secrets/tls-secret/helpers_mock_test.go --package tls_secret
+
 
 
 
