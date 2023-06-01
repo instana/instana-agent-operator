@@ -12,8 +12,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-// TODO: Test
-
 type secretBuilder struct {
 	*instanav1.InstanaAgent
 
