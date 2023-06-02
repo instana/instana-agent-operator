@@ -156,7 +156,7 @@ spec:
     spec:
       clusterPermissions:
       - rules:
-        - apiGroups:
+          - apiGroups:
           - ""
           - coordination.k8s.io
           resources:
@@ -209,7 +209,7 @@ spec:
           - apps
           - rbac.authorization.k8s.io
           resources:
-          - serviceaccounts
+            - serviceaccounts
           - clusterroles
           - clusterrolebindings
           - secrets
@@ -217,6 +217,7 @@ spec:
           - daemonsets
           - namespaces
           - services
+          - deployments
           verbs:
           - create
           - delete
@@ -315,18 +316,42 @@ spec:
           resources:
           - deploymentconfigs
           verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - use
-        serviceAccountName: controller-manager
+            - get
+            - list
+            - watch
+          - apiGroups:
+              - security.openshift.io
+            resourceNames:
+              - privileged
+            resources:
+              - securitycontextconstraints
+            verbs:
+              - use
+          - apiGroups:
+              - autoscaling/v1
+            resources:
+              - horizontalpodautoscalers
+            verbs:
+              - get
+              - list
+              - watch
+          - apiGroups:
+              - autoscaling/v2
+            resources:
+              - horizontalpodautoscalers
+            verbs:
+              - get
+              - list
+              - watch
+          - apiGroups:
+              - ""
+            resources:
+              - pods/log
+            verbs:
+              - get
+              - list
+              - watch
+        serviceAccountName: instana-agent-operator
       deployments:
       - name: controller-manager
         spec:
@@ -386,7 +411,7 @@ spec:
                     memory: 200Mi
                 securityContext:
                   allowPrivilegeEscalation: true
-              serviceAccountName: controller-manager
+              serviceAccountName: instana-agent-operator
               terminationGracePeriodSeconds: 10
     strategy: deployment
   installModes:
