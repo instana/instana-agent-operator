@@ -333,12 +333,12 @@ spec:
           replicas: 2
           selector:
             matchLabels:
-              control-plane: controller-manager
+              app.kubernetes.io/name: instana-agent-operator
           strategy: {}
           template:
             metadata:
               labels:
-                control-plane: controller-manager
+                app.kubernetes.io/name: instana-agent-operator
             spec:
               affinity:
                 nodeAffinity:
