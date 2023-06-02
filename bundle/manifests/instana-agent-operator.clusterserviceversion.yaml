@@ -156,7 +156,7 @@ spec:
     spec:
       clusterPermissions:
       - rules:
-          - apiGroups:
+        - apiGroups:
           - ""
           - coordination.k8s.io
           resources:
@@ -209,7 +209,7 @@ spec:
           - apps
           - rbac.authorization.k8s.io
           resources:
-            - serviceaccounts
+          - serviceaccounts
           - clusterroles
           - clusterrolebindings
           - secrets
@@ -217,7 +217,6 @@ spec:
           - daemonsets
           - namespaces
           - services
-          - deployments
           verbs:
           - create
           - delete
@@ -316,64 +315,40 @@ spec:
           resources:
           - deploymentconfigs
           verbs:
-            - get
-            - list
-            - watch
-          - apiGroups:
-              - security.openshift.io
-            resourceNames:
-              - privileged
-            resources:
-              - securitycontextconstraints
-            verbs:
-              - use
-          - apiGroups:
-              - autoscaling/v1
-            resources:
-              - horizontalpodautoscalers
-            verbs:
-              - get
-              - list
-              - watch
-          - apiGroups:
-              - autoscaling/v2
-            resources:
-              - horizontalpodautoscalers
-            verbs:
-              - get
-              - list
-              - watch
-          - apiGroups:
-              - ""
-            resources:
-              - pods/log
-            verbs:
-              - get
-              - list
-              - watch
-        serviceAccountName: instana-agent-operator
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
+        serviceAccountName: controller-manager
       deployments:
-        - name: instana-agent-operator
-          spec:
-            replicas: 2
-            selector:
-              matchLabels:
+      - name: controller-manager
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: instana-agent-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
                 app.kubernetes.io/name: instana-agent-operator
-            strategy: { }
-            template:
-              metadata:
-                labels:
-                  app.kubernetes.io/name: instana-agent-operator
-              spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                        - matchExpressions:
-                            - key: kubernetes.io/os
-                              operator: In
-                              values:
-                                - linux
+            spec:
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                        - linux
                     - matchExpressions:
                       - key: kubernetes.io/arch
                         operator: In
@@ -411,7 +386,7 @@ spec:
                     memory: 200Mi
                 securityContext:
                   allowPrivilegeEscalation: true
-              serviceAccountName: instana-agent-operator
+              serviceAccountName: controller-manager
               terminationGracePeriodSeconds: 10
     strategy: deployment
   installModes:
