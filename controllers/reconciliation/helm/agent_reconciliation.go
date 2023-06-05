@@ -25,13 +25,12 @@ type DeprecatedInternalChartUninstaller interface {
 func NewHelmReconciliation(
 	scheme *runtime.Scheme,
 	log logr.Logger,
-	crAppNamespace string,
 ) DeprecatedInternalChartUninstaller {
 	h := &helmReconciliation{
 		scheme:         scheme,
 		log:            log.WithName("helm-reconcile"),
 		crAppName:      "instana-agent",
-		crAppNamespace: crAppNamespace,
+		crAppNamespace: "instana-agent",
 	}
 	if err := h.initHelmConfig(); err != nil {
 		// This is a highly unlikely edge-case (the action.Configuration.Init(...) itself only panics) from which we can't

@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
+	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 )
 
 const (
@@ -34,10 +35,8 @@ func Add(mgr manager.Manager) error {
 	return add(
 		mgr, NewInstanaAgentReconciler(
 			mgr.GetClient(),
-			mgr.GetAPIReader(),
-			mgr.GetEventRecorderFor("agent.controller"),
 			mgr.GetScheme(),
-			mgr.GetConfig(),
+			mgr.GetEventRecorderFor("agent.controller"),
 			logf.Log.WithName("agent.controller"),
 		),
 	)
@@ -77,29 +76,23 @@ func filterPredicate() predicate.Predicate {
 // NewInstanaAgentReconciler initializes a new InstanaAgentReconciler instance
 func NewInstanaAgentReconciler(
 	client client.Client,
-	apiReader client.Reader,
-	recorder record.EventRecorder,
 	scheme *runtime.Scheme,
-	config *rest.Config,
+	recorder record.EventRecorder,
 	log logr.Logger,
 ) *InstanaAgentReconciler {
 	return &InstanaAgentReconciler{
-		client:    client,
-		apiReader: apiReader,
-		recorder:  recorder,
-		scheme:    scheme,
-		config:    config,
-		log:       log,
+		client:       instanaclient.NewClient(client),
+		recorder:     recorder,
+		log:          log,
+		chartRemover: helm.NewHelmReconciliation(scheme, log),
 	}
 }
 
 type InstanaAgentReconciler struct {
-	client    client.Client
-	apiReader client.Reader
-	recorder  record.EventRecorder
-	scheme    *runtime.Scheme
-	config    *rest.Config
-	log       logr.Logger
+	client       instanaclient.InstanaAgentClient
+	recorder     record.EventRecorder
+	log          logr.Logger
+	chartRemover helm.DeprecatedInternalChartUninstaller
 }
 
 // TODO: Update permissions here
@@ -110,5 +103,6 @@ type InstanaAgentReconciler struct {
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = logr.NewContext(ctx, r.log)
 	panic("implement me") // TODO
 }
