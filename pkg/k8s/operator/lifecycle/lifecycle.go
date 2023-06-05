@@ -59,6 +59,8 @@ func (d *dependentLifecycleManager) getCurrentGenKey() string {
 }
 
 func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult {
+	// TODO: Need to pull in existing keys first
+
 	lifecycleCm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
