@@ -6,6 +6,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -58,28 +59,63 @@ func (d *dependentLifecycleManager) getCurrentGenKey() string {
 	return fmt.Sprintf("%s_%d", transformations.GetVersion(), d.agent.GetGeneration())
 }
 
+func (d *dependentLifecycleManager) getOrInitializeLifecycleCm() result.Result[corev1.ConfigMap] {
+	lifecycleCm := d.getLifecycleCm().Recover(
+		func(err error) (corev1.ConfigMap, error) {
+			switch k8serrors.IsNotFound(err) {
+			case true:
+				return corev1.ConfigMap{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      d.getCmName(),
+						Namespace: d.agent.GetNamespace(),
+					},
+				}, nil
+			default:
+				return corev1.ConfigMap{}, err
+			}
+		},
+	)
+
+	return result.Map[corev1.ConfigMap, corev1.ConfigMap](
+		lifecycleCm,
+		func(res corev1.ConfigMap) result.Result[corev1.ConfigMap] {
+			if res.Data == nil {
+				res.Data = make(map[string]string, 1)
+			}
+			return result.OfSuccess(res)
+		},
+	)
+
+}
+
+func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
+	lifecycleCm *corev1.ConfigMap,
+	currentGenerationDependents []client.Object,
+) instanaclient.MultiObjectResult {
+	lifecycleCm.Data[d.getCurrentGenKey()] = string(d.marshalDependents(currentGenerationDependents))
+
+	d.AddCommonLabels(lifecycleCm, constants.ComponentInstanaAgent)
+	d.AddOwnerReference(lifecycleCm)
+
+	return result.Map[client.Object, []client.Object](
+		d.Apply(d.ctx, lifecycleCm),
+		func(_ client.Object) result.Result[[]client.Object] {
+			return result.OfSuccess(currentGenerationDependents)
+		},
+	)
+}
+
 func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult {
-	// TODO: Need to pull in existing keys first
-
-	lifecycleCm := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
+	return result.Map[corev1.ConfigMap, []client.Object](
+		d.getOrInitializeLifecycleCm(),
+		func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
+			return d.updateDependentLifecycleInfo(&lifecycleCm, currentGenerationDependents)
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.getCmName(),
-			Namespace: d.agent.GetNamespace(),
-		},
-		Data: map[string]string{
-			d.getCurrentGenKey(): string(d.marshalDependents(currentGenerationDependents)),
-		},
-	}
-
-	d.AddCommonLabels(&lifecycleCm, constants.ComponentInstanaAgent)
-	d.AddOwnerReference(&lifecycleCm)
-
-	_, err := d.Apply(d.ctx, &lifecycleCm).Get()
-	return result.Of(currentGenerationDependents, err)
+	)
 }
 
 func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.ConfigMap] {
