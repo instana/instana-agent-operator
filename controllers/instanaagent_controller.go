@@ -116,6 +116,15 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 	}
 }
 
+func (r *InstanaAgentReconciler) updateAgent(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
+	switch err := r.client.Update(ctx, agent); errors.Is(err, nil) {
+	case true:
+		return reconcileSuccess(ctrl.Result{Requeue: true})
+	default:
+		return reconcileFailure(err)
+	}
+}
+
 func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request) reconcileReturn {
 	agent, res := r.getAgent(ctx, req)
 	if res.suppliesReconcileResult() {
@@ -126,6 +135,8 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 
 	if handleDeletionRes := r.handleDeletion(ctx, agent, operatorUtils); handleDeletionRes.suppliesReconcileResult() {
 		return handleDeletionRes
+	} else if addFinalizerRes := r.addOrUpdateFinalizers(ctx, agent); addFinalizerRes.suppliesReconcileResult() {
+		return addFinalizerRes
 	}
 }
 

@@ -11,15 +11,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
-func (r *InstanaAgentReconciler) updateAgent(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
-	switch err := r.client.Update(ctx, agent); errors.Is(err, nil) {
-	case true:
-		return reconcileSuccess(ctrl.Result{Requeue: true})
-	default:
-		return reconcileFailure(err)
-	}
-}
-
 func (r *InstanaAgentReconciler) cleanupHelmChart(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
 	if !controllerutil.RemoveFinalizer(agent, finalizerV1) {
 		return reconcileContinue()
