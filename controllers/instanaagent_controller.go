@@ -47,13 +47,14 @@ func Add(mgr manager.Manager) error {
 	)
 }
 
+// TODO: need to configure rate limiting and backoff
+
 // add sets up the controller with the Manager.
 func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanav1.InstanaAgent{}).
-		// TODO: Update list of Owns
 		Owns(&appsv1.DaemonSet{}).
-		Owns(&corev1.Pod{}).
+		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
@@ -63,6 +64,8 @@ func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 		WithEventFilter(filterPredicate()).
 		Complete(r)
 }
+
+// TODO: Applies to owned objects as well, so could interfere with up-to-date statuses
 
 // Create generic filter for all events, that removes some chattiness mainly when only the Status field has been updated.
 func filterPredicate() predicate.Predicate {
@@ -166,6 +169,9 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return applyResourcesRes
 	}
 
+	// TODO: Status
+
+	return reconcileSuccess(ctrl.Result{}) // TODO: May or may not need to go again after some time for status updates
 }
 
 // TODO: Update permissions here
