@@ -270,7 +270,7 @@ func TestOperatorUtils_ApplyAll(t *testing.T) {
 					DependentLifecycleManager: mockDependentLifecycleManager,
 				}
 
-				actualObjects, actualError := ot.ApplyAll(mockBuilders).Get()
+				actualObjects, actualError := ot.ApplyAll(mockBuilders...).Get()
 
 				if test.shouldReturnObjects {
 					assertions.Equal(expectedObjects, actualObjects)

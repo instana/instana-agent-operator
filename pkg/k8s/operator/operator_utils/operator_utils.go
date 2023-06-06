@@ -18,7 +18,7 @@ import (
 
 type OperatorUtils interface {
 	ClusterIsOpenShift() result.Result[bool]
-	ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object]
+	ApplyAll(builders ...builder.ObjectBuilder) result.Result[[]k8sclient.Object]
 	DeleteAll() result.Result[[]k8sclient.Object]
 }
 
@@ -82,7 +82,7 @@ func (o *operatorUtils) applyAllDryRun(objects []k8sclient.Object) result.Result
 	return o.applyAllWithOpts(objects, k8sclient.DryRunAll)
 }
 
-func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
+func (o *operatorUtils) ApplyAll(builders ...builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
 	optionals := list.NewListMapTo[builder.ObjectBuilder, optional.Optional[k8sclient.Object]]().MapTo(
 		builders,
 		o.builderTransformer.Apply,

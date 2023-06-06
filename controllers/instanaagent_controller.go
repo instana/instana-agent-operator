@@ -125,19 +125,47 @@ func (r *InstanaAgentReconciler) updateAgent(ctx context.Context, agent *instana
 	}
 }
 
+func (r *InstanaAgentReconciler) isOpenShift(operatorUtils operator_utils.OperatorUtils) (bool, reconcileReturn) {
+	isOpenShiftRes := operatorUtils.ClusterIsOpenShift()
+	answer, err := isOpenShiftRes.Get()
+
+	switch isOpenShiftRes.IsSuccess() {
+	case true:
+		return answer, reconcileContinue()
+	default:
+		return false, reconcileFailure(err)
+	}
+}
+
 func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request) reconcileReturn {
-	agent, res := r.getAgent(ctx, req)
-	if res.suppliesReconcileResult() {
-		return res
+	agent, getAgentRes := r.getAgent(ctx, req)
+	if getAgentRes.suppliesReconcileResult() {
+		return getAgentRes
 	}
 
 	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent)
 
 	if handleDeletionRes := r.handleDeletion(ctx, agent, operatorUtils); handleDeletionRes.suppliesReconcileResult() {
 		return handleDeletionRes
-	} else if addFinalizerRes := r.addOrUpdateFinalizers(ctx, agent); addFinalizerRes.suppliesReconcileResult() {
+	}
+
+	if addFinalizerRes := r.addOrUpdateFinalizers(ctx, agent); addFinalizerRes.suppliesReconcileResult() {
 		return addFinalizerRes
 	}
+
+	isOpenShift, isOpenShiftRes := r.isOpenShift(operatorUtils)
+	if isOpenShiftRes.suppliesReconcileResult() {
+		return isOpenShiftRes
+	}
+
+	if applyResourcesRes := r.applyResources(
+		agent,
+		isOpenShift,
+		operatorUtils,
+	); applyResourcesRes.suppliesReconcileResult() {
+		return applyResourcesRes
+	}
+
 }
 
 // TODO: Update permissions here
