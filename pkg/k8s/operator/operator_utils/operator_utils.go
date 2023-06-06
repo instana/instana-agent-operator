@@ -19,6 +19,7 @@ import (
 type OperatorUtils interface {
 	ClusterIsOpenShift() result.Result[bool]
 	ApplyAll(builders []builder.ObjectBuilder) result.Result[[]k8sclient.Object]
+	DeleteAll() result.Result[[]k8sclient.Object]
 }
 
 type operatorUtils struct {
@@ -102,4 +103,8 @@ func (o *operatorUtils) ApplyAll(builders []builder.ObjectBuilder) result.Result
 		applyRes,
 		o.DeleteOrphanedDependents,
 	)
+}
+
+func (o *operatorUtils) DeleteAll() result.Result[[]k8sclient.Object] {
+	return o.DeleteAllDependents()
 }
