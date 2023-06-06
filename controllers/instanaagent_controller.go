@@ -26,8 +26,6 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
-	"github.com/instana/instana-agent-operator/pkg/optional"
-	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
 const (
@@ -98,30 +96,6 @@ type InstanaAgentReconciler struct {
 	recorder     record.EventRecorder
 	log          logr.Logger
 	chartRemover helm.DeprecatedInternalChartUninstaller
-}
-
-type reconcileReturn struct {
-	res optional.Optional[result.Result[ctrl.Result]]
-}
-
-func (r reconcileReturn) suppliesReconcileResult() bool {
-	return r.res.IsNotEmpty()
-}
-
-func (r reconcileReturn) reconcileResult() (ctrl.Result, error) {
-	return r.res.Get().Get()
-}
-
-func reconcileSuccess(res ctrl.Result) reconcileReturn {
-	return reconcileReturn{optional.Of(result.OfSuccess(res))}
-}
-
-func reconcileFailure(err error) reconcileReturn {
-	return reconcileReturn{optional.Of(result.OfFailure[ctrl.Result](err))}
-}
-
-func reconcileContinue() reconcileReturn {
-	return reconcileReturn{optional.Empty[result.Result[ctrl.Result]]()}
 }
 
 func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request) (
