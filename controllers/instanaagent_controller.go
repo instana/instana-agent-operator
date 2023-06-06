@@ -7,11 +7,13 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,10 +26,13 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
 const (
-	oldFinalizer = "agent.instana.io/finalizer"
+	finalizerV1 = "agent.instana.io/finalizer"
+	finalizerV3 = "agent.instana.io/finalizer/v3"
 )
 
 // Add will create a new Instana Agent Controller and add this to the Manager for reconciling
@@ -95,6 +100,48 @@ type InstanaAgentReconciler struct {
 	chartRemover helm.DeprecatedInternalChartUninstaller
 }
 
+type reconcileReturn struct {
+	res optional.Optional[result.Result[ctrl.Result]]
+}
+
+func (r reconcileReturn) suppliesReconcileResult() bool {
+	return r.res.IsNotEmpty()
+}
+
+func (r reconcileReturn) reconcileResult() (ctrl.Result, error) {
+	return r.res.Get().Get()
+}
+
+func reconcileSuccess(res ctrl.Result) reconcileReturn {
+	return reconcileReturn{optional.Of(result.OfSuccess(res))}
+}
+
+func reconcileFailure(err error) reconcileReturn {
+	return reconcileReturn{optional.Of(result.OfFailure[ctrl.Result](err))}
+}
+
+func reconcileContinue() reconcileReturn {
+	return reconcileReturn{optional.Empty[result.Result[ctrl.Result]]()}
+}
+
+func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request) (
+	*instanav1.InstanaAgent,
+	reconcileReturn,
+) {
+	var agent instanav1.InstanaAgent
+
+	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
+	case k8serrors.IsNotFound(err):
+		return nil, reconcileSuccess(ctrl.Result{})
+	case !errors.Is(err, nil):
+		return nil, reconcileFailure(err)
+	default:
+		return &agent, reconcileContinue()
+	}
+}
+
+// TODO: Catch panics
+
 // TODO: Update permissions here
 
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
@@ -104,5 +151,10 @@ type InstanaAgentReconciler struct {
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = logr.NewContext(ctx, r.log)
-	panic("implement me") // TODO
+
+	agent, res := r.getAgent(ctx, req)
+	if res.suppliesReconcileResult() {
+		return res.reconcileResult()
+	}
+
 }
