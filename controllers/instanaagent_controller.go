@@ -26,6 +26,8 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
+	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
 const (
@@ -114,7 +116,18 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 	}
 }
 
-// TODO: Catch panics
+func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request) reconcileReturn {
+	agent, res := r.getAgent(ctx, req)
+	if res.suppliesReconcileResult() {
+		return res
+	}
+
+	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent)
+
+	if handleDeletionRes := r.handleDeletion(ctx, agent, operatorUtils); handleDeletionRes.suppliesReconcileResult() {
+		return handleDeletionRes
+	}
+}
 
 // TODO: Update permissions here
 
@@ -123,12 +136,9 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 // +kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
-func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
+	defer recovery.Catch(&err)
+
 	ctx = logr.NewContext(ctx, r.log)
-
-	agent, res := r.getAgent(ctx, req)
-	if res.suppliesReconcileResult() {
-		return res.reconcileResult()
-	}
-
+	return r.reconcile(ctx, req).reconcileResult()
 }
