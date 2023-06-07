@@ -1217,10 +1217,12 @@ spec:
                       certificate:
                         description: certificate (together with key) is the alternative
                           to an existing Secret. Must be base64 encoded.
+                        format: byte
                         type: string
                       key:
                         description: key (together with certificate) is the alternative
                           to an existing Secret. Must be base64 encoded.
+                        format: byte
                         type: string
                       secretName:
                         description: secretName is the name of the secret that has
@@ -1338,18 +1340,24 @@ spec:
                           limits:
                             additionalProperties:
                               anyOf:
-                              - type: integer
-                              - type: string
+                                - type: integer
+                                - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                             description: 'Limits describes the maximum amount of compute
                               resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                             type: object
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          priorityClassName:
+                            type: string
                           requests:
                             additionalProperties:
                               anyOf:
-                              - type: integer
-                              - type: string
+                                - type: integer
+                                - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                             description: 'Requests describes the minimum amount of
@@ -1378,23 +1386,6 @@ spec:
                       pullPolicy:
                         description: PullPolicy specifies when to pull the image container.
                         type: string
-                      pullSecrets:
-                        description: PullSecrets allows you to override the default
-                          pull secret that is created when `agent.image.name` starts
-                          with "containers.instana.io". Setting `agent.image.pullSecrets`
-                          prevents the creation of the default "containers-instana-io"
-                          secret.
-                        items:
-                          description: LocalObjectReference contains enough information
-                            to let you locate the referenced object inside the same
-                            namespace.
-                          properties:
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                TODO: Add other useful fields. apiVersion, kind, uid?'
-                              type: string
-                          type: object
-                        type: array
                       tag:
                         description: Tag is the name of the agent container image;
                           if `agent.image.digest` is specified, this property is ignored.
@@ -1446,11 +1437,17 @@ spec:
                             description: 'Limits describes the maximum amount of compute
                               resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                             type: object
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          priorityClassName:
+                            type: string
                           requests:
                             additionalProperties:
                               anyOf:
-                              - type: integer
-                              - type: string
+                                - type: integer
+                                - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                             description: 'Requests describes the minimum amount of
