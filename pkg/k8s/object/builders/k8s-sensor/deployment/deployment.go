@@ -57,6 +57,16 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: d.K8sSensorResourcesName(),
+					NodeSelector:       d.Spec.K8sSensor.DeploymentSpec.Pod.NodeSelector,
+					PriorityClassName:  d.Spec.K8sSensor.DeploymentSpec.Pod.PriorityClassName,
+					ImagePullSecrets:   d.ImagePullSecrets(),
+					Containers: []corev1.Container{
+						{
+							Name:            "instana-agent",
+							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
+							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
+						},
+					},
 				},
 			},
 		},

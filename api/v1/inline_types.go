@@ -299,6 +299,16 @@ type K8sSpec struct {
 	ImageSpec ImageSpec `json:"image,omitempty"`
 }
 
+type KubernetesPodSpec struct {
+	coreV1.ResourceRequirements `json:",inline"`
+
+	// +kubebuilder:validation:Optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
 type KubernetesDeploymentSpec struct {
 	// Specify if separate deployment of the Kubernetes Sensor should be enabled.
 	Enabled `json:",inline"`
@@ -309,7 +319,7 @@ type KubernetesDeploymentSpec struct {
 
 	// Override pod resource requirements for the Kubernetes Sensor pods.
 	// +kubebuilder:validation:Optional
-	Pod coreV1.ResourceRequirements `json:"pod,omitempty"`
+	Pod KubernetesPodSpec `json:"pod,omitempty"`
 }
 
 type OpenTelemetry struct {
