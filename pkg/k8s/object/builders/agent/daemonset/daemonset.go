@@ -49,7 +49,7 @@ func (d *daemonSetBuilder) IsNamespaced() bool {
 
 func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
-	podLabels["instana/agent-mode"] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
+	podLabels[constants.LabelAgentMode] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
 
 	return d.GetPodLabels(podLabels)
 }
@@ -216,7 +216,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 // TODO: test Build()
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
-	if d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
+	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") {
 		return optional.Empty[client.Object]()
 	} else {
 		return optional.Of[client.Object](d.build())
