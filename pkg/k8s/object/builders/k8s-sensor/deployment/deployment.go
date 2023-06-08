@@ -15,6 +15,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
+// TODO: WIP + Test
+
 type deploymentBuilder struct {
 	*instanav1.InstanaAgent
 
