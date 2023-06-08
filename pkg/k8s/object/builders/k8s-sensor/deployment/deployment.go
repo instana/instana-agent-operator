@@ -45,6 +45,8 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.AgentZoneEnv,
 		env.PodUIDEnv,
 		env.PodNamespaceEnv,
+		env.PodNameEnv,
+		env.PodIPEnv,
 	) // TODO
 }
 
