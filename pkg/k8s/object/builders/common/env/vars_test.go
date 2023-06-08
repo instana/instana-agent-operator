@@ -443,6 +443,78 @@ func TestEnvBuilder_agentZone(t *testing.T) {
 	)
 }
 
+func TestEnvBuilder_httpsProxyEnv(t *testing.T) {
+	proxyHost := randString()
+	proxyPort := randString()
+	proxyUser := randString()
+	proxyPass := randString()
+
+	for _, test := range []struct {
+		name      string
+		agentSpec instanav1.InstanaAgentSpec
+		expected  string
+	}{
+		{
+			name: "host_only",
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyHost: proxyHost,
+				},
+			},
+			expected: "http://" + proxyHost + ":80",
+		},
+		{
+			name: "no_credentials",
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyHost: proxyHost,
+					ProxyPort: proxyPort,
+				},
+			},
+			expected: "http://" + proxyHost + ":" + proxyPort,
+		},
+		{
+			name: "no_password",
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyHost: proxyHost,
+					ProxyPort: proxyPort,
+					ProxyUser: proxyUser,
+				},
+			},
+			expected: "http://" + proxyHost + ":" + proxyPort,
+		},
+		{
+			name: "with_credentials",
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyHost:     proxyHost,
+					ProxyPort:     proxyPort,
+					ProxyUser:     proxyUser,
+					ProxyPassword: proxyPass,
+				},
+			},
+			expected: "http://" + proxyUser + ":" + proxyPass + "@" + proxyHost + ":" + proxyPort,
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				testFromCRField(
+					&crFieldVarTest{
+						t: t,
+						getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+							return builder.httpsProxyEnv
+						},
+						expectedName:  "HTTPS_PROXY",
+						expectedValue: test.expected,
+						agentSpec:     test.agentSpec,
+					},
+				)
+			},
+		)
+	}
+}
+
 func TestEnvBuilder_backendURLEnv(t *testing.T) {
 	testLiteralAlways(
 		&literalAlwaysTest{

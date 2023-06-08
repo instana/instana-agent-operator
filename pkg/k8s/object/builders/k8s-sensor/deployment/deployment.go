@@ -47,6 +47,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodNamespaceEnv,
 		env.PodNameEnv,
 		env.PodIPEnv,
+		env.HTTPSProxyEnv,
 	) // TODO
 }
 

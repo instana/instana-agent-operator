@@ -1,6 +1,7 @@
 package env
 
 import (
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -76,6 +77,37 @@ func (e *envBuilder) agentZoneEnv() optional.Optional[corev1.EnvVar] {
 		corev1.EnvVar{
 			Name:  "AGENT_ZONE",
 			Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name),
+		},
+	)
+}
+
+func (e *envBuilder) proxyUserPass() string {
+	return optional.Map[string, string](
+		optional.Of(e.agent.Spec.Agent.ProxyUser),
+		func(proxyUser string) string {
+			return optional.Map[string, string](
+				optional.Of(e.agent.Spec.Agent.ProxyPassword),
+				func(proxyPassword string) string {
+					return fmt.Sprintf("%s:%s@", proxyUser, proxyPassword)
+				},
+			).Get()
+		},
+	).Get()
+}
+
+func (e *envBuilder) httpsProxyEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Map[string, corev1.EnvVar](
+		optional.Of(e.agent.Spec.Agent.ProxyHost),
+		func(proxyHost string) corev1.EnvVar {
+			return corev1.EnvVar{
+				Name: "HTTPS_PROXY",
+				Value: fmt.Sprintf(
+					"http://%s%s:%s",
+					e.proxyUserPass(),
+					proxyHost,
+					optional.Of(e.agent.Spec.Agent.ProxyPort).GetOrDefault("80"),
+				),
+			}
 		},
 	)
 }
