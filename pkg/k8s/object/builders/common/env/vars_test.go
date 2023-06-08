@@ -444,22 +444,18 @@ func TestEnvBuilder_agentZone(t *testing.T) {
 }
 
 func TestEnvBuilder_backendURLEnv(t *testing.T) {
-	testVarMethod(
-		t, []varMethodTest{
-			{
-				name: "is_literal",
-				getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
-					return builder.backendURLEnv
-				},
-				agent:         &instanav1.InstanaAgent{},
-				helpersExpect: func(hlprs *MockHelpers) {},
-				expected: optional.Of(
-					corev1.EnvVar{
-						Name:  "BACKEND_URL",
-						Value: "https://$(BACKEND)",
-					},
-				),
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.backendURLEnv
 			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name:  "BACKEND_URL",
+					Value: "https://$(BACKEND)",
+				},
+			),
 		},
 	)
 }
