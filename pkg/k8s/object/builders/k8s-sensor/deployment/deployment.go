@@ -86,6 +86,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Name:            "instana-agent",
 							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
+							Env:             d.getEnvVars(),
 						},
 					},
 				},
