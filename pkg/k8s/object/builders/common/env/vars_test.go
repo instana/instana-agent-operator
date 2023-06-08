@@ -394,7 +394,7 @@ func TestEnvBuilder_agentZone(t *testing.T) {
 	zoneName := randString()
 
 	agentZoneMethod := func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
-		return builder.agentZone
+		return builder.agentZoneEnv
 	}
 
 	testVarMethod(
