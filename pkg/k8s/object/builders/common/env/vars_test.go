@@ -17,6 +17,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
+func randString() string {
+	return rand.String(rand.IntnRange(1, 15))
+}
+
 type varMethodTest struct {
 	name          string
 	getMethod     func(builder *envBuilder) func() optional.Optional[corev1.EnvVar]
@@ -385,6 +389,60 @@ func testFromSecretMethod(test *fromSecretTest) {
 	)
 }
 
+func TestEnvBuilder_agentZone(t *testing.T) {
+	clusterName := randString()
+	zoneName := randString()
+
+	agentZoneMethod := func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+		return builder.agentZone
+	}
+
+	testVarMethod(
+		t, []varMethodTest{
+			{
+				name:          "clusterName_is_set",
+				getMethod:     agentZoneMethod,
+				helpersExpect: func(hlprs *MockHelpers) {},
+				agent: &instanav1.InstanaAgent{
+					Spec: instanav1.InstanaAgentSpec{
+						Cluster: instanav1.Name{
+							Name: clusterName,
+						},
+						Zone: instanav1.Name{
+							Name: zoneName,
+						},
+					},
+				},
+				expected: optional.Of(
+					corev1.EnvVar{
+						Name:  "AGENT_ZONE",
+						Value: clusterName,
+					},
+				),
+			},
+
+			{
+				name:          "clusterName_is_not_set",
+				getMethod:     agentZoneMethod,
+				helpersExpect: func(hlprs *MockHelpers) {},
+				agent: &instanav1.InstanaAgent{
+					Spec: instanav1.InstanaAgentSpec{
+						Zone: instanav1.Name{
+							Name: zoneName,
+						},
+					},
+				},
+				expected: optional.Of(
+					corev1.EnvVar{
+						Name:  "AGENT_ZONE",
+						Value: zoneName,
+					},
+				),
+			},
+		},
+	)
+}
+
 func TestEnvBuilder_backendURLEnv(t *testing.T) {
 	testVarMethod(
 		t, []varMethodTest{
@@ -407,7 +465,7 @@ func TestEnvBuilder_backendURLEnv(t *testing.T) {
 }
 
 func TestEnvBuilder_backendEnv(t *testing.T) {
-	k8sSensorResourceName := rand.String(rand.IntnRange(1, 15))
+	k8sSensorResourceName := randString()
 
 	testVarMethod(
 		t, []varMethodTest{

@@ -71,6 +71,15 @@ func (e *envBuilder) redactK8sSecretsEnv() optional.Optional[corev1.EnvVar] {
 	return fromCRField("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
 }
 
+func (e *envBuilder) agentZoneEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name:  "AGENT_ZONE",
+			Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name),
+		},
+	)
+}
+
 // Static
 
 func (e *envBuilder) backendURLEnv() optional.Optional[corev1.EnvVar] {
