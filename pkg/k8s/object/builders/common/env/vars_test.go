@@ -8,9 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -378,6 +380,59 @@ func testFromSecretMethod(test *fromSecretTest) {
 					hlprs.EXPECT().KeysSecretName().Return(test.expectedSecretName)
 				},
 				expected: test.expected,
+			},
+		},
+	)
+}
+
+func TestEnvBuilder_backendURLEnv(t *testing.T) {
+	testVarMethod(
+		t, []varMethodTest{
+			{
+				name: "is_literal",
+				getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+					return builder.backendURLEnv
+				},
+				agent:         &instanav1.InstanaAgent{},
+				helpersExpect: func(hlprs *MockHelpers) {},
+				expected: optional.Of(
+					corev1.EnvVar{
+						Name:  "BACKEND_URL",
+						Value: "https://$(BACKEND)",
+					},
+				),
+			},
+		},
+	)
+}
+
+func TestEnvBuilder_backendEnv(t *testing.T) {
+	k8sSensorResourceName := rand.String(rand.IntnRange(1, 15))
+
+	testVarMethod(
+		t, []varMethodTest{
+			{
+				name: "from_configMap",
+				getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+					return builder.backendEnv
+				},
+				agent: &instanav1.InstanaAgent{},
+				helpersExpect: func(hlprs *MockHelpers) {
+					hlprs.EXPECT().K8sSensorResourcesName().Return(k8sSensorResourceName)
+				},
+				expected: optional.Of(
+					corev1.EnvVar{
+						Name: "BACKEND",
+						ValueFrom: &corev1.EnvVarSource{
+							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: k8sSensorResourceName,
+								},
+								Key: constants.BackendKey,
+							},
+						},
+					},
+				),
 			},
 		},
 	)

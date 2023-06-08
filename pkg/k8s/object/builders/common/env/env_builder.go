@@ -28,6 +28,8 @@ const (
 	ProxyUseDNSEnv
 	ListenAddressEnv
 	RedactK8sSecretsEnv
+	BackendURLEnv
+	BackendEnv
 	AgentKeyEnv
 	DownloadKeyEnv
 	PodNameEnv
@@ -75,6 +77,10 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.listenAddressEnv
 	case RedactK8sSecretsEnv:
 		return e.redactK8sSecretsEnv
+	case BackendURLEnv:
+		return e.backendURLEnv
+	case BackendEnv:
+		return e.backendEnv
 	case AgentKeyEnv:
 		return e.agentKeyEnv
 	case DownloadKeyEnv:

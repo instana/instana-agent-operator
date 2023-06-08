@@ -8,6 +8,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -17,8 +18,9 @@ import (
 type deploymentBuilder struct {
 	*instanav1.InstanaAgent
 
-	transformations.PodSelectorLabelGenerator
 	helpers.Helpers
+	transformations.PodSelectorLabelGenerator
+	env.EnvBuilder
 }
 
 func (d *deploymentBuilder) IsNamepaced() bool {
@@ -33,6 +35,10 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 	podLabels := optional.Of(d.Spec.Agent.Pod.Labels).GetOrDefault(make(map[string]string, 1))
 	podLabels[constants.LabelAgentMode] = string(instanav1.KUBERNETES)
 	return d.GetPodLabels(podLabels)
+}
+
+func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
+	return d.EnvBuilder.Build(env.AgentModeEnv, env.BackendEnv, env.BackendURLEnv) // TODO
 }
 
 func (d *deploymentBuilder) build() *appsv1.Deployment {

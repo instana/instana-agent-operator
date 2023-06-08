@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	_map "github.com/instana/instana-agent-operator/pkg/collections/map"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -70,6 +71,35 @@ func (e *envBuilder) redactK8sSecretsEnv() optional.Optional[corev1.EnvVar] {
 	return fromCRField("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
 }
 
+// Static
+
+func (e *envBuilder) backendURLEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name:  "BACKEND_URL",
+			Value: "https://$(BACKEND)",
+		},
+	)
+}
+
+// From a ConfigMap
+
+func (e *envBuilder) backendEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "BACKEND",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: e.K8sSensorResourcesName(),
+					},
+					Key: constants.BackendKey,
+				},
+			},
+		},
+	)
+}
+
 // From a Secret
 
 func (e *envBuilder) agentKeyEnv() optional.Optional[corev1.EnvVar] {
@@ -81,7 +111,7 @@ func (e *envBuilder) agentKeyEnv() optional.Optional[corev1.EnvVar] {
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: e.KeysSecretName(),
 					},
-					Key: "key",
+					Key: constants.AgentKey,
 				},
 			},
 		},
@@ -97,7 +127,7 @@ func (e *envBuilder) downloadKeyEnv() optional.Optional[corev1.EnvVar] {
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: e.KeysSecretName(),
 					},
-					Key:      "downloadKey",
+					Key:      constants.DownloadKey,
 					Optional: pointer.To(true),
 				},
 			},

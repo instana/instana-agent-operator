@@ -11,3 +11,11 @@ const (
 const (
 	LabelAgentMode = "instana/agent-mode"
 )
+
+// keys
+
+const (
+	AgentKey    = "key"
+	DownloadKey = "downloadKey"
+	BackendKey  = "backend"
+)

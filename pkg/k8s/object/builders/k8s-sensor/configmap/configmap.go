@@ -39,7 +39,7 @@ func (c *configMapBuilder) Build() optional.Optional[client.Object] {
 				Namespace: c.Namespace,
 			},
 			Data: map[string]string{
-				"backend": fmt.Sprintf("%s:%s", c.Spec.Agent.EndpointHost, c.Spec.Agent.EndpointPort),
+				constants.BackendKey: fmt.Sprintf("%s:%s", c.Spec.Agent.EndpointHost, c.Spec.Agent.EndpointPort),
 			},
 		},
 	)

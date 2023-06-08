@@ -28,13 +28,13 @@ func (s *secretBuilder) getData() map[string][]byte {
 
 	optional.Of(s.Spec.Agent.Key).IfPresent(
 		func(key string) {
-			data["key"] = []byte(key)
+			data[constants.AgentKey] = []byte(key)
 		},
 	)
 
 	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
 		func(downloadKey string) {
-			data["downloadKey"] = []byte(downloadKey)
+			data[constants.DownloadKey] = []byte(downloadKey)
 		},
 	)
 
