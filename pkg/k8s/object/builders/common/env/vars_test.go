@@ -607,6 +607,48 @@ func TestEnvBuilder_podIPEnv(t *testing.T) {
 	)
 }
 
+func TestEnvBuilder_podUIDEnv(t *testing.T) {
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.podUIDEnv
+			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "POD_UID",
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.uid",
+						},
+					},
+				},
+			),
+		},
+	)
+}
+
+func TestEnvBuilder_podNamespaceEnv(t *testing.T) {
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.podNamespaceEnv
+			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "POD_NAMESPACE",
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.namespace",
+						},
+					},
+				},
+			),
+		},
+	)
+}
+
 func TestK8sServiceDomainEnv(t *testing.T) {
 	testVarMethod(
 		t, []varMethodTest{

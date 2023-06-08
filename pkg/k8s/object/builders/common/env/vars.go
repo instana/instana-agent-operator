@@ -172,6 +172,32 @@ func (e *envBuilder) podIPEnv() optional.Optional[corev1.EnvVar] {
 	)
 }
 
+func (e *envBuilder) podUIDEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "POD_UID",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.uid",
+				},
+			},
+		},
+	)
+}
+
+func (e *envBuilder) podNamespaceEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "POD_NAMESPACE",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+	)
+}
+
 // Referencing Another Object Created by the Operator
 
 func (e *envBuilder) k8sServiceDomainEnv() optional.Optional[corev1.EnvVar] {

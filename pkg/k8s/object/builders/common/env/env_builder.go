@@ -35,6 +35,8 @@ const (
 	DownloadKeyEnv
 	PodNameEnv
 	PodIPEnv
+	PodUIDEnv
+	PodNamespaceEnv
 	K8sServiceDomainEnv
 )
 
@@ -92,6 +94,10 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.podNameEnv
 	case PodIPEnv:
 		return e.podIPEnv
+	case PodUIDEnv:
+		return e.podUIDEnv
+	case PodNamespaceEnv:
+		return e.podNamespaceEnv
 	case K8sServiceDomainEnv:
 		return e.k8sServiceDomainEnv
 	default:
