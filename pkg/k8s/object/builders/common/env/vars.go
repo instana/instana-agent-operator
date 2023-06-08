@@ -123,6 +123,15 @@ func (e *envBuilder) backendURLEnv() optional.Optional[corev1.EnvVar] {
 	)
 }
 
+func (e *envBuilder) noProxyEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name:  "NO_PROXY",
+			Value: "kubernetes.default.svc",
+		},
+	)
+}
+
 // From a ConfigMap
 
 func (e *envBuilder) backendEnv() optional.Optional[corev1.EnvVar] {

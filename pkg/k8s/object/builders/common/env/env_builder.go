@@ -31,6 +31,7 @@ const (
 	AgentZoneEnv
 	HTTPSProxyEnv
 	BackendURLEnv
+	NoProxyEnv
 	BackendEnv
 	AgentKeyEnv
 	DownloadKeyEnv
@@ -87,6 +88,8 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.httpsProxyEnv
 	case BackendURLEnv:
 		return e.backendURLEnv
+	case NoProxyEnv:
+		return e.noProxyEnv
 	case BackendEnv:
 		return e.backendEnv
 	case AgentKeyEnv:

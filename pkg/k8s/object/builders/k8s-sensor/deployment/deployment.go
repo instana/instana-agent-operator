@@ -48,6 +48,8 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodNameEnv,
 		env.PodIPEnv,
 		env.HTTPSProxyEnv,
+		env.NoProxyEnv,
+		env.RedactK8sSecretsEnv,
 	) // TODO
 }
 

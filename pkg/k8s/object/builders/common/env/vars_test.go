@@ -532,6 +532,23 @@ func TestEnvBuilder_backendURLEnv(t *testing.T) {
 	)
 }
 
+func TestEnvBuilder_noProxyEnv(t *testing.T) {
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.noProxyEnv
+			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name:  "NO_PROXY",
+					Value: "kubernetes.default.svc",
+				},
+			),
+		},
+	)
+}
+
 func TestEnvBuilder_backendEnv(t *testing.T) {
 	k8sSensorResourceName := randString()
 
