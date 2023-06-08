@@ -15,7 +15,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
-	volume2 "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -36,7 +36,7 @@ type daemonSetBuilder struct {
 	helpers.Helpers
 	ports.PortsBuilder
 	env.EnvBuilder
-	volume2.VolumeBuilder
+	volume.VolumeBuilder
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
@@ -103,27 +103,27 @@ func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 }
 
 func (d *daemonSetBuilder) getInitContainerVolumeMounts() []corev1.VolumeMount {
-	_, res := d.VolumeBuilder.Build(volume2.TPLFilesTmpVolume)
+	_, res := d.VolumeBuilder.Build(volume.TPLFilesTmpVolume)
 	return res
 }
 
 func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	return d.VolumeBuilder.Build(
-		volume2.DevVolume,
-		volume2.RunVolume,
-		volume2.VarRunVolume,
-		volume2.VarRunKuboVolume,
-		volume2.VarRunContainerdVolume,
-		volume2.VarContainerdConfigVolume,
-		volume2.SysVolume,
-		volume2.VarLogVolume,
-		volume2.VarLibVolume,
-		volume2.VarDataVolume,
-		volume2.MachineIdVolume,
-		volume2.ConfigVolume,
-		volume2.TPLFilesTmpVolume,
-		volume2.TlsVolume,
-		volume2.RepoVolume,
+		volume.DevVolume,
+		volume.RunVolume,
+		volume.VarRunVolume,
+		volume.VarRunKuboVolume,
+		volume.VarRunContainerdVolume,
+		volume.VarContainerdConfigVolume,
+		volume.SysVolume,
+		volume.VarLogVolume,
+		volume.VarLibVolume,
+		volume.VarDataVolume,
+		volume.MachineIdVolume,
+		volume.ConfigVolume,
+		volume.TPLFilesTmpVolume,
+		volume.TlsVolume,
+		volume.RepoVolume,
 	)
 }
 
@@ -165,7 +165,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Command:         []string{"bash"},
 							Args: []string{
 								"-c",
-								"cp " + volume2.InstanaConfigDirectory + "/*.tpl " + volume2.InstanaConfigTPLFilesTmpDirectory,
+								"cp " + volume.InstanaConfigDirectory + "/*.tpl " + volume.InstanaConfigTPLFilesTmpDirectory,
 							},
 							VolumeMounts: d.getInitContainerVolumeMounts(),
 						},
@@ -178,7 +178,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Command:         []string{"bash"},
 							Args: []string{
 								"-c",
-								"cp " + volume2.InstanaConfigTPLFilesTmpDirectory + "/*.tpl " + volume2.InstanaConfigDirectory + " && /opt/instana/agent/bin/run.sh",
+								"cp " + volume.InstanaConfigTPLFilesTmpDirectory + "/*.tpl " + volume.InstanaConfigDirectory + " && /opt/instana/agent/bin/run.sh",
 							},
 							VolumeMounts: volumeMounts,
 							Env:          d.getEnvVars(),
@@ -235,6 +235,6 @@ func NewDaemonSetBuilder(
 		Helpers:                   helpers.NewHelpers(agent),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
 		EnvBuilder:                env.NewEnvBuilder(agent),
-		VolumeBuilder:             volume2.NewVolumeBuilder(agent, isOpenshift),
+		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenshift),
 	}
 }

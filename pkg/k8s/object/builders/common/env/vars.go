@@ -70,8 +70,6 @@ func (e *envBuilder) redactK8sSecretsEnv() optional.Optional[corev1.EnvVar] {
 	return fromCRField("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
 }
 
-// TODO: tests from here down
-
 // From a Secret
 
 func (e *envBuilder) agentKeyEnv() optional.Optional[corev1.EnvVar] {
