@@ -51,7 +51,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
-	) // TODO
+	)
 }
 
 func (d *deploymentBuilder) build() *appsv1.Deployment {
