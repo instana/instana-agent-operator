@@ -8,6 +8,7 @@ import (
 
 	_map "github.com/instana/instana-agent-operator/pkg/collections/map"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -128,6 +129,15 @@ func (e *envBuilder) noProxyEnv() optional.Optional[corev1.EnvVar] {
 		corev1.EnvVar{
 			Name:  "NO_PROXY",
 			Value: "kubernetes.default.svc",
+		},
+	)
+}
+
+func (e *envBuilder) configPathEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name:  "CONFIG_PATH",
+			Value: volume.InstanaConfigDirectory,
 		},
 	)
 }

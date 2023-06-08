@@ -50,6 +50,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.HTTPSProxyEnv,
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
+		env.ConfigPathEnv,
 	) // TODO
 }
 
