@@ -555,7 +555,7 @@ func TestEnvBuilder_configPathEnv(t *testing.T) {
 		&literalAlwaysTest{
 			t: t,
 			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
-				return builder.noProxyEnv
+				return builder.configPathEnv
 			},
 			expected: optional.Of(
 				corev1.EnvVar{
