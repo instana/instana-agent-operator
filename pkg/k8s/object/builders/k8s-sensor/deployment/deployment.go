@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
@@ -17,7 +18,9 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-// TODO: WIP + Test
+// TODO: Test
+
+const componentName = constants.ComponentK8Sensor
 
 type deploymentBuilder struct {
 	*instanav1.InstanaAgent
@@ -29,12 +32,12 @@ type deploymentBuilder struct {
 	ports.PortsBuilder
 }
 
-func (d *deploymentBuilder) IsNamepaced() bool {
+func (d *deploymentBuilder) IsNamespaced() bool {
 	return true
 }
 
 func (d *deploymentBuilder) ComponentName() string {
-	return constants.ComponentK8Sensor
+	return componentName
 }
 
 func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
@@ -100,6 +103,26 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					},
 					Volumes:     volumes,
 					Tolerations: d.Spec.K8sSensor.DeploymentSpec.Pod.Tolerations,
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+								{
+									Weight: 100,
+									PodAffinityTerm: corev1.PodAffinityTerm{
+										LabelSelector: &metav1.LabelSelector{
+											MatchExpressions: []metav1.LabelSelectorRequirement{
+												{
+													Key:      constants.LabelAgentMode,
+													Operator: metav1.LabelSelectorOpIn,
+													Values:   []string{string(instanav1.KUBERNETES)},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -112,5 +135,16 @@ func (d *deploymentBuilder) Build() optional.Optional[client.Object] {
 		return optional.Empty[client.Object]()
 	default:
 		return optional.Of[client.Object](d.build())
+	}
+}
+
+func NewDeploymentBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) builder.ObjectBuilder {
+	return &deploymentBuilder{
+		InstanaAgent:              agent,
+		Helpers:                   helpers.NewHelpers(agent),
+		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
+		EnvBuilder:                env.NewEnvBuilder(agent),
+		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
+		PortsBuilder:              ports.NewPortsBuilder(agent),
 	}
 }
