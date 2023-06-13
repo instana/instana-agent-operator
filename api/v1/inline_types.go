@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"strconv"
 
-	appV1 "k8s.io/api/apps/v1"
-	coreV1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
@@ -104,7 +106,7 @@ type BaseAgentSpec struct {
 
 	// Control how to update the Agent DaemonSet
 	// +kubebuilder:validation:Optional
-	UpdateStrategy appV1.DaemonSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	UpdateStrategy appsv1.DaemonSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Override Agent Pod specific settings such as annotations, labels and resources.
 	// +kubebuilder:validation:Optional
@@ -159,6 +161,20 @@ type BaseAgentSpec struct {
 	ChartsUrl string `json:"charts_url,omitempty"`
 }
 
+type ResourceRequirements corev1.ResourceRequirements
+
+func (r ResourceRequirements) GetOrDefault() corev1.ResourceRequirements {
+	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Requests))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
+
+	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Limits))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("768Mi"))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.5"))
+
+	return corev1.ResourceRequirements(r)
+}
+
 type AgentPodSpec struct {
 	// agent.pod.annotations are additional annotations to be added to the agent pods.
 	// +kubebuilder:validation:Optional
@@ -170,12 +186,12 @@ type AgentPodSpec struct {
 
 	// agent.pod.tolerations are tolerations to influence agent pod assignment.
 	// +kubebuilder:validation:Optional
-	Tolerations []coreV1.Toleration `json:"tolerations,omitempty"`
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
 	// agent.pod.affinity are affinities to influence agent pod assignment.
 	// https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 	// +kubebuilder:validation:Optional
-	Affinity coreV1.Affinity `json:"affinity,omitempty"`
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
 
 	// agent.pod.priorityClassName is the name of an existing PriorityClass that should be set on the agent pods
 	// https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
@@ -183,7 +199,7 @@ type AgentPodSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// Override Agent resource requirements to e.g. give the Agent container more memory.
-	coreV1.ResourceRequirements `json:",inline"`
+	ResourceRequirements `json:",inline"`
 
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
@@ -216,7 +232,7 @@ type ImageSpec struct {
 
 	// PullPolicy specifies when to pull the image container.
 	// +kubebuilder:validation:Optional
-	PullPolicy coreV1.PullPolicy `json:"pullPolicy,omitempty"`
+	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 
 type ExtendedImageSpec struct {
@@ -226,7 +242,7 @@ type ExtendedImageSpec struct {
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with
 	// "containers.instana.io". Setting `agent.image.pullSecrets` prevents the creation of the default "containers-instana-io" secret.
 	// +kubebuilder:validation:Optional
-	PullSecrets []coreV1.LocalObjectReference `json:"pullSecrets,omitempty"`
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // TODO: interface to mock
@@ -300,13 +316,17 @@ type K8sSpec struct {
 }
 
 type KubernetesPodSpec struct {
-	coreV1.ResourceRequirements `json:",inline"`
+	ResourceRequirements `json:",inline"`
 
 	// +kubebuilder:validation:Optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// agent.pod.tolerations are tolerations to influence agent pod assignment.
+	// +kubebuilder:validation:Optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 type KubernetesDeploymentSpec struct {
@@ -359,9 +379,9 @@ type Zone struct {
 	// +kubebuilder:validation:Optional
 	Name `json:",inline"`
 	// +kubebuilder:validation:Optional
-	Tolerations []coreV1.Toleration `json:"tolerations,omitempty"`
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// +kubebuilder:validation:Optional
-	Affinity coreV1.Affinity `json:"affinity,omitempty"`
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
 	// +kubebuilder:validation:Optional
 	Mode AgentMode `json:"mode,omitempty"`
 }

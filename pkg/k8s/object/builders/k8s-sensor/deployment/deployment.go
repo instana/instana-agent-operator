@@ -10,6 +10,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -23,6 +25,8 @@ type deploymentBuilder struct {
 	helpers.Helpers
 	transformations.PodSelectorLabelGenerator
 	env.EnvBuilder
+	volume.VolumeBuilder
+	ports.PortsBuilder
 }
 
 func (d *deploymentBuilder) IsNamepaced() bool {
@@ -57,6 +61,8 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 }
 
 func (d *deploymentBuilder) build() *appsv1.Deployment {
+	volumes, mounts := d.VolumeBuilder.Build(volume.ConfigVolume)
+
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -87,8 +93,13 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
 							Env:             d.getEnvVars(),
+							VolumeMounts:    mounts,
+							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
+							Ports:           d.PortsBuilder.GetContainerPorts(ports.AgentAPIsPort),
 						},
 					},
+					Volumes:     volumes,
+					Tolerations: d.Spec.K8sSensor.DeploymentSpec.Pod.Tolerations,
 				},
 			},
 		},

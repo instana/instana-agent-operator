@@ -3,7 +3,6 @@ package daemonset
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,7 +16,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
-	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -76,20 +74,6 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodIPEnv,
 		env.K8sServiceDomainEnv,
 	)
-}
-
-func (d *daemonSetBuilder) getResourceRequirements() corev1.ResourceRequirements {
-	res := d.Spec.Agent.Pod.ResourceRequirements
-
-	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&res.Requests))
-	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
-	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
-
-	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&res.Limits))
-	limitsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("768Mi"))
-	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.5"))
-
-	return res
 }
 
 func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
@@ -200,7 +184,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 								FailureThreshold:    3,
 							},
 							// TODO: should have readiness probe too
-							Resources: d.getResourceRequirements(),
+							Resources: d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
 							Ports:     d.getContainerPorts(),
 						},
 					},
