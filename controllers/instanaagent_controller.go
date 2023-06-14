@@ -32,7 +32,7 @@ import (
 
 const (
 	finalizerV1 = "agent.instana.io/finalizer"
-	finalizerV3 = "agent.instana.io/finalizer/v3"
+	finalizerV3 = "v3.agent.instana.io/finalizer"
 )
 
 // Add will create a new Instana Agent Controller and add this to the Manager for reconciling
