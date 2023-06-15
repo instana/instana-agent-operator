@@ -5,11 +5,11 @@ metadata:
   namespace: instana-agent
 spec:
   zone:
-    name: edited-zone # (optional) name of the zone of the host
+    name: zachr # (optional) name of the zone of the host
   cluster:
-      name: my-cluster
+    name: kind
   agent:
-    key: replace-key # replace with your Instana agent key
+    key: ***REMOVED*** # replace with your Instana agent key
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
     env: {}

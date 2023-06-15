@@ -60,7 +60,7 @@ func (s *serviceBuilder) build() *corev1.Service {
 
 func (s *serviceBuilder) Build() optional.Optional[client.Object] {
 	switch {
-	case s.Spec.Service.Create:
+	case pointer.DerefOrEmpty(s.Spec.Service.Create):
 		fallthrough
 	case pointer.DerefOrEmpty(s.Spec.Prometheus.RemoteWrite.Enabled):
 		fallthrough

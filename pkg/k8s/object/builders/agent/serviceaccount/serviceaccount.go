@@ -10,6 +10,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type serviceAccountBuilder struct {
@@ -39,7 +40,7 @@ func (s *serviceAccountBuilder) build() *corev1.ServiceAccount {
 }
 
 func (s *serviceAccountBuilder) Build() optional.Optional[client.Object] {
-	if s.Spec.ServiceAccountSpec.Create.Create {
+	if pointer.DerefOrEmpty(s.Spec.ServiceAccountSpec.Create.Create) {
 		return optional.Of[client.Object](s.build())
 	} else {
 		return optional.Empty[client.Object]()

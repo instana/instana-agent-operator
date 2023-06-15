@@ -14,6 +14,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func TestServiceAccountBuilder_IsNamespaced_ComponentName(t *testing.T) {
@@ -27,13 +28,16 @@ func TestServiceAccountBuilder_IsNamespaced_ComponentName(t *testing.T) {
 
 func TestServiceAccountBuilder_Build(t *testing.T) {
 	for _, test := range []struct {
-		createServiceAccount bool
+		createServiceAccount *bool
 	}{
 		{
-			createServiceAccount: true,
+			createServiceAccount: pointer.To(true),
 		},
 		{
-			createServiceAccount: false,
+			createServiceAccount: pointer.To(false),
+		},
+		{
+			createServiceAccount: nil,
 		},
 	} {
 		t.Run(
@@ -71,7 +75,7 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 				)
 
 				helpers := NewMockHelpers(ctrl)
-				if test.createServiceAccount {
+				if pointer.DerefOrEmpty(test.createServiceAccount) {
 					helpers.EXPECT().ServiceAccountName().Return(serviceAccountName)
 				}
 
@@ -82,7 +86,7 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 
 				actual := sb.Build()
 
-				if test.createServiceAccount {
+				if pointer.DerefOrEmpty(test.createServiceAccount) {
 					assertions.Equal(expected, actual)
 				} else {
 					assertions.Empty(actual)

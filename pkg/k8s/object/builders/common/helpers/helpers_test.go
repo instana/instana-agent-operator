@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func TestHelpers_ServiceAccountName(t *testing.T) {
@@ -39,7 +40,7 @@ func TestHelpers_ServiceAccountName(t *testing.T) {
 							Name: "erhpoijsg94",
 						},
 						Create: instanav1.Create{
-							Create: true,
+							Create: pointer.To(true),
 						},
 					},
 				},
@@ -55,12 +56,28 @@ func TestHelpers_ServiceAccountName(t *testing.T) {
 				Spec: instanav1.InstanaAgentSpec{
 					ServiceAccountSpec: instanav1.ServiceAccountSpec{
 						Create: instanav1.Create{
-							Create: true,
+							Create: pointer.To(true),
 						},
 					},
 				},
 			},
 			want: "-94jsdogijoijwgt",
+		},
+		{
+			name: "ServiceAccount create is false in spec",
+			agent: &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "-94jsdogijoijwgt",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					ServiceAccountSpec: instanav1.ServiceAccountSpec{
+						Create: instanav1.Create{
+							Create: pointer.To(false),
+						},
+					},
+				},
+			},
+			want: "default",
 		},
 		{
 			name:  "No ServiceAccount options specified",

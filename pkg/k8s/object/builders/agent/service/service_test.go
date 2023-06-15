@@ -28,7 +28,7 @@ func TestServiceBuilder_ComponentName_IsNamespaced(t *testing.T) {
 }
 
 func TestServiceBuilder_Build(t *testing.T) {
-	for _, serviceCreate := range []bool{true, false} {
+	for _, serviceCreate := range []*bool{nil, pointer.To(true), pointer.To(false)} {
 		for _, remoteWriteEnabled := range []instanav1.Enabled{
 			{Enabled: pointer.To(true)},
 			{Enabled: pointer.To(false)},
@@ -63,7 +63,7 @@ func TestServiceBuilder_Build(t *testing.T) {
 						}
 
 						otlpSettings := NewMockOpenTelemetrySettings(ctrl)
-						if !serviceCreate && (remoteWriteEnabled.Enabled == nil || !*remoteWriteEnabled.Enabled) {
+						if !pointer.DerefOrEmpty(serviceCreate) && (remoteWriteEnabled.Enabled == nil || !*remoteWriteEnabled.Enabled) {
 							otlpSettings.EXPECT().IsEnabled().Return(otlpIsEnabled)
 						}
 
@@ -79,7 +79,7 @@ func TestServiceBuilder_Build(t *testing.T) {
 							OpenTelemetrySettings:     otlpSettings,
 						}
 
-						if serviceCreate || (remoteWriteEnabled.Enabled != nil && *remoteWriteEnabled.Enabled) || otlpIsEnabled {
+						if pointer.DerefOrEmpty(serviceCreate) || (remoteWriteEnabled.Enabled != nil && *remoteWriteEnabled.Enabled) || otlpIsEnabled {
 							expectedSelectorLabels := map[string]string{
 								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),
 								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),

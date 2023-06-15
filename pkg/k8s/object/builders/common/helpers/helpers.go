@@ -7,6 +7,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 const (
@@ -30,7 +31,7 @@ type Helpers interface {
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
-	switch h.Spec.ServiceAccountSpec.Create.Create {
+	switch pointer.DerefOrEmpty(h.Spec.ServiceAccountSpec.Create.Create) {
 	case true:
 		return h.Name
 	default:

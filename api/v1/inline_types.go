@@ -32,7 +32,7 @@ type Name struct {
 
 type Create struct {
 	// +kubebuilder:validation:Optional
-	Create bool `json:"create,omitempty"`
+	Create *bool `json:"create,omitempty"`
 }
 
 type Enabled struct {
@@ -140,9 +140,6 @@ type BaseAgentSpec struct {
 	// Supply Agent configuration e.g. for configuring certain Sensors.
 	// +kubebuilder:validation:Optional
 	ConfigurationYaml string `json:"configuration_yaml,omitempty"`
-	// Mount in a ConfigMap with Agent configuration. Alternative to the `configuration_yaml` field.
-	// +kubebuilder:validation:Optional
-	Configuration ConfigurationSpec `json:"configuration,omitempty"`
 
 	// RedactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS environment variable.
 	// +kubebuilder:validation:Optional
@@ -261,15 +258,6 @@ func (i ImageSpec) Image() string {
 type HostSpec struct {
 	// +kubebuilder:validation:Optional
 	Repository string `json:"repository,omitempty"`
-}
-
-type ConfigurationSpec struct {
-	// When setting this to true, the Helm chart will automatically look up the entries
-	// of the default instana-agent ConfigMap, and mount as agent configuration files
-	// under /opt/instana/agent/etc/instana all entries with keys that match the
-	// 'configuration-*.yaml' scheme
-	// +kubebuilder:validation:Optional
-	AutoMountConfigEntries bool `json:"autoMountConfigEntries,omitempty"`
 }
 
 type Prometheus struct {

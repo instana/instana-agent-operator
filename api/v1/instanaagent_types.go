@@ -8,7 +8,13 @@
 package v1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 // +k8s:openapi-gen=true
@@ -125,6 +131,30 @@ type InstanaAgent struct {
 
 	Spec   InstanaAgentSpec   `json:"spec,omitempty"`
 	Status InstanaAgentStatus `json:"status,omitempty"`
+}
+
+func valueOrDefault[T any](val *T, def T) {
+	*val = optional.Of(*val).GetOrDefault(def)
+}
+
+// TODO: Test
+
+func (in *InstanaAgent) Default() {
+	valueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
+	valueOrDefault(&in.Spec.Agent.EndpointPort, "443")
+	valueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
+	valueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
+	valueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
+	valueOrDefault(&in.Spec.Agent.UpdateStrategy.Type, appsv1.RollingUpdateDaemonSetStrategyType)
+	valueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate, &appsv1.RollingUpdateDaemonSet{})
+	valueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate.MaxUnavailable, pointer.To(intstr.FromInt(1)))
+	valueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
+	valueOrDefault(&in.Spec.Service.Create, pointer.To(true))
+	valueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+	valueOrDefault(&in.Spec.K8sSensor.ImageSpec.Name, "icr.io/instana/k8sensor")
+	valueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
+	valueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
+	valueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 1)
 }
 
 // +kubebuilder:object:root=true
