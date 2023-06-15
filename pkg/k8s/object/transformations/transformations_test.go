@@ -144,6 +144,49 @@ func TestTransformations_AddOwnerReference(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with_duplicate_ref",
+			configMap: v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "adsf",
+							Kind:               "pojg",
+							Name:               "ojregoi",
+							UID:                "owjgepos",
+							Controller:         pointer.To(false),
+							BlockOwnerDeletion: pointer.To(false),
+						},
+						{
+							APIVersion:         "instana.io/v1",
+							Kind:               "InstanaAgent",
+							Name:               "instana-agent",
+							UID:                "iowegihsdgoijwefoih",
+							Controller:         pointer.To(true),
+							BlockOwnerDeletion: pointer.To(true),
+						},
+					},
+				},
+			},
+			expectedRefs: []metav1.OwnerReference{
+				{
+					APIVersion:         "adsf",
+					Kind:               "pojg",
+					Name:               "ojregoi",
+					UID:                "owjgepos",
+					Controller:         pointer.To(false),
+					BlockOwnerDeletion: pointer.To(false),
+				},
+				{
+					APIVersion:         "instana.io/v1",
+					Kind:               "InstanaAgent",
+					Name:               "instana-agent",
+					UID:                "iowegihsdgoijwefoih",
+					Controller:         pointer.To(true),
+					BlockOwnerDeletion: pointer.To(true),
+				},
+			},
+		},
 	} {
 		t.Run(
 			tc.name, func(t *testing.T) {

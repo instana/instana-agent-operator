@@ -95,6 +95,12 @@ func (t *transformations) PreviousGenerationsSelector() labels.Selector {
 }
 
 func (t *transformations) AddOwnerReference(obj client.Object) {
+	for _, preExisting := range obj.GetOwnerReferences() {
+		if preExisting.UID == t.OwnerReference.UID {
+			return
+		}
+	}
+
 	obj.SetOwnerReferences(
 		append(
 			obj.GetOwnerReferences(),
