@@ -168,6 +168,7 @@ func (c *instanaAgentClient) Exists(
 func (c *instanaAgentClient) Apply(
 	ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption,
 ) result.Result[k8sclient.Object] {
+	obj.SetManagedFields(nil)
 	return result.Of(
 		obj, c.Patch(
 			ctx,
