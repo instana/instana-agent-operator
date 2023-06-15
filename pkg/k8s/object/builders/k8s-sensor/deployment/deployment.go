@@ -118,6 +118,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 												},
 											},
 										},
+										TopologyKey: corev1.LabelHostname,
 									},
 								},
 							},

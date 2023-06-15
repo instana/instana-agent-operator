@@ -24,9 +24,9 @@ type InstanaAgentPort string
 const (
 	AgentAPIsPort           InstanaAgentPort = "agent-apis"
 	AgentSocketPort         InstanaAgentPort = "agent-socket"
-	OpenTelemetryLegacyPort InstanaAgentPort = "opentelemetry-legacy"
-	OpenTelemetryGRPCPort   InstanaAgentPort = "opentelemetry-grpc"
-	OpenTelemetryHTTPPort   InstanaAgentPort = "opentelemetry-http"
+	OpenTelemetryLegacyPort InstanaAgentPort = "otlp-legacy"
+	OpenTelemetryGRPCPort   InstanaAgentPort = "otlp-grpc"
+	OpenTelemetryHTTPPort   InstanaAgentPort = "otlp-http"
 )
 
 func (p InstanaAgentPort) String() string {
