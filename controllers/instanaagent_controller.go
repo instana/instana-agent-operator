@@ -146,6 +146,8 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return getAgentRes
 	}
 
+	agent.Default()
+
 	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent)
 
 	if handleDeletionRes := r.handleDeletion(ctx, agent, operatorUtils); handleDeletionRes.suppliesReconcileResult() {

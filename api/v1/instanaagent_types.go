@@ -137,8 +137,6 @@ func valueOrDefault[T any](val *T, def T) {
 	*val = optional.Of(*val).GetOrDefault(def)
 }
 
-// TODO: Test
-
 func (in *InstanaAgent) Default() {
 	valueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
 	valueOrDefault(&in.Spec.Agent.EndpointPort, "443")
