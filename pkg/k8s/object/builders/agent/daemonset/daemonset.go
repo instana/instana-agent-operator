@@ -24,6 +24,7 @@ import (
 
 const (
 	componentName = constants.ComponentInstanaAgent
+	templateFiles = "/*.template "
 )
 
 type daemonSetBuilder struct {
@@ -149,7 +150,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Command:         []string{"bash"},
 							Args: []string{
 								"-c",
-								"cp " + volume.InstanaConfigDirectory + "/*.template " + volume.InstanaConfigTPLFilesTmpDirectory,
+								"cp " + volume.InstanaConfigDirectory + templateFiles + volume.InstanaConfigTPLFilesTmpDirectory,
 							},
 							VolumeMounts: d.getInitContainerVolumeMounts(),
 						},
@@ -162,7 +163,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Command:         []string{"bash"},
 							Args: []string{
 								"-c",
-								"cp " + volume.InstanaConfigTPLFilesTmpDirectory + "/*.tpl " + volume.InstanaConfigDirectory + " && /opt/instana/agent/bin/run.sh",
+								"cp " + volume.InstanaConfigTPLFilesTmpDirectory + templateFiles + volume.InstanaConfigDirectory + " && /opt/instana/agent/bin/run.sh",
 							},
 							VolumeMounts: volumeMounts,
 							Env:          d.getEnvVars(),
