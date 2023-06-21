@@ -17,6 +17,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
+// TODO: Do tpl/template files need to be handled?
+
 type configMapBuilder struct {
 	*instanav1.InstanaAgent
 }
