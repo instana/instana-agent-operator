@@ -149,7 +149,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Command:         []string{"bash"},
 							Args: []string{
 								"-c",
-								"cp " + volume.InstanaConfigDirectory + "/*.tpl " + volume.InstanaConfigTPLFilesTmpDirectory,
+								"cp " + volume.InstanaConfigDirectory + "/*.template " + volume.InstanaConfigTPLFilesTmpDirectory,
 							},
 							VolumeMounts: d.getInitContainerVolumeMounts(),
 						},
