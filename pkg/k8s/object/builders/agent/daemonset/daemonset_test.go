@@ -182,24 +182,6 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 	assertions.Equal(expected, actual)
 }
 
-func TestDaemonSetBuilder_getInitContainerVolumeMounts(t *testing.T) {
-	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
-
-	expected := []corev1.VolumeMount{{Name: rand.String(10)}}
-
-	volumeBuilder := NewMockVolumeBuilder(ctrl)
-	volumeBuilder.EXPECT().Build(gomock.Eq(volume.TPLFilesTmpVolume)).Return(nil, expected)
-
-	db := &daemonSetBuilder{
-		VolumeBuilder: volumeBuilder,
-	}
-
-	actual := db.getInitContainerVolumeMounts()
-
-	assertions.Equal(expected, actual)
-}
-
 func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
@@ -221,7 +203,6 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 		gomock.Eq(volume.VarDataVolume),
 		gomock.Eq(volume.MachineIdVolume),
 		gomock.Eq(volume.ConfigVolume),
-		gomock.Eq(volume.TPLFilesTmpVolume),
 		gomock.Eq(volume.TlsVolume),
 		gomock.Eq(volume.RepoVolume),
 	).Return(expectedVolumes, expectedVolumeMounts)
