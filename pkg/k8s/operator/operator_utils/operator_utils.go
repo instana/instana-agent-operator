@@ -88,12 +88,23 @@ func (o *operatorUtils) ApplyAll(builders ...builder.ObjectBuilder) result.Resul
 		o.builderTransformer.Apply,
 	)
 
-	objects := optional.NewNonEmptyOptionalMapper[k8sclient.Object]().AllNonEmpty(optionals)
+	buildObjects := func() []k8sclient.Object {
+		return optional.NewNonEmptyOptionalMapper[k8sclient.Object]().AllNonEmpty(optionals)
+	}
+
+	objects := buildObjects()
 
 	dryRunRes := o.applyAllDryRun(objects)
 
-	updateLifecycleCmRes := result.Map[[]k8sclient.Object, []k8sclient.Object](
+	resetObjectsRes := result.Map[[]k8sclient.Object, []k8sclient.Object](
 		dryRunRes,
+		func(_ []k8sclient.Object) result.Result[[]k8sclient.Object] {
+			return result.OfSuccess(buildObjects())
+		},
+	)
+
+	updateLifecycleCmRes := result.Map[[]k8sclient.Object, []k8sclient.Object](
+		resetObjectsRes,
 		o.UpdateDependentLifecycleInfo,
 	)
 
