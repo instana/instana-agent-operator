@@ -187,29 +187,6 @@ func (v *volumeBuilder) configVolume() optional.Optional[VolumeWithMount] {
 			VolumeMount: corev1.VolumeMount{
 				Name:      volumeName,
 				MountPath: InstanaConfigDirectory,
-				// Must be false since we need to copy the tpl files into here
-				ReadOnly: false,
-			},
-		},
-	)
-}
-
-func (v *volumeBuilder) tplFilesTmpVolume() optional.Optional[VolumeWithMount] {
-	const volumeName = "tpl-files-volume"
-
-	return optional.Of(
-		VolumeWithMount{
-			Volume: corev1.Volume{
-				Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			VolumeMount: corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: InstanaConfigTPLFilesTmpDirectory,
-				// Must be false since we need to copy the tpl files into here
-				ReadOnly: false,
 			},
 		},
 	)

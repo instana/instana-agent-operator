@@ -87,11 +87,6 @@ func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 	)
 }
 
-func (d *daemonSetBuilder) getInitContainerVolumeMounts() []corev1.VolumeMount {
-	_, res := d.VolumeBuilder.Build(volume.TPLFilesTmpVolume)
-	return res
-}
-
 func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	return d.VolumeBuilder.Build(
 		volume.DevVolume,
@@ -106,7 +101,6 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.VarDataVolume,
 		volume.MachineIdVolume,
 		volume.ConfigVolume,
-		volume.TPLFilesTmpVolume,
 		volume.TlsVolume,
 		volume.RepoVolume,
 	)
@@ -142,31 +136,13 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
 					ImagePullSecrets:   d.ImagePullSecrets(),
-					InitContainers: []corev1.Container{
-						{
-							Name:            "copy-tpl-files",
-							Image:           d.Spec.Agent.Image(),
-							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							Command:         []string{"bash"},
-							Args: []string{
-								"-c",
-								"cp " + volume.InstanaConfigDirectory + templateFiles + volume.InstanaConfigTPLFilesTmpDirectory,
-							},
-							VolumeMounts: d.getInitContainerVolumeMounts(),
-						},
-					},
 					Containers: []corev1.Container{
 						{
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							Command:         []string{"bash"},
-							Args: []string{
-								"-c",
-								"cp " + volume.InstanaConfigTPLFilesTmpDirectory + templateFiles + volume.InstanaConfigDirectory + " && /opt/instana/agent/bin/run.sh",
-							},
-							VolumeMounts: volumeMounts,
-							Env:          d.getEnvVars(),
+							VolumeMounts:    volumeMounts,
+							Env:             d.getEnvVars(),
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),
 							},

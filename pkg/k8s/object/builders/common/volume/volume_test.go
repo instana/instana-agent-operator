@@ -227,8 +227,6 @@ func TestConfigVolume(t *testing.T) {
 		{
 			Name:      "config",
 			MountPath: "/opt/instana/agent/etc/instana",
-			// Must be false since we need to copy the tpl files into here
-			ReadOnly: false,
 		},
 	}
 
@@ -241,33 +239,6 @@ func TestConfigVolume(t *testing.T) {
 	)
 
 	actualVolume, actualVolumeMount := v.Build(ConfigVolume)
-
-	assertions.Equal(expectedVolume, actualVolume)
-	assertions.Equal(expectedVolumeMount, actualVolumeMount)
-}
-
-func TestTPLFilesTmpVolume(t *testing.T) {
-	assertions := require.New(t)
-
-	expectedVolume := []corev1.Volume{
-		{
-			Name: "tpl-files-volume",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-	}
-	expectedVolumeMount := []corev1.VolumeMount{
-		{
-			Name:      "tpl-files-volume",
-			MountPath: "/tmp/agent_tpl_files",
-			ReadOnly:  false,
-		},
-	}
-
-	v := NewVolumeBuilder(nil, false)
-
-	actualVolume, actualVolumeMount := v.Build(TPLFilesTmpVolume)
 
 	assertions.Equal(expectedVolume, actualVolume)
 	assertions.Equal(expectedVolumeMount, actualVolumeMount)

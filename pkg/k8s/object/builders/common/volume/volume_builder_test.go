@@ -10,7 +10,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
 
-const numDefinedVolumes = 15
+const numDefinedVolumes = 14
 
 func rangeUntil(n int) []Volume {
 	res := make([]Volume, 0, n)
