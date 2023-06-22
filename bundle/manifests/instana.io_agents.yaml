@@ -61,18 +61,6 @@ spec:
                       - key
                       type: object
                     type: array
-                  configuration:
-                    description: Mount in a ConfigMap with Agent configuration. Alternative
-                      to the `configuration_yaml` field.
-                    properties:
-                      autoMountConfigEntries:
-                        description: When setting this to true, the Helm chart will
-                          automatically look up the entries of the default instana-agent
-                          ConfigMap, and mount as agent configuration files under
-                          /opt/instana/agent/etc/instana all entries with keys that
-                          match the 'configuration-*.yaml' scheme
-                        type: boolean
-                    type: object
                   configuration_yaml:
                     description: Supply Agent configuration e.g. for configuring certain
                       Sensors.

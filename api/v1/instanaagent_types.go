@@ -133,26 +133,22 @@ type InstanaAgent struct {
 	Status InstanaAgentStatus `json:"status,omitempty"`
 }
 
-func valueOrDefault[T any](val *T, def T) {
-	*val = optional.Of(*val).GetOrDefault(def)
-}
-
 func (in *InstanaAgent) Default() {
-	valueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
-	valueOrDefault(&in.Spec.Agent.EndpointPort, "443")
-	valueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
-	valueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
-	valueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
-	valueOrDefault(&in.Spec.Agent.UpdateStrategy.Type, appsv1.RollingUpdateDaemonSetStrategyType)
-	valueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate, &appsv1.RollingUpdateDaemonSet{})
-	valueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate.MaxUnavailable, pointer.To(intstr.FromInt(1)))
-	valueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
-	valueOrDefault(&in.Spec.Service.Create, pointer.To(true))
-	valueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
-	valueOrDefault(&in.Spec.K8sSensor.ImageSpec.Name, "icr.io/instana/k8sensor")
-	valueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
-	valueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
-	valueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 1)
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.Agent.UpdateStrategy.Type, appsv1.RollingUpdateDaemonSetStrategyType)
+	optional.ValueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate, &appsv1.RollingUpdateDaemonSet{})
+	optional.ValueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate.MaxUnavailable, pointer.To(intstr.FromInt(1)))
+	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.Service.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Name, "icr.io/instana/k8sensor")
+	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 1)
 }
 
 // +kubebuilder:object:root=true
