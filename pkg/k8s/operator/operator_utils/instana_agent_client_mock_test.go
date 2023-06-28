@@ -187,6 +187,36 @@ func (mr *MockInstanaAgentClientMockRecorder) GetAsResult(ctx, key, obj interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAsResult", reflect.TypeOf((*MockInstanaAgentClient)(nil).GetAsResult), varargs...)
 }
 
+// GroupVersionKindFor mocks base method.
+func (m *MockInstanaAgentClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GroupVersionKindFor", obj)
+	ret0, _ := ret[0].(schema.GroupVersionKind)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GroupVersionKindFor indicates an expected call of GroupVersionKindFor.
+func (mr *MockInstanaAgentClientMockRecorder) GroupVersionKindFor(obj interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupVersionKindFor", reflect.TypeOf((*MockInstanaAgentClient)(nil).GroupVersionKindFor), obj)
+}
+
+// IsObjectNamespaced mocks base method.
+func (m *MockInstanaAgentClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsObjectNamespaced", obj)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsObjectNamespaced indicates an expected call of IsObjectNamespaced.
+func (mr *MockInstanaAgentClientMockRecorder) IsObjectNamespaced(obj interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsObjectNamespaced", reflect.TypeOf((*MockInstanaAgentClient)(nil).IsObjectNamespaced), obj)
+}
+
 // List mocks base method.
 func (m *MockInstanaAgentClient) List(ctx context.Context, list client0.ObjectList, opts ...client0.ListOption) error {
 	m.ctrl.T.Helper()
