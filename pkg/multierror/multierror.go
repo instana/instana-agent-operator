@@ -23,7 +23,7 @@ func AsMultiError(err error) bool {
 type MultiErrorBuilder interface {
 	Build() error
 	Add(errs ...error)
-	AddSingle(err error) // TODO: test
+	AddSingle(err error)
 	All() []error
 	AllNonNil() []error
 }

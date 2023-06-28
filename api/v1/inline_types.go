@@ -40,8 +40,6 @@ type Enabled struct {
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
-// TODO: Test I guess
-
 func (e Enabled) String() string {
 	if e.Enabled == nil {
 		return "nil"
@@ -242,8 +240,6 @@ type ExtendedImageSpec struct {
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
-// TODO: interface to mock
-
 func (i ImageSpec) Image() string {
 	switch {
 	case i.Digest != "":
@@ -373,5 +369,3 @@ type Zone struct {
 	// +kubebuilder:validation:Optional
 	Mode AgentMode `json:"mode,omitempty"`
 }
-
-// TODO: possibly construct ports for container and svc -> maybe move these methods into helpers for better mock-based testing?

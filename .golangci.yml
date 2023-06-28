@@ -1,6 +1,3 @@
-# TODO: review linters
-# TODO: add to pipeline for branch
-# TODO: add crd and code gen for prs
 linters-settings:
   misspell:
     locale: US

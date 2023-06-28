@@ -32,9 +32,6 @@ type InstanaAgentClient interface {
 		ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
 	) ObjectResult
 	Exists(ctx context.Context, gvk schema.GroupVersionKind, key k8sclient.ObjectKey) BoolResult
-
-	// TODO: test
-
 	DeleteAllInTimeLimit(
 		ctx context.Context,
 		objects []k8sclient.Object,

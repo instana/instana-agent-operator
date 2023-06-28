@@ -156,9 +156,6 @@ func expectExistsInvocation(client *MockClient, ctx context.Context, obj k8sclie
 	).Return(shouldReturn)
 }
 
-// TODO: Fix ctx
-// TODO: verify multiple attempts performed
-
 func TestInstanaAgentClient_DeleteAllInTimeLimit(t *testing.T) {
 	cmError := errors.New("cm")
 	poError := errors.New("po")

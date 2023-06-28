@@ -22,8 +22,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
-// TODO: Test
-
 type DependentLifecycleManager interface {
 	UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult
 	DeleteOrphanedDependents(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult

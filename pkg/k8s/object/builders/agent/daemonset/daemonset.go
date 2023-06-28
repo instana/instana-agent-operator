@@ -20,11 +20,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-// TODO: Test and finish
-
 const (
 	componentName = constants.ComponentInstanaAgent
-	templateFiles = "/*.template "
 )
 
 type daemonSetBuilder struct {
@@ -131,7 +128,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 					Volumes:            volumes,
 					ServiceAccountName: d.ServiceAccountName(),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
-					HostNetwork:        true, // TODO: Test for ServiceEntry later: may not be needed on 1.26+ with internal traffic policy
+					HostNetwork:        true,
 					HostPID:            true,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
@@ -149,18 +146,16 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
-										Host: "127.0.0.1", // TODO: Because of HostNet usage supposedly, but shouldn't be needed I think
+										Host: "127.0.0.1",
 										Path: "/status",
 										Port: intstr.FromString(string(ports.AgentAPIsPort)),
 									},
 								},
-								// TODO: set this long because startupProbe wasn't available before k8s 1.16, but this should be EOL by now, so we should see if we can revise this
 								InitialDelaySeconds: 300,
 								TimeoutSeconds:      3,
 								PeriodSeconds:       10,
 								FailureThreshold:    3,
 							},
-							// TODO: should have readiness probe too
 							Resources: d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
 							Ports:     d.getContainerPorts(),
 						},
@@ -173,8 +168,6 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 		},
 	}
 }
-
-// TODO: test Build()
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") {

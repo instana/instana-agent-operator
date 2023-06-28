@@ -1,5 +1,12 @@
 ## Next Steps
 
+### Template Files
+
+The current configuration of the agent daemonset directly overloads the /opt/instana/agent/etc/instana directory in
+order to allow for direct hot-reload of configuration files from the configmap. This blocks some of the templating
+that normally gets run by the run.sh script upon start up. If needed this can be replaced by implementing equivalent
+behavior within the operator such that the templated files will be generated and placed into the agent ConfigMap.
+
 ### Multi-Zone Support
 
 Options for deployment across multiple zones should be enabled. We will need to determine what steps need to be taken to
@@ -30,7 +37,8 @@ during deployment. In the future we may wish to deprecate existing status fields
 In addition to any updates that will be made to the end-to-end tests, behavioral tests related to installation,
 uninstallation, and upgrade (including upgrade from agent v2 to v3) should be written in
 [controllers/suite_test.go](./controllers/suite_test.go). These will be able to verify most changes to the operator's
-behavior, and they will run (and fail) much more quickly than the e2e tests.
+behavior, and they will run (and fail) much more quickly than the e2e tests. There are also a few gaps in the current
+unit testing coverage that should ideally be filled.
 
 ### Operator Permissions
 
@@ -44,7 +52,9 @@ the agent that are not already included in the existing permission set.
 ### CI Updates
 
 The operator build should run all unit tests, behavioral tests, and [static code linting](.golangci.yml). Code linting
-settings should be reviewed and configured.
+settings should be reviewed and configured. It may also be useful to have PR builds that will automatically regenerate
+manifests and bundle YAMLs and commit the changes to the source branch as well as running the same tests and linting as
+release branches.
 
 ### Operator Naming Convention
 

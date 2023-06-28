@@ -47,8 +47,6 @@ func Add(mgr manager.Manager) error {
 	)
 }
 
-// TODO: need to configure rate limiting and backoff
-
 // add sets up the controller with the Manager.
 func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -65,7 +63,7 @@ func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 		Complete(r)
 }
 
-// TODO: Applies to owned objects as well, so could interfere with up-to-date statuses
+// TODO: Applies to owned objects as well, so could interfere with up-to-dateness of statuses if requeue isn't set based on a time limit
 
 // Create generic filter for all events, that removes some chattiness mainly when only the Status field has been updated.
 func filterPredicate() predicate.Predicate {
@@ -171,12 +169,8 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return applyResourcesRes
 	}
 
-	// TODO: Status
-
-	return reconcileSuccess(ctrl.Result{}) // TODO: May or may not need to go again after some time for status updates
+	return reconcileSuccess(ctrl.Result{}) // TODO: May or may not want to go again after some time for status updates
 }
-
-// TODO: Update permissions here
 
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete

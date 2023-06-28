@@ -18,8 +18,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-// TODO: Test
-
 const componentName = constants.ComponentK8Sensor
 
 type deploymentBuilder struct {

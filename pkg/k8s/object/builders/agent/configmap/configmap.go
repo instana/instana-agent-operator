@@ -17,8 +17,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-// TODO: Do tpl/template files need to be handled?
-
 type configMapBuilder struct {
 	*instanav1.InstanaAgent
 }
@@ -149,8 +147,6 @@ func (c *configMapBuilder) Build() optional.Optional[client.Object] {
 		},
 	)
 }
-
-// TODO: standardize constructors for cleaner initialization
 
 func NewConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
 	return &configMapBuilder{

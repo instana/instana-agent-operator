@@ -64,8 +64,6 @@ func (t *transformations) AddCommonLabels(obj client.Object, component string) {
 	obj.SetLabels(objLabels)
 }
 
-// TODO: Test
-
 func (t *transformations) PreviousGenerationsSelector() labels.Selector {
 	return or_die.New[labels.Selector]().ResultOrDie(
 		func() (labels.Selector, error) {

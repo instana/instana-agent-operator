@@ -68,8 +68,6 @@ func TestVolumeBuilder_getBuilder(t *testing.T) {
 	)
 }
 
-// TODO: Improvements here
-
 func TestVolumeBuilder_Build(t *testing.T) {
 	for _, test := range []struct {
 		name               string

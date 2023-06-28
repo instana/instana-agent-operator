@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	InstanaConfigDirectory            = "/opt/instana/agent/etc/instana"
-	InstanaConfigTPLFilesTmpDirectory = "/tmp/agent_tpl_files"
+	InstanaConfigDirectory = "/opt/instana/agent/etc/instana"
 )
 
 type hostVolumeWithMountParams struct {
