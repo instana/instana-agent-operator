@@ -38,7 +38,8 @@ In addition to any updates that will be made to the end-to-end tests, behavioral
 uninstallation, and upgrade (including upgrade from agent v2 to v3) should be written in
 [controllers/suite_test.go](./controllers/suite_test.go). These will be able to verify most changes to the operator's
 behavior, and they will run (and fail) much more quickly than the e2e tests. There are also a few gaps in the current
-unit testing coverage that should ideally be filled.
+unit testing coverage that should ideally be filled. There are also a few broken tests as a result of changes made
+after they were written that need to be fixed.
 
 ### Operator Permissions
 
