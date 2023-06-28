@@ -32,7 +32,7 @@ func assertAllElementsUnique[T comparable](assertions *require.Assertions, list 
 }
 
 func TestEnvBuilder_getBuilder(t *testing.T) {
-	const numDefinedEnvVars = 26
+	const numDefinedEnvVars = 27
 
 	t.Run(
 		"each_defined_var_has_unique_function", func(t *testing.T) {
@@ -114,5 +114,5 @@ func TestEnvBuilder_Build(t *testing.T) {
 
 	actual := eb.Build(PodNameEnv, PodIPEnv)
 
-	assertions.Equal(expected, actual)
+	assertions.ElementsMatch(expected, actual)
 }

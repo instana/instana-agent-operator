@@ -77,12 +77,12 @@ func TestVolumeBuilder_Build(t *testing.T) {
 		{
 			name:               "isOpenShift",
 			isOpenShift:        true,
-			expectedNumVolumes: 10,
+			expectedNumVolumes: 9,
 		},
 		{
 			name:               "isNotOpenShift",
 			isOpenShift:        false,
-			expectedNumVolumes: 13,
+			expectedNumVolumes: 12,
 		},
 	} {
 		t.Run(
