@@ -1,32 +1,136 @@
-// TODO: Multiple zones -- when k8s_sensor is always in use?
-// TODO: PodSecurityPolicy -- can this be dropped or wait until EOL on k8s/ocp versions that support it?
-// TODO: Secrets and should sensitive data even be allowed in the CR?
-// TODO: Add more logging (or events)
-// TODO: status
-// TODO: suite test with crud including deprectaed resource removal
-// TODO: add to set of permissions needed by controller (CRUD owned resources + read CRD) + deletecollection
-// TODO: exponential backoff config
-// TODO: new ci build with all tests running + golangci lint, fix golangci settings
-// TODO: fix "controller-manager" naming convention
-// TODO: status and events (+conditions?)
-// TODO: Update status as a defer in main reconcile at the top
-// TODO: extra: auto set tolerations for different zones or for running on master, etc.
-// TODO: Logger settings (rfc? / console?)
-// TODO: more recovery ?
+## Next Steps
 
-// TODO: extra: deprecate config_yaml string value and add a json.RawMessage version
-// TODO: extra: Readiness probe for agent
-// TODO: extra: Liveness and readiness probes for k8s sensor
-// TODO: extra: Use startup probe on liveness / readiness checks?
-// TODO: extra: additional read only volumes and other additional security constraints
-// TODO: extra: PVs to save package downloads?
-// TODO: extra: manage image refresh by restarting pods when update is available?
-// TODO: extra: CRD validation flags (regex, jsonschema patterns, etc)?
-// TODO: extra: runtime status from agents?
-// TODO: extra: storage or ephemeral storage resource limits and requests?
-// TODO: extra: cert generation when available?
-// TODO: extra: inline resource (pod, etc.) config options?
-// TODO: extra: Network policy usage, etc?
+### Multi-Zone Support
 
-// TODO: extra: Possibly auto-detect zones via topology.kubernetes.io/zone label?
-// TODO: extra: Toggle to tolerate masters automatically?
+Options for deployment across multiple zones should be enabled. We will need to determine what steps need to be taken to
+support this configuration when using the k8s_sensor.
+
+### PodSecurityPolicy
+
+The PodSecurityPolicy may need to be constructed and deployed in certain cases still. It has been removed from all
+currently supported versions of vanilla k8s except v1.24 which will reach EOL on 28 Jul 2023, but is still included in
+OCP 4.10 and 4.11, though it is deprecated in these versions and typically OpenShift's SecurityContextConstraint
+resource is used in place of PodSecurityPolicy in OCP.
+
+### Logging and Events
+
+Additional logging needs to be added to the new operator code to log successful operations as they occur. In some cases
+we may also wish to produce [events](https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/)
+into k8s for our agent CR.
+
+### Status
+
+Code should be added to populate the agent status field to replicate the status fields tracked by the previous version
+of the operator. This should be done in a "defer" to ensure status will always be updated in the event of an error
+during deployment. In the future we may wish to deprecate existing status fields and replace them with more
+[standardized](https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition) status fields.
+
+### Testing
+
+In addition to any updates that will be made to the end-to-end tests, behavioral tests related to installation,
+uninstallation, and upgrade (including upgrade from agent v2 to v3) should be written in
+[controllers/suite_test.go](./controllers/suite_test.go). These will be able to verify most changes to the operator's
+behavior, and they will run (and fail) much more quickly than the e2e tests.
+
+### Operator Permissions
+
+The permissions required by the operator will need to be updated to include any new permissions required by the new
+version of the operator. Preferably these should be included as comments in
+[controllers/instanaagent_controller.go](./controllers/instanaagent_controller.go), so that the appropriate k8s
+manifests can be generated automatically. Additional needed permissions include get/list/watch access to
+CustomResourceDefinitions and create/update/patch/delete/get/list/watch for all types of resources directly owned by
+the agent that are not already included in the existing permission set.
+
+### CI Updates
+
+The operator build should run all unit tests, behavioral tests, and [static code linting](.golangci.yml). Code linting
+settings should be reviewed and configured.
+
+### Operator Naming Convention
+
+The "controller-manager" naming convention should be replaced by something unique (ie instana-agent-operator) to ensure
+that it is clear which resources belong to us and to ensure there are no conflicts with other operators since
+"controller-manager" is the default value that is generated when operator projects are initialized.
+
+### Chart Update
+
+The Helm chart should be updated to wrap the operator and an instance of the CR built by directly using toYaml on the
+Values.yaml file to construct the spec.
+
+## Future Considerations
+
+### Sensitive Data
+
+Currently sensitive data (agent key, download, key, certificates, etc.) can be configured directly with the Agent CR.
+This is considered bad-practice and can be a security risk in some cases; however, it may be alright to keep as a means
+to deploy agents easily in development environments. Customers should be advised to place sensitive data directly into
+secrets and reference the secrets from the agent spec.
+
+### Configure Exponential Backoff
+
+Rate-limiting [for the controller](https://danielmangum.com/posts/controller-runtime-client-go-rate-limiting/) should
+be configured to prevent potential performance issues in cases where the cluster is inaccessible or the agent otherwise
+cannot be deployed for some reason.
+
+### Automatic Tolerations
+
+Options could be added to the CR-spec to enable agents to run on master nodes by automatically setting the appropriate
+tolerations for node taints.
+
+### Automatic Zones
+
+If desired an option could be added to automatically assign zone names to agent instances based on the value of the
+`topology.kubernetes.io/zone` label on the node on which they are running.
+
+### Logging
+
+It may be worth considering the use of different default logging settings to improve readability
+(eg. --zap-time-encoding=rfc3339 --zap-encoder=console).
+
+### .spec.agent.configuration_yaml
+
+This could potentially be deprecated and replaced by a field using the `json.RawMessage` type, which would enable the
+configuration yaml to be configured using native yaml within the CR rather than as an embedded string.
+
+### Probes
+
+The agent should have a readiness probe in addition to its liveness probe. The k8s_sensor should also have liveness and
+readiness probes. A startup probe can also be added to the agent now that it is supported in all stable versions of k8s.
+This will allow for faster readiness and recovery from soft-locks (if they occur) since it will allow the
+initialDelaySeconds to be reduced on the liveness probe.
+
+### PVs For Package Downloads
+
+Optional Persistent volumes could potentially be used to cache dynamically downloaded updates and packages in between
+agent restarts.
+
+### CR Validation
+
+[Validation rules](https://kubernetes.io/blog/2022/09/23/crd-validation-rules-beta/) and schema-based
+[generation](https://book.kubebuilder.io/reference/markers/crd.html),
+[validation](https://book.kubebuilder.io/reference/markers/crd-validation.html), and
+[processing](https://book.kubebuilder.io/reference/markers/crd-processing.html) rules can be used to verify validity of
+user-provided configuration and provide useful feedback for troubleshooting.
+
+### Runtime Status
+
+Runtime status information from the agent could be scraped and incorporated into the status tracked by the CR if this
+is deemed useful.
+
+### Ephemeral Storage Requests/Limits
+
+Requests and limits for
+[ephemeral storage](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#setting-requests-and-limits-for-local-ephemeral-storage)
+can be set to ensure that agent pods are assigned to nodes containing appropriate storage space for dynamic agent
+package downloads or to ensure agents do not exceed some limit of storage use on the host node.
+
+### Certificate Generation
+
+If desired, certificates could be automatically generated and configured when appropriate if cert-manager or
+OpenShift's certificate generation is available.
+
+### Network Policies
+
+[Network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) can be used to restrict
+inbound traffic on ports that the agent or k8s_sensor do not use as a security measure. (May not work on agent itself
+due to `hostNetwork: true).
