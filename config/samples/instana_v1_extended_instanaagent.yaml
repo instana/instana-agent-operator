@@ -1,0 +1,179 @@
+apiVersion: instana.io/v1
+kind: InstanaAgent
+metadata:
+  name: instana-agent
+  namespace: instana-agent
+spec:
+  zone:
+    name: edited-zone # (optional) name of the zone of the host
+  cluster:
+      # cluster.name represents the name that will be assigned to this cluster in Instana
+      name: my-cluster
+  agent:
+    # replace with your Instana agent key
+    key: replace-key
+    endpointHost: ingress-red-saas.instana.io
+    endpointPort: "443"
+    # use this to set additional environment variables for the instana agent
+    # for example:
+    # env:
+    #   INSTANA_AGENT_TAGS: dev
+    env: {}
+    # These are additional backends the Instana agent will report to besides
+    # the one configured via the `agent.endpointHost`, `agent.endpointPort` and `agent.key` setting
+    additionalBackends: []
+      # - endpointHost: ingress.instana.io
+      #   endpointPort: 443
+      #   key: <agent_key>
+
+    # TLS for end-to-end encryption between Instana agent and clients accessing the agent.
+    # The Instana agent does not yet allow enforcing TLS encryption.
+    # TLS is only enabled on a connection when requested by the client.
+    tls:
+      # In order to enable TLS, a secret of type kubernetes.io/tls must be specified.
+      # secretName is the name of the secret that has the relevant files.
+      # secretName: null
+      # Otherwise,  the certificate and the private key must be provided as base64 encoded.
+      # certificate: null
+      # key: null
+
+    image:
+      # agent.image.name is the name of the container image of the Instana agent.
+      name: icr.io/instana/agent
+      # agent.image.digest is the digest (a.k.a. Image ID) of the agent container image; if specified, it has priority over agent.image.tag, which will be ignored.
+      #digest:
+      # agent.image.tag is the tag name of the agent container image; if agent.image.digest is specified, this property is ignored.
+      tag: latest
+      # agent.image.pullPolicy specifies when to pull the image container.
+      pullPolicy: Always
+      # agent.image.pullSecrets allows you to override the default pull secret that is created when agent.image.name starts with "containers.instana.io"
+      # Setting agent.image.pullSecrets prevents the creation of the default "containers-instana-io" secret.
+      # pullSecrets:
+      #   - name: my_awesome_secret_instead
+      # If you want no imagePullSecrets to be specified in the agent pod, you can just pass an empty array to agent.image.pullSecrets
+      # pullSecrets: []
+
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+
+    pod:
+      # agent.pod.annotations are additional annotations to be added to the agent pods.
+      annotations: {}
+
+      # agent.pod.labels are additional labels to be added to the agent pods.
+      labels: {}
+
+      # agent.pod.tolerations are tolerations to influence agent pod assignment.
+      #   https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+      tolerations: []
+
+      # agent.pod.affinity are affinities to influence agent pod assignment.
+      # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+      affinity: {}
+
+      # agent.pod.priorityClassName is the name of an existing PriorityClass that should be set on the agent pods
+      #   https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+      priorityClassName: null
+
+      # agent.pod.requests and agent.pod.limits adjusts the resource assignments for the DaemonSet agent
+      #   regardless of the kubernetes.deployment.enabled setting
+      requests:
+        # agent.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
+        memory: 512Mi
+        # agent.pod.requests.cpu are the requested CPU units allocation for the agent pods.
+        cpu: "0.5"
+      limits:
+        # agent.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
+        memory: 768Mi
+        # agent.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
+        cpu: "1.5"
+
+    # agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
+    host:
+      repository: null
+
+    configuration_yaml: |
+    # You can leave this empty, or use this to configure your instana agent.
+    # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
+
+  # openshift specifies whether the cluster role should include openshift permissions and other tweaks to the YAML.
+  # The chart will try to auto-detect if the cluster is OpenShift, so you will likely not even need to set this explicitly.
+  # openshift: true
+
+  rbac:
+    # Specifies whether RBAC resources should be created
+    create: true
+
+  service:
+    # Specifies whether to create the instana-agent service to expose within the cluster the Prometheus remote-write, OpenTelemetry GRCP endpoint and other APIs
+    # Note: Requires Kubernetes 1.17+, as it uses topologyKeys
+    create: true
+
+  opentelemetry:
+   enabled: false # legacy setting, will only enable grpc, defaults to false
+   grpc:
+     enabled: false # takes precedence over legacy settings above, defaults to true if "grpc:" is present
+   http:
+     enabled: false # allows to enable http endpoints, defaults to true if "http:" is present
+
+  prometheus:
+    remoteWrite:
+      enabled: false # If true, it will also apply `service.create=true`
+
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and `create` is true, a name is generated using the fullname template
+    # name: instana-agent
+
+  k8s_sensor:
+    image:
+      # k8s_sensor.image.name is the name of the container image of the Instana agent.
+      name: icr.io/instana/k8sensor
+      # k8s_sensor.image.digest is the digest (a.k.a. Image ID) of the agent container image; if specified, it has priority over agent.image.tag, which will be ignored.
+      #digest:
+      # k8s_sensor.image.tag is the tag name of the agent container image; if agent.image.digest is specified, this property is ignored.
+      tag: latest
+      # k8s_sensor.image.pullPolicy specifies when to pull the image container.
+      pullPolicy: Always
+    deployment:
+      # Specifies whether or not to enable the Deployment and turn off the Kubernetes sensor in the DaemonSet
+      enabled: true
+      # Use three replicas to ensure the HA by the default.
+      replicas: 3
+      # k8s_sensor.deployment.pod adjusts the resource assignments for the agent independently of the DaemonSet agent when k8s_sensor.deployment.enabled=true
+      pod:
+        requests:
+          # k8s_sensor.deployment.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
+          memory: 128Mi
+          # k8s_sensor.deployment.pod.requests.cpu are the requested CPU units allocation for the agent pods.
+          cpu: 10m
+        limits:
+          # k8s_sensor.deployment.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
+          memory: 1536Mi
+          # k8s_sensor.deployment.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
+          cpu: 500m
+
+  kubernetes:
+    # Configures use of a Deployment for the Kubernetes sensor rather than as a potential member of the DaemonSet. Is only accepted if k8s_sensor.deployment.enabled=false
+    deployment:
+      # Specifies whether or not to enable the Deployment and turn off the Kubernetes sensor in the DaemonSet
+      enabled: false
+      # Use a single replica, the impact will generally be low and we need to address a host of other concerns where clusters are large.
+      replicas: 1
+
+      # kubernetes.deployment.pod adjusts the resource assignments for the agent independently of the DaemonSet agent when kubernetes.deployment.enabled=true
+      pod:
+        requests:
+          # kubernetes.deployment.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
+          memory: 1024Mi
+          # kubernetes.deployment.pod.requests.cpu are the requested CPU units allocation for the agent pods.
+          cpu: 720m
+        limits:
+          # kubernetes.deployment.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
+          memory: 3072Mi
+          # kubernetes.deployment.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
+          cpu: 4
