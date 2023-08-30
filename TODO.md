@@ -7,6 +7,12 @@ order to allow for direct hot-reload of configuration files from the configmap. 
 that normally gets run by the run.sh script upon start up. If needed this can be replaced by implementing equivalent
 behavior within the operator such that the templated files will be generated and placed into the agent ConfigMap.
 
+#### Update
+
+I recommend relocating all cfg files from `${KARAF_HOME}/etc/instana/` into `${KARAF_HOME}/etc` (or an alternate
+subdirectory of it) and modifying run.sh accordingly. Some adaptation may be needed to accommodate existing docker
+installs and some logic may need to be dependent on whether the agent is in `KUBERNETES` mode.
+
 ### Multi-Zone Support
 
 Options for deployment across multiple zones should be enabled. We will need to determine what steps need to be taken to
