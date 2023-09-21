@@ -9,9 +9,15 @@ behavior within the operator such that the templated files will be generated and
 
 #### Update
 
-I recommend relocating all cfg files from `${KARAF_HOME}/etc/instana/` into `${KARAF_HOME}/etc` (or an alternate
-subdirectory of it) and modifying run.sh accordingly. Some adaptation may be needed to accommodate existing docker
-installs and some logic may need to be dependent on whether the agent is in `KUBERNETES` mode.
+The agent can be updated to scan yamls from a non-default directory when an environment variable is set
+(e.g. INSTANA_CONFIG_DIR). The operator should then be configured to hardcode the value of this environment variable in
+the agent pod to the directory where the agent configmap will get mounted which should be different from the default
+location (e.g. /opt/instana/agent/etc/instana-k8s).
+
+### Agent Mode
+
+.spec.agent.mode needs to be set to KUBERNETES by default and should disallow (or at least warn against) any modes
+that use the deprecated version of the k8s-sensor that runs within the agent.
 
 ### Multi-Zone Support
 
