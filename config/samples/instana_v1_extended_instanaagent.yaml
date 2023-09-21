@@ -98,6 +98,9 @@ spec:
     # You can leave this empty, or use this to configure your instana agent.
     # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
 
+  # Custom agent charts URL that can be used in air gapped envs
+    charts_url: some-link
+
   # openshift specifies whether the cluster role should include openshift permissions and other tweaks to the YAML.
   # The chart will try to auto-detect if the cluster is OpenShift, so you will likely not even need to set this explicitly.
   # openshift: true

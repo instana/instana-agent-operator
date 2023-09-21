@@ -30,16 +30,17 @@ import (
 )
 
 const (
-	helmRepo       = "https://agents.instana.io/helm"
 	agentChartName = "instana-agent"
 )
 
 var (
 	settings *cli.EnvSettings
+	helmRepo string
 )
 
 func init() {
 	settings = cli.New()
+	helmRepo = "https://agents.instana.io/helm"
 	settings.RepositoryConfig = helmRepo
 }
 
@@ -113,6 +114,16 @@ func (h *HelmReconciliation) CreateOrUpdate(_ ctrl.Request, crdInstance *instana
 	yamlMap, err := h.mapCRDToYaml(crdInstance)
 	if err != nil {
 		return err
+	}
+
+	if agentConfig, ok := yamlMap["agent"]; ok {
+		if agentConfigMap, mapFound := agentConfig.(map[string]interface{}); mapFound {
+			if helmUrl, urlFound := agentConfigMap["charts_url"]; urlFound {
+				h.log.Info(fmt.Sprintf("Custom charts url found. Setting it to %s", helmUrl))
+				helmRepo = fmt.Sprintf("%v", helmUrl)
+				settings.RepositoryConfig = helmRepo
+			}
+		}
 	}
 
 	// Find out if there's an Agent chart already installed or need a fresh install
