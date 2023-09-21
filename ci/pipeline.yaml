@@ -328,7 +328,6 @@ jobs:
                 set -e
                 echo $JSON_KEY > key.json
                 cat key.json | docker login -u _json_key --password-stdin https://gcr.io
-                echo "((containers-instana-io-creds.password))" | docker login -u ((containers-instana-io-creds.username)) --password-stdin https://containers.instana.io
 
                 echo "---> Pulling source containers"
                 docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64"
