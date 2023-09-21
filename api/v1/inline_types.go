@@ -139,6 +139,9 @@ type BaseAgentSpec struct {
 	// Alternative to `Host` for referencing a different Maven repo.
 	// +kubebuilder:validation:Optional
 	MvnRepoUrl string `json:"instanaMvnRepoUrl,omitempty"`
+	// Custom agent charts url.
+	// +kubebuilder:validation:Optional
+	ChartsUrl string `json:"charts_url,omitempty"`
 }
 
 type AgentPodSpec struct {
