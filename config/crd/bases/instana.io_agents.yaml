@@ -61,6 +61,9 @@ spec:
                       - key
                       type: object
                     type: array
+                  charts_url:
+                    description: Custom agent charts url.
+                    type: string
                   configuration:
                     description: Mount in a ConfigMap with Agent configuration. Alternative
                       to the `configuration_yaml` field.

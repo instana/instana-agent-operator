@@ -77,6 +77,9 @@ spec:
                     description: Supply Agent configuration e.g. for configuring certain
                       Sensors.
                     type: string
+                  charts_url:
+                    description: Custom agent charts url.
+                    type: string
                   downloadKey:
                     description: The DownloadKey, sometimes known as "sales key",
                       that allows you to download software from Instana. It might
