@@ -98,18 +98,20 @@ jobs:
                           COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
                           
-                          # If the PR is already open then we are done
+                          echo "Check if the PR is already open"
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
                           if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
-                          
+                          echo "PR does not exist, creating a PR"
+
                           popd
                           
                           pushd community-operators-repo/operators/instana-agent-operator
-                          
+                          set -x
+
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
                           
@@ -151,17 +153,19 @@ jobs:
                           COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
 
-                          # If the PR is already open then we are done
+                          echo "Check if the PR is already open"
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
                           if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
+                          echo "PR does not exist, creating a PR"
 
                           popd
                           
                           # Create the PR
+                          set -x
                           curl \
                             -fX POST \
                             -H "Accept: application/vnd.github+json" \
@@ -201,18 +205,19 @@ jobs:
                           COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
                           
-                          # If the PR is already open then we are done
+                          echo "Check if the PR is already open"
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
                           if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
+                          echo "PR does not exist, creating a PR"
                           
                           popd
                           
                           pushd certified-operators-repo/operators/instana-agent-operator
-                          
+                          set -x
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
                           
@@ -254,16 +259,17 @@ jobs:
                           COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
 
-                          # If the PR is already open then we are done
+                          echo "Check if the PR is already open"
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
                           if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
+                          echo "PR does not exist, creating a PR"
 
                           popd
-                          
+                          set -x
                           # Create the PR
                           curl \
                             -fX POST \
@@ -316,13 +322,14 @@ jobs:
                           COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
                           
-                          # If the PR is already open then we are done
+                          echo "Check if the PR is already open"
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
                           if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
+                          echo "PR does not exist, creating a PR"
                           
                           popd
                           
@@ -383,16 +390,17 @@ jobs:
                           COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
                           OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
 
-                          # If the PR is already open then we are done
+                          echo "Check if the PR is already open"
                           PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
                           EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
                           if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
                             echo "PR already exists, exiting"
                             exit 0
                           fi
+                          echo "PR does not exist, creating a PR"
 
                           popd
-                          
+                          set -x
                           # Create the PR
                           curl \
                             -fX POST \
