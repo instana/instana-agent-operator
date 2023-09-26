@@ -111,6 +111,7 @@ jobs:
                           
                           pushd community-operators-repo/operators/instana-agent-operator
                           set -x
+                          git pull -r
 
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
@@ -218,6 +219,7 @@ jobs:
                           
                           pushd certified-operators-repo/operators/instana-agent-operator
                           set -x
+                          git pull -r
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
                           
@@ -334,6 +336,8 @@ jobs:
                           popd
                           
                           pushd redhat-marketplace-operators-repo/operators/instana-agent-operator-rhmp
+                          set -x
+                          git pull -r
                           
                           mkdir -p $OPERATOR_RELEASE_VERSION
                           unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
