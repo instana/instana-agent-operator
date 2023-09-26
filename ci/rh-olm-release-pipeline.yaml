@@ -117,7 +117,7 @@ jobs:
                           git config --global user.email "instanacd@instana.com"
                           
                           git add .
-                          git commit -s -m "$COMMIT_MESSAGE"
+                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
                           
                           popd
                 - put: community-operators-repo
@@ -220,7 +220,7 @@ jobs:
                           git config --global user.email "instanacd@instana.com"
                           
                           git add .
-                          git commit -s -m "$COMMIT_MESSAGE"
+                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
                           
                           popd
                 - put: certified-operators-repo
@@ -349,7 +349,7 @@ jobs:
                           git config --global user.email "instanacd@instana.com"
                           
                           git add .
-                          git commit -s -m "$COMMIT_MESSAGE"
+                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
                           
                           popd
                 - put: redhat-marketplace-operators-repo
