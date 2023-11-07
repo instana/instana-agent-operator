@@ -19,6 +19,9 @@ location (e.g. /opt/instana/agent/etc/instana-k8s).
 .spec.agent.mode needs to be set to KUBERNETES by default and should disallow (or at least warn against) any modes
 that use the deprecated version of the k8s-sensor that runs within the agent.
 
+**Edit:** Need to determine how to properly configure the k8s sensor since the
+current configuration does not seem to be correct.
+
 ### Multi-Zone Support
 
 Options for deployment across multiple zones should be enabled. We will need to determine what steps need to be taken to
