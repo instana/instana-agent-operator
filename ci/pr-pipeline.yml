@@ -1,0 +1,97 @@
+---
+
+var:
+
+  instana-operator-git-repo-config: &instana-operator-git-repo-config
+    uri: https://github.com/instana/instana-agent-operator.git
+    username: ((project-berlin-gh-token))
+    password: x-oauth-basic
+    branch: &build-branch ((branch))
+resources:
+
+  - name: pipeline-source
+    type: git
+    icon: github
+    source:
+      <<: *instana-operator-git-repo-config
+
+jobs:
+
+  - name: self-update
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+      - set_pipeline: self
+        file: pipeline-source/ci/pr-pipeline.yml
+        vars:
+          branch: *build-branch
+          project-berlin-gh-token: ((project-berlin-gh-token))
+          delivery-instana-io-release-project-artifact-read-writer-creds: ((delivery-instana-io-release-project-artifact-read-writer-creds))
+
+  - name: build-and-test-agent-operator
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+
+      - task: build
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: pipeline-source
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                cd pipeline-source
+                microdnf install make python3-devel gcc git tar gzip zip curl jq
+                pip3 install pyyaml
+                
+                export PATH="$PATH:/usr/local/go/bin"
+                export GOPATH=/go
+                export GO_VERSION=1.19
+                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && rm -rf /usr/local/go \
+                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && mkdir -p "${GOPATH}" \
+                && go version
+                make build 
+
+      - task: unit-test
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: pipeline-source
+          caches:
+            - path: /go/pkg/mod
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                cd pipeline-source
+                microdnf install make python3-devel gcc git tar gzip zip curl jq
+                pip3 install pyyaml
+                
+                export PATH="$PATH:/usr/local/go/bin"
+                export GOPATH=/go
+                export GO_VERSION=1.19
+                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && rm -rf /usr/local/go \
+                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && mkdir -p "${GOPATH}" \
+                && go version
+                make test
