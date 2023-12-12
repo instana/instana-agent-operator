@@ -57,7 +57,7 @@ jobs:
                 
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
-                export GO_VERSION=1.18.5
+                export GO_VERSION=1.19
                 curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && rm -rf /usr/local/go \
                 && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
