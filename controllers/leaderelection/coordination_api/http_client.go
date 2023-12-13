@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	coreV1 "k8s.io/api/core/v1"
@@ -74,7 +73,7 @@ func (c *podCoordinationHttpClient) PollPod(ctx context.Context, pod coreV1.Pod)
 			pod.GetObjectMeta().GetName(), resp.Status)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading /coordination response of %v: %w", pod.GetObjectMeta().GetName(), err)
 	}
