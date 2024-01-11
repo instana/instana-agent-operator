@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	InstanaConfigDirectory = "/opt/instana/agent/etc/instana"
+	InstanaConfigDirectory = "/opt/instana/agent/etc/instana-config-yml"
 )
 
 type hostVolumeWithMountParams struct {
