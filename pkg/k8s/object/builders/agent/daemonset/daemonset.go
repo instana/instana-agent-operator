@@ -66,6 +66,7 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.ProxyUseDNSEnv,
 		env.ListenAddressEnv,
 		env.RedactK8sSecretsEnv,
+		env.ConfigPathEnv,
 		env.AgentKeyEnv,
 		env.DownloadKeyEnv,
 		env.PodNameEnv,
