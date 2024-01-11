@@ -136,6 +136,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.ProxyUseDNSEnv,
 		env.ListenAddressEnv,
 		env.RedactK8sSecretsEnv,
+		env.ConfigPathEnv,
 		env.AgentKeyEnv,
 		env.DownloadKeyEnv,
 		env.PodNameEnv,
