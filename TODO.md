@@ -163,5 +163,6 @@ due to `hostNetwork: true).
 
 ### Auto-Reload on Agent-Key or Download-Key Change
 
-Currently the agent-key and download-key are read via environment variable set via referencing a key in the relevant
-k8s-secret. It would be beneficial to watch the secret(s) and trigger a restart if a change is detected.
+Currently the agent-key and download-key are read by the agent via environment variable set via referencing a key in
+one or more k8s secrets. It would be beneficial to watch the secret(s) and trigger a restart of the agent daemsonset if
+a change is detected in the secret(s).
