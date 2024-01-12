@@ -160,3 +160,8 @@ OpenShift's certificate generation is available.
 [Network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) can be used to restrict
 inbound traffic on ports that the agent or k8s_sensor do not use as a security measure. (May not work on agent itself
 due to `hostNetwork: true).
+
+### Auto-Reload on Agent-Key or Download-Key Change
+
+Currently the agent-key and download-key are read via environment variable set via referencing a key in the relevant
+k8s-secret. It would be beneficial to watch the secret(s) and trigger a restart if a change is detected.
