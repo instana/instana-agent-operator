@@ -73,7 +73,7 @@ func TestAgentConfigMapBuilder_Build(t *testing.T) {
 			Data: map[string]string{
 				"cluster_name":                                 "eoisdgoijds",
 				"configuration.yaml":                           "riosoidoijdsg",
-				"configuration-opentelemetry.yaml":             "grpc: {}\n",
+				"configuration-opentelemetry.yaml":             "com.instana.plugin.opentelemetry:\n    grpc: {}\n",
 				"configuration-prometheus-remote-write.yaml":   "com.instana.plugin.prometheus:\n    remote_write:\n        enabled: true\n",
 				"configuration-disable-kubernetes-sensor.yaml": "com.instana.plugin.kubernetes:\n    enabled: false\n",
 				"additional-backend-2":                         "host=eoijsdlkjf\nport=goieoijsdofj\nkey=eoisdljsdlkfj\nprotocol=HTTP/2\nproxy.type=HTTP\nproxy.host=weoisdoijsdg\nproxy.port=lksdlkjsdglkjsd\nproxy.user=peoijsadglkj\nproxy.password=relksdlkj\nproxyUseDNS=true",

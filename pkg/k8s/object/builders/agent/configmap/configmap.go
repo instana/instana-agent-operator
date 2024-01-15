@@ -60,7 +60,8 @@ func (c *configMapBuilder) getData() map[string]string {
 	)
 
 	if otlp := c.Spec.OpenTelemetry; otlp.IsEnabled() {
-		res["configuration-opentelemetry.yaml"] = yamlOrDie(&otlp)
+		otlpPluginSettings := map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp}
+		res["configuration-opentelemetry.yaml"] = yamlOrDie(&otlpPluginSettings)
 	}
 
 	if pointer.DerefOrEmpty(c.Spec.Prometheus.RemoteWrite.Enabled) {
