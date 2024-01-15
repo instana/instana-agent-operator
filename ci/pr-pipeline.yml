@@ -1,4 +1,34 @@
 ---
+aliases:
+  gh-status-hooks: &gh-status-hooks
+    on_success:
+      put: gh-status
+      inputs: [ instana-agent-operator ]
+      params: { state: success }
+    on_failure:
+      put: gh-status
+      inputs: [ instana-agent-operator ]
+      params: { state: failure }
+    on_error:
+      put: gh-status
+      inputs: [ instana-agent-operator ]
+      params: { state: error }
+    on_abort:
+      put: gh-status
+      inputs: [ instana-agent-operator ]
+      params: { state: error }
+  gh-status-set-pending: &gh-status-set-pending
+    put: gh-status
+    inputs: [ instana-agent-operator ]
+    params: { state: pending }
+  gh-status-set-pending-build: &gh-status-set-pending-build
+    put: gh-status
+    inputs: [ instana-agent-operator ]
+    params: { state: pending, context: build-and-test-operator/build }
+  gh-status-set-pending-unit-test: &gh-status-set-pending-unit-test
+    put: gh-status
+    inputs: [ instana-agent-operator ]
+    params: { state: pending, context: build-and-test-operator/unit-test }
 
 var:
 
@@ -7,6 +37,22 @@ var:
     username: ((project-berlin-gh-token))
     password: x-oauth-basic
     branch: &build-branch ((branch))
+    git_config:
+      - name: user.name
+        value: Stan
+      - name: user.email
+        value: stan@instana.com
+resource_types:
+
+  - name: cogito
+    type: registry-image
+    check_every: never
+    source:
+      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      tag: latest
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
 resources:
 
   - name: pipeline-source
@@ -15,11 +61,29 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
 
+  - name: instana-agent-operator
+    type: git
+    icon: github
+    source:
+      <<: *instana-operator-git-repo-config
+
+  - name: gh-status
+    type: cogito
+    source:
+      owner: instana
+      repo: instana-agent-operator
+      access_token: ((instanacd-github-api-token))
+      context_prefix: concourse
+      github_host: github.com
+
 jobs:
 
   - name: self-update
+    <<: *gh-status-hooks
     max_in_flight: 1
     plan:
+      - get: instana-agent-operator
+      - <<: *gh-status-set-pending
       - get: pipeline-source
         trigger: true
       - set_pipeline: self
@@ -35,7 +99,9 @@ jobs:
       - get: pipeline-source
         trigger: true
         passed: [self-update]
-
+      - get: instana-agent-operator
+      - <<: *gh-status-set-pending-build
+      - <<: *gh-status-set-pending-unit-test
       - task: build
         privileged: true
         config:
@@ -65,8 +131,23 @@ jobs:
                 && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && mkdir -p "${GOPATH}" \
                 && go version
-                make build 
-
+                make build
+        on_success:
+          put: gh-status
+          inputs: [ instana-agent-operator ]
+          params: { state: success, context: build-and-test-operator/build }
+          on_failure:
+            put: gh-status
+            inputs: [ instana-agent-operator ]
+            params: { state: failure, context: build-and-test-operator/build }
+          on_error:
+            put: gh-status
+            inputs: [ instana-agent-operator ]
+            params: { state: error, context: build-and-test-operator/build }
+          on_abort:
+            put: gh-status
+            inputs: [ instana-agent-operator ]
+            params: { state: error, context: build-and-test-operator/build }
       - task: unit-test
         privileged: true
         config:
@@ -97,3 +178,19 @@ jobs:
                 && mkdir -p "${GOPATH}" \
                 && go version
                 make test
+        on_success:
+          put: gh-status
+          inputs: [ instana-agent-operator ]
+          params: { state: success, context: build-and-test-operator/unit-test }
+        on_failure:
+          put: gh-status
+          inputs: [ instana-agent-operator ]
+          params: { state: failure, context: build-and-test-operator/unit-test }
+        on_error:
+          put: gh-status
+          inputs: [ instana-agent-operator ]
+          params: { state: error, context: build-and-test-operator/unit-test }
+        on_abort:
+          put: gh-status
+          inputs: [ instana-agent-operator ]
+          params: { state: error, context: build-and-test-operator/unit-test }
