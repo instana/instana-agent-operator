@@ -40,7 +40,13 @@ func (h *headlessServiceBuilder) Build() builder.OptionalObject {
 			Spec: corev1.ServiceSpec{
 				ClusterIP: corev1.ClusterIPNone,
 				Selector:  h.GetPodSelectorLabels(),
-				Ports:     h.GetServicePorts(ports.AgentAPIsPort, ports.AgentSocketPort),
+				Ports: h.GetServicePorts(
+					ports.AgentAPIsPort,
+					ports.AgentSocketPort,
+					ports.OpenTelemetryLegacyPort,
+					ports.OpenTelemetryGRPCPort,
+					ports.OpenTelemetryHTTPPort,
+				),
 			},
 		},
 	)

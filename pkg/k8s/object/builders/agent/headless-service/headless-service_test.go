@@ -44,13 +44,20 @@ func TestHeadlessServiceBuilder_Build(t *testing.T) {
 	podSelectorLabelGenerator.EXPECT().GetPodSelectorLabels().Return(map[string]string{"foo": "bar", "hello": "world"})
 
 	portsBuilder := NewMockPortsBuilder(ctrl)
-	portsBuilder.EXPECT().GetServicePorts(ports.AgentAPIsPort, ports.AgentSocketPort).Return(
-		[]corev1.ServicePort{
-			{
-				Name: "headless-service-port",
+	portsBuilder.EXPECT().GetServicePorts(
+		ports.AgentAPIsPort,
+		ports.AgentSocketPort,
+		ports.OpenTelemetryLegacyPort,
+		ports.OpenTelemetryGRPCPort,
+		ports.OpenTelemetryHTTPPort,
+	).
+		Return(
+			[]corev1.ServicePort{
+				{
+					Name: "headless-service-port",
+				},
 			},
-		},
-	)
+		)
 
 	expected := optional.Of[client.Object](
 		&corev1.Service{
