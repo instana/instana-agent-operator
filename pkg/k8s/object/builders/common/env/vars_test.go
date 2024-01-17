@@ -207,6 +207,46 @@ func TestEnvBuilder_mavenRepoURLEnv(t *testing.T) {
 	)
 }
 
+func TestEnvBuilder_mavenRepoFeaturesPath(t *testing.T) {
+	const expectedValue = "/I/am/a/path"
+
+	testFromCRField(
+		&crFieldVarTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.mavenRepoFeaturesPath
+			},
+			expectedName:  "INSTANA_MVN_REPOSITORY_FEATURES_PATH",
+			expectedValue: expectedValue,
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					MvnRepoFeaturesPath: expectedValue,
+				},
+			},
+		},
+	)
+}
+
+func TestEnvBuilder_mavenRepoSharedPath(t *testing.T) {
+	const expectedValue = "/I/am/a/path"
+
+	testFromCRField(
+		&crFieldVarTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.mavenRepoSharedPath
+			},
+			expectedName:  "INSTANA_MVN_REPOSITORY_SHARED_PATH",
+			expectedValue: expectedValue,
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					MvnRepoSharedPath: expectedValue,
+				},
+			},
+		},
+	)
+}
+
 func TestEnvBuilder_proxyHostEnv(t *testing.T) {
 	const expectedValue = "some-proxy-host"
 

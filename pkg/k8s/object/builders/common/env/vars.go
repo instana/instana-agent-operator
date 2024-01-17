@@ -39,7 +39,13 @@ func (e *envBuilder) mavenRepoURLEnv() optional.Optional[corev1.EnvVar] {
 	return fromCRField("INSTANA_MVN_REPOSITORY_URL", e.agent.Spec.Agent.MvnRepoUrl)
 }
 
-// TODO: Two new ones added here recently (INSTANA_MVN_REPOSITORY_FEATURES_PATH and INSTANA_MVN_REPOSITORY_SHARED_PATH)
+func (e *envBuilder) mavenRepoFeaturesPath() optional.Optional[corev1.EnvVar] {
+	return fromCRField("INSTANA_MVN_REPOSITORY_FEATURES_PATH", e.agent.Spec.Agent.MvnRepoFeaturesPath)
+}
+
+func (e *envBuilder) mavenRepoSharedPath() optional.Optional[corev1.EnvVar] {
+	return fromCRField("INSTANA_MVN_REPOSITORY_SHARED_PATH", e.agent.Spec.Agent.MvnRepoSharedPath)
+}
 
 func (e *envBuilder) proxyHostEnv() optional.Optional[corev1.EnvVar] {
 	return fromCRField("INSTANA_AGENT_PROXY_HOST", e.agent.Spec.Agent.ProxyHost)

@@ -151,9 +151,12 @@ type BaseAgentSpec struct {
 	// Alternative to `Host` for referencing a different Maven repo.
 	// +kubebuilder:validation:Optional
 	MvnRepoUrl string `json:"instanaMvnRepoUrl,omitempty"`
-	// Custom agent charts url.
+	// Sets the INSTANA_MVN_REPOSITORY_FEATURES_PATH environment variable
 	// +kubebuilder:validation:Optional
-	ChartsUrl string `json:"charts_url,omitempty"`
+	MvnRepoFeaturesPath string `json:"instanaMvnRepoFeaturesPath,omitempty"`
+	// Sets the INSTANA_MVN_REPOSITORY_SHARED_PATH environment variable
+	// +kubebuilder:validation:Optional
+	MvnRepoSharedPath string `json:"instanaMvnRepoSharedPath,omitempty"`
 }
 
 type ResourceRequirements corev1.ResourceRequirements

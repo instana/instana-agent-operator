@@ -58,6 +58,8 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.AgentEndpointEnv,
 		env.AgentEndpointPortEnv,
 		env.MavenRepoURLEnv,
+		env.MavenRepoFeaturesPath,
+		env.MavenRepoSharedPath,
 		env.ProxyHostEnv,
 		env.ProxyPortEnv,
 		env.ProxyProtocolEnv,

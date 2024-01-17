@@ -20,6 +20,8 @@ const (
 	AgentEndpointEnv
 	AgentEndpointPortEnv
 	MavenRepoURLEnv
+	MavenRepoFeaturesPath
+	MavenRepoSharedPath
 	ProxyHostEnv
 	ProxyPortEnv
 	ProxyProtocolEnv
@@ -67,6 +69,10 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.agentEndpointPortEnv
 	case MavenRepoURLEnv:
 		return e.mavenRepoURLEnv
+	case MavenRepoFeaturesPath:
+		return e.mavenRepoFeaturesPath
+	case MavenRepoSharedPath:
+		return e.mavenRepoSharedPath
 	case ProxyHostEnv:
 		return e.proxyHostEnv
 	case ProxyPortEnv:

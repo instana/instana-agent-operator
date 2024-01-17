@@ -128,6 +128,8 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.AgentEndpointEnv,
 		env.AgentEndpointPortEnv,
 		env.MavenRepoURLEnv,
+		env.MavenRepoFeaturesPath,
+		env.MavenRepoSharedPath,
 		env.ProxyHostEnv,
 		env.ProxyPortEnv,
 		env.ProxyProtocolEnv,
