@@ -39,7 +39,7 @@ func (d *deploymentBuilder) ComponentName() string {
 }
 
 func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
-	podLabels := optional.Of(d.Spec.Agent.Pod.Labels).GetOrDefault(make(map[string]string, 1))
+	podLabels := optional.Of(d.Spec.Agent.Pod.Labels).GetOrDefault(make(map[string]string, 3))
 	podLabels[constants.LabelAgentMode] = string(instanav1.KUBERNETES)
 	return d.GetPodLabels(podLabels)
 }
