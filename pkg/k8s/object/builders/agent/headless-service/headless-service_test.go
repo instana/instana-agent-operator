@@ -46,7 +46,6 @@ func TestHeadlessServiceBuilder_Build(t *testing.T) {
 	portsBuilder := NewMockPortsBuilder(ctrl)
 	portsBuilder.EXPECT().GetServicePorts(
 		ports.AgentAPIsPort,
-		ports.AgentSocketPort,
 		ports.OpenTelemetryLegacyPort,
 		ports.OpenTelemetryGRPCPort,
 		ports.OpenTelemetryHTTPPort,

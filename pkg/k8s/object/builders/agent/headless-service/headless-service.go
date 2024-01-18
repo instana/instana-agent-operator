@@ -42,7 +42,6 @@ func (h *headlessServiceBuilder) Build() builder.OptionalObject {
 				Selector:  h.GetPodSelectorLabels(),
 				Ports: h.GetServicePorts(
 					ports.AgentAPIsPort,
-					ports.AgentSocketPort,
 					ports.OpenTelemetryLegacyPort,
 					ports.OpenTelemetryGRPCPort,
 					ports.OpenTelemetryHTTPPort,
