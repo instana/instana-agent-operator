@@ -146,7 +146,7 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Name, "icr.io/instana/k8sensor")
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
-	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 1)
+	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
 }
 
 // +kubebuilder:object:root=true
