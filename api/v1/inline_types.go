@@ -332,6 +332,10 @@ type KubernetesDeploymentSpec struct {
 	// Override pod resource requirements for the Kubernetes Sensor pods.
 	// +kubebuilder:validation:Optional
 	Pod KubernetesPodSpec `json:"pod,omitempty"`
+
+	// Toggles the PDB for the K8s Sensor
+	// +kubebuilder:validation:Optional
+	PodDisruptionBudget Enabled `json:"podDisruptionBudget,omitempty"`
 }
 
 type OpenTelemetry struct {
