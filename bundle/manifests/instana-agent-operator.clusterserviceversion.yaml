@@ -218,6 +218,8 @@ spec:
           - namespaces
           - services
           - deployments
+          - nodes/stats
+          - nodes/metrics
           verbs:
           - create
           - delete
@@ -245,6 +247,9 @@ spec:
         - nonResourceURLs:
           - /version
           - /healthz
+          - /metrics
+          - /stats/summary
+          - /metrics/cadvisor
           verbs:
           - get
         - apiGroups:

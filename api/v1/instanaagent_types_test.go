@@ -97,7 +97,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 						PullPolicy: corev1.PullAlways,
 					},
 					DeploymentSpec: KubernetesDeploymentSpec{
-						Replicas: 1,
+						Replicas: 3,
 					},
 				},
 			},
