@@ -314,6 +314,11 @@ type KubernetesPodSpec struct {
 	// agent.pod.tolerations are tolerations to influence agent pod assignment.
 	// +kubebuilder:validation:Optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// agent.pod.affinity are affinities to influence agent pod assignment.
+	// https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+	// +kubebuilder:validation:Optional
+	Affinity corev1.Affinity `json:"affinity,omitempty"`
 }
 
 type KubernetesDeploymentSpec struct {

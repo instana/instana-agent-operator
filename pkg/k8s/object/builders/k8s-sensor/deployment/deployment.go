@@ -101,27 +101,31 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					},
 					Volumes:     volumes,
 					Tolerations: d.Spec.K8sSensor.DeploymentSpec.Pod.Tolerations,
-					Affinity: &corev1.Affinity{
-						PodAntiAffinity: &corev1.PodAntiAffinity{
-							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-								{
-									Weight: 100,
-									PodAffinityTerm: corev1.PodAffinityTerm{
-										LabelSelector: &metav1.LabelSelector{
-											MatchExpressions: []metav1.LabelSelectorRequirement{
-												{
-													Key:      constants.LabelAgentMode,
-													Operator: metav1.LabelSelectorOpIn,
-													Values:   []string{string(instanav1.KUBERNETES)},
+					Affinity: pointer.To(
+						optional.Of(d.Spec.K8sSensor.DeploymentSpec.Pod.Affinity).GetOrDefault(
+							corev1.Affinity{
+								PodAntiAffinity: &corev1.PodAntiAffinity{
+									PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+										{
+											Weight: 100,
+											PodAffinityTerm: corev1.PodAffinityTerm{
+												LabelSelector: &metav1.LabelSelector{
+													MatchExpressions: []metav1.LabelSelectorRequirement{
+														{
+															Key:      constants.LabelAgentMode,
+															Operator: metav1.LabelSelectorOpIn,
+															Values:   []string{string(instanav1.KUBERNETES)},
+														},
+													},
 												},
+												TopologyKey: corev1.LabelHostname,
 											},
 										},
-										TopologyKey: corev1.LabelHostname,
 									},
 								},
 							},
-						},
-					},
+						),
+					),
 				},
 			},
 		},
