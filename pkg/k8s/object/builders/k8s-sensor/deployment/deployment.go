@@ -74,7 +74,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Namespace: d.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.To(optional.Of(int32(d.Spec.K8sSensor.DeploymentSpec.Replicas)).GetOrDefault(1)),
+			Replicas: d.Spec.K8sSensor.DeploymentSpec.Replicas.GetDesired(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: d.GetPodSelectorLabels(),
 			},

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
+	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
@@ -321,13 +322,19 @@ type KubernetesPodSpec struct {
 	Affinity corev1.Affinity `json:"affinity,omitempty"`
 }
 
+type K8sSensorReplicaCount int
+
+func (k K8sSensorReplicaCount) GetDesired() *int32 {
+	return pointer.To[int32](optional.Of[int32](int32(k)).GetOrDefault(3))
+}
+
 type KubernetesDeploymentSpec struct {
 	// Specify if separate deployment of the Kubernetes Sensor should be enabled.
 	Enabled `json:",inline"`
 
 	// Specify the number of replicas for the Kubernetes Sensor.
 	// +kubebuilder:validation:Optional
-	Replicas int `json:"replicas,omitempty"`
+	Replicas K8sSensorReplicaCount `json:"replicas,omitempty"`
 
 	// Override pod resource requirements for the Kubernetes Sensor pods.
 	// +kubebuilder:validation:Optional
