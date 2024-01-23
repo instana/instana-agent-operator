@@ -144,6 +144,8 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return getAgentRes
 	}
 
+	r.log.Info("reconciling Agent CR", "Name", agent.Name, "Namespace", agent.Namespace, "Generation", agent.Generation)
+
 	agent.Default()
 
 	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent)
