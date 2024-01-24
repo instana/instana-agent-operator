@@ -107,21 +107,30 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 ) {
 	var agent instanav1.InstanaAgent
 
+	log := r.log.WithValues("Request", req)
+
 	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
 	case k8serrors.IsNotFound(err):
+		log.V(1).Error(err, "attempted to reconcile agent CR that could not be found")
 		return nil, reconcileSuccess(ctrl.Result{})
 	case !errors.Is(err, nil):
+		log.Error(err, "failed to retrieve info about agent CR")
 		return nil, reconcileFailure(err)
 	default:
+		log.V(1).Info("successfully retrieved agent CR info")
 		return &agent, reconcileContinue()
 	}
 }
 
 func (r *InstanaAgentReconciler) updateAgent(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
+	log := r.loggerFor(agent)
+
 	switch err := r.client.Update(ctx, agent); errors.Is(err, nil) {
 	case true:
+		log.V(1).Info("successfully applied updates to agent CR")
 		return reconcileSuccess(ctrl.Result{Requeue: true})
 	default:
+		log.Error(err, "failed to apply updates to agent CR")
 		return reconcileFailure(err)
 	}
 }
@@ -132,10 +141,16 @@ func (r *InstanaAgentReconciler) isOpenShift(operatorUtils operator_utils.Operat
 
 	switch isOpenShiftRes.IsSuccess() {
 	case true:
+		r.log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", answer)
 		return answer, reconcileContinue()
 	default:
+		r.log.Error(err, "failed to determine if cluster is OpenShift")
 		return false, reconcileFailure(err)
 	}
+}
+
+func (r *InstanaAgentReconciler) loggerFor(agent *instanav1.InstanaAgent) logr.Logger {
+	return r.log.WithValues("Name", agent.Name, "Namespace", agent.Namespace, "Generation", agent.Generation)
 }
 
 func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request) reconcileReturn {
@@ -144,7 +159,7 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return getAgentRes
 	}
 
-	r.log.Info("reconciling Agent CR", "Name", agent.Name, "Namespace", agent.Namespace, "Generation", agent.Generation)
+	r.loggerFor(agent).Info("reconciling Agent CR")
 
 	agent.Default()
 

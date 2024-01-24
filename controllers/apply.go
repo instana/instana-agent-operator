@@ -23,6 +23,8 @@ func (r *InstanaAgentReconciler) applyResources(
 	isOpenShift bool,
 	operatorUtils operator_utils.OperatorUtils,
 ) reconcileReturn {
+	log := r.loggerFor(agent)
+	log.V(1).Info("applying Kubernetes resources for agent")
 	switch res := operatorUtils.ApplyAll(
 		agentconfigmap.NewConfigMapBuilder(agent),
 		agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift),
@@ -40,9 +42,11 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
 	); res.IsSuccess() {
 	case true:
+		log.V(1).Info("successfully applied kubernetes resources for agent")
 		return reconcileContinue()
 	default:
 		_, err := res.Get()
+		log.Error(err, "failed to apply kubernetes resources for agent")
 		return reconcileFailure(err)
 	}
 }

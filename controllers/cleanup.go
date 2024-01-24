@@ -12,11 +12,16 @@ import (
 )
 
 func (r *InstanaAgentReconciler) cleanupHelmChart(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
+	log := r.loggerFor(agent)
+
 	if !controllerutil.RemoveFinalizer(agent, finalizerV1) {
+		log.V(2).Info("no deprecated Helm chart installation detected based on finalizers present on agent CR")
 		return reconcileContinue()
 	} else if err := r.chartRemover.Delete(); !errors.Is(err, nil) {
+		log.Error(err, "failed to uninstall deprecated Helm installation of Instana agent")
 		return reconcileFailure(err)
 	} else {
+		log.V(1).Info("successfully uninstalled deprecated Helm installation of Instana agent")
 		return r.updateAgent(ctx, agent)
 	}
 }
@@ -26,12 +31,17 @@ func (r *InstanaAgentReconciler) cleanupDependents(
 	agent *instanav1.InstanaAgent,
 	operatorUtils operator_utils.OperatorUtils,
 ) reconcileReturn {
+	log := r.loggerFor(agent)
+
 	if !controllerutil.RemoveFinalizer(agent, finalizerV3) {
+		log.V(2).Info("agent finalizer not present, so no further cleanup is needed")
 		return reconcileContinue()
 	} else if deleteRes := operatorUtils.DeleteAll(); deleteRes.IsFailure() {
 		_, err := deleteRes.Get()
+		log.Error(err, "failed to cleanup agent dependents during uninstall")
 		return reconcileFailure(err)
 	} else {
+		log.V(1).Info("successfully cleaned up agent dependents during uninstall")
 		return r.updateAgent(ctx, agent)
 	}
 }
@@ -41,7 +51,10 @@ func (r *InstanaAgentReconciler) handleDeletion(
 	agent *instanav1.InstanaAgent,
 	operatorUtils operator_utils.OperatorUtils,
 ) reconcileReturn {
+	log := r.loggerFor(agent)
+
 	if agent.DeletionTimestamp == nil {
+		log.V(2).Info("agent is not under deletion")
 		return reconcileContinue()
 	} else if cleanupChartRes := r.cleanupHelmChart(ctx, agent); cleanupChartRes.suppliesReconcileResult() {
 		return cleanupChartRes

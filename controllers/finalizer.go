@@ -13,6 +13,7 @@ func (r *InstanaAgentReconciler) addOrUpdateFinalizers(ctx context.Context, agen
 	case removeHelmChartRes.suppliesReconcileResult():
 		return removeHelmChartRes
 	case controllerutil.AddFinalizer(agent, finalizerV3):
+		r.loggerFor(agent).V(1).Info("adding agent finalizer to agent CR")
 		return r.updateAgent(ctx, agent)
 	default:
 		return reconcileContinue()
