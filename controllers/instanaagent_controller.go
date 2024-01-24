@@ -159,7 +159,9 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return getAgentRes
 	}
 
-	r.loggerFor(agent).Info("reconciling Agent CR")
+	log := r.loggerFor(agent)
+	ctx = logr.NewContext(ctx, log)
+	log.Info("reconciling Agent CR")
 
 	agent.Default()
 
@@ -197,6 +199,5 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	defer recovery.Catch(&err)
 
-	ctx = logr.NewContext(ctx, r.log)
 	return r.reconcile(ctx, req).reconcileResult()
 }
