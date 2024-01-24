@@ -188,6 +188,8 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return applyResourcesRes
 	}
 
+	log.Info("successfully finished reconcile on agent CR")
+
 	return reconcileSuccess(ctrl.Result{}) // TODO: May or may not want to go again after some time for status updates
 }
 
