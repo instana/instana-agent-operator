@@ -1,18 +1,9 @@
 ## Next Steps
 
-### Template Files
+### Misconfiguration Errors
 
-The current configuration of the agent daemonset directly overloads the /opt/instana/agent/etc/instana directory in
-order to allow for direct hot-reload of configuration files from the configmap. This blocks some of the templating
-that normally gets run by the run.sh script upon start up. If needed this can be replaced by implementing equivalent
-behavior within the operator such that the templated files will be generated and placed into the agent ConfigMap.
-
-#### Update
-
-The agent can be updated to scan yamls from a non-default directory when an environment variable is set
-(e.g. INSTANA_CONFIG_DIR). The operator should then be configured to hardcode the value of this environment variable in
-the agent pod to the directory where the agent configmap will get mounted which should be different from the default
-location (e.g. /opt/instana/agent/etc/instana-k8s).
+If the user misconfigures the agent then appropriate messages should be displayed in the logs, events, status, or
+directly returned as errors via webhook.
 
 ### Agent Mode
 
