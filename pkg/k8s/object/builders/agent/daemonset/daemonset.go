@@ -173,7 +173,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 }
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
-	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") {
+	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") || len(d.Spec.Zones) != 0 {
 		return optional.Empty[client.Object]()
 	} else {
 		return optional.Of[client.Object](d.build())
