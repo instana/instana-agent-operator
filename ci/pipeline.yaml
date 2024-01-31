@@ -194,7 +194,7 @@ jobs:
                 microdnf install git
 
                 cd agent-operator-git-source
-                git pull
+                git pull -r
                 latest_release=$(git tag | sort -r --version-sort | head -n1)
                 echo "Latest release is ${latest_release}"
                 new_release=$(echo $latest_release | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
@@ -208,10 +208,8 @@ jobs:
   - name: prepare-build-bundle
     max_in_flight: 1
     plan:
-      - get: agent-operator-git-source
-        trigger: true
-        passed: [ tag-release ]
       - get: agent-operator-release-source
+        trigger: true
       - task: package-build-bundle
         config:
           platform: linux
