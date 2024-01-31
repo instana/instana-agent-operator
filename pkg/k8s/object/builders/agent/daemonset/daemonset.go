@@ -217,10 +217,14 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 }
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
-	// TODO: Review conditions when using multiple zones
-	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") {
+	switch {
+	case d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "":
+		fallthrough
+	case d.zone == nil && d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "":
+		fallthrough
+	case d.zone != nil && d.Spec.Cluster.Name == "":
 		return optional.Empty[client.Object]()
-	} else {
+	default:
 		return optional.Of[client.Object](d.build())
 	}
 }
