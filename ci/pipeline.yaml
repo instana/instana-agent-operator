@@ -46,7 +46,6 @@ resources:
     icon: github
     source:
       <<: *instana-operator-git-repo-config
-      fetch_tags: true
       ignore_paths:
         - ci/
 
