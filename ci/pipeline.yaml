@@ -47,6 +47,8 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
       fetch_tags: true
+      ignore_paths:
+        - ci/
 
 
   - name: agent-operator-release-source
@@ -209,7 +211,7 @@ jobs:
     plan:
       - get: agent-operator-git-source
         trigger: true
-        passed: tag-release
+        passed: [ tag-release ]
       - get: agent-operator-release-source
       - task: package-build-bundle
         config:
