@@ -1,4 +1,17 @@
 ---
+
+var:
+  instana-operator-git-repo-config: &instana-operator-git-repo-config
+    uri: https://github.com/instana/instana-agent-operator.git
+    username: ((project-berlin-gh-token))
+    password: x-oauth-basic
+    branch: main
+    git_config:
+      - name: user.name
+        value: Stan
+      - name: user.email
+        value: stan@instana.com
+
 resource_types:
   - name: google-cloud-storage
     type: registry-image
@@ -24,16 +37,25 @@ resources:
     type: git
     icon: github
     source:
-      uri: https://github.com/instana/instana-agent-operator.git
-      branch: main
+      <<: *instana-operator-git-repo-config
+      paths:
+      - ci/
+
+  - name: agent-operator-git-source
+    type: git
+    icon: github
+    source:
+      <<: *instana-operator-git-repo-config
+      ignore_paths:
+        - ci/
+
 
   - name: agent-operator-release-source
     type: git
     icon: github
     source:
-      uri: https://github.com/instana/instana-agent-operator.git
+      <<: *instana-operator-git-repo-config
       fetch_tags: true
-      branch: main
       #  match release tags like "v1.12.99"
       #  match pre-release tags like "v1.12.100-pre"
       tag_regex: '^v\d+\.\d+\.\d+.*$'
@@ -149,6 +171,39 @@ jobs:
       trigger: true
     - set_pipeline: self
       file: agent-operator-pipeline-source/ci/pipeline.yaml
+
+  - name: tag-release
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-git-source
+        trigger: true
+      - task: tag-with-new-semver
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: agent-operator-git-source
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                microdnf install git
+
+                cd agent-operator-git-source
+                git pull -r
+                latest_release=$(git tag | sort -r --version-sort | head -n1)
+                echo "Latest release is ${latest_release}"
+                new_release=$(echo $latest_release | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
+
+                echo "Tagging repo with the new release tag ${new_release}"
+                git tag ${new_release}
+      - put: agent-operator-git-source
+        params:
+          repository: agent-operator-git-source
 
   - name: prepare-build-bundle
     max_in_flight: 1
