@@ -1,6 +1,8 @@
 package daemonset
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +24,7 @@ import (
 
 const (
 	componentName = constants.ComponentInstanaAgent
+	ZoneLabel     = "io.instana/zone"
 )
 
 type daemonSetBuilder struct {
@@ -33,6 +36,8 @@ type daemonSetBuilder struct {
 	ports.PortsBuilder
 	env.EnvBuilder
 	volume.VolumeBuilder
+
+	zone *instanav1.Zone
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
@@ -106,6 +111,44 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 	)
 }
 
+func (d *daemonSetBuilder) getName() string {
+	switch d.zone {
+	case nil:
+		return d.InstanaAgent.Name
+	default:
+		return fmt.Sprintf("%s-%s", d.InstanaAgent.Name, d.zone.Name.Name)
+	}
+}
+
+func (d *daemonSetBuilder) getNonStandardLabels() map[string]string {
+	switch d.zone {
+	case nil:
+		return nil
+	default:
+		return map[string]string{
+			ZoneLabel: d.zone.Name.Name,
+		}
+	}
+}
+
+func (d *daemonSetBuilder) getAffinity() *corev1.Affinity {
+	switch d.zone {
+	case nil:
+		return &d.InstanaAgent.Spec.Agent.Pod.Affinity
+	default:
+		return &d.zone.Affinity
+	}
+}
+
+func (d *daemonSetBuilder) getTolerations() []corev1.Toleration {
+	switch d.zone {
+	case nil:
+		return d.InstanaAgent.Spec.Agent.Pod.Tolerations
+	default:
+		return d.zone.Tolerations
+	}
+}
+
 func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 	volumes, volumeMounts := d.getVolumes()
 
@@ -115,8 +158,9 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.Name,
+			Name:      d.getName(),
 			Namespace: d.Namespace,
+			Labels:    d.getNonStandardLabels(),
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -163,8 +207,8 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Ports:     d.getContainerPorts(),
 						},
 					},
-					Tolerations: d.Spec.Agent.Pod.Tolerations,
-					Affinity:    &d.Spec.Agent.Pod.Affinity,
+					Tolerations: d.getTolerations(),
+					Affinity:    d.getAffinity(),
 				},
 			},
 			UpdateStrategy: d.InstanaAgent.Spec.Agent.UpdateStrategy,
@@ -173,7 +217,8 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 }
 
 func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
-	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") || len(d.Spec.Zones) != 0 {
+	// TODO: Review conditions when using multiple zones
+	if (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") {
 		return optional.Empty[client.Object]()
 	} else {
 		return optional.Of[client.Object](d.build())
@@ -184,14 +229,23 @@ func NewDaemonSetBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenshift bool,
 ) builder.ObjectBuilder {
+	return NewDaemonSetBuilderWithZoneInfo(agent, isOpenshift, nil)
+}
+
+func NewDaemonSetBuilderWithZoneInfo(
+	agent *instanav1.InstanaAgent,
+	isOpenshift bool,
+	zone *instanav1.Zone,
+) builder.ObjectBuilder {
 	return &daemonSetBuilder{
 		InstanaAgent: agent,
 
-		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
+		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(agent, componentName, zone),
 		JsonHasher:                hash.NewJsonHasher(),
 		Helpers:                   helpers.NewHelpers(agent),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
-		EnvBuilder:                env.NewEnvBuilder(agent),
+		EnvBuilder:                env.NewEnvBuilderWithZoneInfo(agent, zone),
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenshift),
+		zone:                      zone,
 	}
 }

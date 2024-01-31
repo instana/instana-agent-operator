@@ -16,11 +16,29 @@ import (
 // Directly From CR
 
 func (e *envBuilder) agentModeEnv() optional.Optional[corev1.EnvVar] {
-	return fromCRField("INSTANA_AGENT_MODE", e.agent.Spec.Agent.Mode)
+	const envVarName = "INSTANA_AGENT_MODE"
+	if e.zone != nil {
+		return optional.Of(
+			corev1.EnvVar{
+				Name:  envVarName,
+				Value: string(e.zone.Mode),
+			},
+		)
+	}
+	return fromCRField(envVarName, e.agent.Spec.Agent.Mode)
 }
 
 func (e *envBuilder) zoneNameEnv() optional.Optional[corev1.EnvVar] {
-	return fromCRField("INSTANA_ZONE", e.agent.Spec.Zone.Name)
+	const envVarName = "INSTANA_ZONE"
+	if e.zone != nil {
+		return optional.Of(
+			corev1.EnvVar{
+				Name:  envVarName,
+				Value: e.zone.Name.Name,
+			},
+		)
+	}
+	return fromCRField(envVarName, e.agent.Spec.Zone.Name)
 }
 
 func (e *envBuilder) clusterNameEnv() optional.Optional[corev1.EnvVar] {

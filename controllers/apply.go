@@ -10,6 +10,7 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
 	k8ssensorpoddisruptionbudget "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget"
@@ -18,6 +19,21 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
+func getDaemonSetBuilders(agent *instanav1.InstanaAgent, isOpenShift bool) []builder.ObjectBuilder {
+	if len(agent.Spec.Zones) == 0 {
+		return []builder.ObjectBuilder{agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift)}
+	}
+
+	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
+
+	for _, zone := range agent.Spec.Zones {
+		zone := zone
+		builders = append(builders, agentdaemonset.NewDaemonSetBuilderWithZoneInfo(agent, isOpenShift, &zone))
+	}
+
+	return builders
+}
+
 func (r *InstanaAgentReconciler) applyResources(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
@@ -25,9 +41,10 @@ func (r *InstanaAgentReconciler) applyResources(
 ) reconcileReturn {
 	log := r.loggerFor(agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
-	switch res := operatorUtils.ApplyAll(
+
+	builders := append(
+		getDaemonSetBuilders(agent, isOpenShift),
 		agentconfigmap.NewConfigMapBuilder(agent),
-		agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift),
 		headlessservice.NewHeadlessServiceBuilder(agent),
 		containersinstanaiosecret.NewSecretBuilder(agent),
 		keyssecret.NewSecretBuilder(agent),
@@ -40,7 +57,9 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
-	); res.IsSuccess() {
+	)
+
+	switch res := operatorUtils.ApplyAll(builders...); res.IsSuccess() {
 	case true:
 		log.V(1).Info("successfully applied kubernetes resources for agent")
 		return reconcileContinue()

@@ -51,6 +51,7 @@ type EnvBuilder interface {
 
 type envBuilder struct {
 	agent *instanav1.InstanaAgent
+	zone  *instanav1.Zone
 	helpers.Helpers
 }
 
@@ -134,8 +135,13 @@ func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
 }
 
 func NewEnvBuilder(agent *instanav1.InstanaAgent) EnvBuilder {
+	return NewEnvBuilderWithZoneInfo(agent, nil)
+}
+
+func NewEnvBuilderWithZoneInfo(agent *instanav1.InstanaAgent, zone *instanav1.Zone) EnvBuilder {
 	return &envBuilder{
 		agent:   agent,
+		zone:    zone,
 		Helpers: helpers.NewHelpers(agent),
 	}
 }
