@@ -24,7 +24,6 @@ import (
 
 const (
 	componentName = constants.ComponentInstanaAgent
-	ZoneLabel     = "io.instana/zone"
 )
 
 type daemonSetBuilder struct {
@@ -126,7 +125,7 @@ func (d *daemonSetBuilder) getNonStandardLabels() map[string]string {
 		return nil
 	default:
 		return map[string]string{
-			ZoneLabel: d.zone.Name.Name,
+			transformations.ZoneLabel: d.zone.Name.Name,
 		}
 	}
 }

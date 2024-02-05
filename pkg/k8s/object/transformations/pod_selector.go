@@ -3,8 +3,11 @@ package transformations
 import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	_map "github.com/instana/instana-agent-operator/pkg/collections/map"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+)
+
+const (
+	ZoneLabel = "io.instana/zone"
 )
 
 type PodSelectorLabelGenerator interface {
@@ -28,7 +31,7 @@ func (p *podSelectorLabelGenerator) GetPodLabels(userLabels map[string]string) m
 	podLabels[ManagedByLabel] = managedBy
 
 	if p.zone != nil {
-		podLabels[daemonset.ZoneLabel] = p.zone.Name.Name
+		podLabels[ZoneLabel] = p.zone.Name.Name
 	}
 
 	return podLabels
@@ -42,7 +45,7 @@ func (p *podSelectorLabelGenerator) GetPodSelectorLabels() map[string]string {
 	}
 
 	if p.zone != nil {
-		labels[daemonset.ZoneLabel] = p.zone.Name.Name
+		labels[ZoneLabel] = p.zone.Name.Name
 	}
 
 	return labels
