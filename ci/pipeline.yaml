@@ -3,14 +3,9 @@
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
-    username: ((project-berlin-gh-token))
-    password: x-oauth-basic
     branch: main
-    git_config:
-      - name: user.name
-        value: Stan
-      - name: user.email
-        value: stan@instana.com
+    username: instanacd
+    password: ((instanacd-github-api-token))
 
 resource_types:
   - name: google-cloud-storage
