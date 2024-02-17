@@ -8,6 +8,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -63,14 +64,56 @@ func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 		Complete(r)
 }
 
-// TODO: Applies to owned objects as well, so could interfere with up-to-dateness of statuses if requeue isn't set based on a time limit
+func wasModifiedByOther(obj client.Object) bool {
+	var lastModifiedBySelf time.Time
+
+	for _, mfe := range obj.GetManagedFields() {
+		if mfe.Manager == instanaclient.FieldOwnerName {
+			if mfe.Time == nil {
+				return true
+			}
+			lastModifiedBySelf = mfe.Time.Time
+			break
+		}
+	}
+
+	if lastModifiedBySelf.IsZero() {
+		return true
+	}
+
+	for _, mfe := range obj.GetManagedFields() {
+		if mfe.Manager == instanaclient.FieldOwnerName {
+			continue
+		}
+		if mfe.Time == nil {
+			return true
+		}
+		if lastModifiedBySelf.Before(mfe.Time.Time) {
+			return true
+		}
+	}
+
+	return false
+}
 
 // Create generic filter for all events, that removes some chattiness mainly when only the Status field has been updated.
 func filterPredicate() predicate.Predicate {
 	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			switch createEvent.Object.(type) {
+			case *instanav1.InstanaAgent:
+				return true
+			default:
+				return false
+			}
+		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			// Ignore updates to CR status in which case metadata.Generation does not change.
-			return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			switch e.ObjectOld.(type) {
+			case *instanav1.InstanaAgent:
+				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			default:
+				return wasModifiedByOther(e.ObjectNew)
+			}
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			// Evaluates to false if the object has been confirmed deleted.

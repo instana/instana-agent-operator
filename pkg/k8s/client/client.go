@@ -16,6 +16,10 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	FieldOwnerName = "instana-agent-operator"
+)
+
 // ObjectResult alias is needed to workaround issues in mockgen
 type ObjectResult = result.Result[k8sclient.Object]
 
@@ -171,7 +175,7 @@ func (c *instanaAgentClient) Apply(
 			ctx,
 			obj,
 			k8sclient.Apply,
-			append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))...,
+			append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner(FieldOwnerName))...,
 		),
 	)
 }
