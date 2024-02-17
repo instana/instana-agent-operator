@@ -116,8 +116,12 @@ func filterPredicate() predicate.Predicate {
 			}
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			// Evaluates to false if the object has been confirmed deleted.
-			return !e.DeleteStateUnknown
+			switch e.Object.(type) {
+			case *instanav1.InstanaAgent:
+				return !e.DeleteStateUnknown
+			default:
+				return true
+			}
 		},
 	}
 }
