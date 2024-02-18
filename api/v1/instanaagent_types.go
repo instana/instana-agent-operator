@@ -103,7 +103,9 @@ const (
 // +k8s:openapi-gen=true
 
 // InstanaAgentStatus defines the observed state of InstanaAgent
-type InstanaAgentStatus struct {
+
+// Deprecated: DeprecatedInstanaAgentStatus are the previous status fields that will be used to ensure backwards compatibility with any automation that may exist
+type DeprecatedInstanaAgentStatus struct {
 	Status     AgentOperatorState `json:"status,omitempty"`
 	Reason     string             `json:"reason,omitempty"`
 	LastUpdate metav1.Time        `json:"lastUpdate,omitempty"`
@@ -113,6 +115,15 @@ type InstanaAgentStatus struct {
 	ConfigMap       ResourceInfo            `json:"configmap,omitempty"`
 	DaemonSet       ResourceInfo            `json:"daemonset,omitempty"`
 	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
+}
+
+type InstanaAgentStatus struct {
+	DeprecatedInstanaAgentStatus `json:",inline"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
