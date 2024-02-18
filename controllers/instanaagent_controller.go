@@ -70,7 +70,7 @@ func wasModifiedByOther(obj client.Object) bool {
 	for _, mfe := range obj.GetManagedFields() {
 		if mfe.Manager == instanaclient.FieldOwnerName {
 			if mfe.Time == nil {
-				return true
+				continue
 			}
 			lastModifiedBySelf = mfe.Time.Time
 			break
@@ -86,7 +86,7 @@ func wasModifiedByOther(obj client.Object) bool {
 			continue
 		}
 		if mfe.Time == nil {
-			return true
+			continue
 		}
 		if lastModifiedBySelf.Before(mfe.Time.Time) {
 			return true
