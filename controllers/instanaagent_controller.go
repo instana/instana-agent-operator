@@ -186,7 +186,9 @@ func (r *InstanaAgentReconciler) updateAgent(
 		log.V(1).Info("successfully applied updates to agent CR")
 		return reconcileSuccess(ctrl.Result{Requeue: true})
 	default:
-		log.Error(err, "failed to apply updates to agent CR")
+		if !k8serrors.IsNotFound(err) {
+			log.Error(err, "failed to apply updates to agent CR")
+		}
 		return reconcileFailure(err)
 	}
 }
