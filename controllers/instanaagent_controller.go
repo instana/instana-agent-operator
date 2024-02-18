@@ -158,7 +158,7 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 
 	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
 	case k8serrors.IsNotFound(err):
-		log.V(10).Error(err, "attempted to reconcile agent CR that could not be found")
+		log.V(10).Info("attempted to reconcile agent CR that could not be found")
 		return nil, reconcileSuccess(ctrl.Result{})
 	case !errors.Is(err, nil):
 		log.Error(err, "failed to retrieve info about agent CR")
