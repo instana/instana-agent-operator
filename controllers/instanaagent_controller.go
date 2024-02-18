@@ -169,10 +169,19 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 	}
 }
 
-func (r *InstanaAgentReconciler) updateAgent(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
-	log := r.loggerFor(agent)
+func (r *InstanaAgentReconciler) updateAgent(
+	ctx context.Context,
+	agentOld *instanav1.InstanaAgent,
+	agentNew *instanav1.InstanaAgent,
+) reconcileReturn {
+	log := r.loggerFor(agentNew)
 
-	switch err := r.client.Update(ctx, agent); errors.Is(err, nil) {
+	switch err := r.client.Patch(
+		ctx,
+		agentNew,
+		client.MergeFrom(agentOld),
+		client.FieldOwner(instanaclient.FieldOwnerName),
+	); errors.Is(err, nil) {
 	case true:
 		log.V(1).Info("successfully applied updates to agent CR")
 		return reconcileSuccess(ctrl.Result{Requeue: true})

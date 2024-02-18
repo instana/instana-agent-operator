@@ -11,10 +11,14 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
-func (r *InstanaAgentReconciler) cleanupHelmChart(ctx context.Context, agent *instanav1.InstanaAgent) reconcileReturn {
-	log := r.loggerFor(agent)
+func (r *InstanaAgentReconciler) cleanupHelmChart(
+	ctx context.Context,
+	agentOld *instanav1.InstanaAgent,
+) reconcileReturn {
+	agentNew := agentOld.DeepCopy()
+	log := r.loggerFor(agentNew)
 
-	if !controllerutil.RemoveFinalizer(agent, finalizerV1) {
+	if !controllerutil.RemoveFinalizer(agentNew, finalizerV1) {
 		log.V(2).Info("no deprecated Helm chart installation detected based on finalizers present on agent CR")
 		return reconcileContinue()
 	} else if err := r.chartRemover.Delete(); !errors.Is(err, nil) {
@@ -22,18 +26,19 @@ func (r *InstanaAgentReconciler) cleanupHelmChart(ctx context.Context, agent *in
 		return reconcileFailure(err)
 	} else {
 		log.V(1).Info("successfully uninstalled deprecated Helm installation of Instana agent")
-		return r.updateAgent(ctx, agent)
+		return r.updateAgent(ctx, agentOld, agentNew)
 	}
 }
 
 func (r *InstanaAgentReconciler) cleanupDependents(
 	ctx context.Context,
-	agent *instanav1.InstanaAgent,
+	agentOld *instanav1.InstanaAgent,
 	operatorUtils operator_utils.OperatorUtils,
 ) reconcileReturn {
-	log := r.loggerFor(agent)
+	agentNew := agentOld.DeepCopy()
+	log := r.loggerFor(agentNew)
 
-	if !controllerutil.RemoveFinalizer(agent, finalizerV3) {
+	if !controllerutil.RemoveFinalizer(agentNew, finalizerV3) {
 		log.V(2).Info("agent finalizer not present, so no further cleanup is needed")
 		return reconcileContinue()
 	} else if deleteRes := operatorUtils.DeleteAll(); deleteRes.IsFailure() {
@@ -42,7 +47,7 @@ func (r *InstanaAgentReconciler) cleanupDependents(
 		return reconcileFailure(err)
 	} else {
 		log.V(1).Info("successfully cleaned up agent dependents during uninstall")
-		return r.updateAgent(ctx, agent)
+		return r.updateAgent(ctx, agentOld, agentNew)
 	}
 }
 
