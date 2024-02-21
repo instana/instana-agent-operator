@@ -4,12 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
@@ -35,6 +38,11 @@ type agentStatusManager struct {
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
 	agentConfigMap      client.ObjectKey
+	observedGeneration  int64
+}
+
+func (a *agentStatusManager) SetObservedGeneration(observedGeneration int64) {
+	a.observedGeneration = observedGeneration
 }
 
 func (a *agentStatusManager) AddAgentDaemonset(agentDaemonset client.ObjectKey) {
@@ -98,6 +106,9 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	agentOld *instanav1.InstanaAgent,
 ) result.Result[*instanav1.InstanaAgent] {
 	agentNew := agentOld.DeepCopy()
+	logger := log.FromContext(ctx).WithName("agent-status-manager")
+
+	// Handle Deprecated Status Fields
 
 	agentNew.Status.Status = getAgentPhase(reconcileErr)
 	agentNew.Status.Reason = getReason(reconcileErr)
@@ -120,6 +131,27 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 		_, err := res.Get()
 		return result.OfFailure[*instanav1.InstanaAgent](err)
 	}
+
+	// Handle New Status Fields
+
+	agentNew.Status.ObservedGeneration = a.observedGeneration
+
+	result.Of(semver.NewVersion(env.GetOperatorVersion())).
+		OnSuccess(
+			func(version *semver.Version) {
+				agentNew.Status.OperatorVersion = instanav1.SemanticVersion{Version: *version}
+			},
+		).
+		OnFailure(
+			func(err error) {
+				logger.Error(
+					err,
+					"operator version is not a valid semantic version",
+					"OperatorVersion",
+					env.GetOperatorVersion(),
+				)
+			},
+		)
 
 	return result.OfSuccess(agentNew)
 }
