@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -27,9 +28,10 @@ const (
 	CondtionTypeAllK8sSensorsReady  = "AllK8sSensorsReady"
 )
 
-func NewAgentStatusManager(k8sClient client.Client) AgentStatusManager {
+func NewAgentStatusManager(k8sClient client.Client, eventRecorder record.EventRecorder) AgentStatusManager {
 	return &agentStatusManager{
 		k8sClient:       instanaclient.NewClient(k8sClient),
+		eventRecorder:   eventRecorder,
 		agentDaemonsets: make([]client.ObjectKey, 0, 1),
 	}
 }
@@ -42,7 +44,8 @@ type AgentStatusManager interface {
 }
 
 type agentStatusManager struct {
-	k8sClient instanaclient.InstanaAgentClient
+	k8sClient     instanaclient.InstanaAgentClient
+	eventRecorder record.EventRecorder
 
 	agentOld *instanav1.InstanaAgent
 
@@ -118,6 +121,20 @@ func truncateMessage(message string) string {
 	} else {
 		return message[:limit]
 	}
+}
+
+func eventTypeFromCondition(condition metav1.Condition) string {
+	switch condition.Status {
+	case metav1.ConditionTrue:
+		return corev1.EventTypeNormal
+	default:
+		return corev1.EventTypeWarning
+	}
+}
+
+func (a *agentStatusManager) setConditionAndFireEvent(agentNew *instanav1.InstanaAgent, condition metav1.Condition) {
+	meta.SetStatusCondition(&agentNew.Status.Conditions, condition)
+	a.eventRecorder.Event(agentNew, eventTypeFromCondition(condition), condition.Reason, condition.Message)
 }
 
 func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) metav1.Condition {
@@ -199,7 +216,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	// Handle Conditions
 
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
-	meta.SetStatusCondition(&agentNew.Status.Conditions, a.getReconcileSucceededCondition(reconcileErr))
+	a.setConditionAndFireEvent(agentNew, a.getReconcileSucceededCondition(reconcileErr))
 
 	return result.OfSuccess(agentNew)
 }
