@@ -15,10 +15,9 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/env"
+	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/result"
-
-	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 )
 
 // Conditions
