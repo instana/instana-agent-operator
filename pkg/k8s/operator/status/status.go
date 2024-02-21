@@ -7,20 +7,29 @@ import (
 	"github.com/Masterminds/semver/v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/env"
+	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 )
 
-func NewAgentStatusManager(k8sClient instanaclient.InstanaAgentClient) AgentStatusManager {
+// Conditions
+const (
+	ConditionTypeReconcileSucceeded = "ReconcileSucceeded"
+	ConditionTypeAllAgentsReady     = "AllAgentsReady"
+	CondtionTypeAllK8sSensorsReady  = "AllK8sSensorsReady"
+)
+
+func NewAgentStatusManager(k8sClient client.Client) AgentStatusManager {
 	return &agentStatusManager{
-		k8sClient:       k8sClient,
+		k8sClient:       instanaclient.NewClient(k8sClient),
 		agentDaemonsets: make([]client.ObjectKey, 0, 1),
 	}
 }
@@ -35,14 +44,15 @@ type AgentStatusManager interface {
 type agentStatusManager struct {
 	k8sClient instanaclient.InstanaAgentClient
 
+	agentOld *instanav1.InstanaAgent
+
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
 	agentConfigMap      client.ObjectKey
-	observedGeneration  int64
 }
 
-func (a *agentStatusManager) SetObservedGeneration(observedGeneration int64) {
-	a.observedGeneration = observedGeneration
+func (a *agentStatusManager) SetAgentOld(agent *instanav1.InstanaAgent) {
+	a.agentOld = agent.DeepCopy()
 }
 
 func (a *agentStatusManager) AddAgentDaemonset(agentDaemonset client.ObjectKey) {
@@ -100,12 +110,45 @@ func (a *agentStatusManager) getConfigMap(ctx context.Context) result.Result[ins
 	return result.Map(cm, toResourceInfo)
 }
 
+func truncateMessage(message string) string {
+	const limit = 32768
+
+	if len(message) <= limit {
+		return message
+	} else {
+		return message[:limit]
+	}
+}
+
+func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) metav1.Condition {
+	res := metav1.Condition{
+		Type:               ConditionTypeReconcileSucceeded,
+		Status:             "",
+		ObservedGeneration: a.agentOld.GetGeneration(),
+		Reason:             "",
+		Message:            "",
+	}
+
+	switch reconcileErr {
+	case nil:
+		res.Status = metav1.ConditionTrue
+		res.Reason = "ReconcileSucceeded"
+		res.Message = "most recent reconcile of agent CR completed without issue"
+	default:
+		res.Status = metav1.ConditionFalse
+		res.Reason = "ReconcileFailed"
+		// TODO: Error wrapping where propagating to add relevant info
+		res.Message = truncateMessage(reconcileErr.Error())
+	}
+
+	return res
+}
+
 func (a *agentStatusManager) agentWithUpdatedStatus(
 	ctx context.Context,
 	reconcileErr error,
-	agentOld *instanav1.InstanaAgent,
 ) result.Result[*instanav1.InstanaAgent] {
-	agentNew := agentOld.DeepCopy()
+	agentNew := a.agentOld.DeepCopy()
 	logger := log.FromContext(ctx).WithName("agent-status-manager")
 
 	// Handle Deprecated Status Fields
@@ -134,7 +177,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	// Handle New Status Fields
 
-	agentNew.Status.ObservedGeneration = a.observedGeneration
+	agentNew.Status.ObservedGeneration = a.agentOld.GetGeneration()
 
 	result.Of(semver.NewVersion(env.GetOperatorVersion())).
 		OnSuccess(
@@ -153,28 +196,22 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 			},
 		)
 
+	// Handle Conditions
+
+	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
+	meta.SetStatusCondition(&agentNew.Status.Conditions, a.getReconcileSucceededCondition(reconcileErr))
+
 	return result.OfSuccess(agentNew)
 }
 
 func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error, agent client.ObjectKey) error {
-	agentOld := &instanav1.InstanaAgent{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "instana.io/v1",
-			Kind:       "InstanaAgent",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      agent.Name,
-			Namespace: agent.Namespace,
-		},
-	}
-
-	switch res := a.agentWithUpdatedStatus(ctx, reconcileErr, agentOld); {
+	switch res := a.agentWithUpdatedStatus(ctx, reconcileErr); {
 	case res.IsSuccess():
 		agentNew, _ := res.Get()
 		return a.k8sClient.Status().Patch(
 			ctx,
 			agentNew,
-			client.MergeFrom(agentOld),
+			client.MergeFrom(a.agentOld),
 			client.FieldOwner(instanaclient.FieldOwnerName),
 		)
 	default:
