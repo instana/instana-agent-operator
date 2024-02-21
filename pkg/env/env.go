@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	operatorVersion = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.1")
+	operatorVersion = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.1-dev")
 )
 
 func GetOperatorVersion() string {
