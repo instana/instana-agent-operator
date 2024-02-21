@@ -144,7 +144,7 @@ func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr
 			agentNew,
 			client.MergeFrom(agentOld),
 			client.FieldOwner(instanaclient.FieldOwnerName),
-		)
+		) // TODO: Observed Generation or use update?
 	default:
 		_, err := res.Get()
 		return err

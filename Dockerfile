@@ -7,8 +7,8 @@
 FROM --platform=linux/amd64 golang:1.18 as builder
 
 ARG TARGETPLATFORM='linux/amd64'
-ARG VERSION=dev
-ARG GIT_COMMIT=unspecified
+ARG VERSION
+ARG GIT_COMMIT
 
 WORKDIR /workspace
 
@@ -36,9 +36,9 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 MAINTAINER Instana, support@instana.com
 
 ARG TARGETPLATFORM='linux/amd64'
-ARG VERSION=dev
+ARG VERSION
 ARG BUILD=1
-ARG GIT_COMMIT=unspecified
+ARG GIT_COMMIT
 ARG DATE=""
 
 LABEL name="instana-agent-operator" \

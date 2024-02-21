@@ -4559,6 +4559,10 @@ spec:
                 - name
                 - uid
                 type: object
+              generation:
+                format: int64
+                minimum: 0
+                type: integer
               lastUpdate:
                 format: date-time
                 type: string
@@ -4577,6 +4581,9 @@ spec:
                 type: object
               oldVersionsUpdated:
                 type: boolean
+              operatorVersion:
+                pattern: ^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+                type: string
               reason:
                 type: string
               status:

@@ -9,7 +9,7 @@ PREV_VERSION ?= 0.0.0
 BUNDLE_IMG ?= instana-agent-operator-bundle:$(VERSION)
 
 # Include the latest Git commit SHA, gets injected in code via Docker build (just like VERSION)
-GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")

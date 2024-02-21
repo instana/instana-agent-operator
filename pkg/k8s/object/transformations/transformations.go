@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.0")
+	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.1")
 )
 
 func GetVersion() string {

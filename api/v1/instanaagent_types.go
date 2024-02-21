@@ -6,6 +6,7 @@
 package v1
 
 import (
+	"github.com/Masterminds/semver/v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,6 +118,13 @@ type DeprecatedInstanaAgentStatus struct {
 	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
 }
 
+// +kubebuilder:validation:Type=string
+// +kubebuilder:validation:Pattern=`^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`
+
+type SemanticVersion struct {
+	semver.Version `json:"-"`
+}
+
 type InstanaAgentStatus struct {
 	DeprecatedInstanaAgentStatus `json:",inline"`
 	// +patchMergeKey=type
@@ -124,6 +132,9 @@ type InstanaAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	ObservedGeneration int64           `json:"generation,omitempty"`
+	OperatorVersion    SemanticVersion `json:"operatorVersion,omitempty"`
 }
 
 // +kubebuilder:object:root=true
