@@ -1,7 +1,6 @@
 package transformations
 
 import (
-	"os"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/or_die"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	version = optional.Of(os.Getenv("OPERATOR_VERSION")).GetOrDefault("v0.0.1")
+	version = env.GetOperatorVersion()
 )
 
 func GetVersion() string {
