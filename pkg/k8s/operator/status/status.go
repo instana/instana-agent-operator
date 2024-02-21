@@ -39,7 +39,7 @@ type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
 	SetAgentConfigMap(agentConfigMap client.ObjectKey)
-	UpdateAgentStatus(ctx context.Context, reconcileErr error, agent client.ObjectKey) error
+	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
 
 type agentStatusManager struct {
@@ -220,7 +220,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	return result.OfSuccess(agentNew)
 }
 
-func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error, agent client.ObjectKey) error {
+func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) error {
 	switch res := a.agentWithUpdatedStatus(ctx, reconcileErr); {
 	case res.IsSuccess():
 		agentNew, _ := res.Get()
