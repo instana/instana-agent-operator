@@ -228,6 +228,104 @@ func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context)
 	return result.OfSuccess(condition)
 }
 
+type deploymentConditionsMap map[appsv1.DeploymentConditionType]appsv1.DeploymentCondition
+
+func deploymentConditionsAsMap(conditions []appsv1.DeploymentCondition) deploymentConditionsMap {
+	res := make(deploymentConditionsMap, len(conditions))
+
+	for _, condition := range conditions {
+		res[condition.Type] = condition
+	}
+
+	return res
+}
+
+func deploymentHasMinimumAvailability(conditions deploymentConditionsMap) bool {
+	switch condition, isPresent := conditions[appsv1.DeploymentAvailable]; isPresent {
+	case true:
+		return condition.Status == corev1.ConditionTrue
+	default:
+		return false
+	}
+}
+
+func deploymentIsComplete(conditions deploymentConditionsMap) bool {
+	switch condition, isPresent := conditions[appsv1.DeploymentProgressing]; isPresent {
+	case true:
+		return condition.Status == corev1.ConditionTrue && condition.Reason == "NewReplicaSetAvailable"
+	default:
+		return false
+	}
+}
+
+func deploymentHasReplicaFailures(conditions deploymentConditionsMap) bool {
+	switch condition, isPresent := conditions[appsv1.DeploymentReplicaFailure]; isPresent {
+	case true:
+		return condition.Status == corev1.ConditionTrue
+	default:
+		return false
+	}
+}
+
+func deploymentIsAvailableAndComplete(dpl appsv1.Deployment) bool {
+	conditions := deploymentConditionsAsMap(dpl.Status.Conditions)
+
+	switch {
+	case dpl.Status.ObservedGeneration != dpl.Generation:
+		return false
+	case !deploymentHasMinimumAvailability(conditions):
+		return false
+	case !deploymentIsComplete(conditions):
+		return false
+	case deploymentHasReplicaFailures(conditions):
+		return false
+	default:
+		return true
+	}
+}
+
+func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
+	condition := metav1.Condition{
+		Type:               CondtionTypeAllK8sSensorsAvailable,
+		Status:             "",
+		ObservedGeneration: a.agentOld.GetGeneration(),
+		Reason:             "",
+		Message:            "",
+	}
+
+	var deployment appsv1.Deployment
+
+	if res := a.k8sClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
+		_, err := res.Get()
+
+		condition.Status = metav1.ConditionUnknown
+		condition.Reason = "K8sSensorDeploymentInfoUnavailable"
+		//goland:noinspection GoNilness
+		msg := fmt.Sprintf(
+			"failed to retrieve status of K8sSensor Deployment: %s due to error: %s",
+			a.k8sSensorDeployment.Name,
+			err.Error(),
+		)
+		truncatedMsg := truncateMessage(msg)
+		condition.Message = truncatedMsg
+
+		return result.Of(condition, err)
+	}
+
+	switch deploymentIsAvailableAndComplete(deployment) {
+	case true:
+		condition.Status = metav1.ConditionTrue
+		condition.Reason = "AllDesiredK8sSensorsAvailable"
+		condition.Message = "All desired K8sSensors are available and using up-to-date configuration"
+	default:
+		condition.Status = metav1.ConditionFalse
+		condition.Reason = "NotAllDesiredK8sSensorsAvailable"
+		condition.Message = "Not all desired K8sSensors are available or some K8sSensors are not using up-to-date configuration"
+	}
+
+	return result.OfSuccess(condition)
+}
+
 func (a *agentStatusManager) agentWithUpdatedStatus(
 	ctx context.Context,
 	reconcileErr error,
@@ -285,6 +383,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	a.setConditionAndFireEvent(agentNew, a.getReconcileSucceededCondition(reconcileErr))
 	allAgentsAvailableCondition, _ := a.getAllAgentsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
 	a.setConditionAndFireEvent(agentNew, allAgentsAvailableCondition)
+	allK8sSensorsAvailableCondition, _ := a.getAllK8sSensorsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
+	a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
 
 	return result.Of(agentNew, errBuilder.Build())
 }
