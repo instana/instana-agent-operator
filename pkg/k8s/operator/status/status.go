@@ -200,11 +200,13 @@ func (a *agentStatusManager) getAllAgentsReadyCondition(ctx context.Context) res
 			condition.Status = metav1.ConditionUnknown
 			condition.Reason = "AgentDaemonsetInfoUnavailable"
 			//goland:noinspection GoNilness
-			condition.Message = fmt.Sprintf(
+			msg := fmt.Sprintf(
 				"failed to retrieve status of Agent Daemonset: %s due to error: %s",
 				key.Name,
 				err.Error(),
 			)
+			truncatedMsg := truncateMessage(msg)
+			condition.Message = truncatedMsg
 
 			return result.Of(condition, err)
 		}
@@ -275,8 +277,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 					env.GetOperatorVersion(),
 				)
 			},
-		).
-		OnFailure(errBuilder.AddSingle)
+		)
 
 	// Handle Conditions
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
