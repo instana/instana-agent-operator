@@ -21,9 +21,9 @@ func AsCaughtPanic(err error) bool {
 }
 
 func Catch(err *error) {
-	errBuilder := multierror.NewMultiErrorBuilder(*err)
-
 	if p := recover(); p != nil {
+		errBuilder := multierror.NewMultiErrorBuilder(*err)
+
 		verb := func() string {
 			switch p.(type) {
 			case error:
