@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+
+	"github.com/instana/instana-agent-operator/pkg/multierror"
 )
 
 type caughtPanic struct {
@@ -19,6 +21,8 @@ func AsCaughtPanic(err error) bool {
 }
 
 func Catch(err *error) {
+	errBuilder := multierror.NewMultiErrorBuilder(*err)
+
 	if p := recover(); p != nil {
 		verb := func() string {
 			switch p.(type) {
@@ -28,10 +32,11 @@ func Catch(err *error) {
 				return "%v"
 			}
 		}()
-		*err = func() error {
-			return caughtPanic{
-				error: fmt.Errorf("caught panic: "+verb+"\n%s", p, debug.Stack()),
-			}
-		}()
+
+		errBuilder.AddSingle(fmt.Errorf("caught panic: "+verb+"\n%s", p, debug.Stack()))
+
+		*err = caughtPanic{
+			error: errBuilder.Build(),
+		}
 	}
 }

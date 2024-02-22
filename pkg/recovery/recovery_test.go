@@ -45,4 +45,29 @@ func TestCatch(t *testing.T) {
 			t.Log(actual.Error())
 		},
 	)
+	t.Run(
+		"catch_from_defer", func(t *testing.T) {
+			assertions := require.New(t)
+
+			expectedReturn := errors.New("I will be returned")
+			expectedPanic := errors.New("I will be thrown in panic")
+
+			actual := func() (err error) {
+				defer Catch(&err)
+
+				defer func() {
+					panic(expectedPanic)
+				}()
+
+				return expectedReturn
+			}()
+
+			assertions.ErrorAs(actual, &caughtPanic{})
+			assertions.True(AsCaughtPanic(actual))
+			assertions.ErrorIs(actual, expectedReturn)
+			assertions.ErrorIs(actual, expectedPanic)
+
+			t.Log(actual.Error())
+		},
+	)
 }
