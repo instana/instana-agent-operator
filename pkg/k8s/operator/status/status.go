@@ -26,9 +26,9 @@ import (
 
 // Conditions
 const (
-	ConditionTypeReconcileSucceeded = "ReconcileSucceeded"
-	ConditionTypeAllAgentsReady     = "AllAgentsReady"
-	CondtionTypeAllK8sSensorsReady  = "AllK8sSensorsReady"
+	ConditionTypeReconcileSucceeded    = "ReconcileSucceeded"
+	ConditionTypeAllAgentsAvailable    = "AllAgentsAvailable"
+	CondtionTypeAllK8sSensorsAvailable = "AllK8sSensorsAvailable"
 )
 
 func NewAgentStatusManager(k8sClient client.Client, eventRecorder record.EventRecorder) AgentStatusManager {
@@ -179,9 +179,9 @@ func daemonsetIsAvailable(ds appsv1.DaemonSet) bool {
 	}
 }
 
-func (a *agentStatusManager) getAllAgentsReadyCondition(ctx context.Context) result.Result[metav1.Condition] {
+func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
-		Type:               ConditionTypeAllAgentsReady,
+		Type:               ConditionTypeAllAgentsAvailable,
 		Status:             "",
 		ObservedGeneration: a.agentOld.GetGeneration(),
 		Reason:             "",
@@ -217,12 +217,12 @@ func (a *agentStatusManager) getAllAgentsReadyCondition(ctx context.Context) res
 	switch list.NewConditions(dameonsets).All(daemonsetIsAvailable) {
 	case true:
 		condition.Status = metav1.ConditionTrue
-		condition.Reason = "AllDesiredAgentsRunning"
-		condition.Message = "All desired Instana Agents are running and using up-to-date configuration"
+		condition.Reason = "AllDesiredAgentsAvailable"
+		condition.Message = "All desired Instana Agents are available and using up-to-date configuration"
 	default:
 		condition.Status = metav1.ConditionFalse
-		condition.Reason = "NotAllDesiredAgentsRunning"
-		condition.Message = "Not all desired Instana agents are running or some Agents are not using up-to-date configuration"
+		condition.Reason = "NotAllDesiredAgentsAvailable"
+		condition.Message = "Not all desired Instana agents are available or some Agents are not using up-to-date configuration"
 	}
 
 	return result.OfSuccess(condition)
@@ -283,8 +283,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	// Handle Conditions
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
 	a.setConditionAndFireEvent(agentNew, a.getReconcileSucceededCondition(reconcileErr))
-	allAgentsReadyCondition, _ := a.getAllAgentsReadyCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
-	a.setConditionAndFireEvent(agentNew, allAgentsReadyCondition)
+	allAgentsAvailableCondition, _ := a.getAllAgentsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
+	a.setConditionAndFireEvent(agentNew, allAgentsAvailableCondition)
 
 	return result.Of(agentNew, errBuilder.Build())
 }
