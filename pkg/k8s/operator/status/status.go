@@ -20,6 +20,7 @@ import (
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/recovery"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
@@ -288,7 +289,9 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	return result.Of(agentNew, errBuilder.Build())
 }
 
-func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) error {
+func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
+	defer recovery.Catch(&finalErr)
+
 	errBuilder := multierror.NewMultiErrorBuilder()
 
 	agentNew, _ := a.agentWithUpdatedStatus(ctx, reconcileErr).OnFailure(errBuilder.AddSingle).Get()
