@@ -41,6 +41,7 @@ func NewAgentStatusManager(k8sClient client.Client, eventRecorder record.EventRe
 
 type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
+	SetAgentOld(agent *instanav1.InstanaAgent)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
 	SetAgentConfigMap(agentConfigMap client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
@@ -391,6 +392,10 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
 	defer recovery.Catch(&finalErr)
+
+	if a.agentOld == nil {
+		return nil
+	}
 
 	errBuilder := multierror.NewMultiErrorBuilder()
 

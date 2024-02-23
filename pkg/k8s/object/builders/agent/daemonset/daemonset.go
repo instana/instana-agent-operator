@@ -18,6 +18,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -28,6 +29,7 @@ const (
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
+	statusManager status.AgentStatusManager
 
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
@@ -215,7 +217,15 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 	}
 }
 
-func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
+func (d *daemonSetBuilder) Build() (res optional.Optional[client.Object]) {
+	defer func() {
+		res.IfPresent(
+			func(ds client.Object) {
+				d.statusManager.AddAgentDaemonset(client.ObjectKeyFromObject(ds))
+			},
+		)
+	}()
+
 	switch {
 	case d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "":
 		fallthrough
@@ -231,17 +241,20 @@ func (d *daemonSetBuilder) Build() optional.Optional[client.Object] {
 func NewDaemonSetBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenshift bool,
+	statusManager status.AgentStatusManager,
 ) builder.ObjectBuilder {
-	return NewDaemonSetBuilderWithZoneInfo(agent, isOpenshift, nil)
+	return NewDaemonSetBuilderWithZoneInfo(agent, isOpenshift, statusManager, nil)
 }
 
 func NewDaemonSetBuilderWithZoneInfo(
 	agent *instanav1.InstanaAgent,
 	isOpenshift bool,
+	statusManager status.AgentStatusManager,
 	zone *instanav1.Zone,
 ) builder.ObjectBuilder {
 	return &daemonSetBuilder{
-		InstanaAgent: agent,
+		InstanaAgent:  agent,
+		statusManager: statusManager,
 
 		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(agent, componentName, zone),
 		JsonHasher:                hash.NewJsonHasher(),

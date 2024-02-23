@@ -19,18 +19,26 @@ import (
 	k8ssensorrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/rbac"
 	k8ssensorserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/serviceaccount"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 )
 
-func getDaemonSetBuilders(agent *instanav1.InstanaAgent, isOpenShift bool) []builder.ObjectBuilder {
+func getDaemonSetBuilders(
+	agent *instanav1.InstanaAgent,
+	isOpenShift bool,
+	statusManager status.AgentStatusManager,
+) []builder.ObjectBuilder {
 	if len(agent.Spec.Zones) == 0 {
-		return []builder.ObjectBuilder{agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift)}
+		return []builder.ObjectBuilder{agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift, statusManager)}
 	}
 
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
 
 	for _, zone := range agent.Spec.Zones {
 		zone := zone
-		builders = append(builders, agentdaemonset.NewDaemonSetBuilderWithZoneInfo(agent, isOpenShift, &zone))
+		builders = append(
+			builders,
+			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(agent, isOpenShift, statusManager, &zone),
+		)
 	}
 
 	return builders
@@ -41,13 +49,14 @@ func (r *InstanaAgentReconciler) applyResources(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	operatorUtils operator_utils.OperatorUtils,
+	statusManager status.AgentStatusManager,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
 
 	builders := append(
-		getDaemonSetBuilders(agent, isOpenShift),
-		agentconfigmap.NewConfigMapBuilder(agent),
+		getDaemonSetBuilders(agent, isOpenShift, statusManager),
+		agentconfigmap.NewConfigMapBuilder(agent, statusManager),
 		headlessservice.NewHeadlessServiceBuilder(agent),
 		containersinstanaiosecret.NewSecretBuilder(agent),
 		keyssecret.NewSecretBuilder(agent),
@@ -55,7 +64,7 @@ func (r *InstanaAgentReconciler) applyResources(
 		service.NewServiceBuilder(agent),
 		agentserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorconfigmap.NewConfigMapBuilder(agent),
-		k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift),
+		k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager),
 		k8ssensorpoddisruptionbudget.NewPodDisruptionBudgetBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),

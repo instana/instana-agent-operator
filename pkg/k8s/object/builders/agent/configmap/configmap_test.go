@@ -3,6 +3,7 @@ package configmap
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,48 +16,52 @@ import (
 
 func TestAgentConfigMapBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
 
-	builder := NewConfigMapBuilder(
-		&instanav1.InstanaAgent{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "llsdfoije",
-				Namespace: "glkdsoijeijsd",
+	agentCm := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "llsdfoije",
+			Namespace: "glkdsoijeijsd",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Cluster: instanav1.Name{
+				Name: "eoisdgoijds",
 			},
-			Spec: instanav1.InstanaAgentSpec{
-				Cluster: instanav1.Name{
-					Name: "eoisdgoijds",
-				},
-				Agent: instanav1.BaseAgentSpec{
-					ConfigurationYaml: "riosoidoijdsg",
-					ProxyHost:         "weoisdoijsdg",
-					ProxyPort:         "lksdlkjsdglkjsd",
-					ProxyUser:         "peoijsadglkj",
-					ProxyPassword:     "relksdlkj",
-					ProxyUseDNS:       true,
-					AdditionalBackends: []instanav1.BackendSpec{
-						{
-							EndpointHost: "eoijsdlkjf",
-							EndpointPort: "goieoijsdofj",
-							Key:          "eoisdljsdlkfj",
-						},
-						{
-							EndpointHost: "glknsdlknmdsflk",
-							EndpointPort: "lgslkjsdfoieoiljsdf",
-							Key:          "sdlkjsadofjpoej",
-						},
+			Agent: instanav1.BaseAgentSpec{
+				ConfigurationYaml: "riosoidoijdsg",
+				ProxyHost:         "weoisdoijsdg",
+				ProxyPort:         "lksdlkjsdglkjsd",
+				ProxyUser:         "peoijsadglkj",
+				ProxyPassword:     "relksdlkj",
+				ProxyUseDNS:       true,
+				AdditionalBackends: []instanav1.BackendSpec{
+					{
+						EndpointHost: "eoijsdlkjf",
+						EndpointPort: "goieoijsdofj",
+						Key:          "eoisdljsdlkfj",
+					},
+					{
+						EndpointHost: "glknsdlknmdsflk",
+						EndpointPort: "lgslkjsdfoieoiljsdf",
+						Key:          "sdlkjsadofjpoej",
 					},
 				},
-				OpenTelemetry: instanav1.OpenTelemetry{
-					GRPC: &instanav1.Enabled{},
-				},
-				Prometheus: instanav1.Prometheus{
-					RemoteWrite: instanav1.Enabled{
-						Enabled: pointer.To(true),
-					},
+			},
+			OpenTelemetry: instanav1.OpenTelemetry{
+				GRPC: &instanav1.Enabled{},
+			},
+			Prometheus: instanav1.Prometheus{
+				RemoteWrite: instanav1.Enabled{
+					Enabled: pointer.To(true),
 				},
 			},
 		},
-	)
+	}
+
+	statusManager := NewMockAgentStatusManager(ctrl)
+	statusManager.EXPECT().SetAgentConfigMap(gomock.Eq(client.ObjectKeyFromObject(agentCm)))
+
+	builder := NewConfigMapBuilder(agentCm, statusManager)
 
 	actual := builder.Build()
 

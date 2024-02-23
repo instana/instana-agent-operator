@@ -27,6 +27,8 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
+	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
@@ -218,11 +220,17 @@ func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1
 	)
 }
 
-func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request) reconcileReturn {
+func (r *InstanaAgentReconciler) reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+	statusManager status.AgentStatusManager,
+) reconcileReturn {
 	agent, getAgentRes := r.getAgent(ctx, req)
 	if getAgentRes.suppliesReconcileResult() {
 		return getAgentRes
 	}
+
+	statusManager.SetAgentOld(agent)
 
 	log := r.loggerFor(ctx, agent)
 	ctx = logr.NewContext(ctx, log)
@@ -250,13 +258,14 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		agent,
 		isOpenShift,
 		operatorUtils,
+		statusManager,
 	); applyResourcesRes.suppliesReconcileResult() {
 		return applyResourcesRes
 	}
 
 	log.Info("successfully finished reconcile on agent CR")
 
-	return reconcileSuccess(ctrl.Result{}) // TODO: May or may not want to go again after some time for status updates
+	return reconcileSuccess(ctrl.Result{})
 }
 
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent,verbs=get;list;watch;create;update;patch;delete
@@ -264,8 +273,19 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 // +kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=agents.instana.io,resources=instanaagent/finalizers,verbs=update
-func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	defer recovery.Catch(&err)
+func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
+	res ctrl.Result,
+	reconcileErr error,
+) {
+	defer recovery.Catch(&reconcileErr)
 
-	return r.reconcile(ctx, req).reconcileResult()
+	statusManager := status.NewAgentStatusManager(r.client, r.recorder)
+	defer func() {
+		if err := statusManager.UpdateAgentStatus(ctx, reconcileErr); err != nil {
+			errBuilder := multierror.NewMultiErrorBuilder(reconcileErr, err)
+			reconcileErr = errBuilder.Build()
+		}
+	}()
+
+	return r.reconcile(ctx, req, statusManager).reconcileResult()
 }

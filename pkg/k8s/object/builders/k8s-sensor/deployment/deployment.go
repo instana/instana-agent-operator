@@ -14,6 +14,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -22,6 +23,7 @@ const componentName = constants.ComponentK8Sensor
 
 type deploymentBuilder struct {
 	*instanav1.InstanaAgent
+	statusManager status.AgentStatusManager
 
 	helpers.Helpers
 	transformations.PodSelectorLabelGenerator
@@ -132,7 +134,15 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 	}
 }
 
-func (d *deploymentBuilder) Build() optional.Optional[client.Object] {
+func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
+	defer func() {
+		res.IfPresent(
+			func(dpl client.Object) {
+				d.statusManager.SetK8sSensorDeployment(client.ObjectKeyFromObject(dpl))
+			},
+		)
+	}()
+
 	switch (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") {
 	case true:
 		return optional.Empty[client.Object]()
@@ -141,9 +151,14 @@ func (d *deploymentBuilder) Build() optional.Optional[client.Object] {
 	}
 }
 
-func NewDeploymentBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) builder.ObjectBuilder {
+func NewDeploymentBuilder(
+	agent *instanav1.InstanaAgent,
+	isOpenShift bool,
+	statusManager status.AgentStatusManager,
+) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
+		statusManager:             statusManager,
 		Helpers:                   helpers.NewHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		EnvBuilder:                env.NewEnvBuilder(agent),

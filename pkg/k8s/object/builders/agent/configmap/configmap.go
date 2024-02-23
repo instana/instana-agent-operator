@@ -12,6 +12,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/or_die"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -19,6 +20,7 @@ import (
 
 type configMapBuilder struct {
 	*instanav1.InstanaAgent
+	statusManager status.AgentStatusManager
 }
 
 func (c *configMapBuilder) ComponentName() string {
@@ -133,7 +135,15 @@ func (c *configMapBuilder) getData() map[string]string {
 
 }
 
-func (c *configMapBuilder) Build() optional.Optional[client.Object] {
+func (c *configMapBuilder) Build() (res optional.Optional[client.Object]) {
+	defer func() {
+		res.IfPresent(
+			func(cm client.Object) {
+				c.statusManager.SetAgentConfigMap(client.ObjectKeyFromObject(cm))
+			},
+		)
+	}()
+
 	return optional.Of[client.Object](
 		&corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -149,8 +159,9 @@ func (c *configMapBuilder) Build() optional.Optional[client.Object] {
 	)
 }
 
-func NewConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+func NewConfigMapBuilder(agent *instanav1.InstanaAgent, statusManager status.AgentStatusManager) builder.ObjectBuilder {
 	return &configMapBuilder{
-		InstanaAgent: agent,
+		InstanaAgent:  agent,
+		statusManager: statusManager,
 	}
 }
