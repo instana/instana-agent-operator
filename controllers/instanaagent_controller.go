@@ -43,7 +43,7 @@ func Add(mgr manager.Manager) error {
 		mgr, NewInstanaAgentReconciler(
 			mgr.GetClient(),
 			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("agent.controller"),
+			mgr.GetEventRecorderFor("agent-controller"),
 		),
 	)
 }
@@ -276,6 +276,9 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	reconcileErr error,
 ) {
 	defer recovery.Catch(&reconcileErr)
+
+	logger := logf.FromContext(ctx).WithName("agent-controller")
+	ctx = logf.IntoContext(ctx, logger)
 
 	statusManager := status.NewAgentStatusManager(r.client, r.recorder)
 	defer func() {
