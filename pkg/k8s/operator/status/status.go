@@ -77,9 +77,9 @@ func (a *agentStatusManager) SetAgentConfigMap(agentConfigMap client.ObjectKey) 
 func getAgentPhase(reconcileErr error) instanav1.AgentOperatorState {
 	switch reconcileErr {
 	case nil:
-		return instanav1.OperatorStateFailed
-	default:
 		return instanav1.OperatorStateRunning
+	default:
+		return instanav1.OperatorStateFailed
 	}
 }
 
