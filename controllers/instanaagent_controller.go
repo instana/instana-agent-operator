@@ -151,7 +151,7 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 ) {
 	var agent instanav1.InstanaAgent
 
-	log := logf.FromContext(ctx).WithValues("Request", req)
+	log := logf.FromContext(ctx)
 
 	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
 	case k8serrors.IsNotFound(err):
@@ -211,12 +211,10 @@ func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils 
 
 func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {
 	return logf.FromContext(ctx).WithValues(
-		"Name",
-		agent.Name,
-		"Namespace",
-		agent.Namespace,
 		"Generation",
 		agent.Generation,
+		"UID",
+		agent.UID,
 	)
 }
 
