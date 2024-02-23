@@ -167,6 +167,8 @@ func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) 
 
 func daemonsetIsAvailable(ds appsv1.DaemonSet) bool {
 	switch status := ds.Status; {
+	case optional.Of(status).IsEmpty():
+		return false
 	case ds.Generation != status.ObservedGeneration:
 		return false
 	case status.NumberMisscheduled != 0:
