@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/recovery"
@@ -43,7 +42,6 @@ func Add(mgr manager.Manager) error {
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("agent.controller"),
-			logf.Log.WithName("agent.controller"),
 		),
 	)
 }
@@ -131,21 +129,18 @@ func NewInstanaAgentReconciler(
 	client client.Client,
 	scheme *runtime.Scheme,
 	recorder record.EventRecorder,
-	log logr.Logger,
 ) *InstanaAgentReconciler {
 	return &InstanaAgentReconciler{
-		client:       instanaclient.NewClient(client),
-		recorder:     recorder,
-		log:          log,
-		chartRemover: helm.NewHelmReconciliation(scheme, log),
+		client:   instanaclient.NewClient(client),
+		recorder: recorder,
+		scheme:   scheme,
 	}
 }
 
 type InstanaAgentReconciler struct {
-	client       instanaclient.InstanaAgentClient
-	recorder     record.EventRecorder
-	log          logr.Logger
-	chartRemover helm.DeprecatedInternalChartUninstaller
+	client   instanaclient.InstanaAgentClient
+	recorder record.EventRecorder
+	scheme   *runtime.Scheme
 }
 
 func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request) (
@@ -154,7 +149,7 @@ func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request)
 ) {
 	var agent instanav1.InstanaAgent
 
-	log := r.log.WithValues("Request", req)
+	log := logf.FromContext(ctx).WithValues("Request", req)
 
 	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
 	case k8serrors.IsNotFound(err):
@@ -174,7 +169,7 @@ func (r *InstanaAgentReconciler) updateAgent(
 	agentOld *instanav1.InstanaAgent,
 	agentNew *instanav1.InstanaAgent,
 ) reconcileReturn {
-	log := r.loggerFor(agentNew)
+	log := r.loggerFor(ctx, agentNew)
 
 	switch err := r.client.Patch(
 		ctx,
@@ -193,22 +188,34 @@ func (r *InstanaAgentReconciler) updateAgent(
 	}
 }
 
-func (r *InstanaAgentReconciler) isOpenShift(operatorUtils operator_utils.OperatorUtils) (bool, reconcileReturn) {
+func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils operator_utils.OperatorUtils) (
+	bool,
+	reconcileReturn,
+) {
+	log := logf.FromContext(ctx)
+
 	isOpenShiftRes := operatorUtils.ClusterIsOpenShift()
 	answer, err := isOpenShiftRes.Get()
 
 	switch isOpenShiftRes.IsSuccess() {
 	case true:
-		r.log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", answer)
+		log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", answer)
 		return answer, reconcileContinue()
 	default:
-		r.log.Error(err, "failed to determine if cluster is OpenShift")
+		log.Error(err, "failed to determine if cluster is OpenShift")
 		return false, reconcileFailure(err)
 	}
 }
 
-func (r *InstanaAgentReconciler) loggerFor(agent *instanav1.InstanaAgent) logr.Logger {
-	return r.log.WithValues("Name", agent.Name, "Namespace", agent.Namespace, "Generation", agent.Generation)
+func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {
+	return logf.FromContext(ctx).WithValues(
+		"Name",
+		agent.Name,
+		"Namespace",
+		agent.Namespace,
+		"Generation",
+		agent.Generation,
+	)
 }
 
 func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request) reconcileReturn {
@@ -217,7 +224,7 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return getAgentRes
 	}
 
-	log := r.loggerFor(agent)
+	log := r.loggerFor(ctx, agent)
 	ctx = logr.NewContext(ctx, log)
 	log.Info("reconciling Agent CR")
 
@@ -233,12 +240,13 @@ func (r *InstanaAgentReconciler) reconcile(ctx context.Context, req ctrl.Request
 		return addFinalizerRes
 	}
 
-	isOpenShift, isOpenShiftRes := r.isOpenShift(operatorUtils)
+	isOpenShift, isOpenShiftRes := r.isOpenShift(ctx, operatorUtils)
 	if isOpenShiftRes.suppliesReconcileResult() {
 		return isOpenShiftRes
 	}
 
 	if applyResourcesRes := r.applyResources(
+		ctx,
 		agent,
 		isOpenShift,
 		operatorUtils,

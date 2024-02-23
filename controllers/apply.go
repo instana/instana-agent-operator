@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"context"
+
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	agentconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
@@ -35,11 +37,12 @@ func getDaemonSetBuilders(agent *instanav1.InstanaAgent, isOpenShift bool) []bui
 }
 
 func (r *InstanaAgentReconciler) applyResources(
+	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	operatorUtils operator_utils.OperatorUtils,
 ) reconcileReturn {
-	log := r.loggerFor(agent)
+	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
 
 	builders := append(
