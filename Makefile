@@ -156,7 +156,7 @@ ifneq ($(shell test -f $(OPERATOR_SDK) && echo -n yes),yes)
 OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
 endif
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
-	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0,operator-sdk_$${OS}_$${ARCH})
+	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.33.0,operator-sdk_$${OS}_$${ARCH})
 
 
 # go-install-tool will 'go get' any package $2 and install it to $1.

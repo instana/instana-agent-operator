@@ -32,8 +32,9 @@ metadata:
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
     containerImage: icr.io/instana/instana-agent-operator:latest
+    createdAt: "2024-02-24T19:58:26Z"
     description: Fully automated Application Performance Monitoring (APM) for microservices.
-    operators.operatorframework.io/builder: operator-sdk-v1.15.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
@@ -254,7 +255,9 @@ spec:
           - watch
         serviceAccountName: instana-agent-operator
       deployments:
-      - name: instana-agent-operator
+      - label:
+          app.kubernetes.io/name: instana-agent-operator
+        name: instana-agent-operator
         spec:
           replicas: 2
           selector:
@@ -332,10 +335,5 @@ spec:
   minKubeVersion: 1.11.0
   provider:
     name: Instana
-  relatedImages:
-  - image: icr.io/instana/instana-agent-operator:latest
-    name: instana-agent-operator
-  - image: icr.io/instana/agent:latest
-    name: instana-agent
   replaces: instana-agent-operator.v0.0.0
   version: 0.0.1
