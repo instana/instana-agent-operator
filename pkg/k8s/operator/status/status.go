@@ -290,17 +290,17 @@ func deploymentIsAvailableAndComplete(dpl appsv1.Deployment) bool {
 	}
 }
 
-func updateWasPerformed(agentNew *instanav1.InstanaAgent) bool {
+func (a *agentStatusManager) updateWasPerformed() bool {
 	switch operatorVersion, _ := semver.NewVersion(env.GetOperatorVersion()); {
-	case agentNew.Status.ObservedGeneration == nil:
+	case a.agentOld.Status.ObservedGeneration == nil:
 		return false
-	case *agentNew.Status.ObservedGeneration != agentNew.Generation:
+	case *a.agentOld.Status.ObservedGeneration != a.agentOld.Generation:
 		return true
-	case agentNew.Status.OperatorVersion == nil:
+	case a.agentOld.Status.OperatorVersion == nil:
 		return false
 	case operatorVersion == nil:
 		return false
-	case !agentNew.Status.OperatorVersion.Version.Equal(operatorVersion):
+	case !a.agentOld.Status.OperatorVersion.Version.Equal(operatorVersion):
 		return true
 	default:
 		return false
@@ -380,7 +380,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 		).
 		OnFailure(errBuilder.AddSingle)
 
-	if updateWasPerformed(agentNew) {
+	if a.updateWasPerformed() {
 		agentNew.Status.OldVersionsUpdated = true
 	}
 
