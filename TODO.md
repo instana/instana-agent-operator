@@ -1,42 +1,14 @@
 ## Next Steps
 
+### Re-Add Leader Election
+
+Some form of leader election may need to be re-enabled since the k8s-sensor does not appear to support internal leader
+election yet.
+
 ### Misconfiguration Errors
 
 If the user misconfigures the agent then appropriate messages should be displayed in the logs, events, status, or
 directly returned as errors via webhook.
-
-### Agent Mode
-
-.spec.agent.mode needs to be set to KUBERNETES by default and should disallow (or at least warn against) any modes
-that use the deprecated version of the k8s-sensor that runs within the agent.
-
-**Edit:** Need to determine how to properly configure the k8s sensor since the
-current configuration does not seem to be correct.
-
-### Multi-Zone Support
-
-Options for deployment across multiple zones should be enabled. We will need to determine what steps need to be taken to
-support this configuration when using the k8s_sensor.
-
-### PodSecurityPolicy
-
-The PodSecurityPolicy may need to be constructed and deployed in certain cases still. It has been removed from all
-currently supported versions of vanilla k8s except v1.24 which will reach EOL on 28 Jul 2023, but is still included in
-OCP 4.10 and 4.11, though it is deprecated in these versions and typically OpenShift's SecurityContextConstraint
-resource is used in place of PodSecurityPolicy in OCP.
-
-### Logging and Events
-
-Additional logging needs to be added to the new operator code to log successful operations as they occur. In some cases
-we may also wish to produce [events](https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/)
-into k8s for our agent CR.
-
-### Status
-
-Code should be added to populate the agent status field to replicate the status fields tracked by the previous version
-of the operator. This should be done in a "defer" to ensure status will always be updated in the event of an error
-during deployment. In the future we may wish to deprecate existing status fields and replace them with more
-[standardized](https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition) status fields.
 
 ### Testing
 
@@ -62,12 +34,6 @@ The operator build should run all unit tests, behavioral tests, and [static code
 settings should be reviewed and configured. It may also be useful to have PR builds that will automatically regenerate
 manifests and bundle YAMLs and commit the changes to the source branch as well as running the same tests and linting as
 release branches.
-
-### Operator Naming Convention
-
-The "controller-manager" naming convention should be replaced by something unique (ie instana-agent-operator) to ensure
-that it is clear which resources belong to us and to ensure there are no conflicts with other operators since
-"controller-manager" is the default value that is generated when operator projects are initialized.
 
 ### Chart Update
 

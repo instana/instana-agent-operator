@@ -356,9 +356,9 @@ spec:
           - get
           - list
           - watch
-        serviceAccountName: controller-manager
+        serviceAccountName: instana-agent-operator
       deployments:
-      - name: controller-manager
+      - name: instana-agent-operator
         spec:
           replicas: 2
           selector:
@@ -416,7 +416,7 @@ spec:
                     memory: 200Mi
                 securityContext:
                   allowPrivilegeEscalation: true
-              serviceAccountName: controller-manager
+              serviceAccountName: instana-agent-operator
               terminationGracePeriodSeconds: 10
     strategy: deployment
   installModes:

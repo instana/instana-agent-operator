@@ -8,7 +8,7 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: instana-agent-operator
   namespace: system
   labels:
     app.kubernetes.io/name: instana-agent-operator
@@ -68,5 +68,5 @@ spec:
           requests:
             cpu: 200m
             memory: 200Mi
-      serviceAccountName: controller-manager
+      serviceAccountName: instana-agent-operator
       terminationGracePeriodSeconds: 10
