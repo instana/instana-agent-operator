@@ -122,7 +122,7 @@ type DeprecatedInstanaAgentStatus struct {
 // +kubebuilder:validation:Pattern=`^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`
 
 type SemanticVersion struct {
-	semver.Version `json:"-"`
+	*semver.Version `json:"-"`
 }
 
 type InstanaAgentStatus struct {
@@ -133,7 +133,7 @@ type InstanaAgentStatus struct {
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// +kubebuilder:validation:Minimum=0
-	ObservedGeneration int64           `json:"observedGeneration,omitempty"`
+	ObservedGeneration *int64          `json:"observedGeneration,omitempty"`
 	OperatorVersion    SemanticVersion `json:"operatorVersion,omitempty"`
 }
 
