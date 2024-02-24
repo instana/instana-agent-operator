@@ -63,7 +63,9 @@ func (a *agentStatusManager) SetAgentOld(agent *instanav1.InstanaAgent) {
 }
 
 func (a *agentStatusManager) AddAgentDaemonset(agentDaemonset client.ObjectKey) {
-	a.agentDaemonsets = append(a.agentDaemonsets, agentDaemonset)
+	if !list.NewContainsElementChecker(a.agentDaemonsets).Contains(agentDaemonset) {
+		a.agentDaemonsets = append(a.agentDaemonsets, agentDaemonset)
+	}
 }
 
 func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey) {
