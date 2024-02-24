@@ -71,12 +71,8 @@ help: ## Display this help.
 setup: ## Basic project setup, e.g. installing GitHook for checking license headers
 	cd .git/hooks && ln -fs ../../.githooks/* .
 
-
-##@ Development
-PYTHON3=python3
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	$(PYTHON3) ./hack/customize_crds.py
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
