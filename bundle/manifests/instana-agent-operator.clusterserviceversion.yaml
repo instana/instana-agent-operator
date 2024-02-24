@@ -178,9 +178,9 @@ spec:
           - create
           - patch
         - apiGroups:
-          - instana.io
+          - agents.instana.io
           resources:
-          - agents
+          - instanaagent
           verbs:
           - create
           - delete
@@ -190,171 +190,67 @@ spec:
           - update
           - watch
         - apiGroups:
-          - instana.io
+          - agents.instana.io
           resources:
-          - agents/finalizers
+          - instanaagent/finalizers
           verbs:
           - update
         - apiGroups:
-          - instana.io
+          - agents.instana.io
           resources:
-          - agents/status
+          - instanaagent/status
           verbs:
           - get
           - patch
           - update
         - apiGroups:
-          - ""
-          - extensions
-          - apps
-          - rbac.authorization.k8s.io
-          resources:
-          - serviceaccounts
-          - clusterroles
-          - clusterrolebindings
-          - secrets
-          - configmaps
-          - daemonsets
-          - namespaces
-          - services
-          - deployments
-          - nodes/stats
-          - nodes/metrics
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
           - apiextensions.k8s.io
           resources:
-          - pods
           - customresourcedefinitions
           verbs:
           - get
           - list
           - watch
         - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-        - nonResourceURLs:
-          - /version
-          - /healthz
-          - /metrics
-          - /stats/summary
-          - /metrics/cadvisor
-          verbs:
-          - get
-        - apiGroups:
-          - ""
-          resources:
-          - componentstatuses
-          - endpoints
-          - events
-          - namespaces
-          - nodes
-          - pods
-          - replicationcontrollers
-          - resourcequotas
-          - services
-          - persistentvolumes
-          - persistentvolumeclaims
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - endpoints
-          verbs:
-          - create
-          - update
-          - patch
-        - apiGroups:
           - apps
           resources:
-          - deployments
-          - replicasets
           - daemonsets
-          - statefulsets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - batch
-          resources:
-          - jobs
-          - cronjobs
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - extensions
-          resources:
           - deployments
-          - ingresses
-          - replicasets
           verbs:
+          - create
+          - delete
           - get
           - list
-          - watch
-        - apiGroups:
-          - networking.k8s.io
-          resources:
-          - ingresses
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - apps.openshift.io
-          resources:
-          - deploymentconfigs
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - use
-        - apiGroups:
-          - autoscaling/v1
-          resources:
-          - horizontalpodautoscalers
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - autoscaling/v2
-          resources:
-          - horizontalpodautoscalers
-          verbs:
-          - get
-          - list
+          - patch
+          - update
           - watch
         - apiGroups:
           - ""
           resources:
-          - pods/log
+          - configmaps
+          - secrets
+          - serviceaccounts
+          - services
           verbs:
+          - create
+          - delete
           - get
           - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          - clusterroles
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
           - watch
         serviceAccountName: instana-agent-operator
       deployments:

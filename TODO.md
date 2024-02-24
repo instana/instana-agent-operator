@@ -40,15 +40,6 @@ behavior, and they will run (and fail) much more quickly than the e2e tests. The
 unit testing coverage that should ideally be filled. There are also a few broken tests as a result of changes made
 after they were written that need to be fixed.
 
-### Operator Permissions
-
-The permissions required by the operator will need to be updated to include any new permissions required by the new
-version of the operator. Preferably these should be included as comments in
-[controllers/instanaagent_controller.go](./controllers/instanaagent_controller.go), so that the appropriate k8s
-manifests can be generated automatically. Additional needed permissions include get/list/watch access to
-CustomResourceDefinitions and create/update/patch/delete/get/list/watch for all types of resources directly owned by
-the agent that are not already included in the existing permission set.
-
 ### CI Updates
 
 The operator build should run all unit tests, behavioral tests, and [static code linting](.golangci.yml). Code linting
