@@ -300,7 +300,7 @@ func updateWasPerformed(agentNew *instanav1.InstanaAgent) bool {
 		return false
 	case operatorVersion == nil:
 		return false
-	case agentNew.Status.OperatorVersion.Version != *operatorVersion:
+	case !agentNew.Status.OperatorVersion.Version.Equal(operatorVersion):
 		return true
 	default:
 		return false
