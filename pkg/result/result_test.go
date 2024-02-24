@@ -177,7 +177,7 @@ func TestResult_ToOptional(t *testing.T) {
 				assertions := require.New(t)
 
 				rslt := Of(test.inputVal, test.inputErr)
-				assertions.Equal(test.expectEmpty, rslt.ToOptional().IsEmpty())
+				assertions.Equal(test.expectEmpty, rslt.ToOptional().IsNotPresent())
 			},
 		)
 	}

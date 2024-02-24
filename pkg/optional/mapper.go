@@ -21,7 +21,7 @@ func NewNonEmptyOptionalMapper[T any]() NonEmptyOptionalMapper[T] {
 func (o *nonEmptyOptionalMapper[T]) AllNonEmpty(in []Optional[T]) []T {
 	withoutEmpties := o.Filter(
 		in, func(val Optional[T]) bool {
-			return !val.IsEmpty()
+			return !val.IsNotPresent()
 		},
 	)
 

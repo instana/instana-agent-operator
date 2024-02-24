@@ -6,13 +6,13 @@ type optional[T any] struct {
 	val T
 }
 
-func (o *optional[T]) IsEmpty() bool {
+func (o *optional[T]) IsNotPresent() bool {
 	valueOf := reflect.ValueOf(o.val)
 	return !valueOf.IsValid() || valueOf.IsZero()
 }
 
-func (o *optional[T]) IsNotEmpty() bool {
-	return !o.IsEmpty()
+func (o *optional[T]) IsPresent() bool {
+	return !o.IsNotPresent()
 }
 
 func (o *optional[T]) Get() T {
@@ -28,7 +28,7 @@ func (o *optional[T]) GetOrDefault(val T) T {
 }
 
 func (o *optional[T]) GetOrElse(f func() T) T {
-	switch o.IsEmpty() {
+	switch o.IsNotPresent() {
 	case true:
 		return f()
 	default:
@@ -37,14 +37,14 @@ func (o *optional[T]) GetOrElse(f func() T) T {
 }
 
 func (o *optional[T]) IfPresent(do func(val T)) {
-	if o.IsNotEmpty() {
+	if o.IsPresent() {
 		do(o.Get())
 	}
 }
 
 type Optional[T any] interface {
-	IsEmpty() bool
-	IsNotEmpty() bool
+	IsNotPresent() bool
+	IsPresent() bool
 	Get() T
 	GetOrDefault(val T) T
 	GetOrElse(func() T) T
@@ -62,7 +62,7 @@ func Of[T any](val T) Optional[T] {
 }
 
 func Map[T any, U any](in Optional[T], transform func(in T) U) Optional[U] {
-	switch in.IsEmpty() {
+	switch in.IsNotPresent() {
 	case true:
 		return Empty[U]()
 	default:

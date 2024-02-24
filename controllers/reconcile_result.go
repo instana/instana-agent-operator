@@ -12,7 +12,7 @@ type reconcileReturn struct {
 }
 
 func (r reconcileReturn) suppliesReconcileResult() bool {
-	return r.res.IsNotEmpty()
+	return r.res.IsPresent()
 }
 
 func (r reconcileReturn) reconcileResult() (ctrl.Result, error) {

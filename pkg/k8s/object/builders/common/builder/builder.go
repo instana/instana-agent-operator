@@ -25,7 +25,7 @@ type builderTransformer struct {
 }
 
 func (b *builderTransformer) Apply(builder ObjectBuilder) optional.Optional[client.Object] {
-	switch opt := builder.Build(); opt.IsNotEmpty() {
+	switch opt := builder.Build(); opt.IsPresent() {
 	case true:
 		obj := opt.Get()
 		b.AddCommonLabels(obj, builder.ComponentName())
