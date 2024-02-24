@@ -133,7 +133,7 @@ type InstanaAgentStatus struct {
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// +kubebuilder:validation:Minimum=0
-	ObservedGeneration int64           `json:"generation,omitempty"`
+	ObservedGeneration int64           `json:"observedGeneration,omitempty"`
 	OperatorVersion    SemanticVersion `json:"operatorVersion,omitempty"`
 }
 

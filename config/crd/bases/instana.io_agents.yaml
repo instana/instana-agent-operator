@@ -4559,10 +4559,6 @@ spec:
                 - name
                 - uid
                 type: object
-              generation:
-                format: int64
-                minimum: 0
-                type: integer
               lastUpdate:
                 format: date-time
                 type: string
@@ -4579,6 +4575,10 @@ spec:
                   - uid
                   type: object
                 type: object
+              observedGeneration:
+                format: int64
+                minimum: 0
+                type: integer
               oldVersionsUpdated:
                 type: boolean
               operatorVersion:

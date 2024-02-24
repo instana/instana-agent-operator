@@ -17,13 +17,13 @@ metadata:
               "endpointHost": "ingress-red-saas.instana.io",
               "endpointPort": "443",
               "env": {},
-              "key": "replace-key"
+              "key": "***REMOVED***"
             },
             "cluster": {
-              "name": "my-cluster"
+              "name": "zachr-kind-laptop"
             },
             "zone": {
-              "name": "edited-zone"
+              "name": "zachr"
             }
           }
         }
