@@ -289,6 +289,17 @@ func deploymentIsAvailableAndComplete(dpl appsv1.Deployment) bool {
 	}
 }
 
+func updateWasPerformed(agentNew *instanav1.InstanaAgent) bool {
+	switch operatorVersion, _ := semver.NewVersion(env.GetOperatorVersion()); {
+	case agentNew.Status.ObservedGeneration != agentNew.Generation:
+		return true
+	case operatorVersion != nil && agentNew.Status.OperatorVersion.Version != *operatorVersion:
+		return true
+	default:
+		return false
+	}
+}
+
 func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               CondtionTypeAllK8sSensorsAvailable,
@@ -361,6 +372,10 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 			},
 		).
 		OnFailure(errBuilder.AddSingle)
+
+	if updateWasPerformed(agentNew) {
+		agentNew.Status.OldVersionsUpdated = true
+	}
 
 	// Handle New Status Fields
 
