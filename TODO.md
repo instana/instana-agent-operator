@@ -10,6 +10,27 @@ election yet.
 If the user misconfigures the agent then appropriate messages should be displayed in the logs, events, status, or
 directly returned as errors via webhook.
 
+#### CR Validation
+
+[Validation rules](https://kubernetes.io/blog/2022/09/23/crd-validation-rules-beta/) and schema-based
+[generation](https://book.kubebuilder.io/reference/markers/crd.html),
+[validation](https://book.kubebuilder.io/reference/markers/crd-validation.html), and
+[processing](https://book.kubebuilder.io/reference/markers/crd-processing.html) rules can be used to verify validity of
+user-provided configuration and provide useful feedback for troubleshooting.
+
+#### Webhook Validation
+
+[Defaulting and Validation Webhooks](https://book.kubebuilder.io/cronjob-tutorial/webhook-implementation) could be used
+for more advanced validation and to ensure defaulted values will appear on the CR present on the cluster without the
+need for updates to the CR by the controller that could cause performance issues if another controller is managing the
+agent CR.
+
+#### Validation Admission Policy
+
+Beginning in k8s v1.28 a
+[ValidationAdmissionPolicy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/) may
+also be used to configure validation rules using [Common Expression Language (CEL)](https://github.com/google/cel-spec).
+
 ### Testing
 
 In addition to any updates that will be made to the end-to-end tests, behavioral tests related to installation,
@@ -86,14 +107,6 @@ initialDelaySeconds to be reduced on the liveness probe.
 
 Optional Persistent volumes could potentially be used to cache dynamically downloaded updates and packages in between
 agent restarts.
-
-### CR Validation
-
-[Validation rules](https://kubernetes.io/blog/2022/09/23/crd-validation-rules-beta/) and schema-based
-[generation](https://book.kubebuilder.io/reference/markers/crd.html),
-[validation](https://book.kubebuilder.io/reference/markers/crd-validation.html), and
-[processing](https://book.kubebuilder.io/reference/markers/crd-processing.html) rules can be used to verify validity of
-user-provided configuration and provide useful feedback for troubleshooting.
 
 ### Runtime Status
 
