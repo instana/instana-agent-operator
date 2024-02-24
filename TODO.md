@@ -7,8 +7,8 @@ election yet.
 
 ### Misconfiguration Errors
 
-If the user misconfigures the agent then appropriate messages should be displayed in the logs, events, status, or
-directly returned as errors via webhook.
+If the user misconfigures the agent then the attempt to create or update the Agent CR should be rejected. This can be
+achieved using one of or a combination of the following methods.
 
 #### CR Validation
 
