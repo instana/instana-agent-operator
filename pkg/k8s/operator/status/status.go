@@ -296,11 +296,11 @@ func updateWasPerformed(agentNew *instanav1.InstanaAgent) bool {
 		return false
 	case *agentNew.Status.ObservedGeneration != agentNew.Generation:
 		return true
-	case agentNew.Status.OperatorVersion.Version == nil:
+	case agentNew.Status.OperatorVersion == nil:
 		return false
 	case operatorVersion == nil:
 		return false
-	case *agentNew.Status.OperatorVersion.Version != *operatorVersion:
+	case agentNew.Status.OperatorVersion.Version != *operatorVersion:
 		return true
 	default:
 		return false
@@ -391,7 +391,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	result.Of(semver.NewVersion(env.GetOperatorVersion())).
 		OnSuccess(
 			func(version *semver.Version) {
-				agentNew.Status.OperatorVersion = instanav1.SemanticVersion{Version: version}
+				agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
 			},
 		).
 		OnFailure(
