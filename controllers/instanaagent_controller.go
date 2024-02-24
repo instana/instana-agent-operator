@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
@@ -64,10 +65,10 @@ func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 		Complete(r)
 }
 
-func wasModifiedByOther(obj client.Object) bool {
+func wasModifiedByOther(objectNew client.Object, objectOld client.Object) bool {
 	var lastModifiedBySelf time.Time
 
-	for _, mfe := range obj.GetManagedFields() {
+	for _, mfe := range objectNew.GetManagedFields() {
 		if mfe.Manager == instanaclient.FieldOwnerName {
 			if mfe.Time == nil {
 				continue
@@ -81,14 +82,12 @@ func wasModifiedByOther(obj client.Object) bool {
 		return true
 	}
 
-	for _, mfe := range obj.GetManagedFields() {
+	for _, mfe := range objectNew.GetManagedFields() {
 		if mfe.Manager == instanaclient.FieldOwnerName {
 			continue
-		}
-		if mfe.Time == nil {
-			continue
-		}
-		if lastModifiedBySelf.Before(mfe.Time.Time) {
+		} else if mfe.Time == nil && !list.NewDeepContainsElementChecker(objectOld.GetManagedFields()).Contains(mfe) {
+			return true
+		} else if lastModifiedBySelf.Before(mfe.Time.Time) {
 			return true
 		}
 	}
@@ -112,7 +111,7 @@ func filterPredicate() predicate.Predicate {
 			case *instanav1.InstanaAgent:
 				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
 			default:
-				return wasModifiedByOther(e.ObjectNew)
+				return wasModifiedByOther(e.ObjectNew, e.ObjectOld)
 			}
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
