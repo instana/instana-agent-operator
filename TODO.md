@@ -27,7 +27,7 @@ agent CR.
 
 #### Validation Admission Policy
 
-Beginning in k8s v1.28 a
+Beginning in k8s v1.26 (alpha) or v1.28 (beta) a
 [ValidationAdmissionPolicy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/) may
 also be used to configure validation rules using [Common Expression Language (CEL)](https://github.com/google/cel-spec).
 
