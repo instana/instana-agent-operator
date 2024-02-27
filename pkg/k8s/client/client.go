@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
@@ -59,7 +59,7 @@ func (c *instanaAgentClient) objectsExist(
 		objExistsRes := c.Exists(ctx, obj.GetObjectKind().GroupVersionKind(), k8sclient.ObjectKeyFromObject(obj)).
 			OnFailure(
 				func(err error) {
-					log := logr.FromContextOrDiscard(ctx)
+					log := logf.FromContext(ctx)
 					log.Error(err, "failed to verify if resource has finished terminating", "Resource", obj)
 				},
 			)
