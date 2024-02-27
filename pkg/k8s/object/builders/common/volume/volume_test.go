@@ -226,7 +226,7 @@ func TestConfigVolume(t *testing.T) {
 	expectedVolumeMount := []corev1.VolumeMount{
 		{
 			Name:      "config",
-			MountPath: "/opt/instana/agent/etc/instana",
+			MountPath: "/opt/instana/agent/etc/instana-config-yml",
 		},
 	}
 
