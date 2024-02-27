@@ -29,13 +29,13 @@ spec:
     # TLS for end-to-end encryption between Instana agent and clients accessing the agent.
     # The Instana agent does not yet allow enforcing TLS encryption.
     # TLS is only enabled on a connection when requested by the client.
-    tls:
+      #    tls:
       # In order to enable TLS, a secret of type kubernetes.io/tls must be specified.
       # secretName is the name of the secret that has the relevant files.
-      # secretName: null
+      # secretName: ""
       # Otherwise,  the certificate and the private key must be provided as base64 encoded.
-      # certificate: null
-      # key: null
+      # certificate: ""
+    # key: ""
 
     image:
       # agent.image.name is the name of the container image of the Instana agent.
@@ -75,7 +75,7 @@ spec:
 
       # agent.pod.priorityClassName is the name of an existing PriorityClass that should be set on the agent pods
       #   https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
-      priorityClassName: null
+      #      priorityClassName: ""
 
       # agent.pod.requests and agent.pod.limits adjusts the resource assignments for the DaemonSet agent
       #   regardless of the kubernetes.deployment.enabled setting
@@ -91,15 +91,12 @@ spec:
         cpu: "1.5"
 
     # agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
-    host:
-      repository: null
+    #    host:
+    #      repository: ""
 
     configuration_yaml: |
     # You can leave this empty, or use this to configure your instana agent.
     # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
-
-    # Custom agent charts URL that can be used in air gapped envs
-    charts_url: some-link
 
   # openshift specifies whether the cluster role should include openshift permissions and other tweaks to the YAML.
   # The chart will try to auto-detect if the cluster is OpenShift, so you will likely not even need to set this explicitly.
