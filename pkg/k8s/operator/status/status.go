@@ -131,6 +131,7 @@ func truncateMessage(message string) string {
 }
 
 func eventTypeFromCondition(condition metav1.Condition) string {
+	//nolint:exhaustive
 	switch condition.Status {
 	case metav1.ConditionTrue:
 		return corev1.EventTypeNormal
