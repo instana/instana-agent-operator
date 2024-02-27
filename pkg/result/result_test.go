@@ -364,7 +364,7 @@ func TestResult_RecoverCatching(t *testing.T) {
 					).
 					Recover(
 						func(err error) (string, error) {
-							return errors.Unwrap(errors.Unwrap(err)).Error(), nil
+							return errors.Unwrap(errors.Unwrap(errors.Unwrap(err))).Error(), nil
 						},
 					)
 			},
