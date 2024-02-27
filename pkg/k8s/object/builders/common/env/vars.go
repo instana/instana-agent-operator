@@ -221,10 +221,23 @@ func (e *envBuilder) downloadKeyEnv() optional.Optional[corev1.EnvVar] {
 
 // From Pod Reference
 
-func (e *envBuilder) podNameEnv() optional.Optional[corev1.EnvVar] {
+func (e *envBuilder) instanaAgentPodNameEnv() optional.Optional[corev1.EnvVar] {
 	return optional.Of(
 		corev1.EnvVar{
 			Name: "INSTANA_AGENT_POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+	)
+}
+
+func (e *envBuilder) podNameEnv() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name: "POD_NAME",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",

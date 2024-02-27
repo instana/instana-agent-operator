@@ -38,6 +38,7 @@ const (
 	BackendEnv
 	AgentKeyEnv
 	DownloadKeyEnv
+	InstanaAgentPodNameEnv
 	PodNameEnv
 	PodIPEnv
 	PodUIDEnv
@@ -106,6 +107,8 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.agentKeyEnv
 	case DownloadKeyEnv:
 		return e.downloadKeyEnv
+	case InstanaAgentPodNameEnv:
+		return e.instanaAgentPodNameEnv
 	case PodNameEnv:
 		return e.podNameEnv
 	case PodIPEnv:

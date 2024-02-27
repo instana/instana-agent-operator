@@ -712,6 +712,27 @@ func testLiteralAlways(test *literalAlwaysTest) {
 	)
 }
 
+func TestEnvBuilder_instanaAgentPodNameEnv(t *testing.T) {
+	testLiteralAlways(
+		&literalAlwaysTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.instanaAgentPodNameEnv
+			},
+			expected: optional.Of(
+				corev1.EnvVar{
+					Name: "INSTANA_AGENT_POD_NAME",
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+			),
+		},
+	)
+}
+
 func TestEnvBuilder_podNameEnv(t *testing.T) {
 	testLiteralAlways(
 		&literalAlwaysTest{
@@ -721,7 +742,7 @@ func TestEnvBuilder_podNameEnv(t *testing.T) {
 			},
 			expected: optional.Of(
 				corev1.EnvVar{
-					Name: "INSTANA_AGENT_POD_NAME",
+					Name: "POD_NAME",
 					ValueFrom: &corev1.EnvVarSource{
 						FieldRef: &corev1.ObjectFieldSelector{
 							FieldPath: "metadata.name",
