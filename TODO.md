@@ -1,9 +1,9 @@
 ## Next Steps
 
-### Re-Add Leader Election
+### Fix K8Sensor Deployment And Test Seamless Upgrade from deprecated k8s sensors
 
-Some form of leader election may need to be re-enabled since the k8s-sensor does not appear to support internal leader
-election yet.
+Deployment of K8Sensor is currently broken, fix this and then run tests to ensure upgrade from a configuration using the
+deprecated kubernetes sensor is seamless.
 
 ### Misconfiguration Errors
 
