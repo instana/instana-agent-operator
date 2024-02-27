@@ -1,9 +1,10 @@
 module github.com/instana/instana-agent-operator
 
-go 1.21
+go 1.22
 
 require (
 	github.com/Masterminds/goutils v1.1.1
+	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/go-logr/logr v1.2.4
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo v1.16.5
@@ -24,7 +25,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
-	github.com/Masterminds/semver/v3 v3.2.0 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/Masterminds/squirrel v1.5.3 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
