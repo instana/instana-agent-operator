@@ -94,11 +94,11 @@ func (c *instanaAgentClient) verifyDeletion(
 	objects []k8sclient.Object,
 	waitTime time.Duration,
 ) error {
-	switch err := ctx.Err(); errors.Is(err, nil) {
-	case true:
-		return c.verifyDeletionStep(ctx, objects, waitTime)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	default:
-		return err
+		return c.verifyDeletionStep(ctx, objects, waitTime)
 	}
 }
 
