@@ -94,7 +94,15 @@ func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
 	lifecycleCm *corev1.ConfigMap,
 	currentGenerationDependents []client.Object,
 ) instanaclient.MultiObjectResult {
-	lifecycleCm.Data[d.getCurrentGenKey()] = string(d.marshalDependents(currentGenerationDependents))
+	currentGenKey := d.getCurrentGenKey()
+
+	// Ensures that a lifecycle comparison will be performed even if neither the generation nor the operator version
+	// have been updated, should only be necessary for the sake of testing during development
+	if existingVersion, isPresent := lifecycleCm.Data[currentGenKey]; isPresent {
+		lifecycleCm.Data[currentGenKey+"-dirty"] = existingVersion
+	}
+
+	lifecycleCm.Data[currentGenKey] = string(d.marshalDependents(currentGenerationDependents))
 
 	d.AddCommonLabels(lifecycleCm, constants.ComponentInstanaAgent)
 	d.AddOwnerReference(lifecycleCm)
