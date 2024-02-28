@@ -15,6 +15,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
+	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -63,6 +64,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	)
 }
 
+func addAppLabel(labels map[string]string) map[string]string {
+	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
+	labelsDefaulter.SetIfEmpty("app", "k8sensor")
+	return labels
+}
+
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, mounts := d.VolumeBuilder.Build(volume.ConfigVolume)
 
@@ -74,15 +81,16 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.K8sSensorResourcesName(),
 			Namespace: d.Namespace,
+			Labels:    addAppLabel(nil),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.To(optional.Of(int32(d.Spec.K8sSensor.DeploymentSpec.Replicas)).Get()),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: d.GetPodSelectorLabels(),
+				MatchLabels: addAppLabel(d.GetPodSelectorLabels()),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      d.getPodTemplateLabels(),
+					Labels:      addAppLabel(d.getPodTemplateLabels()),
 					Annotations: d.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{

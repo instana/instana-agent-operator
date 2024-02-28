@@ -11,10 +11,10 @@ Some code should be cleaned up in order to be more readable, particularly
 [lifecycle.go](pkg/k8s/operator/lifecycle/lifecycle.go) and
 [operator_utils.go](pkg/k8s/operator/operator_utils/operator_utils.go).
 
-### Fix K8Sensor Deployment And Test Seamless Upgrade from deprecated k8s sensors
+### ~~Fix K8Sensor Deployment And~~ Test Seamless Upgrade from deprecated k8s sensors
 
-Deployment of K8Sensor is currently broken, fix this and then run tests to ensure upgrade from a configuration using the
-deprecated kubernetes sensor is seamless.
+~~Deployment of K8Sensor is currently broken, fix this and then~~ run tests to ensure upgrade from a configuration
+using the deprecated kubernetes sensor is seamless.
 
 ### Misconfiguration Errors
 
