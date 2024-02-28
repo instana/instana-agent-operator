@@ -64,6 +64,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	)
 }
 
+// K8Sensor relies on this label for internal sharding logic for some reason, if you remove it the k8sensor will break
 func addAppLabel(labels map[string]string) map[string]string {
 	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
 	labelsDefaulter.SetIfEmpty("app", "k8sensor")
