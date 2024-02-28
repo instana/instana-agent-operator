@@ -48,6 +48,9 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 				serviceAccountName := rand.String(10)
 				namespace := rand.String(10)
 
+				const annotationKeyName = "instana.io/example"
+				annotationKeyValue := rand.String(10)
+
 				agent := &instanav1.InstanaAgent{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: namespace,
@@ -56,6 +59,9 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 						ServiceAccountSpec: instanav1.ServiceAccountSpec{
 							Create: instanav1.Create{
 								Create: test.createServiceAccount,
+							},
+							Annotations: map[string]string{
+								annotationKeyName: annotationKeyValue,
 							},
 						},
 					},
@@ -70,6 +76,9 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      serviceAccountName,
 							Namespace: namespace,
+							Annotations: map[string]string{
+								annotationKeyName: annotationKeyValue,
+							},
 						},
 					},
 				)

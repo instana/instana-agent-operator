@@ -33,8 +33,9 @@ func (s *serviceAccountBuilder) build() *corev1.ServiceAccount {
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.ServiceAccountName(),
-			Namespace: s.Namespace,
+			Name:        s.ServiceAccountName(),
+			Namespace:   s.Namespace,
+			Annotations: s.Spec.ServiceAccountSpec.Annotations,
 		},
 	}
 }

@@ -3527,6 +3527,10 @@ spec:
                 description: Specifies whether a ServiceAccount should be created
                   (default `true`), and possibly the name to use.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
                   create:
                     type: boolean
                   name:

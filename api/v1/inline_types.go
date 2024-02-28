@@ -279,6 +279,8 @@ type ServiceAccountSpec struct {
 
 	// Name of the ServiceAccount. If not set and `create` is true, a name is generated using the fullname template.
 	Name `json:",inline"`
+
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type PodSecurityPolicySpec struct {
