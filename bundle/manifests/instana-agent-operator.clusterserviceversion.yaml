@@ -17,13 +17,13 @@ metadata:
               "endpointHost": "ingress-red-saas.instana.io",
               "endpointPort": "443",
               "env": {},
-              "key": "***REMOVED***"
+              "key": "replace-key"
             },
             "cluster": {
-              "name": "zachr-kind-laptop"
+              "name": "my-cluster"
             },
             "zone": {
-              "name": "zachr"
+              "name": "edited-zone"
             }
           }
         }
@@ -32,7 +32,7 @@ metadata:
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
     containerImage: icr.io/instana/instana-agent-operator:latest
-    createdAt: "2024-02-24T19:58:26Z"
+    createdAt: "2024-02-28T16:58:51Z"
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
