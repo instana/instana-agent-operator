@@ -574,18 +574,19 @@ func TestEnvBuilder_backendURLEnv(t *testing.T) {
 }
 
 func TestEnvBuilder_noProxyEnv(t *testing.T) {
-	testLiteralAlways(
-		&literalAlwaysTest{
+	testFromCRField(
+		&crFieldVarTest{
 			t: t,
 			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
 				return builder.noProxyEnv
 			},
-			expected: optional.Of(
-				corev1.EnvVar{
-					Name:  "NO_PROXY",
-					Value: "kubernetes.default.svc",
+			expectedName:  "NO_PROXY",
+			expectedValue: "kubernetes.default.svc",
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ProxyHost: randString(),
 				},
-			),
+			},
 		},
 	)
 }

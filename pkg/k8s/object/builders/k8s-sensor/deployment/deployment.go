@@ -48,7 +48,6 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 
 func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	return d.EnvBuilder.Build(
-		env.AgentModeEnv,
 		env.BackendEnv,
 		env.BackendURLEnv,
 		env.AgentZoneEnv,
