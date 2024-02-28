@@ -1,5 +1,10 @@
 ## Next Steps
 
+### Service Account Annotations
+
+A small change was made to the deprecated chart to allow user-defined annotations to be added to the agent's
+serviceaccount. This will need to be enabled in the new operator code.
+
 ### Code Cleanup
 
 Some code should be cleaned up in order to be more readable, particularly
