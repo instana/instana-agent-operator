@@ -44,3 +44,6 @@ bin/
 *.out
 /.vscode/
 /__debug_bin
+
+# Scratch files
+scratch/
