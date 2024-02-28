@@ -189,10 +189,10 @@ func (e *envBuilder) backendEnv() optional.Optional[corev1.EnvVar] {
 
 // From a Secret
 
-func (e *envBuilder) agentKeyEnv() optional.Optional[corev1.EnvVar] {
+func (e *envBuilder) agentKeyHelper(name string) optional.Optional[corev1.EnvVar] {
 	return optional.Of(
 		corev1.EnvVar{
-			Name: "INSTANA_AGENT_KEY",
+			Name: name,
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -203,6 +203,14 @@ func (e *envBuilder) agentKeyEnv() optional.Optional[corev1.EnvVar] {
 			},
 		},
 	)
+}
+
+func (e *envBuilder) instanaAgentKeyEnv() optional.Optional[corev1.EnvVar] {
+	return e.agentKeyHelper("INSTANA_AGENT_KEY")
+}
+
+func (e *envBuilder) agentKeyEnv() optional.Optional[corev1.EnvVar] {
+	return e.agentKeyHelper("AGENT_KEY")
 }
 
 func (e *envBuilder) downloadKeyEnv() optional.Optional[corev1.EnvVar] {

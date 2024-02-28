@@ -640,7 +640,11 @@ func TestEnvBuilder_backendEnv(t *testing.T) {
 	)
 }
 
-func TestEnvBuilder_agentKeyEnv(t *testing.T) {
+func agentKeyTestHelper(
+	t *testing.T,
+	name string,
+	getMethod func(builder *envBuilder) func() optional.Optional[corev1.EnvVar],
+) {
 	const expectedSecretName = "agent-key-secret"
 
 	testFromSecretMethod(
@@ -649,7 +653,7 @@ func TestEnvBuilder_agentKeyEnv(t *testing.T) {
 			expectedSecretName: expectedSecretName,
 			expected: optional.Of(
 				corev1.EnvVar{
-					Name: "INSTANA_AGENT_KEY",
+					Name: name,
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{
@@ -660,9 +664,27 @@ func TestEnvBuilder_agentKeyEnv(t *testing.T) {
 					},
 				},
 			),
-			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
-				return builder.agentKeyEnv
-			},
+			getMethod: getMethod,
+		},
+	)
+}
+
+func TestEnvBuilder_instanaAgentKeyEnv(t *testing.T) {
+	agentKeyTestHelper(
+		t,
+		"INSTANA_AGENT_KEY",
+		func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+			return builder.instanaAgentKeyEnv
+		},
+	)
+}
+
+func TestEnvBuilder_agentKeyEnv(t *testing.T) {
+	agentKeyTestHelper(
+		t,
+		"AGENT_KEY",
+		func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+			return builder.agentKeyEnv
 		},
 	)
 }
