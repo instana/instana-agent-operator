@@ -63,6 +63,11 @@ release branches.
 The Helm chart should be updated to wrap the operator and an instance of the CR built by directly using toYaml on the
 Values.yaml file to construct the spec.
 
+#### Chart Update Automation
+
+Some automation to make updates to the chart based on changes to the CRD or
+operator deployment may be desirable if these things are expected to change often.
+
 ## Future Considerations
 
 ### Sensitive Data
