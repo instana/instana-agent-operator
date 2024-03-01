@@ -89,7 +89,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Labels:    addAppLabel(nil),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.To(optional.Of(int32(d.Spec.K8sSensor.DeploymentSpec.Replicas)).Get()),
+			Replicas: pointer.To(int32(d.Spec.K8sSensor.DeploymentSpec.Replicas)),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: addAppLabel(d.GetPodSelectorLabels()),
 			},
