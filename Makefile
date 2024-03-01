@@ -267,6 +267,9 @@ gen-mocks: get-mockgen
 
 	mockgen --source ./pkg/k8s/operator/status/status.go --destination ./pkg/k8s/object/builders/agent/configmap/status_mock_test.go --package configmap
 
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget/helpers_mock_test.go --package poddisruptionbudget
+	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget/pod_selector_mock_test.go --package poddisruptionbudget
+
 
 
 

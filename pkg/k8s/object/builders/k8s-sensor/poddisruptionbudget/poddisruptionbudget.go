@@ -38,7 +38,7 @@ func (p *podDisruptionBudgetBuilder) build() *v1.PodDisruptionBudget {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: p.GetPodSelectorLabels(),
 			},
-			MinAvailable: pointer.To(intstr.FromInt(p.Spec.K8sSensor.DeploymentSpec.Replicas - 1)),
+			MinAvailable: pointer.To(intstr.FromInt32(int32(p.Spec.K8sSensor.DeploymentSpec.Replicas) - 1)),
 		},
 	}
 }
