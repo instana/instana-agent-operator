@@ -64,6 +64,10 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	)
 }
 
+func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	return d.VolumeBuilder.Build(volume.ConfigVolume)
+}
+
 // K8Sensor relies on this label for internal sharding logic for some reason, if you remove it the k8sensor will break
 func addAppLabel(labels map[string]string) map[string]string {
 	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
@@ -72,7 +76,7 @@ func addAppLabel(labels map[string]string) map[string]string {
 }
 
 func (d *deploymentBuilder) build() *appsv1.Deployment {
-	volumes, mounts := d.VolumeBuilder.Build(volume.ConfigVolume)
+	volumes, mounts := d.getVolumes()
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
