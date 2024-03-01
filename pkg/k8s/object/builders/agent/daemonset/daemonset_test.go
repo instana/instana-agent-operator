@@ -4,14 +4,18 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 )
 
 func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
@@ -218,4 +222,126 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 
 	assertions.Equal(expectedVolumes, actualVolumes)
 	assertions.Equal(expectedVolumeMounts, actualVolumeMounts)
+}
+
+func TestDaemonSetBuilder_IsNamespaced_ComponentName(t *testing.T) {
+	assertions := assert.New(t)
+
+	dsBuilder := NewDaemonSetBuilder(nil, false, nil)
+
+	assertions.True(dsBuilder.IsNamespaced())
+	assertions.Equal(constants.ComponentInstanaAgent, dsBuilder.ComponentName())
+}
+
+func TestZoning(t *testing.T) {
+	agentName := rand.String(10)
+	zoneName := rand.String(10)
+
+	for _, test := range []struct {
+		name                      string
+		expectedName              string
+		hasZoneSet                bool
+		expectedNonStandardLabels map[string]string
+		expectedAffinity          *corev1.Affinity
+		expectedTolerations       []corev1.Toleration
+	}{
+		{
+			name:                      "no_zone_set",
+			expectedName:              agentName,
+			hasZoneSet:                false,
+			expectedNonStandardLabels: nil,
+			expectedTolerations:       []corev1.Toleration{{Key: agentName}},
+		},
+		{
+			name:         "with_zone_set",
+			expectedName: agentName + "-" + zoneName,
+			hasZoneSet:   true,
+			expectedNonStandardLabels: map[string]string{
+				transformations.ZoneLabel: zoneName,
+			},
+			expectedTolerations: []corev1.Toleration{{Key: zoneName}},
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				agent := &instanav1.InstanaAgent{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: agentName,
+					},
+					Spec: instanav1.InstanaAgentSpec{
+						Agent: instanav1.BaseAgentSpec{
+							Pod: instanav1.AgentPodSpec{
+								Affinity: corev1.Affinity{},
+								Tolerations: []corev1.Toleration{
+									{
+										Key: agentName,
+									},
+								},
+							},
+						},
+					},
+				}
+				zone := &instanav1.Zone{
+					Name: instanav1.Name{
+						Name: zoneName,
+					},
+					Affinity: corev1.Affinity{},
+					Tolerations: []corev1.Toleration{
+						{
+							Key: zoneName,
+						},
+					},
+				}
+
+				dsBuilder := &daemonSetBuilder{
+					InstanaAgent: agent,
+				}
+
+				if test.hasZoneSet {
+					dsBuilder.zone = zone
+				}
+
+				t.Run(
+					"getName", func(t *testing.T) {
+						actualName := dsBuilder.getName()
+						assertions.Equal(test.expectedName, actualName)
+					},
+				)
+
+				t.Run(
+					"getNonStandardLabels", func(t *testing.T) {
+						actualNonStandardLabels := dsBuilder.getNonStandardLabels()
+						assertions.Equal(test.expectedNonStandardLabels, actualNonStandardLabels)
+					},
+				)
+
+				t.Run(
+					"getAffinity", func(t *testing.T) {
+						assertions.NotSame(&zone.Affinity, &agent.Spec.Agent.Pod.Affinity)
+
+						expectedAffinity := func() *corev1.Affinity {
+							switch test.hasZoneSet {
+							case true:
+								return &zone.Affinity
+							default:
+								return &agent.Spec.Agent.Pod.Affinity
+							}
+						}()
+
+						actualAffinity := dsBuilder.getAffinity()
+						assertions.Same(expectedAffinity, actualAffinity)
+					},
+				)
+
+				t.Run(
+					"getTolerations", func(t *testing.T) {
+						actualTolerations := dsBuilder.getTolerations()
+						assertions.Equal(test.expectedTolerations, actualTolerations)
+					},
+				)
+			},
+		)
+	}
 }
