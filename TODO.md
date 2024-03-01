@@ -96,7 +96,7 @@ If desired an option could be added to automatically assign zone names to agent 
 ### Logging
 
 It may be worth considering the use of different default logging settings to improve readability
-(eg. --zap-time-encoding=rfc3339 --zap-encoder=console).
+(e.g. --zap-time-encoding=rfc3339 --zap-encoder=console).
 
 ### .spec.agent.configuration_yaml
 
@@ -144,6 +144,6 @@ due to `hostNetwork: true).
 
 ### Auto-Reload on Agent-Key or Download-Key Change
 
-Currently the agent-key and download-key are read by the agent via environment variable set via referencing a key in
+Currently, the agent-key and download-key are read by the agent via environment variable set via referencing a key in
 one or more k8s secrets. It would be beneficial to watch the secret(s) and trigger a restart of the agent daemsonset if
 a change is detected in the secret(s).
