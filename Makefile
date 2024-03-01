@@ -229,6 +229,7 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/agent/daemonset/ports_mock_test.go --package daemonset
 	mockgen --source ./pkg/k8s/object/builders/common/env/env_builder.go --destination ./pkg/k8s/object/builders/agent/daemonset/env_builder_mock_test.go --package daemonset
 	mockgen --source ./pkg/k8s/object/builders/common/volume/volume_builder.go --destination ./pkg/k8s/object/builders/agent/daemonset/volume_builder_mock_test.go --package daemonset
+	mockgen --source ./pkg/k8s/operator/status/status.go --destination ./pkg/k8s/object/builders/agent/daemonset/status_mock_test.go --package daemonset
 
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/common/env/helpers_mock_test.go --package env
 

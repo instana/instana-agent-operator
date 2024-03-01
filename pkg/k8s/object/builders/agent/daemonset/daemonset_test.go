@@ -345,3 +345,44 @@ func TestZoning(t *testing.T) {
 		)
 	}
 }
+
+func TestDaemonSetBuilder_Build(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		agent         *instanav1.InstanaAgent
+		expectPresent bool
+	}{
+		{
+			name:          "should_be_not_present",
+			agent:         &instanav1.InstanaAgent{},
+			expectPresent: false,
+		},
+		{
+			name: "should_be_present",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent:   instanav1.BaseAgentSpec{Key: "key"},
+					Cluster: instanav1.Name{Name: "cluster"},
+				},
+			},
+			expectPresent: true,
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := assert.New(t)
+				ctrl := gomock.NewController(t)
+
+				status := NewMockAgentStatusManager(ctrl)
+				if test.expectPresent {
+					status.EXPECT().AddAgentDaemonset(gomock.Any())
+				}
+
+				dsBuilder := NewDaemonSetBuilder(test.agent, false, status)
+
+				result := dsBuilder.Build()
+				assertions.Equal(test.expectPresent, result.IsPresent())
+			},
+		)
+	}
+}
