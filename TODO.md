@@ -1,5 +1,10 @@
 ## Next Steps
 
+## Error Wrapping
+
+Custom error types should be created with relevant messages to wrap errors that are being passed up the stack with
+relevant information for debugging.
+
 ### Code Cleanup
 
 Some code should be cleaned up in order to be more readable, particularly
@@ -98,7 +103,11 @@ configuration yaml to be configured using native yaml within the CR rather than 
 The agent should have a readiness probe in addition to its liveness probe. The k8s_sensor should also have liveness and
 readiness probes. A startup probe can also be added to the agent now that it is supported in all stable versions of k8s.
 This will allow for faster readiness and recovery from soft-locks (if they occur) since it will allow the
-initialDelaySeconds to be reduced on the liveness probe.
+initialDelaySeconds to be reduced on the liveness probe. The agent and k8sensor may also want to create dedicated
+readiness endpoints to allow their actual availability to be reflected more accurately in the CR status. In the
+agent's case, the availability of independent servers running on different ports may need to be considered when
+deciding whether to do this since traffic directed at k8s services will not be forwarded to pods that are marked as
+unready.
 
 ### PVs For Package Downloads
 
