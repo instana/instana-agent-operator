@@ -5,12 +5,6 @@
 Custom error types should be created with relevant messages to wrap errors that are being passed up the stack with
 relevant information for debugging.
 
-### Code Cleanup
-
-Some code should be cleaned up in order to be more readable, particularly
-[lifecycle.go](pkg/k8s/operator/lifecycle/lifecycle.go) and
-[operator_utils.go](pkg/k8s/operator/operator_utils/operator_utils.go).
-
 ### ~~Fix K8Sensor Deployment And~~ Test Seamless Upgrade from deprecated k8s sensors
 
 ~~Deployment of K8Sensor is currently broken, fix this and then~~ run tests to ensure upgrade from a configuration
