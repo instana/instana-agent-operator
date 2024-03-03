@@ -145,6 +145,14 @@ func (c *instanaAgentClient) DeleteAllInTimeLimit(
 	return result.Of(objects, c.deleteAllInTimeLimit(ctx, objects, timeout, waitTime, opts...))
 }
 
+func wasRetrieved(_ k8sclient.Object) result.Result[bool] {
+	return result.OfSuccess(true)
+}
+
+func ifNotFound(err error) (bool, error) {
+	return false, k8sclient.IgnoreNotFound(err)
+}
+
 func (c *instanaAgentClient) Exists(
 	ctx context.Context,
 	gvk schema.GroupVersionKind,
@@ -155,15 +163,7 @@ func (c *instanaAgentClient) Exists(
 
 	res := c.GetAsResult(ctx, key, obj)
 
-	return result.Map(
-		res, func(_ k8sclient.Object) result.Result[bool] {
-			return result.OfSuccess(true)
-		},
-	).Recover(
-		func(err error) (bool, error) {
-			return false, k8sclient.IgnoreNotFound(err)
-		},
-	)
+	return result.Map(res, wasRetrieved).Recover(ifNotFound)
 }
 
 func (c *instanaAgentClient) Apply(
