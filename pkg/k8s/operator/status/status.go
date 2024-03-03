@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -350,6 +351,35 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	return result.OfSuccess(condition)
 }
 
+func setStatusDotDaemonset(agentNew *instanav1.InstanaAgent) func(ds instanav1.ResourceInfo) {
+	return func(ds instanav1.ResourceInfo) {
+		agentNew.Status.DaemonSet = ds
+	}
+}
+
+func setStatusDotConfigMap(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
+	return func(cm instanav1.ResourceInfo) {
+		agentNew.Status.ConfigMap = cm
+	}
+}
+
+func setStatusDotOperatorVersion(agentNew *instanav1.InstanaAgent) func(version *semver.Version) {
+	return func(version *semver.Version) {
+		agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
+	}
+}
+
+func logOperatorVersionParseFailure(logger logr.Logger) func(err error) {
+	return func(err error) {
+		logger.Error(
+			err,
+			"operator version is not a valid semantic version",
+			"OperatorVersion",
+			env.GetOperatorVersion(),
+		)
+	}
+}
+
 func (a *agentStatusManager) agentWithUpdatedStatus(
 	ctx context.Context,
 	reconcileErr error,
@@ -366,19 +396,11 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	agentNew.Status.LastUpdate = metav1.Time{Time: time.Now()}
 
 	a.getDaemonSet(ctx).
-		OnSuccess(
-			func(ds instanav1.ResourceInfo) {
-				agentNew.Status.DaemonSet = ds
-			},
-		).
+		OnSuccess(setStatusDotDaemonset(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
 	a.getConfigMap(ctx).
-		OnSuccess(
-			func(cm instanav1.ResourceInfo) {
-				agentNew.Status.ConfigMap = cm
-			},
-		).
+		OnSuccess(setStatusDotConfigMap(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
 	if a.updateWasPerformed() {
@@ -390,21 +412,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	agentNew.Status.ObservedGeneration = pointer.To(a.agentOld.GetGeneration())
 
 	result.Of(semver.NewVersion(env.GetOperatorVersion())).
-		OnSuccess(
-			func(version *semver.Version) {
-				agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
-			},
-		).
-		OnFailure(
-			func(err error) {
-				logger.Error(
-					err,
-					"operator version is not a valid semantic version",
-					"OperatorVersion",
-					env.GetOperatorVersion(),
-				)
-			},
-		)
+		OnSuccess(setStatusDotOperatorVersion(agentNew)).
+		OnFailure(logOperatorVersionParseFailure(logger))
 
 	// Handle Conditions
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
