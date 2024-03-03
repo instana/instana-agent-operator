@@ -205,13 +205,14 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(
 	return result.Of(currentGenerationDependents, errBuilder.Build())
 }
 
+func (d *dependentLifecycleManager) andDeleteOrphanedDependentsUsing(currentGenerationDependents []client.Object) func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
+	return func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
+		return d.deleteOrphanedDependents(&lifecycleCm, currentGenerationDependents)
+	}
+}
+
 func (d *dependentLifecycleManager) DeleteOrphanedDependents(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult {
-	return result.Map[corev1.ConfigMap, []client.Object](
-		d.getLifecycleCm(),
-		func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
-			return d.deleteOrphanedDependents(&lifecycleCm, currentGenerationDependents)
-		},
-	)
+	return result.Map(d.getLifecycleCm(), d.andDeleteOrphanedDependentsUsing(currentGenerationDependents))
 }
 
 func (d *dependentLifecycleManager) DeleteAllDependents() instanaclient.MultiObjectResult {
