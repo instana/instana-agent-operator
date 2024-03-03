@@ -417,9 +417,13 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	// Handle Conditions
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
-	a.setConditionAndFireEvent(agentNew, a.getReconcileSucceededCondition(reconcileErr))
+
+	reconcileSucceededCondition := a.getReconcileSucceededCondition(reconcileErr)
+	a.setConditionAndFireEvent(agentNew, reconcileSucceededCondition)
+
 	allAgentsAvailableCondition, _ := a.getAllAgentsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
 	a.setConditionAndFireEvent(agentNew, allAgentsAvailableCondition)
+
 	allK8sSensorsAvailableCondition, _ := a.getAllK8sSensorsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
 	a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
 
