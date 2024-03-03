@@ -135,19 +135,26 @@ func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.Config
 	)
 }
 
+func (d *dependentLifecycleManager) unmarshalGenerationAsUnstructured(
+	lifecycleCm *corev1.ConfigMap,
+	key string,
+) func() (res []unstructured.Unstructured, err error) {
+	return func() (res []unstructured.Unstructured, err error) {
+		return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(lifecycleCm.Data[key])), nil
+	}
+}
+
+func emptyUnstructuredList() []unstructured.Unstructured {
+	return make([]unstructured.Unstructured, 0)
+}
+
 func (d *dependentLifecycleManager) getGeneration(
 	lifecycleCm *corev1.ConfigMap,
 	key string,
 ) []unstructured.Unstructured {
-	return result.OfInlineCatchingPanic[[]unstructured.Unstructured](
-		func() (res []unstructured.Unstructured, err error) {
-			return d.JsonOrDieMarshaler.UnMarshalOrDie([]byte(lifecycleCm.Data[key])), nil
-		},
-	).ToOptional().GetOrElse(
-		func() []unstructured.Unstructured {
-			return make([]unstructured.Unstructured, 0)
-		},
-	)
+	jsonRes := result.OfInlineCatchingPanic(d.unmarshalGenerationAsUnstructured(lifecycleCm, key))
+
+	return jsonRes.ToOptional().GetOrElse(emptyUnstructuredList)
 }
 
 func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]client.Object] {
