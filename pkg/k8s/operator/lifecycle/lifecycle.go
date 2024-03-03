@@ -167,6 +167,17 @@ func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructur
 	return d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second)
 }
 
+func (d *dependentLifecycleManager) removeKeyFromLifecycleCm(
+	lifecycleCm *corev1.ConfigMap,
+	key string,
+) func(_ []client.Object) {
+	return func(_ []client.Object) {
+		if key != d.getCurrentGenKey() {
+			delete(lifecycleCm.Data, key)
+		}
+	}
+}
+
 func (d *dependentLifecycleManager) deleteOrphanedDependents(
 	lifecycleCm *corev1.ConfigMap,
 	currentGenerationDependents []client.Object,
@@ -181,15 +192,12 @@ func (d *dependentLifecycleManager) deleteOrphanedDependents(
 			olderGeneration,
 			currentGeneration,
 		)
-		d.deleteAll(deprecatedDependents).
-			OnSuccess(
-				func(_ []client.Object) {
-					if key != d.getCurrentGenKey() {
-						delete(lifecycleCm.Data, key)
-					}
-				},
-			).
-			OnFailure(errBuilder.AddSingle)
+		d.deleteAll(deprecatedDependents).OnSuccess(
+			d.removeKeyFromLifecycleCm(
+				lifecycleCm,
+				key,
+			),
+		).OnFailure(errBuilder.AddSingle)
 	}
 
 	d.Apply(d.ctx, lifecycleCm).OnFailure(errBuilder.AddSingle)
