@@ -117,13 +117,14 @@ func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
 	)
 }
 
+func (d *dependentLifecycleManager) andUpdateUsing(currentGenerationDependents []client.Object) func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
+	return func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
+		return d.updateDependentLifecycleInfo(&lifecycleCm, currentGenerationDependents)
+	}
+}
+
 func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(currentGenerationDependents []client.Object) instanaclient.MultiObjectResult {
-	return result.Map[corev1.ConfigMap, []client.Object](
-		d.getOrInitializeLifecycleCm(),
-		func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
-			return d.updateDependentLifecycleInfo(&lifecycleCm, currentGenerationDependents)
-		},
-	)
+	return result.Map(d.getOrInitializeLifecycleCm(), d.andUpdateUsing(currentGenerationDependents))
 }
 
 func (d *dependentLifecycleManager) getLifecycleCm() result.Result[corev1.ConfigMap] {
