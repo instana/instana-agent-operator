@@ -88,6 +88,12 @@ func (d *dependentLifecycleManager) getOrInitializeLifecycleCm() result.Result[c
 	return result.Map[corev1.ConfigMap, corev1.ConfigMap](lifecycleCm, initializeDataIfNil)
 }
 
+func toDependents(currentGenerationDependents []client.Object) func(_ client.Object) result.Result[[]client.Object] {
+	return func(_ client.Object) result.Result[[]client.Object] {
+		return result.OfSuccess(currentGenerationDependents)
+	}
+}
+
 func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
 	lifecycleCm *corev1.ConfigMap,
 	currentGenerationDependents []client.Object,
@@ -107,9 +113,7 @@ func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
 
 	return result.Map[client.Object, []client.Object](
 		d.Apply(d.ctx, lifecycleCm),
-		func(_ client.Object) result.Result[[]client.Object] {
-			return result.OfSuccess(currentGenerationDependents)
-		},
+		toDependents(currentGenerationDependents),
 	)
 }
 
