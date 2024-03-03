@@ -421,10 +421,16 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	reconcileSucceededCondition := a.getReconcileSucceededCondition(reconcileErr)
 	a.setConditionAndFireEvent(agentNew, reconcileSucceededCondition)
 
-	allAgentsAvailableCondition, _ := a.getAllAgentsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
+	allAgentsAvailableCondition, _ :=
+		a.getAllAgentsAvailableCondition(ctx).
+			OnFailure(errBuilder.AddSingle).
+			Get()
 	a.setConditionAndFireEvent(agentNew, allAgentsAvailableCondition)
 
-	allK8sSensorsAvailableCondition, _ := a.getAllK8sSensorsAvailableCondition(ctx).OnFailure(errBuilder.AddSingle).Get()
+	allK8sSensorsAvailableCondition, _ :=
+		a.getAllK8sSensorsAvailableCondition(ctx).
+			OnFailure(errBuilder.AddSingle).
+			Get()
 	a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
 
 	return result.Of(agentNew, errBuilder.Build())
