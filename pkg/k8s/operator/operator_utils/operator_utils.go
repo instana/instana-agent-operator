@@ -91,26 +91,21 @@ func (o *operatorUtils) buildObjects(builders ...builder.ObjectBuilder) []k8scli
 }
 
 func (o *operatorUtils) ApplyAll(builders ...builder.ObjectBuilder) result.Result[[]k8sclient.Object] {
-	dryRunRes := o.applyAllDryRun(o.buildObjects(builders...))
+	if dryRunRes := o.applyAllDryRun(o.buildObjects(builders...)); dryRunRes.IsFailure() {
+		return dryRunRes
+	}
 
-	resetObjectsRes := result.Map[[]k8sclient.Object, []k8sclient.Object](
-		dryRunRes,
-		func(_ []k8sclient.Object) result.Result[[]k8sclient.Object] {
-			return result.OfSuccess(o.buildObjects(builders...))
-		},
-	)
+	objects := o.buildObjects(builders...)
 
-	updateLifecycleCmRes := result.Map[[]k8sclient.Object, []k8sclient.Object](
-		resetObjectsRes,
-		o.UpdateDependentLifecycleInfo,
-	)
+	if updateLifecycleCmRes := o.UpdateDependentLifecycleInfo(objects); updateLifecycleCmRes.IsFailure() {
+		return updateLifecycleCmRes
+	}
 
-	applyRes := result.Map[[]k8sclient.Object, []k8sclient.Object](updateLifecycleCmRes, o.applyAll)
+	if applyRes := o.applyAll(objects); applyRes.IsFailure() {
+		return applyRes
+	}
 
-	return result.Map[[]k8sclient.Object, []k8sclient.Object](
-		applyRes,
-		o.DeleteOrphanedDependents,
-	)
+	return o.DeleteOrphanedDependents(objects)
 }
 
 func (o *operatorUtils) DeleteAll() result.Result[[]k8sclient.Object] {
