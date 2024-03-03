@@ -157,13 +157,12 @@ func (d *dependentLifecycleManager) getGeneration(
 	return jsonRes.ToOptional().GetOrElse(emptyUnstructuredList)
 }
 
+func asClientObject(val unstructured.Unstructured) client.Object {
+	return &val
+}
+
 func (d *dependentLifecycleManager) deleteAll(toDelete []unstructured.Unstructured) result.Result[[]client.Object] {
-	toDeleteCasted := list.NewListMapTo[unstructured.Unstructured, client.Object]().MapTo(
-		toDelete,
-		func(val unstructured.Unstructured) client.Object {
-			return &val
-		},
-	)
+	toDeleteCasted := list.NewListMapTo[unstructured.Unstructured, client.Object]().MapTo(toDelete, asClientObject)
 
 	return d.DeleteAllInTimeLimit(d.ctx, toDeleteCasted, 30*time.Second, 5*time.Second)
 }
