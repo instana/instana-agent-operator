@@ -85,7 +85,7 @@ func initializeDataIfNil(res corev1.ConfigMap) result.Result[corev1.ConfigMap] {
 func (d *dependentLifecycleManager) getOrInitializeLifecycleCm() result.Result[corev1.ConfigMap] {
 	lifecycleCm := d.getLifecycleCm().Recover(d.initializeIfNotFound)
 
-	return result.Map[corev1.ConfigMap, corev1.ConfigMap](lifecycleCm, initializeDataIfNil)
+	return result.Map(lifecycleCm, initializeDataIfNil)
 }
 
 func toDependents(currentGenerationDependents []client.Object) func(_ client.Object) result.Result[[]client.Object] {
@@ -111,10 +111,9 @@ func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
 	d.AddCommonLabels(lifecycleCm, constants.ComponentInstanaAgent)
 	d.AddOwnerReference(lifecycleCm)
 
-	return result.Map[client.Object, []client.Object](
-		d.Apply(d.ctx, lifecycleCm),
-		toDependents(currentGenerationDependents),
-	)
+	applyRes := d.Apply(d.ctx, lifecycleCm)
+
+	return result.Map(applyRes, toDependents(currentGenerationDependents))
 }
 
 func (d *dependentLifecycleManager) andUpdateUsing(currentGenerationDependents []client.Object) func(lifecycleCm corev1.ConfigMap) result.Result[[]client.Object] {
