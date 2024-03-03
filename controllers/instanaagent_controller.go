@@ -7,25 +7,19 @@ package controllers
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
@@ -65,66 +59,6 @@ func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 		Complete(r)
 }
 
-func wasModifiedByOther(objectNew client.Object, objectOld client.Object) bool {
-	var lastModifiedBySelf time.Time
-
-	for _, mfe := range objectNew.GetManagedFields() {
-		if mfe.Manager == instanaclient.FieldOwnerName {
-			if mfe.Time == nil {
-				continue
-			}
-			lastModifiedBySelf = mfe.Time.Time
-			break
-		}
-	}
-
-	if lastModifiedBySelf.IsZero() {
-		return true
-	}
-
-	for _, mfe := range objectNew.GetManagedFields() {
-		if mfe.Manager == instanaclient.FieldOwnerName {
-			continue
-		} else if mfe.Time == nil && !list.NewDeepContainsElementChecker(objectOld.GetManagedFields()).Contains(mfe) {
-			return true
-		} else if lastModifiedBySelf.Before(mfe.Time.Time) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Create generic filter for all events, that removes some chattiness mainly when only the Status field has been updated.
-func filterPredicate() predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
-			switch createEvent.Object.(type) {
-			case *instanav1.InstanaAgent:
-				return true
-			default:
-				return false
-			}
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			switch e.ObjectOld.(type) {
-			case *instanav1.InstanaAgent:
-				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
-			default:
-				return wasModifiedByOther(e.ObjectNew, e.ObjectOld)
-			}
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			switch e.Object.(type) {
-			case *instanav1.InstanaAgent:
-				return !e.DeleteStateUnknown
-			default:
-				return true
-			}
-		},
-	}
-}
-
 // NewInstanaAgentReconciler initializes a new InstanaAgentReconciler instance
 func NewInstanaAgentReconciler(
 	client client.Client,
@@ -142,79 +76,6 @@ type InstanaAgentReconciler struct {
 	client   instanaclient.InstanaAgentClient
 	recorder record.EventRecorder
 	scheme   *runtime.Scheme
-}
-
-func (r *InstanaAgentReconciler) getAgent(ctx context.Context, req ctrl.Request) (
-	*instanav1.InstanaAgent,
-	reconcileReturn,
-) {
-	var agent instanav1.InstanaAgent
-
-	log := logf.FromContext(ctx)
-
-	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
-	case k8serrors.IsNotFound(err):
-		log.V(10).Info("attempted to reconcile agent CR that could not be found")
-		return nil, reconcileSuccess(ctrl.Result{})
-	case !errors.Is(err, nil):
-		log.Error(err, "failed to retrieve info about agent CR")
-		return nil, reconcileFailure(err)
-	default:
-		log.V(1).Info("successfully retrieved agent CR info")
-		return &agent, reconcileContinue()
-	}
-}
-
-func (r *InstanaAgentReconciler) updateAgent(
-	ctx context.Context,
-	agentOld *instanav1.InstanaAgent,
-	agentNew *instanav1.InstanaAgent,
-) reconcileReturn {
-	log := r.loggerFor(ctx, agentNew)
-
-	switch err := r.client.Patch(
-		ctx,
-		agentNew,
-		client.MergeFrom(agentOld),
-		client.FieldOwner(instanaclient.FieldOwnerName),
-	); errors.Is(err, nil) {
-	case true:
-		log.V(1).Info("successfully applied updates to agent CR")
-		return reconcileSuccess(ctrl.Result{Requeue: true})
-	default:
-		if !k8serrors.IsNotFound(err) {
-			log.Error(err, "failed to apply updates to agent CR")
-		}
-		return reconcileFailure(err)
-	}
-}
-
-func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils operator_utils.OperatorUtils) (
-	bool,
-	reconcileReturn,
-) {
-	log := logf.FromContext(ctx)
-
-	isOpenShiftRes := operatorUtils.ClusterIsOpenShift()
-	answer, err := isOpenShiftRes.Get()
-
-	switch isOpenShiftRes.IsSuccess() {
-	case true:
-		log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", answer)
-		return answer, reconcileContinue()
-	default:
-		log.Error(err, "failed to determine if cluster is OpenShift")
-		return false, reconcileFailure(err)
-	}
-}
-
-func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {
-	return logf.FromContext(ctx).WithValues(
-		"Generation",
-		agent.Generation,
-		"UID",
-		agent.UID,
-	)
 }
 
 func (r *InstanaAgentReconciler) reconcile(
