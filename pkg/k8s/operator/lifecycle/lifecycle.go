@@ -57,37 +57,35 @@ func (d *dependentLifecycleManager) getCurrentGenKey() string {
 	return fmt.Sprintf("%s_%d", transformations.GetVersion(), d.agent.GetGeneration())
 }
 
+func (d *dependentLifecycleManager) initializeIfNotFound(err error) (corev1.ConfigMap, error) {
+	switch k8serrors.IsNotFound(err) {
+	case true:
+		return corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      d.getCmName(),
+				Namespace: d.agent.GetNamespace(),
+			},
+		}, nil
+	default:
+		return corev1.ConfigMap{}, err
+	}
+}
+
+func initializeDataIfNil(res corev1.ConfigMap) result.Result[corev1.ConfigMap] {
+	if res.Data == nil {
+		res.Data = make(map[string]string, 1)
+	}
+	return result.OfSuccess(res)
+}
+
 func (d *dependentLifecycleManager) getOrInitializeLifecycleCm() result.Result[corev1.ConfigMap] {
-	lifecycleCm := d.getLifecycleCm().Recover(
-		func(err error) (corev1.ConfigMap, error) {
-			switch k8serrors.IsNotFound(err) {
-			case true:
-				return corev1.ConfigMap{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "v1",
-						Kind:       "ConfigMap",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      d.getCmName(),
-						Namespace: d.agent.GetNamespace(),
-					},
-				}, nil
-			default:
-				return corev1.ConfigMap{}, err
-			}
-		},
-	)
+	lifecycleCm := d.getLifecycleCm().Recover(d.initializeIfNotFound)
 
-	return result.Map[corev1.ConfigMap, corev1.ConfigMap](
-		lifecycleCm,
-		func(res corev1.ConfigMap) result.Result[corev1.ConfigMap] {
-			if res.Data == nil {
-				res.Data = make(map[string]string, 1)
-			}
-			return result.OfSuccess(res)
-		},
-	)
-
+	return result.Map[corev1.ConfigMap, corev1.ConfigMap](lifecycleCm, initializeDataIfNil)
 }
 
 func (d *dependentLifecycleManager) updateDependentLifecycleInfo(
