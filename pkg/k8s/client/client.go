@@ -69,6 +69,10 @@ func (c *instanaAgentClient) objectsExist(
 	return res
 }
 
+func doNotExist(res BoolResult) bool {
+	return res.IsSuccess() && !res.ToOptional().Get()
+}
+
 func (c *instanaAgentClient) verifyDeletionStep(
 	ctx context.Context,
 	objects []k8sclient.Object,
@@ -76,11 +80,7 @@ func (c *instanaAgentClient) verifyDeletionStep(
 ) error {
 	objectsExistResults := c.objectsExist(ctx, objects)
 
-	switch list.NewConditions(objectsExistResults).All(
-		func(res BoolResult) bool {
-			return res.IsSuccess() && !res.ToOptional().Get()
-		},
-	) {
+	switch list.NewConditions(objectsExistResults).All(doNotExist) {
 	case true:
 		return nil
 	default:
