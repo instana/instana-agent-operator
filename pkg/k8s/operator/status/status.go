@@ -435,7 +435,10 @@ func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr
 
 	errBuilder := multierror.NewMultiErrorBuilder()
 
-	agentNew, _ := a.agentWithUpdatedStatus(ctx, reconcileErr).OnFailure(errBuilder.AddSingle).Get()
+	agentNew, _ :=
+		a.agentWithUpdatedStatus(ctx, reconcileErr).
+			OnFailure(errBuilder.AddSingle).
+			Get()
 
 	if err := a.k8sClient.Status().Patch(
 		ctx,
