@@ -34,7 +34,6 @@ func getDaemonSetBuilders(
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
 
 	for _, zone := range agent.Spec.Zones {
-		zone := zone
 		builders = append(
 			builders,
 			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(agent, isOpenShift, statusManager, &zone),
