@@ -301,7 +301,7 @@ func (a *agentStatusManager) updateWasPerformed() bool {
 	case a.agentOld.Status.OperatorVersion == nil:
 		return false
 	case operatorVersion == nil:
-		return false
+		return true
 	case !a.agentOld.Status.OperatorVersion.Version.Equal(operatorVersion):
 		return true
 	default:
