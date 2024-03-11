@@ -96,7 +96,7 @@ spec:
 
     configuration_yaml: |
     # You can leave this empty, or use this to configure your instana agent.
-    # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
+    # See https://ibm.biz/monitoring-k8s
 
     # Custom agent charts URL that can be used in air gapped envs
     charts_url: some-link

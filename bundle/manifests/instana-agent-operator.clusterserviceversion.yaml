@@ -13,7 +13,7 @@ metadata:
           },
           "spec": {
             "agent": {
-              "configuration_yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n",
+              "configuration_yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://ibm.biz/monitoring-k8s\n",
               "endpointHost": "ingress-red-saas.instana.io",
               "endpointPort": "443",
               "env": {},
@@ -126,7 +126,7 @@ spec:
           INSTANA_AGENT_TAGS: example
         configuration_yaml: |
           # You can leave this empty, or use this to configure your instana agent.
-          # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
+          # See https://ibm.biz/monitoring-k8s
     ```
 
     Save the template in a file `instana-agent.yaml` and edit the following values:
@@ -137,7 +137,7 @@ spec:
     * `agent.endpointPort` must be set with the monitoring ingress port, generally "443" (wrapped in quotes).
     * `zone.name` should be set with the name of the Kubernetes cluster that is be displayed in Instana.
 
-    For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation [here](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/).
+    For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation [here](https://ibm.biz/monitoring-k8s).
 
     Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster should show on the infrastructure map on your Instana Web interface.
 
