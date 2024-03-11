@@ -12,12 +12,12 @@ This repository contains the Kubernetes Operator to install and manage the Insta
 
 There are two ways to install the operator:
 
-* [Creating the required resources manually](https://www.ibm.com/docs/en/obi/current?topic=requirements-installing-host-agent-kubernetes#install-operator-manually)
-* [Using the Operator Lifecycle Manager (OLM)](https://www.ibm.com/docs/en/obi/current?topic=requirements-installing-host-agent-openshift#install-operator-via-olm)
+* [Creating the required resources manually](https://www.ibm.com/docs/en/instana-observability/current?topic=agents-installing-host-agent-kubernetes#install-by-using-the-operator)
+* [Using the Operator Lifecycle Manager (OLM)](https://www.ibm.com/docs/en/instana-observability/current?topic=agents-installing-host-agent-openshift#installing-the-operator-by-using-olm)
 
 ### Configuration
 
-[This documentation section](https://www.ibm.com/docs/en/obi/current?topic=requirements-installing-host-agent-kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
+[This documentation section](https://www.ibm.com/docs/en/instana-observability/current?topic=agents-installing-host-agent-kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
 
 ### Contributing
 
