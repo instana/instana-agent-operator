@@ -182,7 +182,7 @@ jobs:
                 
                 pushd golangci-lint-release
                 LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
-                microdnf install $LINTER_RPM
+                rpm -i $LINTER_RPM
                 popd
                 
                 cd pipeline-source
