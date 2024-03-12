@@ -177,7 +177,6 @@ jobs:
             args:
               - -ceu
               - |
-                cd pipeline-source
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
                 pip3 install pyyaml
                 
@@ -186,6 +185,7 @@ jobs:
                 microdnf install $LINTER_RPM
                 popd
                 
+                cd pipeline-source
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
                 export GO_VERSION=1.19
