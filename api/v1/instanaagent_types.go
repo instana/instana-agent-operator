@@ -6,11 +6,17 @@
 package v1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
+	"github.com/Masterminds/semver/v3"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-//+k8s:openapi-gen=true
+// +k8s:openapi-gen=true
 
 // InstanaAgentSpec defines the desired state of the Instana Agent
 type InstanaAgentSpec struct {
@@ -26,9 +32,9 @@ type InstanaAgentSpec struct {
 	Zone Name `json:"zone,omitempty"`
 
 	// Set to `True` to indicate the Operator is being deployed in a OpenShift cluster. Provides a hint so that RBAC etc is
-	// configured correctly.
+	// configured correctly. Will attempt to auto-detect if unset.
 	// +kubebuilder:validation:Optional
-	OpenShift bool `json:"openshift,omitempty"`
+	OpenShift *bool `json:"openshift,omitempty"`
 
 	// Specifies whether RBAC resources should be created.
 	// +kubebuilder:validation:Optional
@@ -70,41 +76,12 @@ type InstanaAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	PinnedChartVersion string `json:"pinnedChartVersion,omitempty"`
 
-	//
-	// OLD v1beta1 spec which, by including temporarily, we can provide backwards compatibility for the v1beta1 spec as served
-	// by the Java Operator. Prevents having to modify the CR outside the Operator.
-	//
-
-	ConfigurationFiles          map[string]string `json:"config.files,omitempty"`
-	AgentZoneName               string            `json:"agent.zone.name,omitempty"`
-	AgentKey                    string            `json:"agent.key,omitempty"`
-	AgentEndpointHost           string            `json:"agent.endpoint.host,omitempty"`
-	AgentEndpointPort           uint16            `json:"agent.endpoint.port,omitempty"`
-	AgentClusterRoleName        string            `json:"agent.clusterRoleName,omitempty"`
-	AgentClusterRoleBindingName string            `json:"agent.clusterRoleBindingName,omitempty"`
-	AgentServiceAccountName     string            `json:"agent.serviceAccountName,omitempty"`
-	AgentSecretName             string            `json:"agent.secretName,omitempty"`
-	AgentDaemonSetName          string            `json:"agent.daemonSetName,omitempty"`
-	AgentConfigMapName          string            `json:"agent.configMapName,omitempty"`
-	AgentRbacCreate             bool              `json:"agent.rbac.create,omitempty"`
-	AgentImageName              string            `json:"agent.image,omitempty"`
-	AgentImagePullPolicy        string            `json:"agent.imagePullPolicy,omitempty"`
-	AgentCpuReq                 resource.Quantity `json:"agent.cpuReq,omitempty"`
-	AgentCpuLim                 resource.Quantity `json:"agent.cpuLimit,omitempty"`
-	AgentMemReq                 resource.Quantity `json:"agent.memReq,omitempty"`
-	AgentMemLim                 resource.Quantity `json:"agent.memLimit,omitempty"`
-	AgentDownloadKey            string            `json:"agent.downloadKey,omitempty"`
-	AgentRepository             string            `json:"agent.host.repository,omitempty"`
-	AgentTlsSecretName          string            `json:"agent.tls.secretName,omitempty"`
-	AgentTlsCertificate         string            `json:"agent.tls.certificate,omitempty"`
-	AgentTlsKey                 string            `json:"agent.tls.key,omitempty"`
-	OpenTelemetryEnabled        bool              `json:"opentelemetry.enabled,omitempty"`
-	ClusterName                 string            `json:"cluster.name,omitempty"`
-	AgentEnv                    map[string]string `json:"agent.env,omitempty"`
-	// END of OLD spec
+	// Zones can be used to specify agents in multiple zones split across different nodes in the cluster
+	// +kubebuilder:validation:Optional
+	Zones []Zone `json:"zones,omitempty"`
 }
 
-//+k8s:openapi-gen=true
+// +k8s:openapi-gen=true
 
 // ResourceInfo holds Name and UID to given object
 type ResourceInfo struct {
@@ -124,10 +101,12 @@ const (
 	OperatorStateFailed AgentOperatorState = "Failed"
 )
 
-//+k8s:openapi-gen=true
+// +k8s:openapi-gen=true
 
 // InstanaAgentStatus defines the observed state of InstanaAgent
-type InstanaAgentStatus struct {
+
+// Deprecated: DeprecatedInstanaAgentStatus are the previous status fields that will be used to ensure backwards compatibility with any automation that may exist
+type DeprecatedInstanaAgentStatus struct {
 	Status     AgentOperatorState `json:"status,omitempty"`
 	Reason     string             `json:"reason,omitempty"`
 	LastUpdate metav1.Time        `json:"lastUpdate,omitempty"`
@@ -139,12 +118,31 @@ type InstanaAgentStatus struct {
 	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+k8s:openapi-gen=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
-//+kubebuilder:storageversion
-//+operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
+// +kubebuilder:validation:Type=string
+// +kubebuilder:validation:Pattern=`^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`
+
+type SemanticVersion struct {
+	semver.Version `json:"-"`
+}
+
+type InstanaAgentStatus struct {
+	DeprecatedInstanaAgentStatus `json:",inline"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	ObservedGeneration *int64           `json:"observedGeneration,omitempty"`
+	OperatorVersion    *SemanticVersion `json:"operatorVersion,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+// +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
+// +kubebuilder:storageversion
+// +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
 
 // InstanaAgent is the Schema for the agents API
 type InstanaAgent struct {
@@ -155,7 +153,25 @@ type InstanaAgent struct {
 	Status InstanaAgentStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+func (in *InstanaAgent) Default() {
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.Agent.UpdateStrategy.Type, appsv1.RollingUpdateDaemonSetStrategyType)
+	optional.ValueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate, &appsv1.RollingUpdateDaemonSet{})
+	optional.ValueOrDefault(&in.Spec.Agent.UpdateStrategy.RollingUpdate.MaxUnavailable, pointer.To(intstr.FromInt(1)))
+	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.Service.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Name, "icr.io/instana/k8sensor")
+	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
+}
+
+// +kubebuilder:object:root=true
 
 // InstanaAgentList contains a list of InstanaAgent
 type InstanaAgentList struct {
