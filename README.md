@@ -36,9 +36,11 @@ Both are described below.
 1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
 3. Create a minikube cluster: https://minikube.sigs.k8s.io/docs/start/
+   Note: When minikube runs on docker (at least on RHEL 8), there are network issues for pods reaching the internet. This causes connection issues for the agent and will prevent auto-updates or connections to the backend. To avoid this, use kvm2 instead: `minikube start --driver=kvm2`.
 4. Install the CRD: `make install`, check if the CRD agents.instana.io afterwards by issuing `kubectl get crd`
 5. Run the Go application, either from your IDE, or from command-line: `make run`.
-6. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml`
+6. Create a new namespace on the cluster: `kubectl apply -f config/samples/instana_agent_namespace.yaml`
+7. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml`
 
 To stop, take the following actions:
 - `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml`
