@@ -32,7 +32,7 @@ metadata:
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
     containerImage: icr.io/instana/instana-agent-operator:snapshot
-    createdAt: "2024-03-25T14:56:05Z"
+    createdAt: "2024-04-11T09:10:53Z"
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
@@ -179,32 +179,6 @@ spec:
           - create
           - patch
         - apiGroups:
-          - agents.instana.io
-          resources:
-          - instanaagent
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - agents.instana.io
-          resources:
-          - instanaagent/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - agents.instana.io
-          resources:
-          - instanaagent/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
           - apiextensions.k8s.io
           resources:
           - customresourcedefinitions
@@ -240,6 +214,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - instana.io
+          resources:
+          - agents
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - instana.io
+          resources:
+          - agents/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - instana.io
+          resources:
+          - agents/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:

@@ -5,32 +5,6 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - agents.instana.io
-  resources:
-  - instanaagent
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - agents.instana.io
-  resources:
-  - instanaagent/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - agents.instana.io
-  resources:
-  - instanaagent/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
@@ -66,6 +40,32 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - instana.io
+  resources:
+  - agents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - instana.io
+  resources:
+  - agents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - instana.io
+  resources:
+  - agents/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
