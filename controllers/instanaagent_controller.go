@@ -1,6 +1,6 @@
 /*
- * (c) Copyright IBM Corp. 2021
- * (c) Copyright Instana Inc. 2021
+ * (c) Copyright IBM Corp. 2021, 2024
+ * (c) Copyright Instana Inc. 2021, 2024
  */
 
 package controllers
@@ -95,7 +95,6 @@ func (r *InstanaAgentReconciler) reconcile(
 	log.Info("reconciling Agent CR")
 
 	agent.Default()
-
 	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent)
 
 	if handleDeletionRes := r.handleDeletion(ctx, agent, operatorUtils); handleDeletionRes.suppliesReconcileResult() {
@@ -133,6 +132,18 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/finalizers,verbs=update
+
+// adding role property required to manage instana-agent-k8sensor ClusterRole
+// +kubebuilder:rbac:urls=/version;/healthz,verbs=get
+// +kubebuilder:rbac:groups=extensions,resources=deployments;replicasets;ingresses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmaps;events;services;endpoints;namespaces;nodes;pods;pods/log;replicationcontrollers;resourcequotas;persistentvolumes;persistentvolumeclaims,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments;replicasets;statefulsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps.openshift.io,resources=deploymentconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=podsecuritypolicies,verbs=use
 
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	res ctrl.Result,
