@@ -1,5 +1,4 @@
 ---
-
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
@@ -34,7 +33,7 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
       paths:
-      - ci/
+        - ci/
 
   - name: agent-operator-git-source
     type: git
@@ -43,7 +42,6 @@ resources:
       <<: *instana-operator-git-repo-config
       ignore_paths:
         - ci/
-
 
   - name: agent-operator-release-source
     type: git
@@ -162,10 +160,10 @@ resources:
 jobs:
   - name: self-update
     plan:
-    - get: agent-operator-pipeline-source
-      trigger: true
-    - set_pipeline: self
-      file: agent-operator-pipeline-source/ci/pipeline.yaml
+      - get: agent-operator-pipeline-source
+        trigger: true
+      - set_pipeline: self
+        file: agent-operator-pipeline-source/ci/pipeline.yaml
 
   - name: tag-release
     max_in_flight: 1
@@ -181,6 +179,8 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: agent-operator-git-source
+          outputs:
+            - name: agent-operator-git-source
           run:
             path: bash
             args:
@@ -195,10 +195,15 @@ jobs:
                 new_release=$(echo $latest_release | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
 
                 echo "Tagging repo with the new release tag ${new_release}"
+                git config --global user.name "instanacd"
+                git config --global user.email "instanacd@instana.com"
                 git tag ${new_release}
+                echo ${new_release} > ci/version.txt
       - put: agent-operator-git-source
         params:
           repository: agent-operator-git-source
+          tag_file: agent-operator-git-source/ci/version.txt
+          force: true
 
   - name: prepare-build-bundle
     max_in_flight: 1
@@ -236,9 +241,9 @@ jobs:
     plan:
       - get: build-bundle
         trigger: true
-        passed: [ prepare-build-bundle ]
+        passed: [prepare-build-bundle]
       - get: agent-operator-release-source
-        passed: [ prepare-build-bundle ]
+        passed: [prepare-build-bundle]
       - load_var: s3-artifact-version
         file: build-bundle/version
         reveal: true
@@ -301,39 +306,39 @@ jobs:
           steps:
             - put: operator-image-amd64
               params:
-                  image: codebuild-amd64/artifacts/image.tar
-                  additional_tags: codebuild-amd64/artifacts/tag
+                image: codebuild-amd64/artifacts/image.tar
+                additional_tags: codebuild-amd64/artifacts/tag
             - put: operator-image-arm64
               params:
-                  image: codebuild-arm64/artifacts/image.tar
-                  additional_tags: codebuild-arm64/artifacts/tag
+                image: codebuild-arm64/artifacts/image.tar
+                additional_tags: codebuild-arm64/artifacts/tag
             - put: operator-image-s390x
               params:
-                  image: codebuild-s390x/artifacts/image.tar
-                  additional_tags: codebuild-s390x/artifacts/tag
+                image: codebuild-s390x/artifacts/image.tar
+                additional_tags: codebuild-s390x/artifacts/tag
             - put: operator-image-ppc64le
               params:
-                  image: codebuild-ppc64le/artifacts/image.tar
-                  additional_tags: codebuild-ppc64le/artifacts/tag
+                image: codebuild-ppc64le/artifacts/image.tar
+                additional_tags: codebuild-ppc64le/artifacts/tag
 
   - name: multiarch-operator-manifest-publish
     max_in_flight: 1
     plan:
       - get: agent-operator-release-source
         trigger: true
-        passed: [ multiarch-operator-images-build ]
+        passed: [multiarch-operator-images-build]
       - get: operator-image-amd64
         params: { skip_download: true }
-        passed: [ multiarch-operator-images-build ]
+        passed: [multiarch-operator-images-build]
       - get: operator-image-arm64
         params: { skip_download: true }
-        passed: [ multiarch-operator-images-build ]
+        passed: [multiarch-operator-images-build]
       - get: operator-image-s390x
         params: { skip_download: true }
-        passed: [ multiarch-operator-images-build ]
+        passed: [multiarch-operator-images-build]
       - get: operator-image-ppc64le
         params: { skip_download: true }
-        passed: [ multiarch-operator-images-build ]
+        passed: [multiarch-operator-images-build]
 
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
@@ -431,16 +436,16 @@ jobs:
 
                 echo "---> Pushing multi-architectural manifest to icr.io"
                 docker manifest push --purge "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
-                
+
                 # Validate the SHA to be sure we captured something
                 if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
                   echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"
                   exit 1
                 fi
-                
+
                 echo "$ARTIFACTORY_PASSWORD" | docker login -u $ARTIFACTORY_USERNAME --password-stdin ${ARTIFACTORY_BASE_URL}
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
-                
+
                 export artifactory_exists=0
                 docker manifest inspect $ARTIFACTORY_REPOSITORY:${OPERATOR_DOCKER_VERSION} || export artifactory_exists=$?
                 if [ $artifactory_exists -eq 0 ]; then
@@ -451,27 +456,27 @@ jobs:
                   docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
                   docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
                   docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-  
+
                   echo "---> pushing images to artifactory"
                   docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
                   docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
                   docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
                   docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-  
+
                   echo "---> Building multi-architectural manifest on artifactory"
                   docker manifest create "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
                     --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
                     --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
                     --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
                     --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-  
+
                   echo "---> Pushing multi-architectural manifest to artifactory"
                   docker manifest push --purge "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION"
                 fi
 
                 echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin quay.io
                 export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
-                
+
                 # Copy Docker CFG for Preflight Step
                 cp ~/.docker/config.json docker-cfg/
 
@@ -535,24 +540,24 @@ jobs:
                 - -ce
                 - |
                   # strip the leading "v" from the operator version for release:
-                  
+
                   export PREFIX="v"
                   export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
-                  
+
                   # Run Preflight Image Scans for RH Marketplace
-                  
+
                   export RED_HAT_PROJECT_ID=5e961c2c93604e02afa9ebdf
                   export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
                   export DOCKER_CFG_FILE="$(pwd)/docker-cfg/config.json"
-                  
+
                   pushd preflight
-                  
+
                   chmod +x preflight-linux-amd64
-                  
+
                   ./preflight-linux-amd64 check container --artifacts amd64 "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
                   ./preflight-linux-amd64 check container --artifacts s390x "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
                   ./preflight-linux-amd64 check container --artifacts ppc64le "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-                  
+
                   popd
 
   - name: operator-olm-github-release
@@ -560,9 +565,9 @@ jobs:
     plan:
       - get: agent-operator-release-source
         trigger: true
-        passed: [ multiarch-operator-manifest-publish ]
+        passed: [multiarch-operator-manifest-publish]
       - get: latest-operator-image-manifest-sha
-        passed: [ multiarch-operator-manifest-publish ]
+        passed: [multiarch-operator-manifest-publish]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
       - load_var: operator-version
