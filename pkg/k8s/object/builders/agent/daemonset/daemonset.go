@@ -1,3 +1,8 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc. 2024
+*/
+
 package daemonset
 
 import (
@@ -164,6 +169,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 			Labels:    d.getNonStandardLabels(),
 		},
 		Spec: appsv1.DaemonSetSpec{
+			MinReadySeconds: int32(d.Spec.Agent.MinReadySeconds),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: d.GetPodSelectorLabels(),
 			},

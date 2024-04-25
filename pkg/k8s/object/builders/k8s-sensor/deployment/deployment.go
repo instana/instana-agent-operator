@@ -1,3 +1,8 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc. 2024
+*/
+
 package deployment
 
 import (
@@ -89,7 +94,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Labels:    addAppLabel(nil),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.To(int32(d.Spec.K8sSensor.DeploymentSpec.Replicas)),
+			Replicas:        pointer.To(int32(d.Spec.K8sSensor.DeploymentSpec.Replicas)),
+			MinReadySeconds: int32(d.Spec.K8sSensor.DeploymentSpec.MinReadySeconds),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: addAppLabel(d.GetPodSelectorLabels()),
 			},
