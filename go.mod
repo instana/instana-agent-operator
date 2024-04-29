@@ -1,6 +1,6 @@
 module github.com/instana/instana-agent-operator
 
-go 1.22.1
+go 1.22
 
 require (
 	github.com/Masterminds/goutils v1.1.1
