@@ -118,6 +118,9 @@ deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cl
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
+scale-to-zero: ## Scales the operator to zero in the cluster to allow local testing against a cluster
+	kubectl -n instana-agent scale --replicas=0 deployment.apps/instana-agent-operator && sleep 5 && kubectl get all -n instana-agent
+
 deploy-minikube: manifests kustomize ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
 	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
