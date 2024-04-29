@@ -3,6 +3,9 @@ target/
 .idea/
 instana-agent.yaml
 
+# Local development demonstration file should be ignored as it is not relevant and might be accidentally added
+instana_v1_instanaagent_demo.yaml
+
 # Eclipse https://github.com/github/gitignore/blob/master/Global/Eclipse.gitignore
 
 *.pydevproject
