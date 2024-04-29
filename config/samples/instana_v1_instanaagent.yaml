@@ -15,4 +15,4 @@ spec:
     env: {}
     configuration_yaml: |
       # You can leave this empty, or use this to configure your instana agent.
-      # See instana_v1_extended_instanaagent.yaml for the extended version.
+      # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
