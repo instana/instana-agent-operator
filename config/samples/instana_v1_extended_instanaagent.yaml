@@ -14,6 +14,10 @@ spec:
     key: replace-key
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
+    
+    # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+    minReadySeconds: 0
+
     # use this to set additional environment variables for the instana agent
     # for example:
     # env:
@@ -144,6 +148,9 @@ spec:
       enabled: true
       # Use three replicas to ensure the HA by the default.
       replicas: 3
+      # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+      minReadySeconds: 0
+
       # k8s_sensor.deployment.pod adjusts the resource assignments for the agent independently of the DaemonSet agent when k8s_sensor.deployment.enabled=true
       pod:
         requests:
@@ -181,6 +188,8 @@ spec:
       enabled: false
       # Use a single replica, the impact will generally be low and we need to address a host of other concerns where clusters are large.
       replicas: 1
+      # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+      minReadySeconds: 0
 
       # kubernetes.deployment.pod adjusts the resource assignments for the agent independently of the DaemonSet agent when kubernetes.deployment.enabled=true
       pod:

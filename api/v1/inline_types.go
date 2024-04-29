@@ -87,6 +87,10 @@ type BaseAgentSpec struct {
 	// +kubebuilder:validation:Required
 	EndpointPort string `json:"endpointPort"`
 
+	// The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+	// +kubebuilder:validation:Optional
+	MinReadySeconds int `json:"minReadySeconds,omitempty"`
+
 	// These are additional backends the Instana agent will report to besides
 	// the one configured via the `agent.endpointHost`, `agent.endpointPort` and `agent.key` setting.
 	// +kubebuilder:validation:Optional
@@ -329,6 +333,10 @@ type KubernetesPodSpec struct {
 type KubernetesDeploymentSpec struct {
 	// Specify if separate deployment of the Kubernetes Sensor should be enabled.
 	Enabled `json:",inline"`
+
+	// The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
+	// +kubebuilder:validation:Optional
+	MinReadySeconds int `json:"minReadySeconds,omitempty"`
 
 	// Specify the number of replicas for the Kubernetes Sensor.
 	// +kubebuilder:validation:Optional
