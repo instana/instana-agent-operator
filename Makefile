@@ -222,7 +222,7 @@ controller-yaml: manifests kustomize ## Output the YAML for deployment, so it ca
 	$(KUSTOMIZE) build config/default
 
 get-mockgen:
-	which mockgen >> /dev/null 2>&1 || go install github.com/golang/mock/mockgen@v1.6.0
+	which mockgen >> /dev/null 2>&1 || go install go.uber.org/mock/mockgen@latest
 
 gen-mocks: get-mockgen
 	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.17.2/pkg/client/interfaces.go --destination ./pkg/k8s/client/k8s_client_mock_test.go --package client
