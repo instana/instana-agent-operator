@@ -1,0 +1,37 @@
+---
+#
+# (c) Copyright IBM Corp. 2021
+# (c) Copyright Instana Inc.
+#
+
+# see https://concourse-ci.org/tasks.html
+platform: linux
+image_resource:
+  type: registry-image
+  source:
+    repository: registry.access.redhat.com/ubi8/ubi-minimal
+outputs:
+  - name: image-tags
+params:
+  GIT_COMMIT: ((git-commit))
+run:
+  path: /bin/bash
+  args:
+  - -exc
+  - |
+      set -e
+      cat << EOF > image-tags/amd64
+      ${GIT_COMMIT}-amd64
+      EOF
+      cat << EOF > image-tags/arm64
+      ${GIT_COMMIT}-arm64
+      EOF
+      cat << EOF > image-tags/ppc64le
+      ${GIT_COMMIT}-ppc64le
+      EOF
+      cat << EOF > image-tags/s390x
+      ${GIT_COMMIT}-s390x
+      EOF
+      cat << EOF > image-tags/multi-arch
+      $GIT_COMMIT
+      EOF
