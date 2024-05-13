@@ -1,0 +1,29 @@
+---
+#
+# (c) Copyright IBM Corp. 2021
+# (c) Copyright Instana Inc.
+#
+
+# see https://concourse-ci.org/tasks.html
+platform: linux
+image_resource:
+  type: registry-image
+  source:
+    repository: registry.access.redhat.com/ubi8/ubi
+outputs:
+  - name: version
+params:
+  GIT_COMMIT: ((git-commit))
+  VERSION: ((version))
+run:
+  path: /bin/bash
+  args:
+  - -exc
+  - |
+      set -e
+      # Write tag file:
+      cat << EOF > version/manifest-tags
+      snapshot
+      snapshot-$VERSION
+      $GIT_COMMIT
+      EOF

@@ -52,6 +52,13 @@ resource_types:
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
+  - name: docker-manifest
+    type: registry-image
+    source:
+      repository: gcr.io/instana-agent-qa/concourse-docker-manifest-resource
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+
 resources:
   - name: pipeline-source
     type: git
@@ -119,6 +126,13 @@ resources:
     source:
       repository: gcr.io/instana-agent-qa/instana-agent-operator
       tag: snapshot-s390x
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: manifest-gcr
+    type: docker-manifest
+    icon: docker
+    source: 
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -330,3 +344,27 @@ jobs:
             - put: agent-operator-image-s390x
               params:
                 image: image-s390x/image.tar
+      - task: multiarch-manifest-tags
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        output_mapping:
+          version: version
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - put: manifest-gcr
+        params:
+          tag_file: version/manifest-tags
+          manifests:
+            - arch: amd64
+              os: linux
+              digest_file: agent-operator-image-amd64/digest
+            - arch: arm64
+              os: linux
+              digest_file: agent-operator-image-arm64/digest
+            - arch: ppc64le
+              os: linux
+              digest_file: agent-operator-image-ppc64le/digest
+            - arch: s390x
+              os: linux
+              digest_file: agent-operator-image-s390x/digest
