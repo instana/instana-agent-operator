@@ -3,47 +3,38 @@ aliases:
   gh-status-hooks: &gh-status-hooks
     on_success:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: success }
     on_failure:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: failure }
     on_error:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: error }
     on_abort:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: error }
   gh-status-set-pending: &gh-status-set-pending
     put: gh-status
-    inputs: [ instana-agent-operator ]
+    inputs: [ pipeline-source ]
     params: { state: pending }
   gh-status-set-pending-build: &gh-status-set-pending-build
     put: gh-status
-    inputs: [ instana-agent-operator ]
+    inputs: [ pipeline-source ]
     params: { state: pending, context: build-and-test-operator/build }
   gh-status-set-pending-unit-test: &gh-status-set-pending-unit-test
     put: gh-status
-    inputs: [ instana-agent-operator ]
+    inputs: [ pipeline-source ]
     params: { state: pending, context: build-and-test-operator/unit-test }
+  gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
+    put: gh-status
+    inputs: [ pipeline-source ]
+    params: { state: pending, context: build/docker }
 
-var:
-
-  instana-operator-git-repo-config: &instana-operator-git-repo-config
-    uri: https://github.com/instana/instana-agent-operator.git
-    username: ((project-berlin-gh-token))
-    password: x-oauth-basic
-    branch: &build-branch ((branch))
-    git_config:
-      - name: user.name
-        value: Stan
-      - name: user.email
-        value: stan@instana.com
 resource_types:
-
   - name: cogito
     type: registry-image
     check_every: never
@@ -53,19 +44,27 @@ resource_types:
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
-resources:
+  - name: docker-manifest
+    type: registry-image
+    source:
+      repository: gcr.io/instana-agent-qa/concourse-docker-manifest-resource
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
 
+resources:
   - name: pipeline-source
     type: git
     icon: github
     source:
-      <<: *instana-operator-git-repo-config
-
-  - name: instana-agent-operator
-    type: git
-    icon: github
-    source:
-      <<: *instana-operator-git-repo-config
+      uri: https://github.com/instana/instana-agent-operator.git
+      username: ((project-berlin-gh-token))
+      password: x-oauth-basic
+      branch: &build-branch ((branch))
+      git_config:
+        - name: user.name
+          value: Stan
+        - name: user.email
+          value: stan@instana.com
 
   - name: gh-status
     type: cogito
@@ -83,16 +82,70 @@ resources:
       owner: golangci
       repository: golangci-lint
 
-jobs:
+  # dummy value for now, on main it gets calculated based on the tag name
+  - name: agent-operator-version
+    type: semver
+    source:
+      driver: gcs
+      bucket: instana-agent-qa-versioning
+      key: agent-operator-version/image
+      json_key: ((project-berlin-tests-gcp-instana-qa))
 
+  - name: agent-operator-image-amd64
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-arm64
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-ppc64le
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-s390x
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: latest-agent-image-manifest
+    type: registry-image
+    icon: docker
+    source:
+      repository: icr.io/instana/agent
+      tag: latest
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
+  - name: agent-operator-bundle-image
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator-bundle/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
+jobs:
   - name: self-update
     <<: *gh-status-hooks
     max_in_flight: 1
     plan:
-      - get: instana-agent-operator
-      - <<: *gh-status-set-pending
       - get: pipeline-source
         trigger: true
+      - <<: *gh-status-set-pending
+      - <<: *gh-status-set-pending-build
+      - <<: *gh-status-set-pending-unit-test
+      - <<: *gh-status-set-pending-docker-build
       - set_pipeline: self
         file: pipeline-source/ci/pr-pipeline.yml
         vars:
@@ -106,9 +159,6 @@ jobs:
       - get: pipeline-source
         trigger: true
         passed: [self-update]
-      - get: instana-agent-operator
-      - <<: *gh-status-set-pending-build
-      - <<: *gh-status-set-pending-unit-test
       - task: build
         privileged: true
         config:
@@ -141,19 +191,19 @@ jobs:
                 make build
         on_success:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: success, context: build-and-test-operator/build }
           on_failure:
             put: gh-status
-            inputs: [ instana-agent-operator ]
+            inputs: [ pipeline-source ]
             params: { state: failure, context: build-and-test-operator/build }
           on_error:
             put: gh-status
-            inputs: [ instana-agent-operator ]
+            inputs: [ pipeline-source ]
             params: { state: error, context: build-and-test-operator/build }
           on_abort:
             put: gh-status
-            inputs: [ instana-agent-operator ]
+            inputs: [ pipeline-source ]
             params: { state: error, context: build-and-test-operator/build }
       - get: golangci-lint-release
         params:
@@ -197,17 +247,296 @@ jobs:
                 make lint test
         on_success:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: success, context: build-and-test-operator/unit-test }
         on_failure:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: failure, context: build-and-test-operator/unit-test }
         on_error:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: error, context: build-and-test-operator/unit-test }
         on_abort:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: error, context: build-and-test-operator/unit-test }
+
+  - name: docker-build
+    max_in_flight: 1
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: build/docker }
+    on_failure:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: failure, context: build/docker }
+    on_error:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build/docker }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build/docker }
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - get: agent-operator-version
+        trigger: true
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-arm64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-s390x
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - put: agent-operator-image-amd64
+              params:
+                image: image-amd64/image.tar
+                additional_tags: image-tags/amd64
+            - put: agent-operator-image-arm64
+              params:
+                image: image-arm64/image.tar
+                additional_tags: image-tags/arm64
+            - put: agent-operator-image-ppc64le
+              params:
+                image: image-ppc64le/image.tar
+                additional_tags: image-tags/ppc64le
+            - put: agent-operator-image-s390x
+              params:
+                image: image-s390x/image.tar
+                additional_tags: image-tags/s390x
+      - task: publish-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: pipeline-source
+          outputs:
+            - name: manifest-list
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                microdnf install curl gzip tar
+                IMAGE_TAG=${GIT_COMMIT}
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+
+                # installing manifest-tool
+                curl -o manifest-tool.tar.gz -L https://github.com/estesp/manifest-tool/releases/download/v2.1.6/binaries-manifest-tool-2.1.6.tar.gz
+                tar -xf manifest-tool.tar.gz
+                ./manifest-tool-linux-amd64 \
+                  --username ${DELIVERY_INSTANA_IO_USER} \
+                  --password ${DELIVERY_INSTANA_IO_PW} \
+                  push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} | tee manifest-output.txt
+
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+                # folder is created by output defintion
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+
+  - name: operator-olm-build
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [docker-build]
+      - get: agent-operator-version
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - get: latest-agent-image-manifest
+        params: { skip_download: true }
+      - load_var: agent-image-digest
+        file: latest-agent-image-manifest/digest
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
+      - task: build-bundle
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: pipeline-source
+          outputs:
+            - name: target
+            - name: docker-input
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            VERSION: ((.:agent-operator-version))
+            AGENT_IMG_DIGEST: ((.:agent-image-digest))
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                microdnf install make python3-devel gcc git tar gzip zip curl jq skopeo
+                pip3 install pyyaml
+
+                IMAGE_TAG=${GIT_COMMIT}
+                set +x
+                unset HISTFILE
+                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
+                set -x
+
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+
+                export PATH="$PATH:/usr/local/go/bin"
+                export GOPATH=/go
+                export GO_VERSION=1.22.3
+                export GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 go${GO_VERSION}.linux-amd64.tar.gz"
+
+                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && echo "${GO_SHA256}" | sha256sum --check \
+                && rm -rf /usr/local/go \
+                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && mkdir -p "${GOPATH}" \
+                && go version
+
+                pushd pipeline-source
+
+                # Create a place to store our output for packaging up
+                mkdir -p target
+
+                # strip the leading "v" from the operator version for github artefacts and release:
+                export PREFIX="v"
+                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
+
+                # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                # Uses jq to filter out non-release versions
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+                  | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
+                  | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                if [[ "x${PREV_VERSION}" = "x" ]]; then
+                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+                  exit 1
+                fi
+
+                echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
+                export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
+
+                # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
+                make IMG="${OPERATOR_IMAGE}" \
+                  VERSION="${OLM_RELEASE_VERSION}" \
+                  PREV_VERSION="${PREV_VERSION}" \
+                  AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
+                  bundle
+
+                cp bundle.Dockerfile ../docker-input/
+                cp -R bundle ../docker-input/
+                pushd bundle
+                zip -r ../../target/olm-${OLM_RELEASE_VERSION}.zip .
+                popd
+
+                # Create the YAML for installing the Agent Operator, which we want to package with the release
+                make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > ../target/instana-agent-operator.yaml
+
+                echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
+                echo
+                cat ../target/instana-agent-operator.yaml
+      - task: build-bundle-docker
+        privileged: true
+        file: pipeline-source/ci/container-image-build-task.yml
+        input_mapping:
+          source: docker-input
+        output_mapping: 
+          image: image-bundle
+        vars:
+          dockerfile: bundle.Dockerfile
+          target-platform: linux/amd64
+          version: ((.:agent-operator-version))
+          git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - put: agent-operator-bundle-image
+        params:
+          image: image-bundle/image.tar
+          additional_tags: image-tags/multi-arch
