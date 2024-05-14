@@ -137,6 +137,7 @@ resources:
       password: ((project-berlin-tests-gcp-instana-qa))
 
 jobs:
+    # test change
   - name: self-update
     <<: *gh-status-hooks
     max_in_flight: 1
