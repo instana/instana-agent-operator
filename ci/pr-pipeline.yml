@@ -88,6 +88,7 @@ resources:
       owner: golangci
       repository: golangci-lint
 
+  # dummy value for now, on main it gets calculated from the tag name
   - name: agent-operator-version
     type: semver
     source:
@@ -128,13 +129,21 @@ resources:
       tag: snapshot-s390x
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
-  - name: manifest-gcr
+  - name: operator-manifest-gcr
     type: docker-manifest
     icon: docker
     source: 
       repository: gcr.io/instana-agent-qa/instana-agent-operator
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+  - name: latest-agent-image-manifest
+    type: registry-image
+    icon: docker
+    source:
+      repository: icr.io/instana/agent
+      tag: latest
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
 
 jobs:
   - name: self-update
@@ -352,7 +361,7 @@ jobs:
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
-      - put: manifest-gcr
+      - put: operator-manifest-gcr
         params:
           tag_file: version/manifest-tags
           manifests:
@@ -368,3 +377,104 @@ jobs:
             - arch: s390x
               os: linux
               digest_file: agent-operator-image-s390x/digest
+
+  - name: operator-olm-build
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [docker-build]
+      - get: operator-manifest-gcr
+        passed: [docker-build]
+      - get: agent-operator-version
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - get: latest-agent-image-manifest
+        params: { skip_download: true }
+      - load_var: agent-image-digest
+        file: latest-agent-image-manifest/digest
+        reveal: true
+      - task: build
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: pipeline-source
+            - name: operator-manifest-gcr
+          outputs:
+            - name: build
+          params:
+            VERSION: ((.:agent-operator-version))
+            AGENT_IMG_DIGEST: ((.:agent-image-digest))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                microdnf install make python3-devel gcc git tar gzip zip curl jq skopeo
+                pip3 install pyyaml
+
+                echo "operator-manifest-gcr contents:"
+                ls operator-manifest-gcr
+                ls operator-manifest-gcr/image.tar
+                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" oci-archive:operator-manifest-gcr/image.tar)
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+
+                # ubi8 still bundles Go 1.15 but we rely on 1.22, so install manually
+                export PATH="$PATH:/usr/local/go/bin"
+                export GOPATH=/go
+                export GO_VERSION=1.22.3
+                export GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 go${GO_VERSION}.linux-amd64.tar.gz"
+
+                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && echo "${GO_SHA256}" | sha256sum --check \
+                && rm -rf /usr/local/go \
+                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
+                && mkdir -p "${GOPATH}" \
+                && go version
+
+                pushd pipeline-source
+
+                # Create a place to store our output for packaging up
+                mkdir -p target
+
+                # strip the leading "v" from the operator version for github artefacts and release:
+                export PREFIX="v"
+                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
+
+                # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                # Uses jq to filter out non-release versions
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+                  | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
+                  | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                if [[ "x${PREV_VERSION}" = "x" ]]; then
+                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+                  exit 1
+                fi
+
+                echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
+                export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator@${OPERATOR_IMG_DIGEST}"
+
+                # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
+                make IMG="${OPERATOR_IMAGE}" \
+                  VERSION="${OLM_RELEASE_VERSION}" \
+                  PREV_VERSION="${PREV_VERSION}" \
+                  AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
+                  bundle
+
+                pushd bundle
+                zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
+                popd
+
+                # Create the YAML for installing the Agent Operator, which we want to package with the release
+                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+
+                echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
+                echo
+                cat target/instana-agent-operator.yaml
