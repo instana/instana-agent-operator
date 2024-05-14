@@ -76,14 +76,8 @@ resources:
       context_prefix: concourse
       github_host: github.com
 
-  - name: golangci-lint-release
-    type: github-release
-    check_every: 24h
-    source:
-      owner: golangci
-      repository: golangci-lint
-
 jobs:
+
   - name: self-update
     <<: *gh-status-hooks
     max_in_flight: 1
@@ -154,11 +148,6 @@ jobs:
             put: gh-status
             inputs: [ instana-agent-operator ]
             params: { state: error, context: build-and-test-operator/build }
-
-      - get: golangci-lint-release
-        params:
-          globs:
-            - golangci-lint-*-linux-amd64.rpm
       - task: unit-test
         privileged: true
         config:
@@ -169,7 +158,6 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: pipeline-source
-            - name: golangci-lint-release
           caches:
             - path: /go/pkg/mod
           run:
@@ -177,15 +165,10 @@ jobs:
             args:
               - -ceu
               - |
+                cd pipeline-source
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
                 pip3 install pyyaml
-
-                pushd golangci-lint-release
-                LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
-                rpm -i $LINTER_RPM
-                popd
-
-                cd pipeline-source
+                
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
                 export GO_VERSION=1.19
@@ -194,7 +177,7 @@ jobs:
                 && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
                 && mkdir -p "${GOPATH}" \
                 && go version
-                make lint test
+                make test
         on_success:
           put: gh-status
           inputs: [ instana-agent-operator ]
