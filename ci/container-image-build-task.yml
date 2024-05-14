@@ -1,0 +1,28 @@
+# task that builds docker images with an option to specify a target platform.
+
+# After that command runs, you should have an `image/image.tar` oci image that you can test with:
+  # docker load -i image/image.tar
+  # docker tag LOADED_IMAGE_ID instana-agent-docker-s390x:local
+  # docker run --rm -it --entrypoint sh instana-agent-docker-s390x:local # this won't run if you are not on an s390x machine.
+
+platform: linux
+image_resource:
+  type: registry-image
+  source:
+    repository: delivery.instana.io/int-docker-private-virtual/concourse/oci-build-task
+    tag: 0.11.0
+    username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+    password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+inputs:
+  - name: source
+outputs:
+  - name: image
+params:
+  CONTEXT: source
+  DOCKERFILE: source/((dockerfile))
+  IMAGE_PLATFORM: ((target-platform)) # This param tells the `concourse-oci-build-task` task which architecture to build the image for.
+  BUILD_ARG_TARGETPLATFORM: ((target-platform)) # the instana-agent-operator Dockerfile requires a TARGETPLATFORM build arg.
+  BUILD_ARG_VERSION: ((version)) # required by the instana-agent-operator Dockerfile
+  BUILD_ARG_GIT_COMMIT: ((git-commit)) # required by the instana-agent-operator Dockerfile
+run:
+  path: build

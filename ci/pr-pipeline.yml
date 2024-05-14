@@ -31,7 +31,6 @@ aliases:
     params: { state: pending, context: build-and-test-operator/unit-test }
 
 var:
-
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
     username: ((project-berlin-gh-token))
@@ -42,8 +41,8 @@ var:
         value: Stan
       - name: user.email
         value: stan@instana.com
-resource_types:
 
+resource_types:
   - name: cogito
     type: registry-image
     check_every: never
@@ -53,8 +52,14 @@ resource_types:
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
-resources:
+  - name: docker-manifest
+    type: registry-image
+    source:
+      repository: gcr.io/instana-agent-qa/concourse-docker-manifest-resource
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
 
+resources:
   - name: pipeline-source
     type: git
     icon: github
@@ -83,8 +88,56 @@ resources:
       owner: golangci
       repository: golangci-lint
 
-jobs:
+  - name: agent-operator-version
+    type: semver
+    source:
+      driver: gcs
+      bucket: instana-agent-qa-versioning
+      key: agent-operator-version/image
+      json_key: ((project-berlin-tests-gcp-instana-qa))
 
+  - name: agent-operator-image-amd64
+    type: registry-image
+    icon: docker
+    source:
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      tag: snapshot-amd64
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: agent-operator-image-arm64
+    type: registry-image
+    icon: docker
+    source:
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      tag: snapshot-arm64
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: agent-operator-image-ppc64le
+    type: registry-image
+    icon: docker
+    source:
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      tag: snapshot-ppc64le
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: agent-operator-image-s390x
+    type: registry-image
+    icon: docker
+    source:
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      tag: snapshot-s390x
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+  - name: manifest-gcr
+    type: docker-manifest
+    icon: docker
+    source: 
+      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+
+jobs:
+    # test change
   - name: self-update
     <<: *gh-status-hooks
     max_in_flight: 1
@@ -211,3 +264,108 @@ jobs:
           put: gh-status
           inputs: [ instana-agent-operator ]
           params: { state: error, context: build-and-test-operator/unit-test }
+
+  - name: docker-build
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - get: agent-operator-version
+        trigger: true
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-arm64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-s390x
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping: 
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - put: agent-operator-image-amd64
+              params:
+                image: image-amd64/image.tar
+            - put: agent-operator-image-arm64
+              params:
+                image: image-arm64/image.tar
+            - put: agent-operator-image-ppc64le
+              params:
+                image: image-ppc64le/image.tar
+            - put: agent-operator-image-s390x
+              params:
+                image: image-s390x/image.tar
+      - task: multiarch-manifest-tags
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        output_mapping:
+          version: version
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - put: manifest-gcr
+        params:
+          tag_file: version/manifest-tags
+          manifests:
+            - arch: amd64
+              os: linux
+              digest_file: agent-operator-image-amd64/digest
+            - arch: arm64
+              os: linux
+              digest_file: agent-operator-image-arm64/digest
+            - arch: ppc64le
+              os: linux
+              digest_file: agent-operator-image-ppc64le/digest
+            - arch: s390x
+              os: linux
+              digest_file: agent-operator-image-s390x/digest
