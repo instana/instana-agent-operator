@@ -35,7 +35,7 @@ AGENT_IMG ?= icr.io/instana/agent:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.21
+ENVTEST_K8S_VERSION = 1.30
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -132,7 +132,7 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
@@ -148,7 +148,7 @@ ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 endif
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.47.1)
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2)
 
 OPERATOR_SDK = $(shell command -v operator-sdk 2>/dev/null || echo "operator-sdk")
 # Test if operator-sdk is available on the system, otherwise download locally
@@ -156,7 +156,7 @@ ifneq ($(shell test -f $(OPERATOR_SDK) && echo -n yes),yes)
 OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
 endif
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
-	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0,operator-sdk_$${OS}_$${ARCH})
+	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.33.0,operator-sdk_$${OS}_$${ARCH})
 
 
 # go-install-tool will 'go get' any package $2 and install it to $1.
