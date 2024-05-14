@@ -31,6 +31,13 @@ metadata:
     certified: "false"
     containerImage: icr.io/instana/instana-agent-operator:0.0.0
     description: Fully automated Application Performance Monitoring (APM) for microservices.
+    features.operators.openshift.io/disconnected: "false"
+    features.operators.openshift.io/fips-compliant: "true"
+    features.operators.openshift.io/proxy-aware: "false"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
   labels:
