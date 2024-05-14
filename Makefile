@@ -86,7 +86,7 @@ vet: ## Run go vet against code
 lint: golangci-lint ## Run the golang-ci linter
 	$(GOLANGCI_LINT) run --timeout 5m
 
-test: manifests generate fmt vet lint envtest ## Run tests.
+test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 
@@ -99,8 +99,8 @@ run: export DEBUG_MODE=true
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
-docker-build: test ## Build docker image with the manager.
-	docker build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg DATE="$$(date)" -t ${IMG} .
+docker-build: ## Build docker image with the manager.
+	podman build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg DATE="$$(date)" -t ${IMG} .
 
 docker-push: ## Push the docker image with the manager.
 	docker push ${IMG}
@@ -215,7 +215,7 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image for OLM.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	podman build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"

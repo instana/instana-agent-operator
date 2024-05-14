@@ -13,6 +13,7 @@
 !logger/
 !pkg/
 !version/
+!pkg/
 
 # Other files not to ignore
 !bundle/
