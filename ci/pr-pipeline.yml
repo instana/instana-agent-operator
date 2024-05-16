@@ -311,6 +311,41 @@ jobs:
             BUILD_ARG_GIT_COMMIT: ((.:git-commit)) # required by the instana-agent-operator Dockerfile
           run:
             path: build
+      - task: publish-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: image
+          outputs:
+            - name: image
+          params:
+            IMAGE_NAME: delivery.instana.io/int-docker-agent-local/instana-agent-operator
+            IMAGE_TAG: ((.:git-commit))-skopeo
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                microdnf install skopeo
+                set +x
+                unset HISTFILE
+                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
+                set -x
+
+                ls image
+                skopeo copy --format v2s2 --all oci-archive:image/image.tar docker://${IMAGE_NAME}:${IMAGE_TAG}
+                IMAGE_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${IMAGE_NAME}:${IMAGE_TAG})
+                echo "IMAGE_DIGEST=$IMAGE_DIGEST"
+                echo $IMAGE_DIGEST > image/multi-arch-digest
+                echo $IMAGE_NAME > image/multi-arch-image-name
+                echo $IMAGE_TAG > image/multi-arch-image-tag
 
   - name: docker-build
     max_in_flight: 1
