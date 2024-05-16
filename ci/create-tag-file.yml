@@ -23,7 +23,6 @@ run:
       set -e
       # Write tag file:
       cat << EOF > version/manifest-tags
-      snapshot
-      snapshot-$VERSION
       $GIT_COMMIT
+      snapshot
       EOF

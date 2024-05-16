@@ -101,41 +101,41 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
       tag: snapshot-amd64
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-arm64
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
       tag: snapshot-arm64
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-ppc64le
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
       tag: snapshot-ppc64le
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-s390x
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
       tag: snapshot-s390x
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: operator-manifest-gcr
     type: docker-manifest
     icon: docker
     source: 
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
@@ -384,8 +384,6 @@ jobs:
       - get: pipeline-source
         trigger: true
         passed: [docker-build]
-      - get: operator-manifest-gcr
-        passed: [docker-build]
       - get: agent-operator-version
       - load_var: agent-operator-version
         file: agent-operator-version/number
@@ -394,6 +392,9 @@ jobs:
         params: { skip_download: true }
       - load_var: agent-image-digest
         file: latest-agent-image-manifest/digest
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
         reveal: true
       - task: build
         privileged: true
@@ -405,12 +406,12 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: pipeline-source
-            - name: operator-manifest-gcr
-          outputs:
-            - name: build
           params:
+            GIT_COMMIT: ((.:git-commit))
             VERSION: ((.:agent-operator-version))
             AGENT_IMG_DIGEST: ((.:agent-image-digest))
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           run:
             path: bash
             args:
@@ -419,13 +420,16 @@ jobs:
                 microdnf install make python3-devel gcc git tar gzip zip curl jq skopeo
                 pip3 install pyyaml
 
-                echo "operator-manifest-gcr contents:"
-                ls operator-manifest-gcr
-                ls operator-manifest-gcr/image.tar
-                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" oci-archive:operator-manifest-gcr/image.tar)
+                IMAGE_TAG=${GIT_COMMIT}
+                set +x
+                unset HISTFILE
+                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
+                set -x
+
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator
+                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
                 echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
 
-                # ubi8 still bundles Go 1.15 but we rely on 1.22, so install manually
                 export PATH="$PATH:/usr/local/go/bin"
                 export GOPATH=/go
                 export GO_VERSION=1.22.3
@@ -459,9 +463,9 @@ jobs:
                 fi
 
                 echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
-                export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator@${OPERATOR_IMG_DIGEST}"
+                export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
 
-                # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
+                # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator:<version>
                 make IMG="${OPERATOR_IMAGE}" \
                   VERSION="${OLM_RELEASE_VERSION}" \
                   PREV_VERSION="${PREV_VERSION}" \
@@ -473,7 +477,7 @@ jobs:
                 popd
 
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
-                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+                make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
 
                 echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
                 echo
