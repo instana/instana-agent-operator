@@ -273,6 +273,45 @@ jobs:
           inputs: [ instana-agent-operator ]
           params: { state: error, context: build-and-test-operator/unit-test }
 
+  - name: multi-arch-docker-build
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - get: agent-operator-version
+        trigger: true
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
+      - task: build-images
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-private-virtual/concourse/oci-build-task
+              tag: 0.11.0
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: pipeline-source
+          outputs:
+            - name: image
+          params:
+            CONTEXT: pipeline-source
+            DOCKERFILE: pipeline-source/Dockerfile
+            IMAGE_PLATFORM: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x # This param tells the `concourse-oci-build-task` task which architecture to build the image for.
+            OUTPUT_OCI: true # outputs an OCI compliant image, allowing for multi-arch image builds when setting IMAGE_PLATFORM to multiple platforms. The image output format will be a directory when this flag is set to true.
+            BUILD_ARG_VERSION: ((.:agent-operator-version)) # required by the instana-agent-operator Dockerfile
+            BUILD_ARG_GIT_COMMIT: ((.:git-commit)) # required by the instana-agent-operator Dockerfile
+          run:
+            path: build
+
   - name: docker-build
     max_in_flight: 1
     plan:
