@@ -588,7 +588,7 @@ jobs:
                 type: registry-image
                 source:
                   repository: gcr.io/instana-agent-qa/project-berlin/e2e-test-base-image
-                  tag: ((branch))
+                  tag: latest
                   username: _json_key
                   password: ((project-berlin-tests-gcp-instana-qa))
               params:
