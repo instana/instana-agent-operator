@@ -9,20 +9,29 @@ platform: linux
 image_resource:
   type: registry-image
   source:
-    repository: registry.access.redhat.com/ubi8/ubi
+    repository: registry.access.redhat.com/ubi8/ubi-minimal
 outputs:
-  - name: version
+  - name: image-tags
 params:
   GIT_COMMIT: ((git-commit))
-  VERSION: ((version))
 run:
   path: /bin/bash
   args:
   - -exc
   - |
       set -e
-      # Write tag file:
-      cat << EOF > version/manifest-tags
+      cat << EOF > image-tags/amd64
+      ${GIT_COMMIT}-amd64
+      EOF
+      cat << EOF > image-tags/arm64
+      ${GIT_COMMIT}-arm64
+      EOF
+      cat << EOF > image-tags/ppc64le
+      ${GIT_COMMIT}-ppc64le
+      EOF
+      cat << EOF > image-tags/s390x
+      ${GIT_COMMIT}-s390x
+      EOF
+      cat << EOF > image-tags/multi-arch
       $GIT_COMMIT
-      snapshot
       EOF

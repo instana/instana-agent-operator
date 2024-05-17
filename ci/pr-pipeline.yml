@@ -88,7 +88,7 @@ resources:
       owner: golangci
       repository: golangci-lint
 
-  # dummy value for now, on main it gets calculated from the tag name
+  # dummy value for now, on main it gets calculated based on the tag name
   - name: agent-operator-version
     type: semver
     source:
@@ -101,39 +101,35 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
-      tag: snapshot-amd64
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-arm64
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
-      tag: snapshot-arm64
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-ppc64le
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
-      tag: snapshot-ppc64le
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-s390x
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
-      tag: snapshot-s390x
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-  - name: operator-manifest-gcr
+  - name: agent-operator-image-multi-arch
     type: docker-manifest
     icon: docker
     source: 
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
@@ -412,32 +408,34 @@ jobs:
                 target-platform: linux/ppc64le
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
       - in_parallel:
           fail_fast: true
           steps:
             - put: agent-operator-image-amd64
               params:
                 image: image-amd64/image.tar
+                additional_tags: image-tags/amd64
             - put: agent-operator-image-arm64
               params:
                 image: image-arm64/image.tar
+                additional_tags: image-tags/arm64
             - put: agent-operator-image-ppc64le
               params:
                 image: image-ppc64le/image.tar
+                additional_tags: image-tags/ppc64le
             - put: agent-operator-image-s390x
               params:
                 image: image-s390x/image.tar
-      - task: multiarch-manifest-tags
-        privileged: true
-        file: pipeline-source/ci/create-tag-file.yml
-        output_mapping:
-          version: version
-        vars:
-          git-commit: ((.:git-commit))
-          version: ((.:agent-operator-version))
-      - put: operator-manifest-gcr
+                additional_tags: image-tags/s390x
+      - put: agent-operator-image-multi-arch
         params:
-          tag_file: version/manifest-tags
+          tag_file: image-tags/multi-arch
           manifests:
             - arch: amd64
               os: linux
@@ -480,6 +478,8 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: pipeline-source
+          outputs:
+            - name: target
           params:
             GIT_COMMIT: ((.:git-commit))
             VERSION: ((.:agent-operator-version))
@@ -500,7 +500,7 @@ jobs:
                 skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
                 set -x
 
-                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
                 OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
                 echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
 
@@ -539,7 +539,7 @@ jobs:
                 echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
                 export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
 
-                # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator:<version>
+                # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
                 make IMG="${OPERATOR_IMAGE}" \
                   VERSION="${OLM_RELEASE_VERSION}" \
                   PREV_VERSION="${PREV_VERSION}" \
