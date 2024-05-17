@@ -1,6 +1,7 @@
 module github.com/instana/instana-agent-operator
 
 go 1.22
+toolchain go1.22.0
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
