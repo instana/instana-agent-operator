@@ -32,7 +32,7 @@ aliases:
   gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
     put: gh-status
     inputs: [ pipeline-source ]
-    params: { state: pending, context: build-and-test-operator/docker-build }
+    params: { state: pending, context: build/docker }
 
 resource_types:
   - name: cogito
@@ -133,12 +133,12 @@ jobs:
     <<: *gh-status-hooks
     max_in_flight: 1
     plan:
+      - get: pipeline-source
+        trigger: true
       - <<: *gh-status-set-pending
       - <<: *gh-status-set-pending-build
       - <<: *gh-status-set-pending-unit-test
       - <<: *gh-status-set-pending-docker-build
-      - get: pipeline-source
-        trigger: true
       - set_pipeline: self
         file: pipeline-source/ci/pr-pipeline.yml
         vars:
@@ -260,19 +260,19 @@ jobs:
     on_success:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: success, context: build-and-test-operator/build }
+      params: { state: success, context: build/docker }
     on_failure:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: failure, context: build-and-test-operator/build }
+      params: { state: failure, context: build/docker }
     on_error:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: error, context: build-and-test-operator/build }
+      params: { state: error, context: build/docker }
     on_abort:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: error, context: build-and-test-operator/build }
+      params: { state: error, context: build/docker }
     plan:
       - get: pipeline-source
         trigger: true
@@ -382,45 +382,25 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install curl skopeo
+                microdnf install curl gzip tar
                 IMAGE_TAG=${GIT_COMMIT}
-                set +x
-                unset HISTFILE
-                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
-                set -x
-
                 OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
 
                 # installing manifest-tool
                 curl -o manifest-tool.tar.gz -L https://github.com/estesp/manifest-tool/releases/download/v2.1.6/binaries-manifest-tool-2.1.6.tar.gz
                 tar -xf manifest-tool.tar.gz
-                ./manifest-tool-linux-amd64 push from-args \
+                ./manifest-tool-linux-amd64 \
+                  --username ${DELIVERY_INSTANA_IO_USER} \
+                  --password ${DELIVERY_INSTANA_IO_PW} \
+                  push from-args \
                   --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
                   --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
-                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} \
-                  --username ${DELIVERY_INSTANA_IO_USER} \
-                  --password ${DELIVERY_INSTANA_IO_PW} 
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} | tee manifest-output.txt
 
-                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
                 echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
-                mkdir manifest-list
+                # folder is created by output defintion
                 echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
-      # - put: agent-operator-image-multi-arch
-      #   params:
-      #     tag_file: image-tags/multi-arch
-      #     manifests:
-      #       - arch: amd64
-      #         os: linux
-      #         digest_file: agent-operator-image-amd64/digest
-      #       - arch: arm64
-      #         os: linux
-      #         digest_file: agent-operator-image-arm64/digest
-      #       - arch: ppc64le
-      #         os: linux
-      #         digest_file: agent-operator-image-ppc64le/digest
-      #       - arch: s390x
-      #         os: linux
-      #         digest_file: agent-operator-image-s390x/digest
 
   - name: operator-olm-build
     max_in_flight: 1
