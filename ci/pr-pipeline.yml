@@ -3,44 +3,36 @@ aliases:
   gh-status-hooks: &gh-status-hooks
     on_success:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: success }
     on_failure:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: failure }
     on_error:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: error }
     on_abort:
       put: gh-status
-      inputs: [ instana-agent-operator ]
+      inputs: [ pipeline-source ]
       params: { state: error }
   gh-status-set-pending: &gh-status-set-pending
     put: gh-status
-    inputs: [ instana-agent-operator ]
+    inputs: [ pipeline-source ]
     params: { state: pending }
   gh-status-set-pending-build: &gh-status-set-pending-build
     put: gh-status
-    inputs: [ instana-agent-operator ]
+    inputs: [ pipeline-source ]
     params: { state: pending, context: build-and-test-operator/build }
   gh-status-set-pending-unit-test: &gh-status-set-pending-unit-test
     put: gh-status
-    inputs: [ instana-agent-operator ]
+    inputs: [ pipeline-source ]
     params: { state: pending, context: build-and-test-operator/unit-test }
-
-var:
-  instana-operator-git-repo-config: &instana-operator-git-repo-config
-    uri: https://github.com/instana/instana-agent-operator.git
-    username: ((project-berlin-gh-token))
-    password: x-oauth-basic
-    branch: &build-branch ((branch))
-    git_config:
-      - name: user.name
-        value: Stan
-      - name: user.email
-        value: stan@instana.com
+  gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
+    put: gh-status
+    inputs: [ pipeline-source ]
+    params: { state: pending, context: build-and-test-operator/docker-build }
 
 resource_types:
   - name: cogito
@@ -64,13 +56,15 @@ resources:
     type: git
     icon: github
     source:
-      <<: *instana-operator-git-repo-config
-
-  - name: instana-agent-operator
-    type: git
-    icon: github
-    source:
-      <<: *instana-operator-git-repo-config
+      uri: https://github.com/instana/instana-agent-operator.git
+      username: ((project-berlin-gh-token))
+      password: x-oauth-basic
+      branch: &build-branch ((branch))
+      git_config:
+        - name: user.name
+          value: Stan
+        - name: user.email
+          value: stan@instana.com
 
   - name: gh-status
     type: cogito
@@ -125,13 +119,6 @@ resources:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-  # - name: agent-operator-image-multi-arch
-  #   type: docker-manifest
-  #   icon: docker
-  #   source: 
-  #     repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
-  #     username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-  #     password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
@@ -146,8 +133,10 @@ jobs:
     <<: *gh-status-hooks
     max_in_flight: 1
     plan:
-      - get: instana-agent-operator
       - <<: *gh-status-set-pending
+      - <<: *gh-status-set-pending-build
+      - <<: *gh-status-set-pending-unit-test
+      - <<: *gh-status-set-pending-docker-build
       - get: pipeline-source
         trigger: true
       - set_pipeline: self
@@ -163,9 +152,6 @@ jobs:
       - get: pipeline-source
         trigger: true
         passed: [self-update]
-      - get: instana-agent-operator
-      - <<: *gh-status-set-pending-build
-      - <<: *gh-status-set-pending-unit-test
       - task: build
         privileged: true
         config:
@@ -198,19 +184,19 @@ jobs:
                 make build
         on_success:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: success, context: build-and-test-operator/build }
           on_failure:
             put: gh-status
-            inputs: [ instana-agent-operator ]
+            inputs: [ pipeline-source ]
             params: { state: failure, context: build-and-test-operator/build }
           on_error:
             put: gh-status
-            inputs: [ instana-agent-operator ]
+            inputs: [ pipeline-source ]
             params: { state: error, context: build-and-test-operator/build }
           on_abort:
             put: gh-status
-            inputs: [ instana-agent-operator ]
+            inputs: [ pipeline-source ]
             params: { state: error, context: build-and-test-operator/build }
       - get: golangci-lint-release
         params:
@@ -254,97 +240,39 @@ jobs:
                 make lint test
         on_success:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: success, context: build-and-test-operator/unit-test }
         on_failure:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: failure, context: build-and-test-operator/unit-test }
         on_error:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: error, context: build-and-test-operator/unit-test }
         on_abort:
           put: gh-status
-          inputs: [ instana-agent-operator ]
+          inputs: [ pipeline-source ]
           params: { state: error, context: build-and-test-operator/unit-test }
-
-  - name: multi-arch-docker-build
-    max_in_flight: 1
-    plan:
-      - get: pipeline-source
-        trigger: true
-        passed: [self-update]
-      - get: agent-operator-version
-        trigger: true
-      - load_var: agent-operator-version
-        file: agent-operator-version/number
-        reveal: true
-      - load_var: git-commit
-        file: pipeline-source/.git/short_ref
-        reveal: true
-      - task: build-images
-        privileged: true
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: delivery.instana.io/int-docker-private-virtual/concourse/oci-build-task
-              tag: 0.11.0
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-          inputs:
-            - name: pipeline-source
-          outputs:
-            - name: image
-          params:
-            CONTEXT: pipeline-source
-            DOCKERFILE: pipeline-source/Dockerfile
-            IMAGE_PLATFORM: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x # This param tells the `concourse-oci-build-task` task which architecture to build the image for.
-            OUTPUT_OCI: true # outputs an OCI compliant image, allowing for multi-arch image builds when setting IMAGE_PLATFORM to multiple platforms. The image output format will be a directory when this flag is set to true.
-            BUILD_ARG_VERSION: ((.:agent-operator-version)) # required by the instana-agent-operator Dockerfile
-            BUILD_ARG_GIT_COMMIT: ((.:git-commit)) # required by the instana-agent-operator Dockerfile
-          run:
-            path: build
-      - task: publish-manifest-list
-        privileged: true
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
-          inputs:
-            - name: image
-          outputs:
-            - name: image
-          params:
-            IMAGE_NAME: delivery.instana.io/int-docker-agent-local/instana-agent-operator
-            IMAGE_TAG: ((.:git-commit))-skopeo
-            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-          run:
-            path: bash
-            args:
-              - -ceu
-              - |
-                microdnf install skopeo
-                set +x
-                unset HISTFILE
-                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
-                set -x
-
-                ls image
-                skopeo copy --format v2s2 --all oci-archive:image/image.tar docker://${IMAGE_NAME}:${IMAGE_TAG}
-                IMAGE_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${IMAGE_NAME}:${IMAGE_TAG})
-                echo "IMAGE_DIGEST=$IMAGE_DIGEST"
-                echo $IMAGE_DIGEST > image/multi-arch-digest
-                echo $IMAGE_NAME > image/multi-arch-image-name
-                echo $IMAGE_TAG > image/multi-arch-image-tag
 
   - name: docker-build
     max_in_flight: 1
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: build-and-test-operator/build }
+    on_failure:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: failure, context: build-and-test-operator/build }
+    on_error:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build-and-test-operator/build }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build-and-test-operator/build }
     plan:
       - get: pipeline-source
         trigger: true
@@ -469,7 +397,9 @@ jobs:
                 ./manifest-tool-linux-amd64 push from-args \
                   --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
                   --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
-                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} \
+                  --username ${DELIVERY_INSTANA_IO_USER} \
+                  --password ${DELIVERY_INSTANA_IO_PW} 
 
                 OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
                 echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
