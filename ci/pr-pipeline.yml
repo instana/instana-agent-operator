@@ -127,6 +127,13 @@ resources:
       tag: latest
       username: iamapikey
       password: ((concourse-icr-containers-public.password))
+  - name: agent-operator-bundle-image
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator-bundle/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
 jobs:
   - name: self-update
@@ -420,7 +427,7 @@ jobs:
       - load_var: git-commit
         file: pipeline-source/.git/short_ref
         reveal: true
-      - task: build
+      - task: build-bundle
         privileged: true
         config:
           platform: linux
@@ -432,6 +439,7 @@ jobs:
             - name: pipeline-source
           outputs:
             - name: target
+            - name: docker-input
           params:
             GIT_COMMIT: ((.:git-commit))
             VERSION: ((.:agent-operator-version))
@@ -498,6 +506,9 @@ jobs:
                   AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
                   bundle
 
+                mkdir -p docker-input
+                cp bundle.Dockerfile docker-input/
+                cp -R bundle docker-input/
                 pushd bundle
                 zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
                 popd
@@ -508,3 +519,25 @@ jobs:
                 echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
                 echo
                 cat target/instana-agent-operator.yaml
+      - task: build-bundle-docker
+        privileged: true
+        file: pipeline-source/ci/container-image-build-task.yml
+        input_mapping:
+          source: docker-input
+        output_mapping: 
+          image: image-bundle
+        vars:
+          dockerfile: bundle.Dockerfile
+          target-platform: linux/amd64
+          version: ((.:agent-operator-version))
+          git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - put: agent-operator-bundle-image
+        params:
+          image: image-bundle/image.tar
+          additional_tags: image-tags/multi-arch
