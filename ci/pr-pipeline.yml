@@ -125,13 +125,13 @@ resources:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-  - name: agent-operator-image-multi-arch
-    type: docker-manifest
-    icon: docker
-    source: 
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  # - name: agent-operator-image-multi-arch
+  #   type: docker-manifest
+  #   icon: docker
+  #   source: 
+  #     repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+  #     username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+  #     password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
@@ -433,22 +433,64 @@ jobs:
               params:
                 image: image-s390x/image.tar
                 additional_tags: image-tags/s390x
-      - put: agent-operator-image-multi-arch
-        params:
-          tag_file: image-tags/multi-arch
-          manifests:
-            - arch: amd64
-              os: linux
-              digest_file: agent-operator-image-amd64/digest
-            - arch: arm64
-              os: linux
-              digest_file: agent-operator-image-arm64/digest
-            - arch: ppc64le
-              os: linux
-              digest_file: agent-operator-image-ppc64le/digest
-            - arch: s390x
-              os: linux
-              digest_file: agent-operator-image-s390x/digest
+      - task: publish-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: pipeline-source
+          outputs:
+            - name: manifest-list
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                microdnf install curl skopeo
+                IMAGE_TAG=${GIT_COMMIT}
+                set +x
+                unset HISTFILE
+                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
+                set -x
+
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+
+                # installing manifest-tool
+                curl -o manifest-tool.tar.gz -L https://github.com/estesp/manifest-tool/releases/download/v2.1.6/binaries-manifest-tool-2.1.6.tar.gz
+                tar -xf manifest-tool.tar.gz
+                ./manifest-tool-linux-amd64 push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}
+
+                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+                mkdir manifest-list
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+      # - put: agent-operator-image-multi-arch
+      #   params:
+      #     tag_file: image-tags/multi-arch
+      #     manifests:
+      #       - arch: amd64
+      #         os: linux
+      #         digest_file: agent-operator-image-amd64/digest
+      #       - arch: arm64
+      #         os: linux
+      #         digest_file: agent-operator-image-arm64/digest
+      #       - arch: ppc64le
+      #         os: linux
+      #         digest_file: agent-operator-image-ppc64le/digest
+      #       - arch: s390x
+      #         os: linux
+      #         digest_file: agent-operator-image-s390x/digest
 
   - name: operator-olm-build
     max_in_flight: 1
