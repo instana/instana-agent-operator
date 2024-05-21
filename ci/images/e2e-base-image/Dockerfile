@@ -21,6 +21,7 @@ RUN dnf update -y && dnf install -y \
     zip \
     google-cloud-cli \
     skopeo \
+    kubectl \
     && pip3 install pyyaml
 
 # Set environment variables for Go
