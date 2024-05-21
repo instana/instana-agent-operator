@@ -200,7 +200,7 @@ jobs:
     plan:
       - get: pipeline-source
         trigger: true
-        passed: [self-update]
+        passed: [self-update, build-e2e-operator-base-image]
       - task: build
         privileged: true
         config:
@@ -307,7 +307,7 @@ jobs:
     plan:
       - get: pipeline-source
         trigger: true
-        passed: [self-update]
+        passed: [self-update, build-e2e-operator-base-image]
       - get: agent-operator-version
         trigger: true
       - load_var: agent-operator-version
