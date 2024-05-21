@@ -268,6 +268,7 @@ jobs:
                   rpm -i $LINTER_RPM
                 popd
 
+                cd pipeline-source
                 make lint test
         on_success:
           put: gh-status
