@@ -4,23 +4,23 @@ aliases:
     on_success:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: success }
+      params: { state: success, context: self-update }
     on_failure:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: failure }
+      params: { state: failure, context: self-update }
     on_error:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: error }
+      params: { state: error, context: self-update }
     on_abort:
       put: gh-status
       inputs: [ pipeline-source ]
-      params: { state: error }
+      params: { state: error, context: self-update }
   gh-status-set-pending: &gh-status-set-pending
     put: gh-status
     inputs: [ pipeline-source ]
-    params: { state: pending }
+    params: { state: pending, context: self-update }
   gh-status-set-pending-build: &gh-status-set-pending-build
     put: gh-status
     inputs: [ pipeline-source ]
@@ -43,13 +43,6 @@ resource_types:
       tag: latest
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-
-  - name: docker-manifest
-    type: registry-image
-    source:
-      repository: gcr.io/instana-agent-qa/concourse-docker-manifest-resource
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
 
 resources:
   - name: pipeline-source
