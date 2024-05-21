@@ -674,4 +674,4 @@ jobs:
                 fi
 
                 echo "**** Public release, create github.com release $VERSION. ****"
-                ./ci/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
+                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN

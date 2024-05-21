@@ -606,7 +606,7 @@ jobs:
               inputs:
                 - name: pipeline-source
               run:
-                path: pipeline-source/ci/end-to-end-test.sh
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -638,164 +638,148 @@ jobs:
                   inputs:
                     - name: pipeline-source
                   run:
-                    path: pipeline-source/ci/cleanup-resources.sh
+                    path: pipeline-source/scripts/cleanup-resources.sh
               - put: test-clusters
                 inputs: detect
                 params:
                   release: gke-21
 
-        # - do:
-        #   - put: gke-27
-        #     inputs: detect
-        #     resource: test-clusters
-        #     params:
-        #       claim: gke-27
-        #   - task: run-e2e-test-gke-27
-        #     timeout: 90m
-        #     attempts: 3
-        #     config:
-        #       <<: *gke-e2e-test-config
-        #       params:
-        #         CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
-        #         CLUSTER_TYPE: gke
-        #         NAME: gke-27
-        #         TIMEOUT: 90m
+        - do:
+          - put: gke-27
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: gke-27
+          - task: run-e2e-test-gke-27
+            timeout: 90m
+            attempts: 3
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-27
+                TIMEOUT: 90m
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_AGENT_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: ((branch))
+                INSTANA_API_HOST: qa-instana.instana.io
+                INSTANA_API_KEY: ((qa-instana-api-token))
+              inputs:
+                - name: pipeline-source
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-27
+                    TIMEOUT: 60m
 
-        #         GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-        #         AUTOTRACE_IMAGE_NAME: *webhook-snapshot-image-name
-        #         AUTOTRACE_WEBHOOK_VERSION: ((.:release-version))-((.:git-sha))
-        #         AUTOTRACE_WEBHOOK_REPO_PATH: "pipeline-source"
-        #         INSTRUMENTATION_IMAGE_NAME: *instrumentation-snapshot-image-name
-        #         INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-        #         INSTANA_ENDPOINT_PORT: 443
-        #         INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-        #         INSTANA_AGENT_KEY: ((instana-qa.agent_key))
-        #         INSTANA_API_URL: ((instana-qa.api_url))
-        #         INSTANA_API_TOKEN: ((instana-qa.api_token))
-        #         BUILD_BRANCH: ((branch))
-        #         DEBUG: "true"
-        #         LIBINSTANA_DEBUG: "true"
-        #         INSTANA_API_HOST: qa-instana.instana.io
-        #         INSTANA_API_KEY: ((qa-instana-api-token))
-        #       inputs:
-        #         - name: pipeline-source
-        #         - name: webhook-snapshot-image
-        #         - name: instrumentation-snapshot-image
-        #       run:
-        #         path: pipeline-source/ci/test/end-to-end-test.sh
-        #     on_success:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
-        #     on_failure:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
-        #     on_error:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
-        #     on_abort:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
-        #     ensure:
-        #       do:
-        #       - task: cleanup-resources
-        #         config:
-        #           platform: linux
-        #           image_resource: *e2e-test-image-resource
-        #           params:
-        #             CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
-        #             CLUSTER_TYPE: gke
-        #             NAME: gke-27
-        #             TIMEOUT: 60m
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: gke-27
+        - do:
+          - put: openshift-4.11
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: openshift-4.11
+          - task: run-e2e-test-openshift-4.11
+            timeout: 120m
+            attempts: 3
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
+                CLUSTER_TYPE: openshift
+                KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                NAME: openshift-4.11
+                TIMEOUT: 120m
 
-        #             GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-        #           inputs:
-        #             - name: pipeline-source
-        #           run:
-        #             path: pipeline-source/ci/test/cleanup-resources.sh
-        #       - put: test-clusters
-        #         inputs: detect
-        #         params:
-        #           release: gke-27
-        # - do:
-        #   - put: openshift-4.11
-        #     inputs: detect
-        #     resource: test-clusters
-        #     params:
-        #       claim: openshift-4.11
-        #   - task: run-e2e-test-openshift-4.11
-        #     timeout: 120m
-        #     attempts: 3
-        #     config:
-        #       <<: *gke-e2e-test-config
-        #       params:
-        #         CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
-        #         CLUSTER_TYPE: openshift
-        #         KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-        #         NAME: openshift-4.11
-        #         TIMEOUT: 120m
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_AGENT_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: ((branch))
+                DEBUG: "true"
+                INSTANA_API_HOST: qa-instana.instana.io
+                INSTANA_API_KEY: ((qa-instana-api-token))
+              inputs:
+                - name: pipeline-source
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
+                    CLUSTER_TYPE: openshift
+                    KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                    NAME: openshift-4.11
+                    TIMEOUT: 90m
 
-        #         GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-        #         AUTOTRACE_IMAGE_NAME: *webhook-snapshot-image-name
-        #         AUTOTRACE_WEBHOOK_VERSION: ((.:release-version))-((.:git-sha))
-        #         AUTOTRACE_WEBHOOK_REPO_PATH: "pipeline-source"
-        #         INSTRUMENTATION_IMAGE_NAME: *instrumentation-snapshot-image-name
-        #         INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-        #         INSTANA_ENDPOINT_PORT: 443
-        #         INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-        #         INSTANA_AGENT_KEY: ((instana-qa.agent_key))
-        #         INSTANA_API_URL: ((instana-qa.api_url))
-        #         INSTANA_API_TOKEN: ((instana-qa.api_token))
-        #         BUILD_BRANCH: ((branch))
-        #         DEBUG: "true"
-        #         LIBINSTANA_DEBUG: "true"
-        #         INSTANA_API_HOST: qa-instana.instana.io
-        #         INSTANA_API_KEY: ((qa-instana-api-token))
-        #       inputs:
-        #         - name: pipeline-source
-        #         - name: webhook-snapshot-image
-        #         - name: instrumentation-snapshot-image
-        #       run:
-        #         path: pipeline-source/ci/test/end-to-end-test.sh
-        #     on_success:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     on_failure:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     on_error:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     on_abort:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     ensure:
-        #       do:
-        #       - task: cleanup-resources
-        #         config:
-        #           platform: linux
-        #           image_resource: *e2e-test-image-resource
-        #           params:
-        #             CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
-        #             CLUSTER_TYPE: openshift
-        #             KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-        #             NAME: openshift-4.11
-        #             TIMEOUT: 90m
-
-        #             GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-        #           inputs:
-        #             - name: pipeline-source
-        #           run:
-        #             path: pipeline-source/ci/test/cleanup-resources.sh
-        #       - put: test-clusters
-        #         inputs: detect
-        #         params:
-        #           release: openshift-4.11
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: openshift-4.11
 
