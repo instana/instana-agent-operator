@@ -18,6 +18,7 @@ RUN dnf update -y && dnf install -y \
     git \
     jq \
     git \
+    zip \
     google-cloud-cli \
     skopeo \
     && pip3 install pyyaml
