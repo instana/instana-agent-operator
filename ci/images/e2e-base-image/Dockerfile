@@ -1,15 +1,13 @@
 FROM redhat/ubi9
 
 # Setup for gcloud sdk
-RUN tee -a /etc/yum.repos.d/google-cloud-sdk.repo <<EOF
-\[google-cloud-cli\]
-name=Google Cloud CLI
-baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el9-x86_64
-enabled=1
-gpgcheck=1
-repo_gpgcheck=0
-gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-EOF
+RUN echo '[google-cloud-cli]' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'name=Google Cloud CLI' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el9-x86_64' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'enabled=1' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'gpgcheck=1' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'repo_gpgcheck=0' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg' >> /etc/yum.repos.d/google-cloud-sdk.repo \
 
 # Install tools
 RUN dnf update -y && dnf install -y \
