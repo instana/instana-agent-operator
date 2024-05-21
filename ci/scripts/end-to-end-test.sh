@@ -5,8 +5,10 @@
 # (c) Copyright Instana Inc.
 #
 
-set -x
+set -x #TODO: remove before merging
 set -e
 set -o pipefail
 
 echo "running e2e tests"
+
+source pipeline-source/ci/scripts/cluster-authentication.sh

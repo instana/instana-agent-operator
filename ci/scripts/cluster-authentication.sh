@@ -55,53 +55,16 @@ case "${CLUSTER_TYPE}" in
         docker_email=$(echo "${GCP_KEY_JSON//$'\n'/}" | jq -r '.client_email')
         cleanup_namespace
 
-        # Ensure we can pull test images
-        if ! kubectl get namespace instana-autotrace-webhook 2>&1 > /dev/null; then
-            kubectl create namespace instana-autotrace-webhook || true
-        fi
-        kubectl delete secret gcr.io --namespace instana-autotrace-webhook || true
-        kubectl create secret docker-registry gcr.io --namespace instana-autotrace-webhook --docker-server=gcr.io --docker-username=_json_key --docker-email="${docker_email}" --docker-password="${GCP_KEY_JSON//$'\n'/}" || true
-
-        # Ensure we can pull test images
-        if ! kubectl get namespace test-apps 2>&1 > /dev/null; then
-            kubectl create namespace test-apps || true
-        fi
-        kubectl delete secret gcr.io --namespace test-apps || true
-        kubectl create secret docker-registry gcr.io --namespace test-apps --docker-server=gcr.io --docker-username=_json_key --docker-email="${docker_email}" --docker-password="${GCP_KEY_JSON//$'\n'/}" || true
-
-
-        # Ensure we can pull test images
-        for (( i = 0; i < ${#controller_versions_under_test[@]} ; i++ )); do
-            RELEASE_SUFFIX="${controller_versions_under_test[$i]//./-}"
-            if ! kubectl get namespace ingress-nginx-${RELEASE_SUFFIX} 2>&1 > /dev/null; then
-                kubectl create namespace ingress-nginx-${RELEASE_SUFFIX} || true
-            fi
-            kubectl delete secret gcr.io --namespace ingress-nginx-${RELEASE_SUFFIX} || true
-            kubectl create secret docker-registry gcr.io --namespace ingress-nginx-${RELEASE_SUFFIX} --docker-server=gcr.io --docker-username=_json_key --docker-email="${docker_email}" --docker-password="${GCP_KEY_JSON//$'\n'/}" || true
-
-        done
+        # Ensure we can pull test images : TODO: add pull secet for the artifactory
+        # if ! kubectl get namespace instana-agent 2>&1 > /dev/null; then
+        #     kubectl create namespace instana-agent || true
+        # fi
+        # kubectl delete secret gcr.io --namespace instana-agent || true
+        # kubectl create secret docker-registry gcr.io --namespace instana-agent --docker-server=gcr.io --docker-username=_json_key --docker-email="${docker_email}" --docker-password="${GCP_KEY_JSON//$'\n'/}" || true
 
 		echo 'Download OpenShift CLI to modify rights for default ServiceAccount, so it has priviliged access'
 		curl -L --fail --show-error --silent https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz -o /tmp/oc.tar.gz
 		tar -xzvf /tmp/oc.tar.gz --overwrite --directory /tmp
-
-        echo "openshift:
-  enabled: true
-webhook:
-  imagePullSecrets:
-    - name: 'gcr.io'" > values.yaml
-
-        AGENT_HELM_ARGUMENTS='--set openshift=true'
-        export AGENT_HELM_ARGUMENTS
-
-        EXTRA_AUTOTRACE_CHART_OPTIONS="--values $(pwd)/values.yaml"
-        export EXTRA_AUTOTRACE_CHART_OPTIONS
-
-		echo 'Testing on a OpenShift cluster, overriding some parameters for security etc'
-		EXTRA_NGINX_HELM_PARAMS="--set serviceAccount.name=ingress-nginx"
-
-        TEST_APPS_HELM_ARGUMENTS='--set imagePullSecrets[0].name=gcr.io'
-        export TEST_APPS_HELM_ARGUMENTS
 
         CLUSTER_NAME=$(echo "${CLUSTER_INFO}" | jq -r .name)
         ;;
