@@ -8,7 +8,7 @@ RUN mkdir -p /etc/yum.repos.d && \
     echo 'enabled=1' >> /etc/yum.repos.d/google-cloud-sdk.repo && \
     echo 'gpgcheck=1' >> /etc/yum.repos.d/google-cloud-sdk.repo && \
     echo 'repo_gpgcheck=0' >> /etc/yum.repos.d/google-cloud-sdk.repo && \
-    echo 'gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg' >> /etc/yum.repos.d/google-cloud-sdk.repo \
+    echo 'gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg' >> /etc/yum.repos.d/google-cloud-sdk.repo 
 
 # Install tools
 RUN dnf update -y && dnf install -y \
