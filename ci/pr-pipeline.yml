@@ -638,7 +638,7 @@ jobs:
                   inputs:
                     - name: pipeline-source
                   run:
-                    path: pipeline-source/scripts/cleanup-resources.sh
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
               - put: test-clusters
                 inputs: detect
                 params:
