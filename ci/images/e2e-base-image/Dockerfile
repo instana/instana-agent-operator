@@ -22,15 +22,18 @@ RUN dnf update -y && dnf install -y \
     skopeo \
     && pip3 install pyyaml
 
+# Set environment variables for Go
+ENV GOPATH=/go
+ENV GO_VERSION=1.22.3
+ENV PATH="$PATH:/usr/local/go/bin"
+
 # Install go
-RUN export PATH="$PATH:/usr/local/go/bin" \
-    && export GOPATH=/go \
-    && export GO_VERSION=1.22.3  \
-    && export GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 go${GO_VERSION}.linux-amd64.tar.gz"  \
+RUN GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 go${GO_VERSION}.linux-amd64.tar.gz"  \
     && curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
     && echo "${GO_SHA256}" | sha256sum --check \
     && rm -rf /usr/local/go \
     && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
     && mkdir -p "${GOPATH}"
 
-
+# Verify Go installation
+RUN go version
