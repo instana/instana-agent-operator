@@ -1,5 +1,17 @@
 ---
-aliases:
+  groups:
+    - name: test
+      jobs:
+      - self-update
+      - build-and-test-agent-operator
+      - docker-build
+      - operator-olm-build
+      - end-to-end-tests
+    - name: build-test-images
+      jobs:
+      - build-e2e-operator-base-image
+
+  aliases:
   gh-status-hooks: &gh-status-hooks
     on_success:
       put: gh-status
@@ -155,6 +167,21 @@ resources:
       password: x-oauth-basic
       branch: main
       pool: k8s-clusters
+
+  - name: e2e-test-base-image
+    type: registry-image
+    icon: cube
+    source:
+      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+      tag: ((branch))
+
+var:
+  concourse-oci-build-task-image-resource: &concourse-oci-build-task-image-resource
+  type: registry-image
+  source:
+    repository: vito/oci-build-task
 
 jobs:
   - name: self-update
@@ -783,3 +810,48 @@ jobs:
                 params:
                   release: openshift-4.11
 
+  - name: build-e2e-test-base-image
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: build-e2e-test-base-image }
+    on_failure:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: failure, context: build-e2e-test-base-image }
+    on_error:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build-e2e-test-base-image }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build-e2e-test-base-image }
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: build-e2e-test-base-image }
+      - task: build-e2e-test-base-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource: *concourse-oci-build-task-image-resource
+          params:
+            CONTEXT: pipeline-source/ci/images/e2e-base-image
+            DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
+          inputs:
+          - name: pipeline-source
+          outputs:
+          - name: image
+          run:
+            path: build
+      - put: e2e-test-base-image
+        inputs: detect
+        params:
+          image: image/image.tar
+        get_params:
+          skip_download: true

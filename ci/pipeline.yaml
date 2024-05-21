@@ -1,3 +1,4 @@
+#TODO: add groups, add e2e-test-base-image build for main branch, add manual release of the locks
 ---
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
