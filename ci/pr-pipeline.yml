@@ -1,62 +1,62 @@
 ---
-  groups:
-    - name: test
-      jobs:
-      - self-update
-      - build-and-test-agent-operator
-      - docker-build
-      - operator-olm-build
-      - end-to-end-tests
-    - name: build-test-images
-      jobs:
-      - build-e2e-operator-base-image
+groups:
+  - name: test
+    jobs:
+    - self-update
+    - build-and-test-agent-operator
+    - docker-build
+    - operator-olm-build
+    - end-to-end-tests
+  - name: build-test-images
+    jobs:
+    - build-e2e-operator-base-image
 
-  aliases:
-  gh-status-hooks: &gh-status-hooks
-    on_success:
-      put: gh-status
-      inputs: [pipeline-source]
-      params: { state: success }
-    on_failure:
-      put: gh-status
-      inputs: [pipeline-source]
-      params: { state: failure }
-    on_error:
-      put: gh-status
-      inputs: [pipeline-source]
-      params: { state: error }
-    on_abort:
-      put: gh-status
-      inputs: [pipeline-source]
-      params: { state: error }
-  gh-status-set-pending: &gh-status-set-pending
+aliases:
+gh-status-hooks: &gh-status-hooks
+  on_success:
     put: gh-status
     inputs: [pipeline-source]
-    params: { state: pending }
-  gh-status-set-pending-build: &gh-status-set-pending-build
+    params: { state: success }
+  on_failure:
     put: gh-status
     inputs: [pipeline-source]
-    params: { state: pending, context: build-and-test-operator/build }
-  gh-status-set-pending-unit-test: &gh-status-set-pending-unit-test
+    params: { state: failure }
+  on_error:
     put: gh-status
     inputs: [pipeline-source]
-    params: { state: pending, context: build-and-test-operator/unit-test }
-  gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
+    params: { state: error }
+  on_abort:
     put: gh-status
     inputs: [pipeline-source]
-    params: { state: pending, context: build/docker }
-  gh-status-set-pending-e2e-gke-21: &gh-status-set-pending-e2e-gke-21
-    put: gh-status
-    inputs: [ pipeline-source ]
-    params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
-  gh-status-set-pending-e2e-gke-27: &gh-status-set-pending-e2e-gke-27
-    put: gh-status
-    inputs: [ pipeline-source ]
-    params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
-  gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
-    put: gh-status
-    inputs: [ pipeline-source ]
-    params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+    params: { state: error }
+gh-status-set-pending: &gh-status-set-pending
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending }
+gh-status-set-pending-build: &gh-status-set-pending-build
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending, context: build-and-test-operator/build }
+gh-status-set-pending-unit-test: &gh-status-set-pending-unit-test
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending, context: build-and-test-operator/unit-test }
+gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending, context: build/docker }
+gh-status-set-pending-e2e-gke-21: &gh-status-set-pending-e2e-gke-21
+  put: gh-status
+  inputs: [ pipeline-source ]
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
+gh-status-set-pending-e2e-gke-27: &gh-status-set-pending-e2e-gke-27
+  put: gh-status
+  inputs: [ pipeline-source ]
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
+gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
+  put: gh-status
+  inputs: [ pipeline-source ]
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
 
 resource_types:
   - name: cogito
