@@ -208,7 +208,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: pipeline-source
           run:
@@ -217,19 +220,6 @@ jobs:
               - -ceu
               - |
                 cd pipeline-source
-                microdnf install make python3-devel gcc git tar gzip zip curl jq
-                pip3 install pyyaml
-
-                export PATH="$PATH:/usr/local/go/bin"
-                export GOPATH=/go
-                export GO_VERSION=1.22.3
-                export GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 go${GO_VERSION}.linux-amd64.tar.gz"
-                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && echo "${GO_SHA256}" | sha256sum --check \
-                && rm -rf /usr/local/go \
-                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && mkdir -p "${GOPATH}" \
-                && go version
                 make build
         on_success:
           put: gh-status
@@ -258,7 +248,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: pipeline-source
             - name: golangci-lint-release
@@ -269,23 +262,12 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install make python3-devel gcc git tar gzip zip curl jq
-                pip3 install pyyaml
 
                 pushd golangci-lint-release
-                LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
-                rpm -i $LINTER_RPM
+                  LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
+                  rpm -i $LINTER_RPM
                 popd
 
-                cd pipeline-source
-                export PATH="$PATH:/usr/local/go/bin"
-                export GOPATH=/go
-                export GO_VERSION=1.22.1
-                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && rm -rf /usr/local/go \
-                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && mkdir -p "${GOPATH}" \
-                && go version
                 make lint test
         on_success:
           put: gh-status
@@ -417,7 +399,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: pipeline-source
           outputs:
@@ -431,7 +416,6 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install curl gzip tar
                 IMAGE_TAG=${GIT_COMMIT}
                 OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
 
@@ -476,7 +460,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: pipeline-source
           outputs:
@@ -493,8 +480,6 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install make python3-devel gcc git tar gzip zip curl jq skopeo
-                pip3 install pyyaml
 
                 IMAGE_TAG=${GIT_COMMIT}
                 set +x
@@ -608,8 +593,8 @@ jobs:
               image_resource: &e2e-test-image-resource
                 type: registry-image
                 source:
-                  repository: gcr.io/instana-agent-qa/project-berlin/e2e-test-base-image
-                  tag: latest
+                  repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                  tag: ((branch))
                   username: _json_key
                   password: ((project-berlin-tests-gcp-instana-qa))
               params:
