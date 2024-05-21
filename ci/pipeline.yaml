@@ -1,5 +1,23 @@
-#TODO: add groups, add e2e-test-base-image build for main branch, add manual release of the locks
+#TODO: use new image where possible and add e2e-test-base-image for the passed
 ---
+groups:
+  - name: test
+    jobs:
+    - self-update
+    - tag-release
+    - prepare-build-bundle
+    - operator-olm-build
+    - multiarch-operator-images-build
+    - operator-olm-github-release
+  - name: build-test-images
+    jobs:
+    - build-e2e-operator-base-image
+  - name: manual-unlock
+    jobs:
+    - gke-21-release-unlock-manual
+    - gke-27-release-unlock-manual
+    - openshift-4.11-release-unlock-manual
+
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
@@ -157,6 +175,15 @@ resources:
     source:
       owner: redhat-openshift-ecosystem
       repository: openshift-preflight
+
+  - name: e2e-test-base-image
+    type: registry-image
+    icon: cube
+    source:
+      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
 jobs:
   - name: self-update
@@ -676,3 +703,99 @@ jobs:
 
                 echo "**** Public release, create github.com release $VERSION. ****"
                 ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
+
+  - name: build-e2e-operator-base-image
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - task: build-e2e-operator-base-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          params:
+            CONTEXT: pipeline-source/ci/images/e2e-base-image
+            DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
+          inputs:
+          - name: pipeline-source
+          outputs:
+          - name: image
+          run:
+            path: build
+      - put: e2e-test-base-image
+        inputs: detect
+        params:
+          image: image/image.tar
+        get_params:
+          skip_download: true
+
+  - name: gke-21-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "gke-21" > tmp-lock/name
+            touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
+
+  - name: gke-27-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "gke-27" > tmp-lock/name
+            touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
+
+  - name: openshift-4.11-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "openshift-4.11" > tmp-lock/name
+            touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
