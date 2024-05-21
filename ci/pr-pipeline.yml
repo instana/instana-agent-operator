@@ -177,12 +177,6 @@ resources:
       password: ((project-berlin-tests-gcp-instana-qa))
       tag: ((branch))
 
-var:
-  concourse-oci-build-task-image-resource: &concourse-oci-build-task-image-resource
-  type: registry-image
-  source:
-    repository: vito/oci-build-task
-
 jobs:
   - name: self-update
     <<: *gh-status-hooks
@@ -839,7 +833,10 @@ jobs:
         privileged: true
         config:
           platform: linux
-          image_resource: *concourse-oci-build-task-image-resource
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
           params:
             CONTEXT: pipeline-source/ci/images/e2e-base-image
             DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
