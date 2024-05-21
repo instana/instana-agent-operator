@@ -19,6 +19,7 @@ RUN dnf update -y && dnf install -y \
     jq \
     git \
     google-cloud-cli \
+    skopeo \
     && pip3 install pyyaml
 
 # Install go
