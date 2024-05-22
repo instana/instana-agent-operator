@@ -96,7 +96,7 @@ pushd operator-git-main
     yq eval -i '.spec.zone.name = env(NAME)' ${path_to_crd}
     yq eval -i '.spec.cluster.name = env(NAME)' ${path_to_crd}
     yq eval -i '.spec.agent.key = env(INSTANA_API_KEY)' ${path_to_crd}
-    yq eval -i '.spec.agent.endpointPort = env(INSTANA_ENDPOINT_PORT)' ${path_to_crd}
+    yq eval -i '.spec.agent.endpointPort = env(toString(INSTANA_ENDPOINT_PORT))' ${path_to_crd}
     yq eval -i '.spec.agent.endpointHost = env(INSTANA_ENDPOINT_HOST)' ${path_to_crd}
 
     echo "Install the CRD"
@@ -118,7 +118,7 @@ pushd pipeline-source
     yq eval -i '.spec.zone.name = env(NAME)' ${path_to_crd}
     yq eval -i '.spec.cluster.name = env(NAME)' ${path_to_crd}
     yq eval -i '.spec.agent.key = env(INSTANA_API_KEY)' ${path_to_crd}
-    yq eval -i '.spec.agent.endpointPort = env(INSTANA_ENDPOINT_PORT)' ${path_to_crd}
+    yq eval -i '.spec.agent.endpointPort = env(toString(INSTANA_ENDPOINT_PORT))' ${path_to_crd}
     yq eval -i '.spec.agent.endpointHost = env(INSTANA_ENDPOINT_HOST)' ${path_to_crd}
 
     echo "Install the CRD"
