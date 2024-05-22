@@ -18,6 +18,7 @@ RUN dnf update -y && dnf install -y \
     git \
     jq \
     git \
+    wget \
     zip \
     google-cloud-cli \
     skopeo \
@@ -44,4 +45,4 @@ RUN go version
 RUN yum install -y google-cloud-sdk-gke-gcloud-auth-plugin
 
 #Install yq
-RUN curl https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
