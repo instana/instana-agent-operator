@@ -623,7 +623,7 @@ jobs:
                 TIMEOUT: 30m
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_ENDPOINT_PORT: "443"
                 INSTANA_AGENT_KEY: ((instana-qa.agent_key))
                 BUILD_BRANCH: ((branch))
                 INSTANA_API_HOST: qa-instana.instana.io
@@ -689,7 +689,7 @@ jobs:
                 TIMEOUT: 90m
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_ENDPOINT_PORT: "443"
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
                 INSTANA_AGENT_KEY: ((instana-qa.agent_key))
                 INSTANA_API_URL: ((instana-qa.api_url))
@@ -760,7 +760,7 @@ jobs:
 
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_ENDPOINT_PORT: "443"
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
                 INSTANA_AGENT_KEY: ((instana-qa.agent_key))
                 INSTANA_API_URL: ((instana-qa.api_url))
