@@ -13,7 +13,6 @@ RUN mkdir -p /etc/yum.repos.d && \
 # Install tools
 RUN dnf update -y && dnf install -y \
     make \
-    yq \
     python3-devel \
     gcc \
     git \
@@ -43,3 +42,6 @@ RUN go version
 
 # Install required gcloud package
 RUN yum install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
+#Install yq
+RUN curl https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
