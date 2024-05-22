@@ -11,6 +11,7 @@ set -o pipefail
 
 POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=1           # s  Pod-check interval time
+OPERATOR_LOG_LINE="Agent installed/upgraded successfully"
 
 function get_public_image() {
     git pull -r
@@ -26,13 +27,13 @@ function get_public_image() {
 # Wait for a pod to be running
 # It uses the global variables:
 # POD_WAIT_TIME_OUT, POD_WAIT_INTERVAL
-# Takes namespace as first arg and label as a second and a third arg is deployment
+# Takes label as a first arg and a second arg is deployment
 function wait_for_running_pod() {
     local timeout=0
     local status=0
-    local namespace=${1}
-    local label=${2}
-    local deployment=${3}
+    local namespace="instana-agent"
+    local label=${1}
+    local deployment=${2}
 
     status=($(kubectl get pod -n ${namespace} -l=${label} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq))
     echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
@@ -52,18 +53,16 @@ function wait_for_running_pod() {
         ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
-    set -u
     return 0;
 }
 
 # Checks if one of the controller-manager pods logged successful installation
 function wait_for_successfull_agent_installation() {
     local timeout=0
-    local namespace=${1}
-    local label=${2}
-    local deployment=${3}
+    local namespace="instana-agent"
+    local label=${1}
 
-    crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "Agent installed/upgraded successfully"))
+    crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep ${OPERATOR_LOG_LINE}))
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ -n "${crd_installed_successfully}" ]]; then
             echo "The agent has been installed/upgraded successfully. Ending waiting loop here."
@@ -71,7 +70,7 @@ function wait_for_successfull_agent_installation() {
         fi
         ((timeout+=$POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
-        crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "Agent installed/upgraded successfully"))
+        crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep ${OPERATOR_LOG_LINE}))
     done
     if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
@@ -90,7 +89,7 @@ pushd pipeline-source
     make deploy
 
     echo "Verify that the controller manager pods are running"
-    wait_for_running_pod instana-agent app.kubernetes.io/name=instana-agent-operator controller-manager
+    wait_for_running_pod app.kubernetes.io/name=instana-agent-operator controller-manager
 
     # install the CRD
     echo "Contruct CRD with the agent key, zone, port, and the host"
@@ -104,8 +103,8 @@ pushd pipeline-source
     echo "Install the CRD"
     kubectl apply -f ${path_to_crd}
     echo "Verify that the agent pods are running"
-    wait_for_running_pod instana-agent app.kubernetes.io/name=instana-agent instana-agent
-
+    wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
+    wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
 
 
     # upgrade the operator
