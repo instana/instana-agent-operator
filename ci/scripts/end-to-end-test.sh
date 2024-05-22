@@ -83,6 +83,9 @@ source pipeline-source/ci/scripts/cluster-authentication.sh
 
 ## deploy operator from main branch
 pushd pipeline-source
+    echo "Deploying the public operator"
+    git pull -r
+    git co main
     get_public_image
 
     make install
@@ -108,6 +111,9 @@ pushd pipeline-source
 
 
     # upgrade the operator
+    echo "Deploying the operator from feature branch"
+    git co $BUILD_BRANCH
+    IMG=smt
     # verifications
 
 popd
