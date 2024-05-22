@@ -90,6 +90,20 @@ resources:
         - name: user.email
           value: stan@instana.com
 
+  - name: operator-git-main
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      username: ((project-berlin-gh-token))
+      password: x-oauth-basic
+      branch: main
+      git_config:
+        - name: user.name
+          value: Stan
+        - name: user.email
+          value: stan@instana.com
+
   - name: gh-status
     type: cogito
     source:
@@ -578,6 +592,7 @@ jobs:
         passed: [operator-olm-build]
       - get: agent-operator-bundle-image
         passed: [operator-olm-build]
+      - get: operator-git-main
       - <<: *gh-status-set-pending-e2e-gke-21
       - <<: *gh-status-set-pending-e2e-gke-27
       - <<: *gh-status-set-pending-e2e-openshift
@@ -616,6 +631,7 @@ jobs:
               inputs:
                 - name: pipeline-source
                 - name: agent-operator-bundle-image
+                - name: operator-git-main
               run:
                 path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:
@@ -684,6 +700,7 @@ jobs:
               inputs:
                 - name: pipeline-source
                 - name: agent-operator-bundle-image
+                - name: operator-git-main
               run:
                 path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:
@@ -754,6 +771,7 @@ jobs:
               inputs:
                 - name: pipeline-source
                 - name: agent-operator-bundle-image
+                - name: operator-git-main
               run:
                 path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:

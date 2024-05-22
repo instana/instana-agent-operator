@@ -81,10 +81,8 @@ function wait_for_successfull_agent_installation() {
 source pipeline-source/ci/scripts/cluster-authentication.sh
 
 ## deploy operator from main branch
-pushd pipeline-source
+pushd operator-git-main
     echo "Deploying the public operator"
-    git pull -r
-    git checkout main
     get_public_image
 
     make install deploy
@@ -106,17 +104,27 @@ pushd pipeline-source
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
+popd
 
 
+pushd pipeline-source
     # upgrade the operator
     echo "Deploying the operator from feature branch"
-    git checkout $BUILD_BRANCH
     # IMG="" TODO: get the new image name
     make install deploy
+    # install the CRD
+    echo "Contruct CRD with the agent key, zone, port, and the host"
+    local path_to_crd="config/samples/instana_v1_instanaagent.yaml"
+    yq w -i ${path_to_crd} 'spec.zone.name' "${NAME}"
+    yq w -i ${path_to_crd} 'spec.cluster.name' "${NAME}"
+    yq w -i ${path_to_crd} 'spec.agent.key' "${INSTANA_API_KEY}"
+    yq w -i ${path_to_crd} 'spec.agent.endpointPort' "${INSTANA_ENDPOINT_PORT}"
+    yq w -i ${path_to_crd} 'spec.agent.endpointHost' "${INSTANA_ENDPOINT_HOST}"
+
+    echo "Install the CRD"
     kubectl apply -f ${path_to_crd}
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
     echo "Upgrade has been successful"
-
 popd
