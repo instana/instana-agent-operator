@@ -13,6 +13,7 @@ RUN mkdir -p /etc/yum.repos.d && \
 # Install tools
 RUN dnf update -y && dnf install -y \
     make \
+    yq \
     python3-devel \
     gcc \
     git \

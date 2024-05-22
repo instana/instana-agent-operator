@@ -28,26 +28,29 @@ function get_public_image() {
 # Wait for a pod to be running
 # It uses the global variables:
 # POD_WAIT_TIME_OUT, POD_WAIT_INTERVAL
-# Takes namespace as first arg and label as a second
+# Takes namespace as first arg and label as a second and a third arg is deployment
 function wait_for_running_pod() {
     local timeout=0
     local status=0
-    set +u
-    status=($(kubectl get pod -n ${1} -l=${2} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq))
-    echo "DEBUG, the pod in namespace ${1} status is: \"$status\""
+    local namespace=${1}
+    local label=${2}
+    local deployment=${3}
+
+    status=($(kubectl get pod -n ${namespace} -l=${label} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq))
+    echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ "${#status[@]}" -eq "1" && "${status[0]}" == "Running" ]]; then
-            echo "The pod in namespace ${1} status is: \"$status\". Ending waiting
+            echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\". Ending waiting
             loop here."
             break
         fi
-        status=($(kubectl get pod -n ${1} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq))
-        echo "DEBUG, the pod in namespace ${1} status is: \"$status\""
+        status=($(kubectl get pod -n ${namespace} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq))
+        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
         ((timeout+=$POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
     done
     if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
-        echo "${1} failed to initialize. Exceeded timeout of
+        echo "${namespace} failed to initialize. Exceeded timeout of
         ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
@@ -64,7 +67,12 @@ pushd pipeline-source
     make install
     make deploy
 
-    wait_for_running_pod instana-agent app.kubernetes.io/name=instana-agent-operator
+    wait_for_running_pod instana-agent app.kubernetes.io/name=instana-agent-operator controller-manager
+    # install the CRD
+    # veriy if that is running
+
+    # upgrade the operator
+    # verifications
 
 popd
 
