@@ -615,6 +615,7 @@ jobs:
                 INSTANA_API_KEY: ((qa-instana-api-token))
               inputs:
                 - name: pipeline-source
+                - name: agent-operator-bundle-image
               run:
                 path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:
@@ -682,6 +683,7 @@ jobs:
                 INSTANA_API_KEY: ((qa-instana-api-token))
               inputs:
                 - name: pipeline-source
+                - name: agent-operator-bundle-image
               run:
                 path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:
@@ -751,6 +753,7 @@ jobs:
                 INSTANA_API_KEY: ((qa-instana-api-token))
               inputs:
                 - name: pipeline-source
+                - name: agent-operator-bundle-image
               run:
                 path: pipeline-source/ci/scripts/end-to-end-test.sh
             on_success:
