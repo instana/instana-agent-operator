@@ -5,7 +5,6 @@
 # (c) Copyright Instana Inc.
 #
 
-set -x #TODO: remove before merging
 set -e
 set -o pipefail
 
@@ -85,11 +84,10 @@ source pipeline-source/ci/scripts/cluster-authentication.sh
 pushd pipeline-source
     echo "Deploying the public operator"
     git pull -r
-    git co main
+    git checkout main
     get_public_image
 
-    make install
-    make deploy
+    make install deploy
 
     echo "Verify that the controller manager pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent-operator controller-manager
@@ -112,13 +110,13 @@ pushd pipeline-source
 
     # upgrade the operator
     echo "Deploying the operator from feature branch"
-    git co $BUILD_BRANCH
-    IMG=smt
-    # verifications
+    git checkout $BUILD_BRANCH
+    # IMG="" TODO: get the new image name
+    make install deploy
+    kubectl apply -f ${path_to_crd}
+    echo "Verify that the agent pods are running"
+    wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
+    wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
+    echo "Upgrade has been successful"
 
 popd
-
-# check if the operator and agent pods are running
-
-## upgrade to the operator from the release branch
-# check if the operator and agent pods are running
