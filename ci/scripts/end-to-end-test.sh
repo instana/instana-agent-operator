@@ -93,11 +93,11 @@ pushd operator-git-main
     # install the CRD
     echo "Contruct CRD with the agent key, zone, port, and the host"
     path_to_crd="config/samples/instana_v1_instanaagent.yaml"
-    yq w -i ${path_to_crd} 'spec.zone.name' "${NAME}"
-    yq w -i ${path_to_crd} 'spec.cluster.name' "${NAME}"
-    yq w -i ${path_to_crd} 'spec.agent.key' "${INSTANA_API_KEY}"
-    yq w -i ${path_to_crd} 'spec.agent.endpointPort' "${INSTANA_ENDPOINT_PORT}"
-    yq w -i ${path_to_crd} 'spec.agent.endpointHost' "${INSTANA_ENDPOINT_HOST}"
+    yq eval -i '.spec.zone.name = env(NAME)' ${path_to_crd}
+    yq eval -i '.spec.cluster.name = env(NAME)' ${path_to_crd}
+    yq eval -i '.spec.agent.key = env(INSTANA_API_KEY)' ${path_to_crd}
+    yq eval -i '.spec.agent.endpointPort = env(INSTANA_ENDPOINT_PORT)' ${path_to_crd}
+    yq eval -i '.spec.agent.endpointHost = env(INSTANA_ENDPOINT_HOST)' ${path_to_crd}
 
     echo "Install the CRD"
     kubectl apply -f ${path_to_crd}
@@ -115,11 +115,11 @@ pushd pipeline-source
     # install the CRD
     echo "Contruct CRD with the agent key, zone, port, and the host"
     path_to_crd="config/samples/instana_v1_instanaagent.yaml"
-    yq w -i ${path_to_crd} 'spec.zone.name' "${NAME}"
-    yq w -i ${path_to_crd} 'spec.cluster.name' "${NAME}"
-    yq w -i ${path_to_crd} 'spec.agent.key' "${INSTANA_API_KEY}"
-    yq w -i ${path_to_crd} 'spec.agent.endpointPort' "${INSTANA_ENDPOINT_PORT}"
-    yq w -i ${path_to_crd} 'spec.agent.endpointHost' "${INSTANA_ENDPOINT_HOST}"
+    yq eval -i '.spec.zone.name = env(NAME)' ${path_to_crd}
+    yq eval -i '.spec.cluster.name = env(NAME)' ${path_to_crd}
+    yq eval -i '.spec.agent.key = env(INSTANA_API_KEY)' ${path_to_crd}
+    yq eval -i '.spec.agent.endpointPort = env(INSTANA_ENDPOINT_PORT)' ${path_to_crd}
+    yq eval -i '.spec.agent.endpointHost = env(INSTANA_ENDPOINT_HOST)' ${path_to_crd}
 
     echo "Install the CRD"
     kubectl apply -f ${path_to_crd}
