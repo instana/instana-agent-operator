@@ -71,12 +71,12 @@ function wait_for_successfull_agent_installation() {
         fi
         ((timeout+=$POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
+        crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "Agent installed/upgraded successfully"))
     done
     if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
-    set -u
     return 0;
 }
 
