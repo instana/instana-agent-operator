@@ -9,8 +9,6 @@ set -x #TODO: remove before merging
 set -e
 set -o pipefail
 
-echo "running e2e tests"
-
 POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=1           # s  Pod-check interval time
 
@@ -58,6 +56,30 @@ function wait_for_running_pod() {
     return 0;
 }
 
+# Checks if one of the controller-manager pods logged successful installation
+function wait_for_successfull_agent_installation() {
+    local timeout=0
+    local namespace=${1}
+    local label=${2}
+    local deployment=${3}
+
+    crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "Agent installed/upgraded successfully"))
+    while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        if [[ -n "${crd_installed_successfully}" ]]; then
+            echo "The agent has been installed/upgraded successfully. Ending waiting loop here."
+            break
+        fi
+        ((timeout+=$POD_WAIT_INTERVAL))
+        sleep $POD_WAIT_INTERVAL
+    done
+    if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
+        echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
+        exit 1
+    fi
+    set -u
+    return 0;
+}
+
 source pipeline-source/ci/scripts/cluster-authentication.sh
 
 ## deploy operator from main branch
@@ -67,9 +89,24 @@ pushd pipeline-source
     make install
     make deploy
 
+    echo "Verify that the controller manager pods are running"
     wait_for_running_pod instana-agent app.kubernetes.io/name=instana-agent-operator controller-manager
+
     # install the CRD
-    # veriy if that is running
+    echo "Contruct CRD with the agent key, zone, port, and the host"
+    local path_to_crd="config/samples/instana_v1_instanaagent.yaml"
+    yq w -i ${path_to_crd} 'spec.zone.name' "${NAME}"
+    yq w -i ${path_to_crd} 'spec.cluster.name' "${NAME}"
+    yq w -i ${path_to_crd} 'spec.agent.key' "${INSTANA_API_KEY}"
+    yq w -i ${path_to_crd} 'spec.agent.endpointPort' "${INSTANA_ENDPOINT_PORT}"
+    yq w -i ${path_to_crd} 'spec.agent.endpointHost' "${INSTANA_ENDPOINT_HOST}"
+
+    echo "Install the CRD"
+    kubectl apply -f ${path_to_crd}
+    echo "Verify that the agent pods are running"
+    wait_for_running_pod instana-agent app.kubernetes.io/name=instana-agent instana-agent
+
+
 
     # upgrade the operator
     # verifications
