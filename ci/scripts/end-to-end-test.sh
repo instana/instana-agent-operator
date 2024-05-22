@@ -92,7 +92,7 @@ pushd operator-git-main
 
     # install the CRD
     echo "Contruct CRD with the agent key, zone, port, and the host"
-    local path_to_crd="config/samples/instana_v1_instanaagent.yaml"
+    path_to_crd="config/samples/instana_v1_instanaagent.yaml"
     yq w -i ${path_to_crd} 'spec.zone.name' "${NAME}"
     yq w -i ${path_to_crd} 'spec.cluster.name' "${NAME}"
     yq w -i ${path_to_crd} 'spec.agent.key' "${INSTANA_API_KEY}"
@@ -114,7 +114,7 @@ pushd pipeline-source
     make install deploy
     # install the CRD
     echo "Contruct CRD with the agent key, zone, port, and the host"
-    local path_to_crd="config/samples/instana_v1_instanaagent.yaml"
+    path_to_crd="config/samples/instana_v1_instanaagent.yaml"
     yq w -i ${path_to_crd} 'spec.zone.name' "${NAME}"
     yq w -i ${path_to_crd} 'spec.cluster.name' "${NAME}"
     yq w -i ${path_to_crd} 'spec.agent.key' "${INSTANA_API_KEY}"
