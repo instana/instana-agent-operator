@@ -110,7 +110,7 @@ popd
 pushd pipeline-source
     # upgrade the operator
     echo "Deploying the operator from feature branch"
-    # IMG="" TODO: get the new image name
+    IMG=$(cat ../agent-operator-bundle-image/repository):${BUILD_BRANCH}
     make install deploy
     # install the CRD
     echo "Contruct CRD with the agent key, zone, port, and the host"
