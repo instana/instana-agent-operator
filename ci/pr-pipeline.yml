@@ -659,7 +659,7 @@ jobs:
               claim: gke-27
           - task: run-e2e-test-gke-27
             timeout: 90m
-            attempts: 3
+            attempts: 1
             config:
               <<: *gke-e2e-test-config
               params:
@@ -726,7 +726,7 @@ jobs:
               claim: openshift-4.11
           - task: run-e2e-test-openshift-4.11
             timeout: 120m
-            attempts: 3
+            attempts: 1
             config:
               <<: *gke-e2e-test-config
               params:

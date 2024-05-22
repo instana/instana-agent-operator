@@ -39,3 +39,6 @@ RUN GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 
 
 # Verify Go installation
 RUN go version
+
+# Install required gcloud package
+RUN gcloud components install gke-gcloud-auth-plugin
