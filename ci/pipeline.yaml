@@ -383,6 +383,9 @@ jobs:
               - |
                 microdnf install skopeo
                 DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                ICR_REPOSITORY=icr.io/instana/instana-agent-operator
+                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
+                RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
                 echo ${DIGEST}
@@ -416,7 +419,6 @@ jobs:
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
-                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
@@ -427,7 +429,6 @@ jobs:
                   docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
                 echo "---> pushing images to Red Hat Container Registry"
-                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
                   --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
