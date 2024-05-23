@@ -653,6 +653,7 @@ jobs:
             ensure:
               do:
               - task: cleanup-resources
+                timeout: 10m
                 config:
                   platform: linux
                   image_resource: *e2e-test-image-resource
@@ -660,7 +661,6 @@ jobs:
                     CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-21
-                    TIMEOUT: 60m
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
                     - name: pipeline-source
@@ -722,6 +722,7 @@ jobs:
             ensure:
               do:
               - task: cleanup-resources
+                timeout: 10m
                 config:
                   platform: linux
                   image_resource: *e2e-test-image-resource
@@ -729,7 +730,6 @@ jobs:
                     CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-27
-                    TIMEOUT: 60m
 
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
@@ -793,6 +793,7 @@ jobs:
             ensure:
               do:
               - task: cleanup-resources
+                timeout: 10m
                 config:
                   platform: linux
                   image_resource: *e2e-test-image-resource
@@ -801,7 +802,6 @@ jobs:
                     CLUSTER_TYPE: openshift
                     KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
                     NAME: openshift-4.11
-                    TIMEOUT: 90m
 
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
