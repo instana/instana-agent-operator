@@ -211,7 +211,6 @@ jobs:
       params: { state: error, context: build/docker }
     plan:
       - get: pipeline-source
-        trigger: true
         passed: [self-update]
       - get: agent-operator-release-source
         trigger: true
