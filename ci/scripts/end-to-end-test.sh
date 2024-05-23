@@ -61,7 +61,7 @@ function wait_for_successfull_agent_installation() {
     local namespace="instana-agent"
     local label=${1}
 
-    crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep ${OPERATOR_LOG_LINE}))
+    crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"))
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ -n "${crd_installed_successfully}" ]]; then
             echo "The agent has been installed/upgraded successfully. Ending waiting loop here."
@@ -69,7 +69,7 @@ function wait_for_successfull_agent_installation() {
         fi
         ((timeout+=$POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
-        crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep ${OPERATOR_LOG_LINE}))
+        crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"))
     done
     if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
