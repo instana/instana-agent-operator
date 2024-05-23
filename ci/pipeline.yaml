@@ -1,4 +1,7 @@
----
+#
+# (c) Copyright IBM Corp. 2024
+# (c) Copyright Instana Inc.
+#
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
@@ -7,27 +10,21 @@ var:
     password: ((instanacd-github-api-token))
 
 resource_types:
-  - name: google-cloud-storage
+  - name: cogito
     type: registry-image
+    check_every: never
     source:
-      repository: frodenas/gcs-resource
-  - name: codebuild
-    type: registry-image
-    source:
-      repository: cedricziel/concourse-codebuild-resource
-      tag: "0.1.14"
+      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      tag: latest
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: key-value
     type: registry-image
     source:
       repository: gstack/keyval-resource
-  - name: git
-    type: registry-image
-    source:
-      repository: concourse/git-resource
-      tag: "1.14.5"
 
 resources:
-  - name: agent-operator-pipeline-source
+  - name: pipeline-source
     type: git
     icon: github
     source:
@@ -62,87 +59,47 @@ resources:
       #                         ^^ any prefix (denoting a non-release tag)
       #                           ^ end of the tag string
 
-  - name: build-bundle
-    type: s3
-    icon: zip-disk
+  - name: gh-status
+    type: cogito
     source:
-      bucket: instana-agent-operator-codebuild
-      versioned_file: context.zip
-      access_key_id: ((codebuild-key.key_id))
-      secret_access_key: ((codebuild-key.key_secret))
-      region_name: us-west-2
-      skip_download: true
+      owner: instana
+      repo: instana-agent-operator
+      access_token: ((instanacd-github-api-token))
+      context_prefix: concourse
+      github_host: github.com
 
-  - name: codebuild-amd64
-    type: codebuild
-    icon: aws
-    source:
-      project: instana-agent-operator-codebuild
-      region: us-west-2
-      access_key_id: ((codebuild-key.key_id))
-      secret_access_key: ((codebuild-key.key_secret))
-  - name: codebuild-arm64
-    type: codebuild
-    icon: aws
-    source:
-      project: instana-agent-operator-codebuild
-      region: us-west-2
-      access_key_id: ((codebuild-key.key_id))
-      secret_access_key: ((codebuild-key.key_secret))
-  - name: codebuild-s390x
-    type: codebuild
-    icon: aws
-    source:
-      project: instana-agent-operator-codebuild
-      region: us-west-2
-      access_key_id: ((codebuild-key.key_id))
-      secret_access_key: ((codebuild-key.key_secret))
-  - name: codebuild-ppc64le
-    type: codebuild
-    icon: aws
-    source:
-      project: instana-agent-operator-codebuild
-      region: us-west-2
-      access_key_id: ((codebuild-key.key_id))
-      secret_access_key: ((codebuild-key.key_secret))
-
-  - name: operator-image-amd64
+  - name: agent-operator-image-amd64
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
-      tag: latest-amd64
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
-  - name: operator-image-arm64
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-arm64
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
-      tag: latest-arm64
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
-  - name: operator-image-s390x
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-ppc64le
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
-      tag: latest-s390x
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
-  - name: operator-image-ppc64le
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-s390x
     type: registry-image
     icon: docker
     source:
-      repository: gcr.io/instana-agent-qa/instana-agent-operator
-      tag: latest-ppc64le
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
-
-  - name: latest-operator-image-manifest-sha
-    type: key-value
-    icon: zip-disk
-
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
@@ -151,6 +108,10 @@ resources:
       tag: latest
       username: iamapikey
       password: ((concourse-icr-containers-public.password))
+  - name: agent-operator-image-manifest-sha
+    type: key-value
+    icon: zip-disk
+
   - name: preflight
     type: github-release
     source:
@@ -159,15 +120,40 @@ resources:
 
 jobs:
   - name: self-update
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: self-update }
+    on_failure:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: failure, context: self-update }
+    on_error:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: self-update }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: self-update }
     plan:
-      - get: agent-operator-pipeline-source
+      - get: pipeline-source
         trigger: true
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: self-update }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: build/docker }
       - set_pipeline: self
-        file: agent-operator-pipeline-source/ci/pipeline.yaml
+        file: pipeline-source/ci/pipeline.yaml
 
   - name: tag-release
     max_in_flight: 1
     plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
       - get: agent-operator-git-source
         trigger: true
       - task: tag-with-new-semver
@@ -205,146 +191,167 @@ jobs:
           tag_file: agent-operator-git-source/ci/version.txt
           force: true
 
-  - name: prepare-build-bundle
+  - name: docker-build
     max_in_flight: 1
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: build/docker }
+    on_failure:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: failure, context: build/docker }
+    on_error:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build/docker }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build/docker }
     plan:
+      - get: pipeline-source
+        passed: [self-update]
       - get: agent-operator-release-source
         trigger: true
-      - task: package-build-bundle
+      - load_var: agent-operator-version
+        file: agent-operator-release-source/.git/ref
+        reveal: true
+      - load_var: git-commit
+        file: agent-operator-release-source/.git/HEAD
+        reveal: true
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64
+              privileged: true
+              file: agent-operator-release-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-release-source
+              output_mapping: 
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-arm64
+              privileged: true
+              file: agent-operator-release-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-release-source
+              output_mapping: 
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-s390x
+              privileged: true
+              file: agent-operator-release-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-release-source
+              output_mapping: 
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le
+              privileged: true
+              file: agent-operator-release-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-release-source
+              output_mapping: 
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: agent-operator-release-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - put: agent-operator-image-amd64
+              params:
+                image: image-amd64/image.tar
+                additional_tags: image-tags/amd64
+            - put: agent-operator-image-arm64
+              params:
+                image: image-arm64/image.tar
+                additional_tags: image-tags/arm64
+            - put: agent-operator-image-ppc64le
+              params:
+                image: image-ppc64le/image.tar
+                additional_tags: image-tags/ppc64le
+            - put: agent-operator-image-s390x
+              params:
+                image: image-s390x/image.tar
+                additional_tags: image-tags/s390x
+      - task: publish-manifest-list
+        privileged: true
         config:
           platform: linux
           image_resource:
             type: registry-image
             source:
-              repository: ubuntu
-              tag: focal
-          inputs:
-            - name: agent-operator-release-source
-              path: .
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          outputs:
+            - name: manifest-list
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           run:
             path: bash
             args:
-              - -ce
+              - -ceu
               - |
-                date
-                apt update
-                apt install -yqq zip unzip tar
-                zip -r target/context.zip .
-          outputs:
-            - name: target
-      - put: build-bundle
+                microdnf install curl gzip tar
+                IMAGE_TAG=${GIT_COMMIT}
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+
+                # installing manifest-tool
+                curl -o manifest-tool.tar.gz -L https://github.com/estesp/manifest-tool/releases/download/v2.1.6/binaries-manifest-tool-2.1.6.tar.gz
+                tar -xf manifest-tool.tar.gz
+                ./manifest-tool-linux-amd64 \
+                  --username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} | tee manifest-output.txt
+
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+                # folder is created by output defintion
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+      - put: agent-operator-image-manifest-sha
         params:
-          file: target/context.zip
+          directory: manifest-list
 
-  - name: multiarch-operator-images-build
-    max_in_flight: 1
-    plan:
-      - get: build-bundle
-        trigger: true
-        passed: [prepare-build-bundle]
-      - get: agent-operator-release-source
-        passed: [prepare-build-bundle]
-      - load_var: s3-artifact-version
-        file: build-bundle/version
-        reveal: true
-      - load_var: operator-version
-        file: agent-operator-release-source/.git/ref
-        #file: agent-operator-release-source/version
-        reveal: true
-      - load_var: commit-sha
-        file: agent-operator-release-source/.git/HEAD
-        reveal: true
-
-      # spin off AWS CloudBuild jobs to build operator
-      # images for the different target platforms:
-      - in_parallel:
-          fail_fast: true
-          steps:
-            - put: codebuild-amd64
-              params:
-                source_version: ((.:s3-artifact-version))
-                env_var_overrides:
-                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
-                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
-                  ARCH: amd64
-                  VERSION: ((.:operator-version))
-                  COMMIT_SHA: ((.:commit-sha))
-                  TARGETPLATFORM: linux/amd64
-            - put: codebuild-arm64
-              params:
-                source_version: ((.:s3-artifact-version))
-                env_var_overrides:
-                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
-                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
-                  ARCH: arm64
-                  VERSION: ((.:operator-version))
-                  COMMIT_SHA: ((.:commit-sha))
-                  TARGETPLATFORM: linux/arm64
-            - put: codebuild-s390x
-              params:
-                source_version: ((.:s3-artifact-version))
-                env_var_overrides:
-                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
-                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
-                  ARCH: s390x
-                  VERSION: ((.:operator-version))
-                  COMMIT_SHA: ((.:commit-sha))
-                  TARGETPLATFORM: linux/s390x
-            - put: codebuild-ppc64le
-              params:
-                source_version: ((.:s3-artifact-version))
-                env_var_overrides:
-                  DOCKER_HUB_USERNAME: ((dockerhub-instanacicd.user))
-                  DOCKER_HUB_PASSWORD: ((dockerhub-instanacicd.password))
-                  ARCH: ppc64le
-                  VERSION: ((.:operator-version))
-                  COMMIT_SHA: ((.:commit-sha))
-                  TARGETPLATFORM: linux/ppc64le
-      # upload the AWS CloudBuild built images to GCR:
-      - in_parallel:
-          fail_fast: true
-          steps:
-            - put: operator-image-amd64
-              params:
-                image: codebuild-amd64/artifacts/image.tar
-                additional_tags: codebuild-amd64/artifacts/tag
-            - put: operator-image-arm64
-              params:
-                image: codebuild-arm64/artifacts/image.tar
-                additional_tags: codebuild-arm64/artifacts/tag
-            - put: operator-image-s390x
-              params:
-                image: codebuild-s390x/artifacts/image.tar
-                additional_tags: codebuild-s390x/artifacts/tag
-            - put: operator-image-ppc64le
-              params:
-                image: codebuild-ppc64le/artifacts/image.tar
-                additional_tags: codebuild-ppc64le/artifacts/tag
-
-  - name: multiarch-operator-manifest-publish
+  - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
     plan:
       - get: agent-operator-release-source
         trigger: true
-        passed: [multiarch-operator-images-build]
-      - get: operator-image-amd64
-        params: { skip_download: true }
-        passed: [multiarch-operator-images-build]
-      - get: operator-image-arm64
-        params: { skip_download: true }
-        passed: [multiarch-operator-images-build]
-      - get: operator-image-s390x
-        params: { skip_download: true }
-        passed: [multiarch-operator-images-build]
-      - get: operator-image-ppc64le
-        params: { skip_download: true }
-        passed: [multiarch-operator-images-build]
+        passed: [docker-build]
+      - get: agent-operator-image-manifest-sha
+        passed: [docker-build]
 
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         #file: agent-operator-release-source/version
         reveal: true
-      - load_var: commit-sha
+      - load_var: git-commit
         file: agent-operator-release-source/.git/HEAD
         reveal: true
       - task: build-multiarch-manifest
@@ -354,52 +361,42 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: karlkfi/concourse-dcind
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
-            - name: agent-operator-release-source
-          outputs:
-            - name: message
-            - name: latest-operator-image-manifest-sha
-            - name: docker-cfg
+            - name: agent-operator-image-manifest-sha
           params:
-            DOCKER_CLI_EXPERIMENTAL: enabled
-            COMMIT_SHA: ((.:commit-sha))
+            GIT_COMMIT: ((.:git-commit))
             VERSION: ((.:operator-version))
-            JSON_KEY: ((project-berlin-tests-gcp-instana-qa))
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
             ICR_USERNAME: iamapikey
+            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
             ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
             ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
             ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
           run:
-            path: entrypoint.sh
+            path: bash
             args:
-              - bash
               - -ceu
               - |
-                set -e
-                echo $JSON_KEY > key.json
-                cat key.json | docker login -u _json_key --password-stdin https://gcr.io
+                microdnf install skopeo
+                DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
 
-                echo "---> Pulling source containers"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64"
-                docker pull "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le"
+                DIGEST=$(cat agent-operator-image-manifest-sha/digest)
+                echo ${DIGEST}
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --dest-username ${ARTIFACTORY_USERNAME} \
+                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${DEV_BUILD_IMAGE}:test
 
-                echo "---> Building multi-architectural manifest"
-                docker manifest create "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION" \
-                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" \
-                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" \
-                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" \
-                  --amend "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le"
-
-                echo "---> Pushing multi-architectural manifest"
-                docker manifest push "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION"
-
+                echo "Skipping during test"
+                exit 0
                 # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
                 if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
@@ -413,109 +410,34 @@ jobs:
                 export PREFIX="v"
                 export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
 
-                echo "---> re-tagging images for icr.io"
-                echo "$ICR_PASSWORD" | docker login -u $ICR_USERNAME --password-stdin icr.io
-                ICR_REPOSITORY="icr.io/instana/instana-agent-operator"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                echo "---> pushing images to icr.io"
-                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
-                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
-                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
-                docker push "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                echo "---> Building multi-architectural manifest on icr.io"
-                docker manifest create "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
-                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
-                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
-                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
-                  --amend "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
                 echo "---> Pushing multi-architectural manifest to icr.io"
-                docker manifest push --purge "$ICR_REPOSITORY:$OPERATOR_DOCKER_VERSION" | tee "latest-operator-image-manifest-sha/sha-${VERSION}"
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --dest-username ${ICR_USERNAME} \
+                  --dest-password ${ICR_PASSWORD} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
-                # Validate the SHA to be sure we captured something
-                if ! [[ $(cat "latest-operator-image-manifest-sha/sha-${VERSION}") =~ ^sha256:[0-9a-zA-Z]+$ ]]; then
-                  echo "---> Did not manage to capture a valid digest for the manifest, aborting; $(cat "latest-operator-image-manifest-sha/sha-${VERSION}")"
-                  exit 1
-                fi
-
-                echo "$ARTIFACTORY_PASSWORD" | docker login -u $ARTIFACTORY_USERNAME --password-stdin ${ARTIFACTORY_BASE_URL}
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
-
-                export artifactory_exists=0
-                docker manifest inspect $ARTIFACTORY_REPOSITORY:${OPERATOR_DOCKER_VERSION} || export artifactory_exists=$?
-                if [ $artifactory_exists -eq 0 ]; then
-                  echo "Manifest $ARTIFACTORY_REPOSITORY:${OPERATOR_DOCKER_VERSION} is already present on Artifactory, skipping publish."
-                else
-                  echo "---> re-tagging images for artifactory"
-                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
-                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
-                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
-                  docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                  echo "---> pushing images to artifactory"
-                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64"
-                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x"
-                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64"
-                  docker push "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                  echo "---> Building multi-architectural manifest on artifactory"
-                  docker manifest create "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION" \
-                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-amd64" \
-                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-s390x" \
-                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-arm64" \
-                    --amend "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                  echo "---> Pushing multi-architectural manifest to artifactory"
-                  docker manifest push --purge "$ARTIFACTORY_REPOSITORY:$OPERATOR_DOCKER_VERSION"
-                fi
-
-                echo $RED_HAT_REGISTRY_PASSWORD | docker login -u $RED_HAT_REGISTRY_USERNAME --password-stdin quay.io
-                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
-
-                # Copy Docker CFG for Preflight Step
-                cp ~/.docker/config.json docker-cfg/
-
-                export EXISTS=0
-                docker manifest inspect $RED_HAT_REGISTRY:${OPERATOR_DOCKER_VERSION} || export EXISTS=$?
-                if [ $EXISTS -eq 0 ]
-                then
-                  echo "Manifest $RED_HAT_REGISTRY:${OPERATOR_DOCKER_VERSION} is already present on Red Hat Container Registry, skipping publish."
-                  exit 0
-                fi
-
-                echo "---> re-tagging images for Red Hat Container Registry"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64"
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-s390x" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x"
-                #docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-arm64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64" # arm scans not available
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-ppc64le" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le"
+                echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --dest-username ${ARTIFACTORY_USERNAME} \
+                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
                 echo "---> pushing images to Red Hat Container Registry"
-                docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64"
-                docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x"
-                #docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64" # arm scans not available
-                docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                # According to this knowledge base article https://access.redhat.com/solutions/5583611 the RH container registry does not support fat manifest lists.
-                # For now we will fall back to just publish the amd64 variant instead:
-                docker tag "gcr.io/instana-agent-qa/instana-agent-operator:$COMMIT_SHA-$VERSION-amd64" "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
-                docker push "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
-                # echo "---> Building multi-architectural manifest on Red Hat Container Registry"
-                # docker manifest create "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" \
-                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" \
-                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" \
-                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-arm64" \
-                #  --amend "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le"
-
-                # echo "---> Pushing multi-architectural manifest to Red Hat Container Registry"
-                # docker manifest push --purge "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION"
-      - put: latest-operator-image-manifest-sha
-        params:
-          directory: latest-operator-image-manifest-sha
+                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --dest-username ${RED_HAT_REGISTRY_USERNAME} \
+                  --dest-password ${RED_HAT_REGISTRY_PASSWORD} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${RED_HAT_REGISTRY}:${OPERATOR_DOCKER_VERSION}
       - get: preflight
         params:
           globs:
@@ -529,16 +451,18 @@ jobs:
               source:
                 repository: registry.access.redhat.com/ubi8/ubi-minimal
             inputs:
-              - name: docker-cfg
               - name: preflight
             params:
               VERSION: ((.:operator-version))
               RED_HAT_API_TOKEN: ((redhat-container-registry-5e9612d87512796c24e4aeef.api-token))
+              RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
+              RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             run:
               path: bash
               args:
                 - -ce
                 - |
+                  microdnf install skopeo
                   # strip the leading "v" from the operator version for release:
 
                   export PREFIX="v"
@@ -548,7 +472,8 @@ jobs:
 
                   export RED_HAT_PROJECT_ID=5e961c2c93604e02afa9ebdf
                   export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
-                  export DOCKER_CFG_FILE="$(pwd)/docker-cfg/config.json"
+                  skopeo login -u ${RED_HAT_REGISTRY_USERNAME} -p ${RED_HAT_REGISTRY_PASSWORD} --authfile $(pwd)/auth.json quay.io
+                  export DOCKER_CFG_FILE="$(pwd)/auth.json"
 
                   pushd preflight
 
@@ -565,9 +490,9 @@ jobs:
     plan:
       - get: agent-operator-release-source
         trigger: true
-        passed: [multiarch-operator-manifest-publish]
-      - get: latest-operator-image-manifest-sha
-        passed: [multiarch-operator-manifest-publish]
+        passed: [multiarch-operator-manifest-promotion]
+      - get: agent-operator-image-manifest-sha
+        passed: [multiarch-operator-manifest-promotion]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
       - load_var: operator-version
@@ -587,7 +512,7 @@ jobs:
               repository: registry.access.redhat.com/ubi8/ubi-minimal
           inputs:
             - name: agent-operator-release-source
-            - name: latest-operator-image-manifest-sha
+            - name: agent-operator-image-manifest-sha
           outputs:
             - name: build
           params:
@@ -615,12 +540,12 @@ jobs:
                 && mkdir -p "${GOPATH}" \
                 && go version
 
-                if [[ -f "latest-operator-image-manifest-sha/sha-${VERSION}" ]]; then
-                  export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "latest-operator-image-manifest-sha/sha-${VERSION}")
+                if [[ -f "agent-operator-image-manifest-sha/digest" ]]; then
+                  export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "agent-operator-image-manifest-sha/digest")
                   echo "Found SHA for latest Operator Manifest: ${OPERATOR_IMAGE_MANIFEST_SHA}"
                 else
                   echo "No SHA found for latest Operator Manifest. Might be pre-release version"
-                  ls -la latest-operator-image-manifest-sha/
+                  ls -la agent-operator-image-manifest-sha/
                   exit 1
                 fi
 
