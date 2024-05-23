@@ -23,9 +23,9 @@ GITHUB_RELEASES_URL="https://api.github.com/repos/instana/instana-agent-operator
 printf "%s\n" "Checking if release v${VERSION} exists..."
 GITHUB_RELEASE_RESPONSE=$(curl -X GET \
   -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
-  ${GITHUB_RELEASES_URL}/tags/v${VERSION})
+  ${GITHUB_RELEASES_URL}/tags/v"${VERSION}")
 
-GITHUB_RELEASE_ID=$(echo ${GITHUB_RELEASE_RESPONSE} | jq .id)
+GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
 if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   printf "\n%s" "Creating GitHub Release..."
   GITHUB_RELEASE_RESPONSE=$(curl -X POST \
@@ -34,7 +34,7 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
     -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"main\", \"name\": \"v${VERSION}\" }" \
     ${GITHUB_RELEASES_URL})
 
-  GITHUB_RELEASE_ID=$(echo ${GITHUB_RELEASE_RESPONSE} | jq .id)
+  GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
   if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
     echo "Unable to determine GitHub Release id. Please check on https://github.com/instana/instana-agent-operator/releases if it was created"
     exit 0
@@ -52,7 +52,7 @@ upload_github_asset() {
       -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
       -H 'Content-Type: text/x-yaml' \
       --data-binary @"${asset_file}" \
-      https://uploads.github.com/repos/instana/instana-agent-operator/releases/${GITHUB_RELEASE_ID}/assets?name=${asset_filename}
+      https://uploads.github.com/repos/instana/instana-agent-operator/releases/"${GITHUB_RELEASE_ID}"/assets?name="${asset_filename}"
   fi
 }
 
