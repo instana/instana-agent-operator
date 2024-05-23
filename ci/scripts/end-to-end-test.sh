@@ -103,6 +103,8 @@ pushd operator-git-main
     kubectl apply -f ${path_to_crd}
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
+    #TODO: remove
+    set -x
     wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
 popd
 
