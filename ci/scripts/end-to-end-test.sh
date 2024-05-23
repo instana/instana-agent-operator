@@ -63,9 +63,11 @@ function wait_for_successfull_agent_installation() {
 
     echo "debug failures"
     echo "logs:"
+    kubectl get pods -n ${namespace}
     kubectl logs -l=${label} -n ${namespace} --tail=-1
     echo "grepping the logs"
     crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"))
+    echo "crd_installed_successfully=$crd_installed_successfully"
     echo "before loop"
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         echo "entered loop"
