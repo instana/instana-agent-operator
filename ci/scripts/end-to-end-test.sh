@@ -34,7 +34,7 @@ function wait_for_running_pod() {
     local label=${1}
     local deployment=${2}
 
-    status=($(kubectl get pod -n ${namespace} -l=${label} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq))
+    status=$(kubectl get pod -n ${namespace} -l=${label} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
     echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ "${#status[@]}" -eq "1" && "${status[0]}" == "Running" ]]; then
@@ -42,7 +42,7 @@ function wait_for_running_pod() {
             loop here."
             break
         fi
-        status=($(kubectl get pod -n ${namespace} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq))
+        status=$(kubectl get pod -n ${namespace} -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
         echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
         ((timeout+=$POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
@@ -61,23 +61,23 @@ function wait_for_successfull_agent_installation() {
     local namespace="instana-agent"
     local label="app.kubernetes.io/name=instana-agent-operator"
 
-    echo "debug failures"
-    echo "logs:"
-    kubectl get pods -n ${namespace}
-    kubectl logs -l=${label} -n ${namespace} --tail=-1
-    echo "grepping the logs"
-    crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"))
-    echo "crd_installed_successfully=$crd_installed_successfully"
-    echo "before loop"
+    #Workaround as grep will return -1 if the line is not found.
+    #With pipefail enabled, this would fail the script if the if statement omitted.
+    if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
+        crd_installed_successfully=""
+    fi
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
-        echo "entered loop"
         if [[ -n "${crd_installed_successfully}" ]]; then
             echo "The agent has been installed/upgraded successfully. Ending waiting loop here."
             break
         fi
         ((timeout+=$POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
-        crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"))
+        #Workaround as grep will return -1 if the line is not found.
+        #With pipefail enabled, this would fail the script if the if statement omitted.
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
+            crd_installed_successfully=""
+        fi
     done
     if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
