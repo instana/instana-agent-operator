@@ -392,10 +392,8 @@ jobs:
                   --dest-username ${ARTIFACTORY_USERNAME} \
                   --dest-password ${ARTIFACTORY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${DEV_BUILD_IMAGE}:test
+                  docker://${DEV_BUILD_IMAGE}:main
 
-                echo "Skipping during test"
-                exit 0
                 # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
                 if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
@@ -524,7 +522,7 @@ jobs:
               - -ceu
               - |
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
-                pip3 install pyyaml
+                pip3 install pyyaml skopeo
 
                 # ubi8 still bundles Go 1.15 but we rely on 1.21, so install manually
                 export PATH="$PATH:/usr/local/go/bin"
@@ -576,6 +574,8 @@ jobs:
                   export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator@${OPERATOR_IMAGE_MANIFEST_SHA}"
                 fi
 
+                # check that the operator image is really present before creating a release
+                skopeo inspect docker://${OPERATOR_IMAGE}
                 # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
                 make IMG="${OPERATOR_IMAGE}" \
                   VERSION="${OLM_RELEASE_VERSION}" \
