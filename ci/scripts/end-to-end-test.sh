@@ -10,7 +10,7 @@ set -o pipefail
 
 POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=1           # s  Pod-check interval time
-OPERATOR_LOG_LINE="Agent installed/upgraded successfully"
+OPERATOR_LOG_LINE='Agent installed/upgraded successfully'
 
 function get_public_image() {
     git pull -r
@@ -59,10 +59,16 @@ function wait_for_running_pod() {
 function wait_for_successfull_agent_installation() {
     local timeout=0
     local namespace="instana-agent"
-    local label=${1}
+    local label="app.kubernetes.io/name=instana-agent-operator"
 
+    echo "debug failures"
+    echo "logs:"
+    kubectl logs -l=${label} -n ${namespace} --tail=-1
+    echo "grepping the logs"
     crd_installed_successfully=($(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"))
+    echo "before loop"
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        echo "entered loop"
         if [[ -n "${crd_installed_successfully}" ]]; then
             echo "The agent has been installed/upgraded successfully. Ending waiting loop here."
             break
@@ -105,7 +111,7 @@ pushd operator-git-main
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     #TODO: remove
     set -x
-    wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
+    wait_for_successfull_agent_installation
 popd
 
 
@@ -127,6 +133,6 @@ pushd pipeline-source
     kubectl apply -f ${path_to_crd}
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
-    wait_for_successfull_agent_installation app.kubernetes.io/name=instana-agent-operator
+    wait_for_successfull_agent_installation
     echo "Upgrade has been successful"
 popd
