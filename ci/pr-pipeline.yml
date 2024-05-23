@@ -1,4 +1,8 @@
----
+#
+# (c) Copyright IBM Corp. 2024
+# (c) Copyright Instana Inc.
+#
+
 aliases:
   gh-status-hooks: &gh-status-hooks
     on_success:
@@ -89,6 +93,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-arm64
@@ -96,6 +101,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-ppc64le
@@ -103,6 +109,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-s390x
@@ -110,6 +117,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
@@ -125,6 +133,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator-bundle/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 

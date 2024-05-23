@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# (c) Copyright IBM Corp. 2021
+# (c) Copyright IBM Corp. 2021, 2024
 # (c) Copyright Instana Inc.
 #
 

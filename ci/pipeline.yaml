@@ -1,4 +1,7 @@
----
+#
+# (c) Copyright IBM Corp. 2024
+# (c) Copyright Instana Inc.
+#
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
@@ -70,6 +73,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-arm64
@@ -77,6 +81,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-ppc64le
@@ -84,6 +89,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: agent-operator-image-s390x
@@ -91,6 +97,7 @@ resources:
     icon: docker
     source:
       repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
   - name: latest-agent-image-manifest
@@ -104,13 +111,6 @@ resources:
   - name: agent-operator-image-manifest-sha
     type: key-value
     icon: zip-disk
-  # - name: agent-operator-bundle-image
-  #   type: registry-image
-  #   icon: docker
-  #   source:
-  #     repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator-bundle/dev-build
-  #     username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-  #     password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
   - name: preflight
     type: github-release
@@ -151,6 +151,9 @@ jobs:
   - name: tag-release
     max_in_flight: 1
     plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
       - get: agent-operator-git-source
         trigger: true
       - task: tag-with-new-semver
@@ -208,6 +211,8 @@ jobs:
       params: { state: error, context: build/docker }
     plan:
       - get: pipeline-source
+        trigger: true
+        passed: [self-update]
       - get: agent-operator-release-source
         trigger: true
       - load_var: agent-operator-version
@@ -304,8 +309,8 @@ jobs:
             - name: manifest-list
           params:
             GIT_COMMIT: ((.:git-commit))
-            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           run:
             path: bash
             args:
@@ -319,8 +324,8 @@ jobs:
                 curl -o manifest-tool.tar.gz -L https://github.com/estesp/manifest-tool/releases/download/v2.1.6/binaries-manifest-tool-2.1.6.tar.gz
                 tar -xf manifest-tool.tar.gz
                 ./manifest-tool-linux-amd64 \
-                  --username ${DELIVERY_INSTANA_IO_USER} \
-                  --password ${DELIVERY_INSTANA_IO_PW} \
+                  --username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   push from-args \
                   --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
                   --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
@@ -367,8 +372,8 @@ jobs:
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
             ICR_USERNAME: iamapikey
-            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
             ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
             ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
@@ -384,8 +389,8 @@ jobs:
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
                 echo ${DIGEST}
                 skopeo copy -a --preserve-digests \
-                  --src-username ${DELIVERY_INSTANA_IO_USER} \
-                  --src-password ${DELIVERY_INSTANA_IO_PW} \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   --dest-username ${ARTIFACTORY_USERNAME} \
                   --dest-password ${ARTIFACTORY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -408,8 +413,8 @@ jobs:
 
                 echo "---> Pushing multi-architectural manifest to icr.io"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${DELIVERY_INSTANA_IO_USER} \
-                  --src-password ${DELIVERY_INSTANA_IO_PW} \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   --dest-username ${ICR_USERNAME} \
                   --dest-password ${ICR_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -418,8 +423,8 @@ jobs:
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${DELIVERY_INSTANA_IO_USER} \
-                  --src-password ${DELIVERY_INSTANA_IO_PW} \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   --dest-username ${ARTIFACTORY_USERNAME} \
                   --dest-password ${ARTIFACTORY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -428,8 +433,8 @@ jobs:
                 echo "---> pushing images to Red Hat Container Registry"
                 export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${DELIVERY_INSTANA_IO_USER} \
-                  --src-password ${DELIVERY_INSTANA_IO_PW} \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   --dest-username ${RED_HAT_REGISTRY_USERNAME} \
                   --dest-password ${RED_HAT_REGISTRY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -520,7 +525,6 @@ jobs:
             args:
               - -ceu
               - |
-                exit 1
                 microdnf install make python3-devel gcc git tar gzip zip curl jq
                 pip3 install pyyaml
 
