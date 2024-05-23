@@ -440,48 +440,47 @@ jobs:
         params:
           globs:
             - preflight-linux-amd64
-      - try:
-          task: redhat-preflight-scans
-          config:
-            platform: linux
-            image_resource:
-              type: registry-image
-              source:
-                repository: registry.access.redhat.com/ubi8/ubi-minimal
-            inputs:
-              - name: preflight
-            params:
-              VERSION: ((.:operator-version))
-              RED_HAT_API_TOKEN: ((redhat-container-registry-5e9612d87512796c24e4aeef.api-token))
-              RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
-              RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
-            run:
-              path: bash
-              args:
-                - -ce
-                - |
-                  microdnf install skopeo
-                  # strip the leading "v" from the operator version for release:
+      - task: redhat-preflight-scans
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi-minimal
+          inputs:
+            - name: preflight
+          params:
+            VERSION: ((.:operator-version))
+            RED_HAT_API_TOKEN: ((redhat-container-registry-5e9612d87512796c24e4aeef.api-token))
+            RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
+            RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
+          run:
+            path: bash
+            args:
+              - -ce
+              - |
+                microdnf install skopeo
+                # strip the leading "v" from the operator version for release:
 
-                  export PREFIX="v"
-                  export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
+                export PREFIX="v"
+                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
 
-                  # Run Preflight Image Scans for RH Marketplace
+                # Run Preflight Image Scans for RH Marketplace
 
-                  export RED_HAT_PROJECT_ID=5e961c2c93604e02afa9ebdf
-                  export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
-                  skopeo login -u ${RED_HAT_REGISTRY_USERNAME} -p ${RED_HAT_REGISTRY_PASSWORD} --authfile $(pwd)/auth.json quay.io
-                  export DOCKER_CFG_FILE="$(pwd)/auth.json"
+                export RED_HAT_PROJECT_ID=5e961c2c93604e02afa9ebdf
+                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
+                skopeo login -u ${RED_HAT_REGISTRY_USERNAME} -p ${RED_HAT_REGISTRY_PASSWORD} --authfile $(pwd)/auth.json quay.io
+                export DOCKER_CFG_FILE="$(pwd)/auth.json"
 
-                  pushd preflight
+                pushd preflight
 
-                  chmod +x preflight-linux-amd64
+                chmod +x preflight-linux-amd64
 
-                  ./preflight-linux-amd64 check container --artifacts amd64 "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-                  ./preflight-linux-amd64 check container --artifacts s390x "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-                  ./preflight-linux-amd64 check container --artifacts ppc64le "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                ./preflight-linux-amd64 check container --artifacts amd64 "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                ./preflight-linux-amd64 check container --artifacts s390x "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-s390x" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                ./preflight-linux-amd64 check container --artifacts ppc64le "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-ppc64le" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
 
-                  popd
+                popd
 
   - name: operator-olm-github-release
     max_in_flight: 1
