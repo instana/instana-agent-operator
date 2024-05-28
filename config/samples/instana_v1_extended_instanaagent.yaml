@@ -157,10 +157,10 @@ spec:
           # k8s_sensor.deployment.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
           memory: 128Mi
           # k8s_sensor.deployment.pod.requests.cpu are the requested CPU units allocation for the agent pods.
-          cpu: 10m
+          cpu: 120m
         limits:
           # k8s_sensor.deployment.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
-          memory: 1536Mi
+          memory: 2048Mi
           # k8s_sensor.deployment.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
           cpu: 500m
         affinity:
