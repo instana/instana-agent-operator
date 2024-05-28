@@ -22,7 +22,6 @@ function wait_for_running_pod() {
     namespace="instana-agent"
     label=${1}
     deployment=${2}
-    local timeout status namespace label deployment
 
     status=$(kubectl get pod -n "${namespace}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
     echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
