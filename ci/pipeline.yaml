@@ -2,6 +2,26 @@
 # (c) Copyright IBM Corp. 2024
 # (c) Copyright Instana Inc.
 #
+---
+groups:
+  - name: test
+    jobs:
+    - self-update
+    - tag-release
+    - docker-build
+    - end-to-end-tests
+    - multiarch-operator-manifest-promotion
+    - operator-olm-github-release
+    - olm-release-pr-creation
+  - name: build-test-images
+    jobs:
+    - build-e2e-operator-base-image
+  - name: manual-unlock
+    jobs:
+    - gke-21-release-unlock-manual
+    - gke-27-release-unlock-manual
+    - openshift-4.11-release-unlock-manual
+
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
@@ -24,6 +44,15 @@ resource_types:
       repository: gstack/keyval-resource
 
 resources:
+  - name: test-clusters
+    type: pool
+    source:
+      uri: https://github.ibm.com/instana/k8s-e2e-resources-coordination.git
+      username: ((ibm-ghe-tokens.concourse-other-teams))
+      password: x-oauth-basic
+      branch: main
+      pool: k8s-clusters
+
   - name: pipeline-source
     type: git
     icon: github
@@ -58,6 +87,12 @@ resources:
       #                      ^ ^ any number of digits
       #                         ^^ any prefix (denoting a non-release tag)
       #                           ^ end of the tag string
+
+  - name: instana-agent-operator-release
+    type: github-release
+    source:
+      owner: instana
+      repository: instana-agent-operator
 
   - name: gh-status
     type: cogito
@@ -118,6 +153,42 @@ resources:
       owner: redhat-openshift-ecosystem
       repository: openshift-preflight
 
+  - name: e2e-test-base-image
+    type: registry-image
+    icon: cube
+    source:
+      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+      tag: main
+
+  - name: community-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/community-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+
+  - name: certified-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/certified-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+
+  - name: redhat-marketplace-operators-repo
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/redhat-marketplace-operators.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+
 jobs:
   - name: self-update
     on_success:
@@ -145,6 +216,21 @@ jobs:
       - put: gh-status
         inputs: [ pipeline-source ]
         params: { state: pending, context: build/docker }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: operator-olm-github-release/build }
       - set_pipeline: self
         file: pipeline-source/ci/pipeline.yaml
 
@@ -161,7 +247,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: main
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: agent-operator-git-source
           outputs:
@@ -171,7 +260,6 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install git
 
                 cd agent-operator-git-source
                 git pull -r
@@ -302,7 +390,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: main
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           outputs:
             - name: manifest-list
           params:
@@ -314,14 +405,10 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install curl gzip tar
                 IMAGE_TAG=${GIT_COMMIT}
                 OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
 
-                # installing manifest-tool
-                curl -o manifest-tool.tar.gz -L https://github.com/estesp/manifest-tool/releases/download/v2.1.6/binaries-manifest-tool-2.1.6.tar.gz
-                tar -xf manifest-tool.tar.gz
-                ./manifest-tool-linux-amd64 \
+                manifest-tool \
                   --username ${ARTIFACTORY_USERNAME_INTERNAL} \
                   --password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   push from-args \
@@ -337,14 +424,237 @@ jobs:
         params:
           directory: manifest-list
 
-  - name: multiarch-operator-manifest-promotion
+  - name: end-to-end-tests
     max_in_flight: 1
     plan:
       - get: agent-operator-release-source
         trigger: true
         passed: [docker-build]
+      - get: agent-operator-image-amd64
+        passed: [docker-build]
+      - get: pipeline-source
+        passed: [docker-build]
       - get: agent-operator-image-manifest-sha
         passed: [docker-build]
+      - in_parallel:
+        - do:
+          - put: gke-21
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: gke-21
+          - task: run-e2e-test-gke-21
+            timeout: 30m
+            attempts: 1
+            config: &gke-e2e-test-config
+              platform: linux
+              image_resource: &e2e-test-image-resource
+                type: registry-image
+                source:
+                  repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                  tag: main
+                  username: _json_key
+                  password: ((project-berlin-tests-gcp-instana-qa))
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-21
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                BUILD_BRANCH: main
+                INSTANA_API_KEY: ((qa-instana-api-token))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: pipeline-source
+                - name: agent-operator-image-amd64
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-21
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: gke-21
+
+        - do:
+          - put: gke-27
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: gke-27
+          - task: run-e2e-test-gke-27
+            timeout: 30m
+            attempts: 1
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-27
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: main
+                INSTANA_API_KEY: ((qa-instana-api-token))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: pipeline-source
+                - name: agent-operator-image-amd64
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-27
+
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: gke-27
+        - do:
+          - put: openshift-4.11
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: openshift-4.11
+          - task: run-e2e-test-openshift-4.11
+            timeout: 30m
+            attempts: 1
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
+                CLUSTER_TYPE: openshift
+                KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                NAME: openshift-4.11
+
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: main
+                INSTANA_API_KEY: ((qa-instana-api-token))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: pipeline-source
+                - name: agent-operator-image-amd64
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
+                    CLUSTER_TYPE: openshift
+                    KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                    NAME: openshift-4.11
+
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: openshift-4.11
+
+
+  - name: multiarch-operator-manifest-promotion
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-release-source
+        trigger: true
+        passed: [end-to-end-tests]
+      - get: agent-operator-image-manifest-sha
+        passed: [end-to-end-tests]
 
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
@@ -360,7 +670,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: main
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: agent-operator-image-manifest-sha
           params:
@@ -381,7 +694,6 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install skopeo
                 DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
                 ICR_REPOSITORY=icr.io/instana/instana-agent-operator
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
@@ -436,6 +748,22 @@ jobs:
                   --dest-password ${RED_HAT_REGISTRY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${RED_HAT_REGISTRY}:${OPERATOR_DOCKER_VERSION}
+        on_success:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+        on_failure:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+        on_error:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+        on_abort:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
       - get: preflight
         params:
           globs:
@@ -446,7 +774,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: main
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: preflight
           params:
@@ -459,7 +790,6 @@ jobs:
             args:
               - -ce
               - |
-                microdnf install skopeo
                 # strip the leading "v" from the operator version for release:
 
                 export PREFIX="v"
@@ -476,7 +806,7 @@ jobs:
 
                 chmod +x preflight-linux-amd64
 
-                ./preflight-linux-amd64 check container --artifacts preflight-output "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION-amd64" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                ./preflight-linux-amd64 check container --artifacts preflight-output "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
 
                 popd
 
@@ -492,7 +822,6 @@ jobs:
         params: { skip_download: true }
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
-        #file: agent-operator-release-source/version
         reveal: true
       - load_var: agent-image-digest
         file: latest-agent-image-manifest/digest
@@ -504,7 +833,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi-minimal
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: main
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: agent-operator-release-source
             - name: agent-operator-image-manifest-sha
@@ -519,21 +851,6 @@ jobs:
             args:
               - -ceu
               - |
-                microdnf install make python3-devel gcc git tar gzip zip curl jq
-                pip3 install pyyaml skopeo
-
-                # ubi8 still bundles Go 1.15 but we rely on 1.21, so install manually
-                export PATH="$PATH:/usr/local/go/bin"
-                export GOPATH=/go
-                export GO_VERSION=1.22.3
-                export GO_SHA256="8920ea521bad8f6b7bc377b4824982e011c19af27df88a815e3586ea895f1b36 go${GO_VERSION}.linux-amd64.tar.gz"
-
-                curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && echo "${GO_SHA256}" | sha256sum --check \
-                && rm -rf /usr/local/go \
-                && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
-                && mkdir -p "${GOPATH}" \
-                && go version
 
                 if [[ -f "agent-operator-image-manifest-sha/digest" ]]; then
                   export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "agent-operator-image-manifest-sha/digest")
@@ -573,7 +890,8 @@ jobs:
                 fi
 
                 # check that the operator image is really present before creating a release
-                skopeo inspect docker://${OPERATOR_IMAGE}
+                OPERATOR_IMAGE_TRIMMED=$(echo "$OPERATOR_IMAGE" | xargs)
+                skopeo inspect docker://${OPERATOR_IMAGE_TRIMMED}
                 # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
                 make IMG="${OPERATOR_IMAGE}" \
                   VERSION="${OLM_RELEASE_VERSION}" \
@@ -596,4 +914,565 @@ jobs:
                 fi
 
                 echo "**** Public release, create github.com release $VERSION. ****"
-                ./ci/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
+                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
+        on_success:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: success, context: operator-olm-github-release/build }
+        on_failure:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: operator-olm-github-release/build }
+        on_error:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: operator-olm-github-release/build }
+        on_abort:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: operator-olm-github-release/build }
+
+  - name: olm-release-pr-creation
+    max_in_flight: 1
+    plan:
+      - get: instana-agent-operator-release
+        version: every #fetch the latest operator release every time the job is triggered
+        params:
+          globs:
+            - olm-*.zip
+      - get: agent-operator-release-source
+        trigger: true
+        passed: [operator-olm-github-release]
+      - in_parallel:
+          steps:
+            - do:
+                - get: community-operators-repo
+                - task: community-operator-commit-changes
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: community-operators-repo
+                    outputs:
+                      - name: community-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: k8s-operatorhub
+                      REPO: community-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          echo "Check if the PR is already open"
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          echo "PR does not exist, creating a PR"
+
+                          popd
+
+                          pushd community-operators-repo/operators/instana-agent-operator
+                          set -x
+                          git pull -r
+
+                          mkdir -p $OPERATOR_RELEASE_VERSION
+                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
+
+                          git config --global user.name "instanacd"
+                          git config --global user.email "instanacd@instana.com"
+
+                          git add .
+                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
+
+                          popd
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/community-operator-commit-changes }
+                  on_failure:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: failure, context: olm-release-pr-creation/community-operator-commit-changes }
+                  on_error:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/community-operator-commit-changes }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/community-operator-commit-changes }
+                - put: community-operators-repo
+                  params:
+                    repository: community-operators-repo
+                - task: community-operator-create-pr
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: community-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: k8s-operatorhub
+                      REPO: community-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          echo "Check if the PR is already open"
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          echo "PR does not exist, creating a PR"
+
+                          popd
+
+                          # Create the PR
+                          set -x
+                          curl \
+                            -fX POST \
+                            -H "Accept: application/vnd.github+json" \
+                            -H "Authorization: Bearer $GH_API_TOKEN" \
+                            https://api.github.com/repos/$OWNER/$REPO/pulls \
+                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/community-operator-create-pr }
+                  on_failure:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: failure, context: olm-release-pr-creation/community-operator-create-pr }
+                  on_error:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/community-operator-create-pr }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/community-operator-create-pr }
+            - do:
+                - get: certified-operators-repo
+                - task: certified-operator-commit-changes
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: certified-operators-repo
+                    outputs:
+                      - name: certified-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: redhat-openshift-ecosystem
+                      REPO: certified-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          echo "Check if the PR is already open"
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          echo "PR does not exist, creating a PR"
+
+                          popd
+
+                          pushd certified-operators-repo/operators/instana-agent-operator
+                          set -x
+                          git pull -r
+                          mkdir -p $OPERATOR_RELEASE_VERSION
+                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
+
+                          git config --global user.name "instanacd"
+                          git config --global user.email "instanacd@instana.com"
+
+                          git add .
+                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
+
+                          popd
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/certified-operator-commit-changes }
+                  on_failure:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: failure, context: olm-release-pr-creation/certified-operator-commit-changes }
+                  on_error:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/certified-operator-commit-changes }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/certified-operator-commit-changes }
+                - put: certified-operators-repo
+                  params:
+                    repository: certified-operators-repo
+                - task: certified-operator-create-pr
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: certified-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: redhat-openshift-ecosystem
+                      REPO: certified-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
+                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          echo "Check if the PR is already open"
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          echo "PR does not exist, creating a PR"
+
+                          popd
+                          set -x
+                          # Create the PR
+                          curl \
+                            -fX POST \
+                            -H "Accept: application/vnd.github+json" \
+                            -H "Authorization: Bearer $GH_API_TOKEN" \
+                            https://api.github.com/repos/$OWNER/$REPO/pulls \
+                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/certified-operator-create-pr }
+                  on_failure:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: failure, context: olm-release-pr-creation/certified-operator-create-pr }
+                  on_error:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/certified-operator-create-pr }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/certified-operator-create-pr }
+            - do:
+                - get: redhat-marketplace-operators-repo
+                - task: redhat-marketplace-operator-commit-changes
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: redhat-marketplace-operators-repo
+                    outputs:
+                      - name: redhat-marketplace-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: redhat-openshift-ecosystem
+                      REPO: redhat-marketplace-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
+                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          echo "Check if the PR is already open"
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          echo "PR does not exist, creating a PR"
+
+                          popd
+
+                          pushd redhat-marketplace-operators-repo/operators/instana-agent-operator-rhmp
+                          set -x
+                          git pull -r
+
+                          mkdir -p $OPERATOR_RELEASE_VERSION
+                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
+
+                          pushd $OPERATOR_RELEASE_VERSION
+
+                          pushd manifests
+                          yq -i '.metadata.annotations += {"marketplace.openshift.io/remote-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/pricing?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
+                          yq -i '.metadata.annotations += {"marketplace.openshift.io/support-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/support?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
+                          mv instana-agent-operator.clusterserviceversion.yaml instana-agent-operator-rhmp.clusterserviceversion.yaml
+                          popd
+
+                          pushd metadata
+                          yq -i '.annotations."operators.operatorframework.io.bundle.package.v1" |= "instana-agent-operator-rhmp"' annotations.yaml
+                          popd
+
+                          popd
+
+                          git config --global user.name "instanacd"
+                          git config --global user.email "instanacd@instana.com"
+
+                          git add .
+                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
+
+                          popd
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                  on_failure:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                  on_error:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                - put: redhat-marketplace-operators-repo
+                  params:
+                    repository: redhat-marketplace-operators-repo
+                - task: redhat-marketplace-operator-create-pr
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: redhat-marketplace-operators-repo
+                    params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      OWNER: redhat-openshift-ecosystem
+                      REPO: redhat-marketplace-operators
+                    run:
+                      path: bash
+                      args:
+                        - -ce
+                        - |
+                          pushd instana-agent-operator-release
+
+                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
+                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
+                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
+                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
+
+                          echo "Check if the PR is already open"
+                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
+                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
+                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
+                            echo "PR already exists, exiting"
+                            exit 0
+                          fi
+                          echo "PR does not exist, creating a PR"
+
+                          popd
+                          set -x
+                          # Create the PR
+                          curl \
+                            -fX POST \
+                            -H "Accept: application/vnd.github+json" \
+                            -H "Authorization: Bearer $GH_API_TOKEN" \
+                            https://api.github.com/repos/$OWNER/$REPO/pulls \
+                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
+                  on_failure:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
+                  on_error:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
+
+  - name: build-e2e-operator-base-image
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - task: build-e2e-operator-base-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          params:
+            CONTEXT: pipeline-source/ci/images/e2e-base-image
+            DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
+          inputs:
+          - name: pipeline-source
+          outputs:
+          - name: image
+          run:
+            path: build
+      - put: e2e-test-base-image
+        inputs: detect
+        params:
+          image: image/image.tar
+        get_params:
+          skip_download: true
+
+  - name: gke-21-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "gke-21" > tmp-lock/name
+            touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
+
+  - name: gke-27-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "gke-27" > tmp-lock/name
+            touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
+
+  - name: openshift-4.11-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "openshift-4.11" > tmp-lock/name
+            touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
