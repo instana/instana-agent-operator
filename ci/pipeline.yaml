@@ -775,9 +775,9 @@ jobs:
             type: registry-image
             source:
               repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-                tag: main
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
+              tag: main
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: preflight
           params:
@@ -890,7 +890,8 @@ jobs:
                 fi
 
                 # check that the operator image is really present before creating a release
-                skopeo inspect docker://${OPERATOR_IMAGE}
+                OPERATOR_IMAGE_TRIMMED=$(echo "$OPERATOR_IMAGE" | xargs)
+                skopeo inspect docker://${OPERATOR_IMAGE_TRIMMED}
                 # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
                 make IMG="${OPERATOR_IMAGE}" \
                   VERSION="${OLM_RELEASE_VERSION}" \
