@@ -655,7 +655,8 @@ jobs:
         passed: [end-to-end-tests]
       - get: agent-operator-image-manifest-sha
         passed: [end-to-end-tests]
-
+      - get: pipeline-source
+        passed: [end-to-end-tests]
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         #file: agent-operator-release-source/version
@@ -820,6 +821,8 @@ jobs:
         passed: [multiarch-operator-manifest-promotion]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
+      - get: pipeline-source
+        passed: [multiarch-operator-manifest-promotion]
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         reveal: true
@@ -865,6 +868,7 @@ jobs:
 
                 # Create a place to store our output for packaging up
                 mkdir -p target
+                export TARGET_DIR=$(pwd)/target
 
                 # strip the leading "v" from the operator version for github artefacts and release:
                 export PREFIX="v"
@@ -914,7 +918,7 @@ jobs:
                 fi
 
                 echo "**** Public release, create github.com release $VERSION. ****"
-                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
+                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR
         on_success:
           put: gh-status
           inputs: [ pipeline-source ]
@@ -942,6 +946,8 @@ jobs:
             - olm-*.zip
       - get: agent-operator-release-source
         trigger: true
+        passed: [operator-olm-github-release]
+      - get: pipeline-source
         passed: [operator-olm-github-release]
       - in_parallel:
           steps:
