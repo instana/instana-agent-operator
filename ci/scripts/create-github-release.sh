@@ -9,14 +9,13 @@ set -e
 
 VERSION=$1
 GITHUB_OAUTH_TOKEN=$2
+TARGET_DIR=$3
 
 if [[ -z ${VERSION} ]] || [[ -z ${GITHUB_OAUTH_TOKEN} ]]; then
   echo "Please ensure VERSION and GITHUB_OAUTH_TOKEN are set so a GitHub Release can be created"
   exit 1
 fi
 
-ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )/.."
-TARGET_DIR="$ROOT_DIR/target"
 OPERATOR_RESOURCE_FILENAME="instana-agent-operator.yaml"
 GITHUB_RELEASES_URL="https://api.github.com/repos/instana/instana-agent-operator/releases"
 

@@ -868,6 +868,7 @@ jobs:
 
                 # Create a place to store our output for packaging up
                 mkdir -p target
+                export TARGET_DIR=$(pwd)/target
 
                 # strip the leading "v" from the operator version for github artefacts and release:
                 export PREFIX="v"
@@ -917,7 +918,7 @@ jobs:
                 fi
 
                 echo "**** Public release, create github.com release $VERSION. ****"
-                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN
+                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR
         on_success:
           put: gh-status
           inputs: [ pipeline-source ]
