@@ -8,7 +8,7 @@
 set -e
 set -o pipefail
 
-POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
+POD_WAIT_TIME_OUT=180         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=5           # s  Pod-check interval time
 OPERATOR_LOG_LINE='Agent installed/upgraded successfully'
 
