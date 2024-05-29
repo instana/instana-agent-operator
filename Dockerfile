@@ -25,6 +25,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY version/ version/
+COPY pkg/ pkg/
 
 # Build, injecting VERSION and GIT_COMMIT directly in the code
 RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'linux/arm64') echo 'arm64' ;; 'linux/s390x') echo 's390x' ;; 'linux/ppc64le') echo 'ppc64le' ;; esac) \

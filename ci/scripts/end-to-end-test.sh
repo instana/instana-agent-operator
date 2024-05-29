@@ -7,10 +7,12 @@
 
 set -e
 set -o pipefail
+set -x
 
 POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=5           # s  Pod-check interval time
 OPERATOR_LOG_LINE='Agent installed/upgraded successfully'
+OPERATOR_LOG_LINE_NEW='successfully finished reconcile on agent CR'
 
 # Wait for a pod to be running
 # It uses the global variables:
@@ -22,6 +24,7 @@ function wait_for_running_pod() {
     namespace="instana-agent"
     label=${1}
     deployment=${2}
+    pods_are_running=false
 
     status=$(kubectl get pod -n "${namespace}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
     echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
@@ -29,6 +32,7 @@ function wait_for_running_pod() {
         if [[ "${#status[@]}" -eq "1" && "${status[0]}" == "Running" ]]; then
             echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\". Ending waiting
             loop here."
+            pods_are_running=true
             break
         fi
         status=$(kubectl get pod -n "${namespace}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
@@ -36,7 +40,7 @@ function wait_for_running_pod() {
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
     done
-    if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
+    if [[ "${pods_are_running}" == "false" ]]; then
         echo "${namespace} failed to initialize. Exceeded timeout of
         ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
@@ -49,15 +53,20 @@ function wait_for_successfull_agent_installation() {
     local timeout=0
     local namespace="instana-agent"
     local label="app.kubernetes.io/name=instana-agent-operator"
+    local agent_found=false
 
     #Workaround as grep will return -1 if the line is not found.
     #With pipefail enabled, this would fail the script if the if statement omitted.
     if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
-        crd_installed_successfully=""
+        # Try to fetch the new log line if the old one is not there
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+            crd_installed_successfully=""
+        fi
     fi
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ -n "${crd_installed_successfully}" ]]; then
             echo "The agent has been installed/upgraded successfully. Ending waiting loop here."
+            agent_found=true
             break
         fi
         ((timeout+=POD_WAIT_INTERVAL))
@@ -65,10 +74,13 @@ function wait_for_successfull_agent_installation() {
         #Workaround as grep will return -1 if the line is not found.
         #With pipefail enabled, this would fail the script if the if statement omitted.
         if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
-            crd_installed_successfully=""
+            # Try to fetch the new log line if the old one is not there
+            if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+                crd_installed_successfully=""
+            fi
         fi
     done
-    if [[ "${timeout}" -gt "${POD_WAIT_TIME_OUT}" ]]; then
+    if [[ "${agent_found}" == "false" ]]; then
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi

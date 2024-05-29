@@ -290,9 +290,9 @@ spec:
           - get
           - list
           - watch
-        serviceAccountName: controller-manager
+        serviceAccountName: instana-agent-operator
       deployments:
-      - name: controller-manager
+      - name: instana-agent-operator
         spec:
           replicas: 1
           selector:
@@ -321,11 +321,11 @@ spec:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 image: icr.io/instana/instana-agent-operator:0.0.0
                 imagePullPolicy: Always
-                name: controller-manager
+                name: instana-agent-operator
                 ports:
                 - containerPort: 8080
                 resources: {}
-              serviceAccountName: controller-manager
+              serviceAccountName: instana-agent-operator
     strategy: deployment
   installModes:
   - supported: true
