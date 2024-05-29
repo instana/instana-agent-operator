@@ -12,6 +12,7 @@ set -x
 POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=5           # s  Pod-check interval time
 OPERATOR_LOG_LINE='Agent installed/upgraded successfully'
+OPERATOR_LOG_LINE_NEW='successfully finished reconcile on agent CR'
 
 # Wait for a pod to be running
 # It uses the global variables:
@@ -57,7 +58,10 @@ function wait_for_successfull_agent_installation() {
     #Workaround as grep will return -1 if the line is not found.
     #With pipefail enabled, this would fail the script if the if statement omitted.
     if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
-        crd_installed_successfully=""
+        # Try to fetch the new log line if the old one is not there
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+            crd_installed_successfully=""
+        fi
     fi
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ -n "${crd_installed_successfully}" ]]; then
@@ -70,7 +74,10 @@ function wait_for_successfull_agent_installation() {
         #Workaround as grep will return -1 if the line is not found.
         #With pipefail enabled, this would fail the script if the if statement omitted.
         if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
-            crd_installed_successfully=""
+            # Try to fetch the new log line if the old one is not there
+            if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+                crd_installed_successfully=""
+            fi
         fi
     done
     if [[ "${agent_found}" == "false" ]]; then
