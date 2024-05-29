@@ -342,10 +342,6 @@ type KubernetesDeploymentSpec struct {
 	// +kubebuilder:validation:Optional
 	Replicas int `json:"replicas,omitempty"`
 
-	// The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
-	// +kubebuilder:validation:Optional
-	MinReadySeconds int `json:"minReadySeconds,omitempty"`
-
 	// Override pod resource requirements for the Kubernetes Sensor pods.
 	// +kubebuilder:validation:Optional
 	Pod KubernetesPodSpec `json:"pod,omitempty"`
