@@ -27,10 +27,10 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?=  icr.io/instana/instana-agent-operator:snapshot
+IMG ?=  icr.io/instana/instana-agent-operator:latest
 
 # Image URL for the Instana Agent, as listed in the 'relatedImages' field in the CSV
-AGENT_IMG ?= icr.io/instana/agent:snapshot
+AGENT_IMG ?= icr.io/instana/agent:latest
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"

@@ -96,7 +96,7 @@ resources:
       access_token: ((instanacd-github-api-token))
       context_prefix: concourse
       github_host: github.com
-  
+
   - name: golangci-lint-release
     type: github-release
     check_every: 24h
