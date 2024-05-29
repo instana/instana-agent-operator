@@ -1,5 +1,5 @@
 # MAINTAINERS
 
-Felix Marx   - @FelixMarxIBM
-Henning Treu - @htreu
-Torsten Kohn - @tkohn
+- Konrad Ohms - @konrad-ohms
+- Milica Cvrkota - @Milica-Cvrkota-IBM
+- Fredrik Gundersen

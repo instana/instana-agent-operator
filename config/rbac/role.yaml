@@ -1,10 +1,115 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
-  namespace: instana-agent
 rules:
+- nonResourceURLs:
+  - /healthz
+  - /version
+  verbs:
+  - get
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps.openshift.io
+  resources:
+  - deploymentconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - namespaces
+  - nodes
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  - pods/log
+  - replicationcontrollers
+  - resourcequotas
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  - ingresses
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - instana.io
   resources:
@@ -32,23 +137,28 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ''
-  - 'extensions'
-  - 'apps'
-  - 'rbac.authorization.k8s.io'
+  - networking.k8s.io
   resources:
-  - 'serviceaccounts'
-  - 'clusterroles'
-  - 'clusterrolebindings'
-  - 'secrets'
-  - 'configmaps'
-  - 'daemonsets'
-  - 'namespaces'
-  - 'services'
-  - 'deployments'
-  - 'nodes/stats'
-  - 'nodes/metrics'
+  - ingresses
   verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - policy
+  resourceNames:
+  - instana-agent-k8sensor
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - bind
   - create
   - delete
   - get
@@ -56,143 +166,11 @@ rules:
   - patch
   - update
   - watch
-# -------------------------------------------------------------------------
-# The following need to be watched, but not created:
-# * Pods are created by the daemon set.
-# * The custom resource definition is created by the user.
-# -------------------------------------------------------------------------
 - apiGroups:
-  - ''
-  - 'apiextensions.k8s.io'
-  resources:
-  - 'pods'
-  - 'customresourcedefinitions'
-  verbs:
-  - 'get'
-  - 'list'
-  - 'watch'
-# -------------------------------------------------------------------------
-# Events are just created but not watched. It's a fire-and-forget operation.
-# -------------------------------------------------------------------------
-- apiGroups:
-  - ''
-  resources:
-  - 'events'
-  verbs:
-  - 'create'
-# -------------------------------------------------------------------------
-# Below are the permissions are for the agent.
-# The operator needs these permissions to create the agent's cluster role.
-# -------------------------------------------------------------------------
-- nonResourceURLs:
-  - '/version'
-  - '/healthz'
-  - "/metrics"
-  - "/stats/summary"
-  - "/metrics/cadvisor"
-  verbs:
-  - 'get'
-- apiGroups:
-  - ''
-  resources:
-  - 'componentstatuses'
-  - 'endpoints'
-  - 'events'
-  - 'namespaces'
-  - 'nodes'
-  - 'pods'
-  - 'replicationcontrollers'
-  - 'resourcequotas'
-  - 'services'
-  - 'persistentvolumes'
-  - 'persistentvolumeclaims'
-  verbs:
-  - 'get'
-  - 'list'
-  - 'watch'
-- apiGroups:
-  - ''
-  resources:
-  - 'endpoints'
-  verbs:
-  - 'create'
-  - 'update'
-  - 'patch'
-- apiGroups:
-  - 'apps'
-  resources:
-  - 'deployments'
-  - 'replicasets'
-  - 'daemonsets'
-  - 'statefulsets'
-  verbs:
-  - 'get'
-  - 'list'
-  - 'watch'
-- apiGroups:
-  - 'batch'
-  resources:
-  - 'jobs'
-  - 'cronjobs'
-  verbs:
-  - 'get'
-  - 'list'
-  - 'watch'
-- apiGroups:
-  - 'extensions'
-  resources:
-  - 'deployments'
-  - 'ingresses'
-  - 'replicasets'
-  verbs:
-  - 'get'
-  - 'list'
-  - 'watch'
-- apiGroups:
-  - 'networking.k8s.io'
-  resources:
-    - 'ingresses'
-  verbs:
-    - 'get'
-    - 'list'
-    - 'watch'
-- apiGroups:
-  - 'apps.openshift.io'
-  resources:
-  - 'deploymentconfigs'
-  verbs:
-  - 'get'
-  - 'list'
-  - 'watch'
-- apiGroups:
-  - 'security.openshift.io'
+  - security.openshift.io
   resourceNames:
-  - 'privileged'
+  - privileged
   resources:
-  - 'securitycontextconstraints'
+  - securitycontextconstraints
   verbs:
-  - 'use'
-- apiGroups:
-  - autoscaling/v1
-  resources:
-  - horizontalpodautoscalers
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - autoscaling/v2
-  resources:
-  - horizontalpodautoscalers
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods/log
-  verbs:
-  - get
-  - list
-  - watch
+  - use
