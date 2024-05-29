@@ -655,7 +655,8 @@ jobs:
         passed: [end-to-end-tests]
       - get: agent-operator-image-manifest-sha
         passed: [end-to-end-tests]
-
+      - get: pipeline-source
+        passed: [end-to-end-tests]
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         #file: agent-operator-release-source/version
@@ -820,6 +821,8 @@ jobs:
         passed: [multiarch-operator-manifest-promotion]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
+      - get: pipeline-source
+        passed: [multiarch-operator-manifest-promotion]
       - load_var: operator-version
         file: agent-operator-release-source/.git/ref
         reveal: true
@@ -942,6 +945,8 @@ jobs:
             - olm-*.zip
       - get: agent-operator-release-source
         trigger: true
+        passed: [operator-olm-github-release]
+      - get: pipeline-source
         passed: [operator-olm-github-release]
       - in_parallel:
           steps:
