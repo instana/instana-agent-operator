@@ -21,7 +21,7 @@ metadata:
                   },
                   "cluster.name": "replace-me",
                   "config.files": {
-                      "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n"
+                      "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://ibm.biz/monitoring-k8s\n"
                   }
               }
           }
@@ -31,6 +31,13 @@ metadata:
     certified: "false"
     containerImage: icr.io/instana/instana-agent-operator:0.0.0
     description: Fully automated Application Performance Monitoring (APM) for microservices.
+    features.operators.openshift.io/disconnected: "false"
+    features.operators.openshift.io/fips-compliant: "true"
+    features.operators.openshift.io/proxy-aware: "false"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
   labels:
@@ -137,7 +144,7 @@ spec:
           INSTANA_AGENT_TAGS: example
         configuration_yaml: |
           # You can leave this empty, or use this to configure your instana agent.
-          # See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/
+          # See https://ibm.biz/monitoring-k8s
     ```
 
     Save the template in a file `instana-agent.yaml` and edit the following values:
@@ -148,7 +155,7 @@ spec:
     * `agent.endpointPort` must be set with the monitoring ingress port, generally "443" (wrapped in quotes).
     * `zone.name` should be set with the name of the Kubernetes cluster that is be displayed in Instana.
 
-    For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation [here](https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/).
+    For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation [here](https://ibm.biz/monitoring-k8s).
 
     Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster should show on the infrastructure map on your Instana Web interface.
 
@@ -283,9 +290,9 @@ spec:
           - get
           - list
           - watch
-        serviceAccountName: controller-manager
+        serviceAccountName: instana-agent-operator
       deployments:
-      - name: controller-manager
+      - name: instana-agent-operator
         spec:
           replicas: 1
           selector:
@@ -314,11 +321,11 @@ spec:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 image: icr.io/instana/instana-agent-operator:0.0.0
                 imagePullPolicy: Always
-                name: controller-manager
+                name: instana-agent-operator
                 ports:
                 - containerPort: 8080
                 resources: {}
-              serviceAccountName: controller-manager
+              serviceAccountName: instana-agent-operator
     strategy: deployment
   installModes:
   - supported: true

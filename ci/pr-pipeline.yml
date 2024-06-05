@@ -1,0 +1,830 @@
+#
+# (c) Copyright IBM Corp. 2024
+# (c) Copyright Instana Inc.
+#
+
+---
+groups:
+  - name: test
+    jobs:
+    - self-update
+    - build-and-test-agent-operator
+    - docker-build
+    - operator-olm-build
+    - end-to-end-tests
+  - name: build-test-images
+    jobs:
+    - build-e2e-operator-base-image
+
+aliases:
+gh-status-hooks: &gh-status-hooks
+  on_success:
+    put: gh-status
+    inputs: [pipeline-source]
+    params: { state: success }
+  on_failure:
+    put: gh-status
+    inputs: [pipeline-source]
+    params: { state: failure }
+  on_error:
+    put: gh-status
+    inputs: [pipeline-source]
+    params: { state: error }
+  on_abort:
+    put: gh-status
+    inputs: [pipeline-source]
+    params: { state: error }
+gh-status-set-pending: &gh-status-set-pending
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending }
+gh-status-set-pending-build: &gh-status-set-pending-build
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending, context: build-and-test-operator/build }
+gh-status-set-pending-unit-test: &gh-status-set-pending-unit-test
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending, context: build-and-test-operator/unit-test }
+gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
+  put: gh-status
+  inputs: [pipeline-source]
+  params: { state: pending, context: build/docker }
+gh-status-set-pending-e2e-gke-21: &gh-status-set-pending-e2e-gke-21
+  put: gh-status
+  inputs: [ pipeline-source ]
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
+gh-status-set-pending-e2e-gke-27: &gh-status-set-pending-e2e-gke-27
+  put: gh-status
+  inputs: [ pipeline-source ]
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
+gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
+  put: gh-status
+  inputs: [ pipeline-source ]
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+
+resource_types:
+  - name: cogito
+    type: registry-image
+    check_every: never
+    source:
+      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      tag: latest
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
+resources:
+  - name: pipeline-source
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      username: ((project-berlin-gh-token))
+      password: x-oauth-basic
+      branch: &build-branch ((branch))
+      git_config:
+        - name: user.name
+          value: Stan
+        - name: user.email
+          value: stan@instana.com
+
+  - name: gh-status
+    type: cogito
+    source:
+      owner: instana
+      repo: instana-agent-operator
+      access_token: ((instanacd-github-api-token))
+      context_prefix: concourse
+      github_host: github.com
+
+  - name: golangci-lint-release
+    type: github-release
+    check_every: 24h
+    source:
+      owner: golangci
+      repository: golangci-lint
+
+  # dummy value for now, on main it gets calculated based on the tag name
+  - name: agent-operator-version
+    type: semver
+    source:
+      driver: gcs
+      bucket: instana-agent-qa-versioning
+      key: agent-operator-version/image
+      json_key: ((project-berlin-tests-gcp-instana-qa))
+
+  - name: agent-operator-image-amd64
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-arm64
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-ppc64le
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-s390x
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      tag: ((branch))
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: latest-agent-image-manifest
+    type: registry-image
+    icon: docker
+    source:
+      repository: icr.io/instana/agent
+      tag: latest
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
+  - name: agent-operator-bundle-image
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator-bundle/dev-build
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      tag: ((branch))
+
+  - name: test-clusters
+    type: pool
+    source:
+      uri: https://github.ibm.com/instana/k8s-e2e-resources-coordination.git
+      username: ((ibm-ghe-tokens.concourse-other-teams))
+      password: x-oauth-basic
+      branch: main
+      pool: k8s-clusters
+
+  - name: e2e-test-base-image
+    type: registry-image
+    icon: cube
+    source:
+      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+      tag: ((branch))
+
+jobs:
+  - name: self-update
+    <<: *gh-status-hooks
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+      - <<: *gh-status-set-pending
+      - <<: *gh-status-set-pending-build
+      - <<: *gh-status-set-pending-unit-test
+      - <<: *gh-status-set-pending-docker-build
+      - set_pipeline: self
+        file: pipeline-source/ci/pr-pipeline.yml
+        vars:
+          branch: *build-branch
+          project-berlin-gh-token: ((project-berlin-gh-token))
+          delivery-instana-io-release-project-artifact-read-writer-creds: ((delivery-instana-io-release-project-artifact-read-writer-creds))
+
+  - name: build-and-test-agent-operator
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update, build-e2e-operator-base-image]
+      - task: build
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: pipeline-source
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                cd pipeline-source
+                make build
+        on_success:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: success, context: build-and-test-operator/build }
+        on_failure:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: build-and-test-operator/build }
+        on_error:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: build-and-test-operator/build }
+        on_abort:
+          put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: build-and-test-operator/build }
+      - get: golangci-lint-release
+        params:
+          globs:
+            - golangci-lint-*-linux-amd64.rpm
+      - task: unit-test
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: pipeline-source
+            - name: golangci-lint-release
+          caches:
+            - path: /go/pkg/mod
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+
+                pushd golangci-lint-release
+                  LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
+                  rpm -i $LINTER_RPM
+                popd
+
+                cd pipeline-source
+                make lint test
+        on_success:
+          put: gh-status
+          inputs: [pipeline-source]
+          params: { state: success, context: build-and-test-operator/unit-test }
+        on_failure:
+          put: gh-status
+          inputs: [pipeline-source]
+          params: { state: failure, context: build-and-test-operator/unit-test }
+        on_error:
+          put: gh-status
+          inputs: [pipeline-source]
+          params: { state: error, context: build-and-test-operator/unit-test }
+        on_abort:
+          put: gh-status
+          inputs: [pipeline-source]
+          params: { state: error, context: build-and-test-operator/unit-test }
+
+  - name: docker-build
+    max_in_flight: 1
+    on_success:
+      put: gh-status
+      inputs: [pipeline-source]
+      params: { state: success, context: build/docker }
+    on_failure:
+      put: gh-status
+      inputs: [pipeline-source]
+      params: { state: failure, context: build/docker }
+    on_error:
+      put: gh-status
+      inputs: [pipeline-source]
+      params: { state: error, context: build/docker }
+    on_abort:
+      put: gh-status
+      inputs: [pipeline-source]
+      params: { state: error, context: build/docker }
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update, build-e2e-operator-base-image]
+      - get: agent-operator-version
+        trigger: true
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping:
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-arm64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping:
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-s390x
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping:
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: pipeline-source
+              output_mapping:
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - put: agent-operator-image-amd64
+              params:
+                image: image-amd64/image.tar
+                additional_tags: image-tags/amd64
+            - put: agent-operator-image-arm64
+              params:
+                image: image-arm64/image.tar
+                additional_tags: image-tags/arm64
+            - put: agent-operator-image-ppc64le
+              params:
+                image: image-ppc64le/image.tar
+                additional_tags: image-tags/ppc64le
+            - put: agent-operator-image-s390x
+              params:
+                image: image-s390x/image.tar
+                additional_tags: image-tags/s390x
+      - task: publish-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: pipeline-source
+          outputs:
+            - name: manifest-list
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                IMAGE_TAG=${GIT_COMMIT}
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+
+                # installing manifest-tool
+                manifest-tool \
+                  --username ${DELIVERY_INSTANA_IO_USER} \
+                  --password ${DELIVERY_INSTANA_IO_PW} \
+                  push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} | tee manifest-output.txt
+
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+                # folder is created by output defintion
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+
+  - name: operator-olm-build
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [docker-build]
+      - get: agent-operator-version
+      - load_var: agent-operator-version
+        file: agent-operator-version/number
+        reveal: true
+      - get: latest-agent-image-manifest
+        params: { skip_download: true }
+      - load_var: agent-image-digest
+        file: latest-agent-image-manifest/digest
+        reveal: true
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
+      - task: build-bundle
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              tag: ((branch))
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: pipeline-source
+          outputs:
+            - name: target
+            - name: docker-input
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            VERSION: ((.:agent-operator-version))
+            AGENT_IMG_DIGEST: ((.:agent-image-digest))
+            DELIVERY_INSTANA_IO_USER: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            DELIVERY_INSTANA_IO_PW: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+
+                IMAGE_TAG=${GIT_COMMIT}
+                set +x
+                unset HISTFILE
+                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
+                set -x
+
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+
+                pushd pipeline-source
+
+                # Create a place to store our output for packaging up
+                mkdir -p target
+
+                # strip the leading "v" from the operator version for github artefacts and release:
+                export PREFIX="v"
+                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
+
+                # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+                # Uses jq to filter out non-release versions
+                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+                  | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
+                  | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+                if [[ "x${PREV_VERSION}" = "x" ]]; then
+                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+                  exit 1
+                fi
+
+                echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
+                export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
+
+                # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
+                make IMG="${OPERATOR_IMAGE}" \
+                  VERSION="${OLM_RELEASE_VERSION}" \
+                  PREV_VERSION="${PREV_VERSION}" \
+                  AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
+                  bundle
+
+                cp bundle.Dockerfile ../docker-input/
+                cp -R bundle ../docker-input/
+                pushd bundle
+                zip -r ../../target/olm-${OLM_RELEASE_VERSION}.zip .
+                popd
+
+                # Create the YAML for installing the Agent Operator, which we want to package with the release
+                make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > ../target/instana-agent-operator.yaml
+
+                echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
+                echo
+                cat ../target/instana-agent-operator.yaml
+      - task: build-bundle-docker
+        privileged: true
+        file: pipeline-source/ci/container-image-build-task.yml
+        input_mapping:
+          source: docker-input
+        output_mapping: 
+          image: image-bundle
+        vars:
+          dockerfile: bundle.Dockerfile
+          target-platform: linux/amd64
+          version: ((.:agent-operator-version))
+          git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: pipeline-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - put: agent-operator-bundle-image
+        params:
+          image: image-bundle/image.tar
+          additional_tags: image-tags/multi-arch
+
+  - name: end-to-end-tests
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [operator-olm-build]
+      - get: agent-operator-image-amd64
+        passed: [docker-build]
+      - <<: *gh-status-set-pending-e2e-gke-21
+      - <<: *gh-status-set-pending-e2e-gke-27
+      - <<: *gh-status-set-pending-e2e-openshift
+      - in_parallel:
+
+        - do:
+          - put: gke-21
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: gke-21
+          - task: run-e2e-test-gke-21
+            timeout: 30m
+            attempts: 1
+            config: &gke-e2e-test-config
+              platform: linux
+              image_resource: &e2e-test-image-resource
+                type: registry-image
+                source:
+                  repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                  tag: ((branch))
+                  username: _json_key
+                  password: ((project-berlin-tests-gcp-instana-qa))
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-21
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                BUILD_BRANCH: ((branch))
+                INSTANA_API_KEY: ((qa-instana-api-token))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: pipeline-source
+                - name: agent-operator-image-amd64
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-21
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: gke-21
+
+        - do:
+          - put: gke-27
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: gke-27
+          - task: run-e2e-test-gke-27
+            timeout: 30m
+            attempts: 1
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-27
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: ((branch))
+                INSTANA_API_KEY: ((qa-instana-api-token))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: pipeline-source
+                - name: agent-operator-image-amd64
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-27
+
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: gke-27
+        - do:
+          - put: openshift-4.11
+            inputs: detect
+            resource: test-clusters
+            params:
+              claim: openshift-4.11
+          - task: run-e2e-test-openshift-4.11
+            timeout: 30m
+            attempts: 1
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
+                CLUSTER_TYPE: openshift
+                KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                NAME: openshift-4.11
+
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: ((branch))
+                INSTANA_API_KEY: ((qa-instana-api-token))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: pipeline-source
+                - name: agent-operator-image-amd64
+              run:
+                path: pipeline-source/ci/scripts/end-to-end-test.sh
+            on_success:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_failure:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_error:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            on_abort:
+              put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
+                    CLUSTER_TYPE: openshift
+                    KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                    NAME: openshift-4.11
+
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - put: test-clusters
+                inputs: detect
+                params:
+                  release: openshift-4.11
+
+  - name: build-e2e-operator-base-image
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: build-e2e-operator-base-image }
+    on_failure:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: failure, context: build-e2e-operator-base-image }
+    on_error:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build-e2e-operator-base-image }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: build-e2e-operator-base-image }
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+        trigger: true
+        passed: [self-update]
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: build-e2e-operator-base-image }
+      - task: build-e2e-operator-base-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          params:
+            CONTEXT: pipeline-source/ci/images/e2e-base-image
+            DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
+          inputs:
+          - name: pipeline-source
+          outputs:
+          - name: image
+          run:
+            path: build
+      - put: e2e-test-base-image
+        inputs: detect
+        params:
+          image: image/image.tar
+        get_params:
+          skip_download: true
