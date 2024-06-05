@@ -972,43 +972,10 @@ jobs:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: k8s-operatorhub
                       REPO: community-operators
+                      PUBLIC_REPO_LOCAL_NAME: community-operators-repo
+                      OPERATOR_NAME: instana-agent-operator
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          pushd community-operators-repo/operators/instana-agent-operator
-                          set -x
-                          git pull -r
-
-                          mkdir -p $OPERATOR_RELEASE_VERSION
-                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
-
-                          git config --global user.name "instanacd"
-                          git config --global user.email "instanacd@instana.com"
-
-                          git add .
-                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
-
-                          popd
+                      path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1041,41 +1008,13 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
+                      - name: pipeline-source
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: k8s-operatorhub
                       REPO: community-operators
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          # Create the PR
-                          set -x
-                          curl \
-                            -fX POST \
-                            -H "Accept: application/vnd.github+json" \
-                            -H "Authorization: Bearer $GH_API_TOKEN" \
-                            https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                      path: pipeline-source/ci/scripts/create-pr.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1113,42 +1052,10 @@ jobs:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
+                      PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
+                      OPERATOR_NAME: instana-agent-operator
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          pushd certified-operators-repo/operators/instana-agent-operator
-                          set -x
-                          git pull -r
-                          mkdir -p $OPERATOR_RELEASE_VERSION
-                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
-
-                          git config --global user.name "instanacd"
-                          git config --global user.email "instanacd@instana.com"
-
-                          git add .
-                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
-
-                          popd
+                      path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1181,40 +1088,13 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
+                      - name: pipeline-source
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-                          set -x
-                          # Create the PR
-                          curl \
-                            -fX POST \
-                            -H "Accept: application/vnd.github+json" \
-                            -H "Authorization: Bearer $GH_API_TOKEN" \
-                            https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                      path: pipeline-source/ci/scripts/create-pr.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1252,58 +1132,10 @@ jobs:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
+                      PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
+                      OPERATOR_NAME: instana-agent-operator-rhmp
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          pushd redhat-marketplace-operators-repo/operators/instana-agent-operator-rhmp
-                          set -x
-                          git pull -r
-
-                          mkdir -p $OPERATOR_RELEASE_VERSION
-                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
-
-                          pushd $OPERATOR_RELEASE_VERSION
-
-                          pushd manifests
-                          yq -i '.metadata.annotations += {"marketplace.openshift.io/remote-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/pricing?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
-                          yq -i '.metadata.annotations += {"marketplace.openshift.io/support-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/support?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
-                          mv instana-agent-operator.clusterserviceversion.yaml instana-agent-operator-rhmp.clusterserviceversion.yaml
-                          popd
-
-                          pushd metadata
-                          yq -i '.annotations."operators.operatorframework.io.bundle.package.v1" |= "instana-agent-operator-rhmp"' annotations.yaml
-                          popd
-
-                          popd
-
-                          git config --global user.name "instanacd"
-                          git config --global user.email "instanacd@instana.com"
-
-                          git add .
-                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
-
-                          popd
+                      path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1336,40 +1168,13 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
+                      - name: pipeline-source
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-                          set -x
-                          # Create the PR
-                          curl \
-                            -fX POST \
-                            -H "Accept: application/vnd.github+json" \
-                            -H "Authorization: Bearer $GH_API_TOKEN" \
-                            https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                      path: pipeline-source/ci/scripts/create-pr.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
