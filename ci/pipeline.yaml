@@ -53,6 +53,11 @@ resources:
       branch: main
       pool: k8s-clusters
 
+  - name: slack-alert
+    type: slack-notification
+    source:
+      url: ((tech-agent-delivery-notifications-slack-hook))
+
   - name: pipeline-source
     type: git
     icon: github
@@ -196,13 +201,25 @@ jobs:
       inputs: [ pipeline-source ]
       params: { state: success, context: self-update }
     on_failure:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: failure, context: self-update }
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: self-update }
     on_error:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: error, context: self-update }
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: self-update }
     on_abort:
       put: gh-status
       inputs: [ pipeline-source ]
@@ -235,6 +252,34 @@ jobs:
         file: pipeline-source/ci/pipeline.yaml
 
   - name: tag-release
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: tag-release }
+    on_failure:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: tag-release }
+    on_error:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: tag-release }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: tag-release }
     max_in_flight: 1
     plan:
       - get: pipeline-source
@@ -285,13 +330,27 @@ jobs:
       inputs: [ pipeline-source ]
       params: { state: success, context: build/docker }
     on_failure:
-      put: gh-status
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: build/docker }
       inputs: [ pipeline-source ]
       params: { state: failure, context: build/docker }
     on_error:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: error, context: build/docker }
+        do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: build/docker }
     on_abort:
       put: gh-status
       inputs: [ pipeline-source ]
@@ -476,13 +535,25 @@ jobs:
               inputs: [ pipeline-source ]
               params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
             on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-21 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
             on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-21 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -543,13 +614,25 @@ jobs:
               inputs: [ pipeline-source ]
               params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
             on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-27 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
             on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-27 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -754,13 +837,25 @@ jobs:
           inputs: [ pipeline-source ]
           params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_failure:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_error:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_abort:
           put: gh-status
           inputs: [ pipeline-source ]
@@ -924,13 +1019,25 @@ jobs:
           inputs: [ pipeline-source ]
           params: { state: success, context: operator-olm-github-release/build }
         on_failure:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: failure, context: operator-olm-github-release/build }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: operator-olm-github-release/build }
         on_error:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: operator-olm-github-release/build }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+            inputs: [ pipeline-source ]
+            params: { state: error, context: operator-olm-github-release/build }
         on_abort:
           put: gh-status
           inputs: [ pipeline-source ]
@@ -981,13 +1088,25 @@ jobs:
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/community-operator-commit-changes }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/community-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/community-operator-commit-changes }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/community-operator-commit-changes }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1020,13 +1139,25 @@ jobs:
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/community-operator-create-pr }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/community-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/community-operator-create-pr }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/community-operator-create-pr }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1061,13 +1192,25 @@ jobs:
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/certified-operator-commit-changes }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/certified-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/certified-operator-commit-changes }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/certified-operator-commit-changes }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1100,13 +1243,25 @@ jobs:
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/certified-operator-create-pr }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/certified-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/certified-operator-create-pr }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/certified-operator-create-pr }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1141,13 +1296,25 @@ jobs:
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1180,9 +1347,15 @@ jobs:
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
                   on_error:
                     put: gh-status
                     inputs: [ pipeline-source ]
