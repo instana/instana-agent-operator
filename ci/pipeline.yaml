@@ -18,9 +18,10 @@ groups:
     - build-e2e-operator-base-image
   - name: manual-unlock
     jobs:
-    - gke-21-release-unlock-manual
-    - gke-27-release-unlock-manual
-    - openshift-4.11-release-unlock-manual
+    - gke-lowest-supported-release-unlock-manual
+    - gke-latest-supported-release-unlock-manual
+    - openshift-lowest-supported-release-unlock-manual
+    - openshift-latest-supported-release-unlock-manual
 
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
@@ -218,13 +219,16 @@ jobs:
         params: { state: pending, context: build/docker }
       - put: gh-status
         inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest-supported }
       - put: gh-status
         inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest-supported }
       - put: gh-status
         inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-lowest-supported }
+      - put: gh-status
+        inputs: [ pipeline-source ]
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-latest-supported }
       - put: gh-status
         inputs: [ pipeline-source ]
         params: { state: pending, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
@@ -438,12 +442,12 @@ jobs:
         passed: [docker-build]
       - in_parallel:
         - do:
-          - put: gke-21
+          - put: gke-lowest-supported
             inputs: detect
             resource: test-clusters
             params:
-              claim: gke-21
-          - task: run-e2e-test-gke-21
+              claim: gke-lowest-supported
+          - task: run-e2e-test-gke-lowest-supported
             timeout: 30m
             attempts: 1
             config: &gke-e2e-test-config
@@ -458,7 +462,7 @@ jobs:
               params:
                 CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
-                NAME: gke-21
+                NAME: gke-lowest-supported
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_ENDPOINT_PORT: 443
@@ -474,47 +478,48 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-lowest-supported }
             on_failure:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-lowest-supported }
             on_error:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest-supported }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest-supported }
             ensure:
               do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
-                  platform: linux
-                  image_resource: *e2e-test-image-resource
-                  params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
-                    CLUSTER_TYPE: gke
-                    NAME: gke-21
-                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                  inputs:
-                    - name: pipeline-source
-                  run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - try:
+                  task: cleanup-resources
+                  timeout: 10m
+                  config:
+                    platform: linux
+                    image_resource: *e2e-test-image-resource
+                    params:
+                      CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                      CLUSTER_TYPE: gke
+                      NAME: gke-lowest-supported
+                      GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: pipeline-source
+                    run:
+                      path: pipeline-source/ci/scripts/cleanup-resources.sh
               - put: test-clusters
                 inputs: detect
                 params:
-                  release: gke-21
+                  release: gke-lowest-supported
 
         - do:
-          - put: gke-27
+          - put: gke-latest-supported
             inputs: detect
             resource: test-clusters
             params:
-              claim: gke-27
-          - task: run-e2e-test-gke-27
+              claim: gke-latest-supported
+          - task: run-e2e-test-gke-latest-supported
             timeout: 30m
             attempts: 1
             config:
@@ -522,7 +527,7 @@ jobs:
               params:
                 CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
-                NAME: gke-27
+                NAME: gke-latest-supported
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_ENDPOINT_PORT: 443
@@ -541,56 +546,57 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-latest-supported }
             on_failure:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-latest-supported }
             on_error:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest-supported }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest-supported }
             ensure:
               do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
-                  platform: linux
-                  image_resource: *e2e-test-image-resource
-                  params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
-                    CLUSTER_TYPE: gke
-                    NAME: gke-27
+              - try:
+                  task: cleanup-resources
+                  timeout: 10m
+                  config:
+                    platform: linux
+                    image_resource: *e2e-test-image-resource
+                    params:
+                      CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                      CLUSTER_TYPE: gke
+                      NAME: gke-latest-supported
 
-                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                  inputs:
-                    - name: pipeline-source
-                  run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+                      GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: pipeline-source
+                    run:
+                      path: pipeline-source/ci/scripts/cleanup-resources.sh
               - put: test-clusters
                 inputs: detect
                 params:
-                  release: gke-27
+                  release: gke-latest-supported
         - do:
-          - put: openshift-4.11
+          - put: openshift-lowest-supported
             inputs: detect
             resource: test-clusters
             params:
-              claim: openshift-4.11
-          - task: run-e2e-test-openshift-4.11
+              claim: openshift-lowest-supported
+          - task: run-e2e-test-openshift-lowest-supported
             timeout: 30m
             attempts: 1
             config:
               <<: *gke-e2e-test-config
               params:
-                CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
+                CLUSTER_INFO: '{ "name": "instana-agent-ocp4-12" }'
                 CLUSTER_TYPE: openshift
                 KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-                NAME: openshift-4.11
+                NAME: openshift-lowest-supported
 
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
@@ -610,41 +616,114 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-lowest-supported }
             on_failure:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+              params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-lowest-supported }
             on_error:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-lowest-supported }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-lowest-supported }
             ensure:
               do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
-                  platform: linux
-                  image_resource: *e2e-test-image-resource
-                  params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
-                    CLUSTER_TYPE: openshift
-                    KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-                    NAME: openshift-4.11
+              - try:
+                  task: cleanup-resources
+                  timeout: 10m
+                  config:
+                    platform: linux
+                    image_resource: *e2e-test-image-resource
+                    params:
+                      CLUSTER_INFO: '{ "name": "instana-agent-ocp4-12" }'
+                      CLUSTER_TYPE: openshift
+                      KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+                      NAME: openshift-lowest-supported
 
-                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                  inputs:
-                    - name: pipeline-source
-                  run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+                      GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: pipeline-source
+                    run:
+                      path: pipeline-source/ci/scripts/cleanup-resources.sh
               - put: test-clusters
                 inputs: detect
                 params:
-                  release: openshift-4.11
+                  release: openshift-lowest-supported
+
+          - do:
+            - put: openshift-latest-supported
+              inputs: detect
+              resource: test-clusters
+              params:
+                claim: openshift-latest-supported
+            - task: run-e2e-test-openshift-latest-supported
+              timeout: 30m
+              attempts: 1
+              config:
+                <<: *gke-e2e-test-config
+                params:
+                  CLUSTER_INFO: '{ "name": "instana-agent-ocp4-15" }'
+                  CLUSTER_TYPE: openshift
+                  KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4-latest-stable))
+                  NAME: openshift-latest-supported
+
+                  GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                  INSTANA_ENDPOINT_PORT: 443
+                  INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                  INSTANA_API_URL: ((instana-qa.api_url))
+                  INSTANA_API_TOKEN: ((instana-qa.api_token))
+                  BUILD_BRANCH: main
+                  INSTANA_API_KEY: ((qa-instana-api-token))
+                  ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                  ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                inputs:
+                  - name: pipeline-source
+                  - name: agent-operator-image-amd64
+                run:
+                  path: pipeline-source/ci/scripts/end-to-end-test.sh
+              on_success:
+                put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-latest-supported }
+              on_failure:
+                put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-latest-supported }
+              on_error:
+                put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-latest-supported }
+              on_abort:
+                put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-latest-supported }
+              ensure:
+                do:
+                - try:
+                    task: cleanup-resources
+                    timeout: 10m
+                    config:
+                      platform: linux
+                      image_resource: *e2e-test-image-resource
+                      params:
+                        CLUSTER_INFO: '{ "name": "instana-agent-ocp4-15" }'
+                        CLUSTER_TYPE: openshift
+                        KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4-latest-stable))
+                        NAME: openshift-latest-supported
+
+                        GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                      inputs:
+                        - name: pipeline-source
+                      run:
+                        path: pipeline-source/ci/scripts/cleanup-resources.sh
+                - put: test-clusters
+                  inputs: detect
+                  params:
+                    release: openshift-latest-supported
 
 
   - name: multiarch-operator-manifest-promotion
@@ -1417,7 +1496,7 @@ jobs:
         get_params:
           skip_download: true
 
-  - name: gke-21-release-unlock-manual
+  - name: gke-lowest-supported-release-unlock-manual
     plan:
     - task: prepare-lock
       config:
@@ -1433,13 +1512,13 @@ jobs:
           args:
           - -cx
           - |
-            echo "gke-21" > tmp-lock/name
+            echo "gke-lowest-supported" > tmp-lock/name
             touch tmp-lock/metadata
     - put: test-clusters
       params:
         release: tmp-lock
 
-  - name: gke-27-release-unlock-manual
+  - name: gke-latest-supported-release-unlock-manual
     plan:
     - task: prepare-lock
       config:
@@ -1455,13 +1534,13 @@ jobs:
           args:
           - -cx
           - |
-            echo "gke-27" > tmp-lock/name
+            echo "gke-latest-supported" > tmp-lock/name
             touch tmp-lock/metadata
     - put: test-clusters
       params:
         release: tmp-lock
 
-  - name: openshift-4.11-release-unlock-manual
+  - name: openshift-lowest-supported-release-unlock-manual
     plan:
     - task: prepare-lock
       config:
@@ -1477,8 +1556,50 @@ jobs:
           args:
           - -cx
           - |
-            echo "openshift-4.11" > tmp-lock/name
+            echo "openshift-lowest-supported" > tmp-lock/name
             touch tmp-lock/metadata
+    - put: test-clusters
+      params:
+        release: tmp-lock
+
+  - name: openshift-latest-supported-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "openshift-latest-supported" > tmp-lock/name
+            touch tmp-lock/metadata
+
+  - name: openshift-lowest-supported-release-unlock-manual
+    plan:
+    - task: prepare-lock
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: busybox
+        outputs:
+        - name: tmp-lock
+        run:
+          path: sh
+          args:
+          - -cx
+          - |
+            echo "openshift-lowest-supported" > tmp-lock/name
+            touch tmp-lock/metadata
+
     - put: test-clusters
       params:
         release: tmp-lock
