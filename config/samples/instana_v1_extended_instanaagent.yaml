@@ -92,6 +92,11 @@ spec:
         # agent.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
         cpu: "1.5"
 
+    serviceMesh:
+      # agent.serviceMesh.enabled sets the Instana agent's communication direction with JVMs.
+      # To allow communication to be directed to the agent, set this variable to true.
+      enabled: true
+
     # agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
     #    host:
     #      repository: ""
