@@ -48,7 +48,7 @@ func assertAllElementsUnique[T comparable](assertions *require.Assertions, list 
 }
 
 func TestEnvBuilder_getBuilder(t *testing.T) {
-	const numDefinedEnvVars = 31
+	const numDefinedEnvVars = 32
 
 	t.Run(
 		"each_defined_var_has_unique_function", func(t *testing.T) {

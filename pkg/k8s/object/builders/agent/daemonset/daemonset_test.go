@@ -165,6 +165,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.InstanaAgentPodNameEnv,
 		env.PodIPEnv,
 		env.K8sServiceDomainEnv,
+		env.EnableAgentSocketEnv,
 	).
 		Return(expected)
 
