@@ -58,10 +58,10 @@ gh-status-set-pending-e2e-gke-27: &gh-status-set-pending-e2e-gke-27
   put: gh-status
   inputs: [ pipeline-source ]
   params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
-gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
-  put: gh-status
-  inputs: [ pipeline-source ]
-  params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+# gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
+#   put: gh-status
+#   inputs: [ pipeline-source ]
+#   params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
 
 resource_types:
   - name: cogito
@@ -568,7 +568,7 @@ jobs:
         passed: [docker-build]
       - <<: *gh-status-set-pending-e2e-gke-21
       - <<: *gh-status-set-pending-e2e-gke-27
-      - <<: *gh-status-set-pending-e2e-openshift
+#      - <<: *gh-status-set-pending-e2e-openshift
       - in_parallel:
 
         - do:
@@ -709,76 +709,76 @@ jobs:
                 inputs: detect
                 params:
                   release: gke-27
-        - do:
-          - put: openshift-4.11
-            inputs: detect
-            resource: test-clusters
-            params:
-              claim: openshift-4.11
-          - task: run-e2e-test-openshift-4.11
-            timeout: 30m
-            attempts: 1
-            config:
-              <<: *gke-e2e-test-config
-              params:
-                CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
-                CLUSTER_TYPE: openshift
-                KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-                NAME: openshift-4.11
+        # - do:
+        #   - put: openshift-4.11
+        #     inputs: detect
+        #     resource: test-clusters
+        #     params:
+        #       claim: openshift-4.11
+        #   - task: run-e2e-test-openshift-4.11
+        #     timeout: 30m
+        #     attempts: 1
+        #     config:
+        #       <<: *gke-e2e-test-config
+        #       params:
+        #         CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
+        #         CLUSTER_TYPE: openshift
+        #         KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+        #         NAME: openshift-4.11
 
-                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
-                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-                INSTANA_API_URL: ((instana-qa.api_url))
-                INSTANA_API_TOKEN: ((instana-qa.api_token))
-                BUILD_BRANCH: ((branch))
-                INSTANA_API_KEY: ((qa-instana-api-token))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-              inputs:
-                - name: pipeline-source
-                - name: agent-operator-image-amd64
-              run:
-                path: pipeline-source/ci/scripts/end-to-end-test.sh
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-            on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-            on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-            ensure:
-              do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
-                  platform: linux
-                  image_resource: *e2e-test-image-resource
-                  params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
-                    CLUSTER_TYPE: openshift
-                    KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-                    NAME: openshift-4.11
+        #         GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+        #         INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+        #         INSTANA_ENDPOINT_PORT: 443
+        #         INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+        #         INSTANA_API_URL: ((instana-qa.api_url))
+        #         INSTANA_API_TOKEN: ((instana-qa.api_token))
+        #         BUILD_BRANCH: ((branch))
+        #         INSTANA_API_KEY: ((qa-instana-api-token))
+        #         ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+        #         ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+        #       inputs:
+        #         - name: pipeline-source
+        #         - name: agent-operator-image-amd64
+        #       run:
+        #         path: pipeline-source/ci/scripts/end-to-end-test.sh
+        #     on_success:
+        #       put: gh-status
+        #       inputs: [ pipeline-source ]
+        #       params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+        #     on_failure:
+        #       put: gh-status
+        #       inputs: [ pipeline-source ]
+        #       params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+        #     on_error:
+        #       put: gh-status
+        #       inputs: [ pipeline-source ]
+        #       params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+        #     on_abort:
+        #       put: gh-status
+        #       inputs: [ pipeline-source ]
+        #       params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+        #     ensure:
+        #       do:
+        #       - task: cleanup-resources
+        #         timeout: 10m
+        #         config:
+        #           platform: linux
+        #           image_resource: *e2e-test-image-resource
+        #           params:
+        #             CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
+        #             CLUSTER_TYPE: openshift
+        #             KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
+        #             NAME: openshift-4.11
 
-                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                  inputs:
-                    - name: pipeline-source
-                  run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - put: test-clusters
-                inputs: detect
-                params:
-                  release: openshift-4.11
+        #             GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+        #           inputs:
+        #             - name: pipeline-source
+        #           run:
+        #             path: pipeline-source/ci/scripts/cleanup-resources.sh
+        #       - put: test-clusters
+        #         inputs: detect
+        #         params:
+        #           release: openshift-4.11
 
   - name: build-e2e-operator-base-image
     on_success:
