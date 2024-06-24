@@ -79,6 +79,9 @@ type InstanaAgentSpec struct {
 	// Zones can be used to specify agents in multiple zones split across different nodes in the cluster
 	// +kubebuilder:validation:Optional
 	Zones []Zone `json:"zones,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	ServiceMesh ServiceMeshSpec `json:"serviceMesh,omitempty"`
 }
 
 // +k8s:openapi-gen=true
