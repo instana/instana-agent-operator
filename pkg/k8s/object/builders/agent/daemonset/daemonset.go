@@ -85,6 +85,7 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.InstanaAgentPodNameEnv,
 		env.PodIPEnv,
 		env.K8sServiceDomainEnv,
+		env.EnableAgentSocketEnv,
 	)
 }
 

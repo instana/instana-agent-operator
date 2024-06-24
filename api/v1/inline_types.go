@@ -151,6 +151,10 @@ type BaseAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	Host HostSpec `json:"host,omitempty"`
 
+	// ServiceMesh sets the ENABLE_AGENT_SOCKET environment variable.
+	// +kubebuilder:validation:Optional
+	ServiceMesh ServiceMeshSpec `json:"serviceMesh,omitempty"`
+
 	// Override for the Maven repository URL when the Agent needs to connect to a locally provided Maven repository 'proxy'
 	// Alternative to `Host` for referencing a different Maven repo.
 	// +kubebuilder:validation:Optional
@@ -261,6 +265,11 @@ func (i ImageSpec) Image() string {
 type HostSpec struct {
 	// +kubebuilder:validation:Optional
 	Repository string `json:"repository,omitempty"`
+}
+
+type ServiceMeshSpec struct {
+	// +kubebuilder:validation:Optional
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 type Prometheus struct {

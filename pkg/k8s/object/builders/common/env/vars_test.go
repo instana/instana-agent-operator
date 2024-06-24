@@ -573,6 +573,28 @@ func TestEnvBuilder_httpsProxyEnv(t *testing.T) {
 	}
 }
 
+func TestEnvBuilder_enableAgentSocketEnv(t *testing.T) {
+	const expectedValue = true
+
+	testFromCRField(
+		&crFieldVarTest{
+			t: t,
+			getMethod: func(builder *envBuilder) func() optional.Optional[corev1.EnvVar] {
+				return builder.enableAgentSocketEnv
+			},
+			expectedName:  "ENABLE_AGENT_SOCKET",
+			expectedValue: strconv.FormatBool(expectedValue),
+			agentSpec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{
+					ServiceMesh: instanav1.ServiceMeshSpec{
+						Enabled: expectedValue,
+					},
+				},
+			},
+		},
+	)
+}
+
 func TestEnvBuilder_backendURLEnv(t *testing.T) {
 	testLiteralAlways(
 		&literalAlwaysTest{
