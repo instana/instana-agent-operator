@@ -53,6 +53,7 @@ func testHostLiteralVolume(
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: expected.path,
+					Type: expected.hostPathType,
 				},
 			},
 		},
@@ -134,6 +135,7 @@ func TestVarRunKuboVolume(t *testing.T) {
 			name:                 "var-run-kubo",
 			path:                 "/var/vcap/sys/run/docker",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 		VarRunKuboVolume,
 	)
@@ -146,6 +148,7 @@ func TestVarRunContainerdVolume(t *testing.T) {
 			name:                 "var-run-containerd",
 			path:                 "/var/vcap/sys/run/containerd",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 		VarRunContainerdVolume,
 	)
@@ -158,6 +161,7 @@ func TestVarContainerdConfigVolume(t *testing.T) {
 			name:                 "var-containerd-config",
 			path:                 "/var/vcap/jobs/containerd/config",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 		VarContainerdConfigVolume,
 	)
@@ -206,6 +210,7 @@ func TestVarDataVolume(t *testing.T) {
 			name:                 "var-data",
 			path:                 "/var/data",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 		VarDataVolume,
 	)
