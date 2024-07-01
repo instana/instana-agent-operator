@@ -15,7 +15,9 @@ The process to provide a community or certified operator catalog entry is identi
 #!/bin/bash
 set -xe
 # adjust version accordingly
-OPERATOR_VERSION=2.1.1
+OPERATOR_VERSION=2.1.2
+# personal access tokens can be created at https://github.com/settings/tokens/new (create repo scoped PAT)
+GH_PERSONAL_ACCESS_TOKEN=
 # adjust owner and repo:
 # either:
 # OWNER=redhat-openshift-ecosystem
@@ -23,8 +25,8 @@ OPERATOR_VERSION=2.1.1
 # or:
 # OWNER=k8s-operatorhub
 # REPO=community-operators
-OWNER=k8s-operatorhub
-REPO=community-operators
+OWNER=redhat-openshift-ecosystem
+REPO=certified-operators
 
 # no need for changes going forward
 curl -OL https://github.com/instana/instana-agent-operator/releases/download/v${OPERATOR_VERSION}/olm-${OPERATOR_VERSION}.zip
@@ -33,7 +35,7 @@ OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
 COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
 OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
 
-rm -rf community-operators
+rm -rf ${REPO}
 git clone --depth=1 git@github.com:${OWNER}/${REPO}.git
 
 pushd ${REPO}/operators/instana-agent-operator
@@ -46,8 +48,15 @@ unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
 git add .
 git commit -s -m "$COMMIT_MESSAGE" 
 git push instana "instana-operator-${OPERATOR_RELEASE_VERSION}"
-
 popd
+
+# Create PR
+curl \
+    -fX POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $GH_PERSONAL_ACCESS_TOKEN" \
+    https://api.github.com/repos/$OWNER/$REPO/pulls \
+    -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:instana-operator-${OPERATOR_RELEASE_VERSION}\",\"base\":\"main\", \"body\":\"Instana Operator v${OPERATOR_RELEASE_VERSION} release\"}"
 ```
 
 Create the PR afterwards, they should be auto-merged once the CI/CD pipeline passes.
@@ -60,8 +69,9 @@ The Marketplace Operator requires file editing before pushing, otherwise the pro
 #!/bin/bash
 set -xe
 # adjust version accordingly
-OPERATOR_VERSION=2.1.1
-
+OPERATOR_VERSION=2.1.2
+# personal access tokens can be created at https://github.com/settings/tokens/new (create repo scoped PAT)
+GH_PERSONAL_ACCESS_TOKEN=
 OWNER=redhat-openshift-ecosystem
 REPO=redhat-marketplace-operators
 
@@ -101,6 +111,14 @@ git commit -s -m "$COMMIT_MESSAGE"
 git push instana "instana-operator-${OPERATOR_RELEASE_VERSION}"
 
 popd
+
+# Create PR
+curl \
+    -fX POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $GH_PERSONAL_ACCESS_TOKEN" \
+    https://api.github.com/repos/$OWNER/$REPO/pulls \
+    -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:instana-operator-${OPERATOR_RELEASE_VERSION}\",\"base\":\"main\", \"body\":\"Instana Operator v${OPERATOR_RELEASE_VERSION} release\"}"
 ```
 
 Create the PR afterwards, they should be auto-merged once the CI/CD pipeline passes.
