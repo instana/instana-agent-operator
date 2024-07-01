@@ -180,7 +180,7 @@ func NewDeploymentBuilder(
 		statusManager:             statusManager,
 		Helpers:                   helpers.NewHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
-		EnvBuilder:                env.NewEnvBuilder(agent),
+		EnvBuilder:                env.NewEnvBuilder(agent, nil),
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
 	}

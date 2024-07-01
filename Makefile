@@ -86,13 +86,13 @@ vet: ## Run go vet against code
 lint: golangci-lint ## Run the golang-ci linter
 	$(GOLANGCI_LINT) run --timeout 5m
 
-test: manifests generate fmt vet lint envtest ## Run tests.
+test: gen-mocks manifests generate fmt vet lint envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 
 ##@ Build
 
-build: setup generate fmt vet ## Build manager binary.
+build: gen-mocks setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export DEBUG_MODE=true
@@ -222,60 +222,19 @@ controller-yaml: manifests kustomize ## Output the YAML for deployment, so it ca
 	$(KUSTOMIZE) build config/default
 
 get-mockgen:
-	# commit 2c718f249a424ac6ce6e2afa28c3c17f95c51241 introduces --write_command_comment flag to enable us to keep the mocks without additional command comments
-	which mockgen >> /dev/null 2>&1 || go install go.uber.org/mock/mockgen@2c718f249a424ac6ce6e2afa28c3c17f95c51241
+	which mockgen >> /dev/null 2>&1 || go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
 
-MOCKGEN_ARGS = --write_package_comment=false --write_source_comment=false --write_command_comment=false --copyright_file=hack/boilerplate.go.txt
-gen-mocks: get-mockgen
-	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.17.2/pkg/client/interfaces.go --destination ./pkg/k8s/client/k8s_client_mock_test.go --package client ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/hash/hash.go --destination ./pkg/k8s/object/builders/agent/daemonset/hash_mock_test.go --package daemonset ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/agent/daemonset/pod_selector_mock_test.go --package daemonset ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/agent/daemonset/ports_mock_test.go --package daemonset ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/env/env_builder.go --destination ./pkg/k8s/object/builders/agent/daemonset/env_builder_mock_test.go --package daemonset ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/volume/volume_builder.go --destination ./pkg/k8s/object/builders/agent/daemonset/volume_builder_mock_test.go --package daemonset ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/operator/status/status.go --destination ./pkg/k8s/object/builders/agent/daemonset/status_mock_test.go --package daemonset ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/common/env/helpers_mock_test.go --package env ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/common/volume/helpers_mock_test.go --package volume ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/client/client.go --destination ./pkg/k8s/operator/operator_utils/instana_agent_client_mock_test.go --package operator_utils ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./pkg/k8s/operator/operator_utils/builder_mock_test.go --package operator_utils ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/operator/lifecycle/lifecycle.go --destination ./pkg/k8s/operator/operator_utils/lifecycle_mock_test.go --package operator_utils ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/rbac/helpers_mock_test.go --package rbac ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/serviceaccount/helpers_mock_test.go --package serviceaccount ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/serviceaccount/helpers_mock_test.go --package serviceaccount ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/configmap/helpers_mock_test.go --package configmap ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/common/ports/ports_mock_test.go --package ports ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/agent_interfaces.go --destination ./pkg/k8s/object/builders/common/ports/agent_interfaces_mock_test.go --package ports ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/headless-service/helpers_mock_test.go --package headless_service ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/agent/headless-service/pod_selector_mock_test.go --package headless_service ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/agent/headless-service/ports_mock_test.go --package headless_service ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/agent/service/pod_selector_mock_test.go --package service ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/ports/ports.go --destination ./pkg/k8s/object/builders/agent/service/ports_mock_test.go --package service ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/agent_interfaces.go --destination ./pkg/k8s/object/builders/agent/service/agent_interfaces_mock_test.go --package service ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./pkg/k8s/object/builders/common/builder/transformations_mock_test.go --package builder ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./pkg/k8s/object/builders/common/builder/builder_mock_test.go --package builder ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/secrets/tls-secret/helpers_mock_test.go --package tls_secret ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/helpers_mock_test.go --package containers_instana_io_secret ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/docker_config_json.go --destination ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/docker_config_json_mock_test.go --package containers_instana_io_secret ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/operator/status/status.go --destination ./pkg/k8s/object/builders/agent/configmap/status_mock_test.go --package configmap ${MOCKGEN_ARGS}
-
-	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget/helpers_mock_test.go --package poddisruptionbudget ${MOCKGEN_ARGS}
-	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget/pod_selector_mock_test.go --package poddisruptionbudget ${MOCKGEN_ARGS}
-
-
-
-
+gen-mocks: get-mockgen 
+	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.17.2/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
+	mockgen --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
+	mockgen --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
+	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./mocks/transformations_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/object/builders/common/ports/ports_builder.go --destination ./mocks/ports_builder_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/object/builders/common/env/env_builder.go --destination ./mocks/env_builder_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/object/builders/common/volume/volume_builder.go --destination ./mocks/volume_builder_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./mocks/helpers_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./mocks/builder_mock.go --package mocks 
+	mockgen --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks 

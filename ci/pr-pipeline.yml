@@ -7,14 +7,14 @@
 groups:
   - name: test
     jobs:
-    - self-update
-    - build-and-test-agent-operator
-    - docker-build
-    - operator-olm-build
-    - end-to-end-tests
+      - self-update
+      - build-and-test-agent-operator
+      - docker-build
+      - operator-olm-build
+      - end-to-end-tests
   - name: build-test-images
     jobs:
-    - build-e2e-operator-base-image
+      - build-e2e-operator-base-image
 
 aliases:
 gh-status-hooks: &gh-status-hooks
@@ -52,11 +52,11 @@ gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
   params: { state: pending, context: build/docker }
 gh-status-set-pending-e2e-gke-21: &gh-status-set-pending-e2e-gke-21
   put: gh-status
-  inputs: [ pipeline-source ]
+  inputs: [pipeline-source]
   params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
 gh-status-set-pending-e2e-gke-27: &gh-status-set-pending-e2e-gke-27
   put: gh-status
-  inputs: [ pipeline-source ]
+  inputs: [pipeline-source]
   params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
 # gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
 #   put: gh-status
@@ -223,22 +223,23 @@ jobs:
               - -ceu
               - |
                 cd pipeline-source
+                go install
                 make build
         on_success:
           put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: success, context: build-and-test-operator/build }
         on_failure:
           put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: failure, context: build-and-test-operator/build }
         on_error:
           put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: error, context: build-and-test-operator/build }
         on_abort:
           put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: error, context: build-and-test-operator/build }
       - get: golangci-lint-release
         params:
@@ -272,7 +273,8 @@ jobs:
                 popd
 
                 cd pipeline-source
-                make lint test
+                go install
+                make gen-mocks lint test
         on_success:
           put: gh-status
           inputs: [pipeline-source]
@@ -540,7 +542,7 @@ jobs:
         file: pipeline-source/ci/container-image-build-task.yml
         input_mapping:
           source: docker-input
-        output_mapping: 
+        output_mapping:
           image: image-bundle
         vars:
           dockerfile: bundle.Dockerfile
@@ -568,147 +570,178 @@ jobs:
         passed: [docker-build]
       - <<: *gh-status-set-pending-e2e-gke-21
       - <<: *gh-status-set-pending-e2e-gke-27
-#      - <<: *gh-status-set-pending-e2e-openshift
+      #      - <<: *gh-status-set-pending-e2e-openshift
       - in_parallel:
-
-        - do:
-          - put: gke-21
-            inputs: detect
-            resource: test-clusters
-            params:
-              claim: gke-21
-          - task: run-e2e-test-gke-21
-            timeout: 30m
-            attempts: 1
-            config: &gke-e2e-test-config
-              platform: linux
-              image_resource: &e2e-test-image-resource
-                type: registry-image
-                source:
-                  repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-                  tag: ((branch))
-                  username: _json_key
-                  password: ((project-berlin-tests-gcp-instana-qa))
-              params:
-                CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
-                CLUSTER_TYPE: gke
-                NAME: gke-21
-                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
-                BUILD_BRANCH: ((branch))
-                INSTANA_API_KEY: ((qa-instana-api-token))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-              inputs:
-                - name: pipeline-source
-                - name: agent-operator-image-amd64
-              run:
-                path: pipeline-source/ci/scripts/end-to-end-test.sh
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
-            on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
-            on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
-            ensure:
-              do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
+          - do:
+              - put: gke-21
+                inputs: detect
+                resource: test-clusters
+                params:
+                  claim: gke-21
+              - task: run-e2e-test-gke-21
+                timeout: 30m
+                attempts: 1
+                config: &gke-e2e-test-config
                   platform: linux
-                  image_resource: *e2e-test-image-resource
+                  image_resource: &e2e-test-image-resource
+                    type: registry-image
+                    source:
+                      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                      tag: ((branch))
+                      username: _json_key
+                      password: ((project-berlin-tests-gcp-instana-qa))
                   params:
                     CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-21
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                    INSTANA_ENDPOINT_PORT: 443
+                    BUILD_BRANCH: ((branch))
+                    INSTANA_API_KEY: ((qa-instana-api-token))
+                    ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                    ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   inputs:
                     - name: pipeline-source
+                    - name: agent-operator-image-amd64
                   run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - put: test-clusters
-                inputs: detect
-                params:
-                  release: gke-21
+                    path: pipeline-source/ci/scripts/end-to-end-test.sh
+                on_success:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: success,
+                      context: end-to-end-tests/run-e2e-test-gke-21,
+                    }
+                on_failure:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: failure,
+                      context: end-to-end-tests/run-e2e-test-gke-21,
+                    }
+                on_error:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: error,
+                      context: end-to-end-tests/run-e2e-test-gke-21,
+                    }
+                on_abort:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: error,
+                      context: end-to-end-tests/run-e2e-test-gke-21,
+                    }
+                ensure:
+                  do:
+                    - task: cleanup-resources
+                      timeout: 10m
+                      config:
+                        platform: linux
+                        image_resource: *e2e-test-image-resource
+                        params:
+                          CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                          CLUSTER_TYPE: gke
+                          NAME: gke-21
+                          GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                        inputs:
+                          - name: pipeline-source
+                        run:
+                          path: pipeline-source/ci/scripts/cleanup-resources.sh
+                    - put: test-clusters
+                      inputs: detect
+                      params:
+                        release: gke-21
 
-        - do:
-          - put: gke-27
-            inputs: detect
-            resource: test-clusters
-            params:
-              claim: gke-27
-          - task: run-e2e-test-gke-27
-            timeout: 30m
-            attempts: 1
-            config:
-              <<: *gke-e2e-test-config
-              params:
-                CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
-                CLUSTER_TYPE: gke
-                NAME: gke-27
-                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
-                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-                INSTANA_API_URL: ((instana-qa.api_url))
-                INSTANA_API_TOKEN: ((instana-qa.api_token))
-                BUILD_BRANCH: ((branch))
-                INSTANA_API_KEY: ((qa-instana-api-token))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-              inputs:
-                - name: pipeline-source
-                - name: agent-operator-image-amd64
-              run:
-                path: pipeline-source/ci/scripts/end-to-end-test.sh
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
-            on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
-            on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
-            ensure:
-              do:
-              - task: cleanup-resources
-                timeout: 10m
+          - do:
+              - put: gke-27
+                inputs: detect
+                resource: test-clusters
+                params:
+                  claim: gke-27
+              - task: run-e2e-test-gke-27
+                timeout: 30m
+                attempts: 1
                 config:
-                  platform: linux
-                  image_resource: *e2e-test-image-resource
+                  <<: *gke-e2e-test-config
                   params:
                     CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-27
-
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                    INSTANA_ENDPOINT_PORT: 443
+                    INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                    INSTANA_API_URL: ((instana-qa.api_url))
+                    INSTANA_API_TOKEN: ((instana-qa.api_token))
+                    BUILD_BRANCH: ((branch))
+                    INSTANA_API_KEY: ((qa-instana-api-token))
+                    ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                    ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   inputs:
                     - name: pipeline-source
+                    - name: agent-operator-image-amd64
                   run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - put: test-clusters
-                inputs: detect
-                params:
-                  release: gke-27
+                    path: pipeline-source/ci/scripts/end-to-end-test.sh
+                on_success:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: success,
+                      context: end-to-end-tests/run-e2e-test-gke-27,
+                    }
+                on_failure:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: failure,
+                      context: end-to-end-tests/run-e2e-test-gke-27,
+                    }
+                on_error:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: error,
+                      context: end-to-end-tests/run-e2e-test-gke-27,
+                    }
+                on_abort:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: error,
+                      context: end-to-end-tests/run-e2e-test-gke-27,
+                    }
+                ensure:
+                  do:
+                    - task: cleanup-resources
+                      timeout: 10m
+                      config:
+                        platform: linux
+                        image_resource: *e2e-test-image-resource
+                        params:
+                          CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                          CLUSTER_TYPE: gke
+                          NAME: gke-27
+
+                          GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                        inputs:
+                          - name: pipeline-source
+                        run:
+                          path: pipeline-source/ci/scripts/cleanup-resources.sh
+                    - put: test-clusters
+                      inputs: detect
+                      params:
+                        release: gke-27
         # - do:
         #   - put: openshift-4.11
         #     inputs: detect
@@ -783,19 +816,19 @@ jobs:
   - name: build-e2e-operator-base-image
     on_success:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: success, context: build-e2e-operator-base-image }
     on_failure:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: failure, context: build-e2e-operator-base-image }
     on_error:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: error, context: build-e2e-operator-base-image }
     on_abort:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: error, context: build-e2e-operator-base-image }
     max_in_flight: 1
     plan:
@@ -803,7 +836,7 @@ jobs:
         trigger: true
         passed: [self-update]
       - put: gh-status
-        inputs: [ pipeline-source ]
+        inputs: [pipeline-source]
         params: { state: pending, context: build-e2e-operator-base-image }
       - task: build-e2e-operator-base-image
         privileged: true
@@ -817,9 +850,9 @@ jobs:
             CONTEXT: pipeline-source/ci/images/e2e-base-image
             DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
           inputs:
-          - name: pipeline-source
+            - name: pipeline-source
           outputs:
-          - name: image
+            - name: image
           run:
             path: build
       - put: e2e-test-base-image

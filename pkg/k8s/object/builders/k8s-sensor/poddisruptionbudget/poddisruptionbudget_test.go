@@ -29,12 +29,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-func TestPodDisruptionBudgetBuilder_IsNamespaced_ComponentName(t *testing.T) {
+func TestPodDisruptionBudgetBuilderIsNamespacedComponentName(t *testing.T) {
 	assertions := assert.New(t)
 
 	pdbBuilder := NewPodDisruptionBudgetBuilder(nil)
@@ -43,7 +44,7 @@ func TestPodDisruptionBudgetBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions.Equal(constants.ComponentK8Sensor, pdbBuilder.ComponentName())
 }
 
-func TestPodDisruptionBudgetBuilder_Build(t *testing.T) {
+func TestPodDisruptionBudgetBuilderBuild(t *testing.T) {
 	agentName := rand.String(10)
 	agentNamespace := rand.String(10)
 	expectedPdbName := rand.String(10)
@@ -136,8 +137,8 @@ func TestPodDisruptionBudgetBuilder_Build(t *testing.T) {
 			test.name, func(t *testing.T) {
 				ctrl := gomock.NewController(t)
 
-				helpers := NewMockHelpers(ctrl)
-				podSelectorGen := NewMockPodSelectorLabelGenerator(ctrl)
+				helpers := mocks.NewMockHelpers(ctrl)
+				podSelectorGen := mocks.NewMockPodSelectorLabelGenerator(ctrl)
 
 				pdbBuilder := &podDisruptionBudgetBuilder{
 					InstanaAgent:              test.agent,

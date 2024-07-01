@@ -15,22 +15,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
+package env
 
-// components
-const (
-	ComponentInstanaAgent = "instana-agent"
-	ComponentK8Sensor     = "k8sensor"
+import (
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// labels
-const (
-	LabelAgentMode = "instana/agent-mode"
-)
+func TestGetOperatorVersion(t *testing.T) {
+	assertions := require.New(t)
 
-// keys
-const (
-	AgentKey    = "key"
-	DownloadKey = "downloadKey"
-	BackendKey  = "backend"
-)
+	assertions.Equal(GetOperatorVersion(), FALLBACK_OPERATOR_VERSION)
+
+	os.Setenv(OPERATOR_VERSION_ENVVAR, "test")
+	assertions.Equal(GetOperatorVersion(), "test")
+
+}
