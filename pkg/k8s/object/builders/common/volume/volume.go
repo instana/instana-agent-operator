@@ -1,3 +1,20 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package volume
 
 import (
@@ -15,6 +32,7 @@ type hostVolumeWithMountParams struct {
 	name string
 	path string
 	*corev1.MountPropagationMode
+	hostPathType *corev1.HostPathType
 }
 
 type VolumeWithMount struct {
@@ -29,6 +47,7 @@ func hostVolumeWithMount(params *hostVolumeWithMountParams) VolumeWithMount {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: params.path,
+					Type: params.hostPathType,
 				},
 			},
 		},
@@ -93,6 +112,7 @@ func (v *volumeBuilder) varRunKuboVolume() optional.Optional[VolumeWithMount] {
 			name:                 "var-run-kubo",
 			path:                 "/var/vcap/sys/run/docker",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 	)
 }
@@ -104,6 +124,7 @@ func (v *volumeBuilder) varRunContainerdVolume() optional.Optional[VolumeWithMou
 			name:                 "var-run-containerd",
 			path:                 "/var/vcap/sys/run/containerd",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 	)
 }
@@ -115,6 +136,7 @@ func (v *volumeBuilder) varContainerdConfigVolume() optional.Optional[VolumeWith
 			name:                 "var-containerd-config",
 			path:                 "/var/vcap/jobs/containerd/config",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 	)
 }
@@ -155,6 +177,7 @@ func (v *volumeBuilder) varDataVolume() optional.Optional[VolumeWithMount] {
 			name:                 "var-data",
 			path:                 "/var/data",
 			MountPropagationMode: pointer.To(corev1.MountPropagationHostToContainer),
+			hostPathType:         pointer.To(corev1.HostPathDirectoryOrCreate),
 		},
 	)
 }
