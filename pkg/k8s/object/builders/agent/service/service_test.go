@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -79,21 +80,22 @@ func TestServiceBuilder_Build(t *testing.T) {
 							},
 						}
 
-						otlpSettings := NewMockOpenTelemetrySettings(ctrl)
+						var otlpSettings instanav1.OpenTelemetry
 						if !pointer.DerefOrEmpty(serviceCreate) && (remoteWriteEnabled.Enabled == nil || !*remoteWriteEnabled.Enabled) {
-							otlpSettings.EXPECT().IsEnabled().Return(otlpIsEnabled)
+							otlpSettings = instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &otlpIsEnabled}}
+						} else {
+							otlpSettings = instanav1.OpenTelemetry{}
 						}
 
-						podSelectorLabelGenerator := NewMockPodSelectorLabelGenerator(ctrl)
+						podSelectorLabelGenerator := mocks.NewMockPodSelectorLabelGenerator(ctrl)
 
-						portsBuilder := NewMockPortsBuilder(ctrl)
+						portsBuilder := mocks.NewMockPortsBuilder(ctrl)
 
 						sb := &serviceBuilder{
-							InstanaAgent: &agent,
-
-							PodSelectorLabelGenerator: podSelectorLabelGenerator,
-							PortsBuilder:              portsBuilder,
-							OpenTelemetrySettings:     otlpSettings,
+							instanaAgent:              &agent,
+							podSelectorLabelGenerator: podSelectorLabelGenerator,
+							portsBuilder:              portsBuilder,
+							openTelemetrySettings:     otlpSettings,
 						}
 
 						if pointer.DerefOrEmpty(serviceCreate) || (remoteWriteEnabled.Enabled != nil && *remoteWriteEnabled.Enabled) || otlpIsEnabled {

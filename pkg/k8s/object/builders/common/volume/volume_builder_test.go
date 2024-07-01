@@ -1,13 +1,29 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package volume
 
 import (
-	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/collections/list"
 )
 
 const numDefinedVolumes = 14
@@ -32,43 +48,35 @@ func assertAllElementsUnique[T comparable](assertions *require.Assertions, list 
 	assertions.Equal(len(list), len(m))
 }
 
-func TestVolumeBuilder_getBuilder(t *testing.T) {
+func TestVolumeBuilderBuildsAreUnique(t *testing.T) {
 	t.Run(
-		"each_defined_var_has_unique_function", func(t *testing.T) {
+		"each returned volume and volume mount is unique", func(t *testing.T) {
 			assertions := require.New(t)
 
-			vb := &volumeBuilder{}
+			vb := NewVolumeBuilder(&instanav1.InstanaAgent{}, false)
+			volume, volumeMount := vb.Build(rangeUntil(numDefinedVolumes)...)
 
-			allBuilders := list.NewListMapTo[Volume, uintptr]().MapTo(
-				rangeUntil(numDefinedVolumes),
-				func(volume Volume) uintptr {
-					method := vb.getBuilder(volume)
-
-					return reflect.ValueOf(method).Pointer()
-				},
-			)
-
-			assertions.Len(allBuilders, numDefinedVolumes)
-			assertAllElementsUnique(assertions, allBuilders)
+			assertions.Len(volume, numDefinedVolumes-2)
+			assertions.Len(volumeMount, numDefinedVolumes-2)
+			assertAllElementsUnique(assertions, volume)
+			assertAllElementsUnique(assertions, volumeMount)
 		},
 	)
 
+}
+
+func TestVolumeBuilderPanicsWhenVolumeNumberDoesntExist(t *testing.T) {
 	t.Run(
-		"panics_above_defined_limit", func(t *testing.T) {
-			assertions := require.New(t)
-
-			vb := &volumeBuilder{}
-
-			assertions.PanicsWithError(
-				"unknown volume requested", func() {
-					vb.getBuilder(numDefinedVolumes)
-				},
-			)
+		"panics once a volume is introduced that isn't found in the defined volumes", func(t *testing.T) {
+			assert.PanicsWithError(t, "unknown volume requested", func() {
+				_, _ = NewVolumeBuilder(&instanav1.InstanaAgent{}, false).
+					Build([]Volume{Volume(9999)}...)
+			})
 		},
 	)
 }
 
-func TestVolumeBuilder_Build(t *testing.T) {
+func TestVolumeBuilderBuild(t *testing.T) {
 	for _, test := range []struct {
 		name               string
 		isOpenShift        bool
@@ -91,11 +99,83 @@ func TestVolumeBuilder_Build(t *testing.T) {
 
 				vb := NewVolumeBuilder(&instanav1.InstanaAgent{}, test.isOpenShift)
 
-				actualvolumes, actualVolumeMounts := vb.Build(rangeUntil(numDefinedVolumes)...)
+				volumes, volumeMounts := vb.Build(rangeUntil(numDefinedVolumes)...)
 
-				assertions.Len(actualvolumes, test.expectedNumVolumes)
-				assertions.Len(actualVolumeMounts, test.expectedNumVolumes)
+				assertions.Len(volumes, test.expectedNumVolumes)
+				assertions.Len(volumeMounts, test.expectedNumVolumes)
 			},
 		)
 	}
+}
+
+func TestVolumeBuilderTlsSpec(t *testing.T) {
+	for _, test := range []struct {
+		name               string
+		volume             Volume
+		volumeName         string
+		instanaAgent       instanav1.InstanaAgent
+		expectedNumVolumes int
+	}{
+		{
+			name:       "Should return an TLS volume when Agent configuration has TLS Spec values",
+			volume:     TlsVolume,
+			volumeName: "instana-agent-tls",
+			instanaAgent: instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						TlsSpec: instanav1.TlsSpec{
+							SecretName: "very-secret",
+						},
+					},
+				},
+			},
+			expectedNumVolumes: 1,
+		},
+		{
+			name:               "Should not return a TLS volume entry when TLS Spec values are missing from Agent configuration",
+			volume:             TlsVolume,
+			instanaAgent:       instanav1.InstanaAgent{Spec: instanav1.InstanaAgentSpec{Agent: instanav1.BaseAgentSpec{TlsSpec: instanav1.TlsSpec{}}}},
+			expectedNumVolumes: 0,
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				assertions := require.New(t)
+
+				vb := NewVolumeBuilder(&test.instanaAgent, false)
+
+				actualvolumes, actualVolumeMounts := vb.Build(test.volume)
+				assertions.Len(actualvolumes, test.expectedNumVolumes)
+				assertions.Len(actualVolumeMounts, test.expectedNumVolumes)
+
+				if len(actualvolumes) > 0 && test.volumeName != "" {
+					assertions.Equal(actualvolumes[0].Name, test.volumeName)
+				}
+			},
+		)
+	}
+}
+
+func TestVolumeBuilderRepository(t *testing.T) {
+	t.Run(
+		"Build returns a Repository struct when the Repository exists", func(t *testing.T) {
+			assertions := require.New(t)
+
+			vb := NewVolumeBuilder(
+				&instanav1.InstanaAgent{
+					Spec: instanav1.InstanaAgentSpec{
+						Agent: instanav1.BaseAgentSpec{
+							Host: instanav1.HostSpec{
+								Repository: "very-repository",
+							},
+						},
+					},
+				}, false)
+
+			actualvolumes, actualVolumeMounts := vb.Build(RepoVolume)
+
+			assertions.Len(actualvolumes, 1)
+			assertions.Len(actualVolumeMounts, 1)
+		},
+	)
 }

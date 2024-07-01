@@ -1,32 +1,35 @@
-// /*
-// (c) Copyright IBM Corp. 2024
-// (c) Copyright Instana Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// */
-//
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package env
 
 import (
 	"errors"
-
-	corev1 "k8s.io/api/core/v1"
+	"fmt"
+	"strconv"
+	"strings"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type EnvVar int
@@ -71,104 +74,222 @@ type EnvBuilder interface {
 }
 
 type envBuilder struct {
-	agent *instanav1.InstanaAgent
-	zone  *instanav1.Zone
-	helpers.Helpers
+	agent   *instanav1.InstanaAgent
+	zone    *instanav1.Zone
+	helpers helpers.Helpers
 }
 
-// Mapping between EnvVar constants and the functions that build them must be included here
-func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.EnvVar] {
+func NewEnvBuilder(agent *instanav1.InstanaAgent, zone *instanav1.Zone) EnvBuilder {
+	return &envBuilder{
+		agent:   agent,
+		zone:    zone,
+		helpers: helpers.NewHelpers(agent),
+	}
+}
+
+// Build fetches all existing user provided environment variables and bundles them
+// together with the environment variables that are defined in the list of EnvVar
+// integers.
+func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
+	allEnvVars := e.getUserProvidedEnvs()
+	for _, envVarNumber := range envVars {
+		builtEnvVar := e.build(envVarNumber)
+		if builtEnvVar != nil {
+			allEnvVars = append(allEnvVars, *builtEnvVar)
+		}
+	}
+
+	return allEnvVars
+}
+
+func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	switch envVar {
 	case AgentModeEnv:
-		return e.agentModeEnv
+		return e.agentModeEnv()
 	case ZoneNameEnv:
-		return e.zoneNameEnv
+		return e.zoneNameEnv()
 	case ClusterNameEnv:
-		return e.clusterNameEnv
+		return stringToEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", e.agent.Spec.Cluster.Name)
 	case AgentEndpointEnv:
-		return e.agentEndpointEnv
+		return stringToEnvVar("INSTANA_AGENT_ENDPOINT", e.agent.Spec.Agent.EndpointHost)
 	case AgentEndpointPortEnv:
-		return e.agentEndpointPortEnv
+		return stringToEnvVar("INSTANA_AGENT_ENDPOINT_PORT", e.agent.Spec.Agent.EndpointPort)
 	case MavenRepoURLEnv:
-		return e.mavenRepoURLEnv
+		return stringToEnvVar("INSTANA_MVN_REPOSITORY_URL", e.agent.Spec.Agent.MvnRepoUrl)
 	case MavenRepoFeaturesPath:
-		return e.mavenRepoFeaturesPath
+		return stringToEnvVar("INSTANA_MVN_REPOSITORY_FEATURES_PATH", e.agent.Spec.Agent.MvnRepoFeaturesPath)
 	case MavenRepoSharedPath:
-		return e.mavenRepoSharedPath
+		return stringToEnvVar("INSTANA_MVN_REPOSITORY_SHARED_PATH", e.agent.Spec.Agent.MvnRepoSharedPath)
 	case ProxyHostEnv:
-		return e.proxyHostEnv
+		return stringToEnvVar("INSTANA_AGENT_PROXY_HOST", e.agent.Spec.Agent.ProxyHost)
 	case ProxyPortEnv:
-		return e.proxyPortEnv
+		return stringToEnvVar("INSTANA_AGENT_PROXY_PORT", e.agent.Spec.Agent.ProxyPort)
 	case ProxyProtocolEnv:
-		return e.proxyProtocolEnv
+		return stringToEnvVar("INSTANA_AGENT_PROXY_PROTOCOL", e.agent.Spec.Agent.ProxyProtocol)
 	case ProxyUserEnv:
-		return e.proxyUserEnv
+		return stringToEnvVar("INSTANA_AGENT_PROXY_USER", e.agent.Spec.Agent.ProxyUser)
 	case ProxyPasswordEnv:
-		return e.proxyPasswordEnv
+		return stringToEnvVar("INSTANA_AGENT_PROXY_PASSWORD", e.agent.Spec.Agent.ProxyPassword)
 	case ProxyUseDNSEnv:
-		return e.proxyUseDNSEnv
+		return boolToEnvVar("INSTANA_AGENT_PROXY_USE_DNS", e.agent.Spec.Agent.ProxyUseDNS)
 	case ListenAddressEnv:
-		return e.listenAddressEnv
+		return stringToEnvVar("INSTANA_AGENT_HTTP_LISTEN", e.agent.Spec.Agent.ListenAddress)
 	case RedactK8sSecretsEnv:
-		return e.redactK8sSecretsEnv
+		return stringToEnvVar("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
 	case AgentZoneEnv:
-		return e.agentZoneEnv
+		return &corev1.EnvVar{Name: "AGENT_ZONE", Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name)}
 	case HTTPSProxyEnv:
-		return e.httpsProxyEnv
+		return e.httpsProxyEnv()
 	case BackendURLEnv:
-		return e.backendURLEnv
+		return &corev1.EnvVar{Name: "BACKEND_URL", Value: "https://$(BACKEND)"}
 	case NoProxyEnv:
-		return e.noProxyEnv
+		if e.agent.Spec.Agent.ProxyHost == "" {
+			return nil
+		}
+		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnv:
-		return e.configPathEnv
+		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.InstanaConfigDirectory}
 	case BackendEnv:
-		return e.backendEnv
+		return e.backendEnv()
 	case InstanaAgentKeyEnv:
-		return e.instanaAgentKeyEnv
+		return e.agentKeyHelper("INSTANA_AGENT_KEY")
 	case AgentKeyEnv:
-		return e.agentKeyEnv
+		return e.agentKeyHelper("AGENT_KEY")
 	case DownloadKeyEnv:
-		return e.downloadKeyEnv
+		return e.downloadKeyEnv()
 	case InstanaAgentPodNameEnv:
-		return e.instanaAgentPodNameEnv
+		return e.envWithObjectFieldSelector("INSTANA_AGENT_POD_NAME", "metadata.name")
 	case PodNameEnv:
-		return e.podNameEnv
+		return e.envWithObjectFieldSelector("POD_NAME", "metadata.name")
 	case PodIPEnv:
-		return e.podIPEnv
+		return e.envWithObjectFieldSelector("POD_IP", "status.podIP")
 	case PodUIDEnv:
-		return e.podUIDEnv
+		return e.envWithObjectFieldSelector("POD_UID", "metadata.uid")
 	case PodNamespaceEnv:
-		return e.podNamespaceEnv
+		return e.envWithObjectFieldSelector("POD_NAMESPACE", "metadata.namespace")
 	case K8sServiceDomainEnv:
-		return e.k8sServiceDomainEnv
+		return &corev1.EnvVar{Name: "K8S_SERVICE_DOMAIN", Value: strings.Join([]string{e.helpers.HeadlessServiceName(), e.agent.Namespace, "svc"}, ".")}
 	case EnableAgentSocketEnv:
-		return e.enableAgentSocketEnv
+		return boolToEnvVar("ENABLE_AGENT_SOCKET", e.agent.Spec.Agent.ServiceMesh.Enabled)
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
 }
 
-func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
-	userProvided := e.userProvidedEnv()
-
-	builtFromSpec := list.NewListMapTo[EnvVar, optional.Optional[corev1.EnvVar]]().MapTo(
-		envVars,
-		func(envVar EnvVar) optional.Optional[corev1.EnvVar] {
-			return e.getBuilder(envVar)()
-		},
-	)
-
-	return optional.NewNonEmptyOptionalMapper[corev1.EnvVar]().AllNonEmpty(append(userProvided, builtFromSpec...))
-}
-
-func NewEnvBuilder(agent *instanav1.InstanaAgent) EnvBuilder {
-	return NewEnvBuilderWithZoneInfo(agent, nil)
-}
-
-func NewEnvBuilderWithZoneInfo(agent *instanav1.InstanaAgent, zone *instanav1.Zone) EnvBuilder {
-	return &envBuilder{
-		agent:   agent,
-		zone:    zone,
-		Helpers: helpers.NewHelpers(agent),
+func (e *envBuilder) agentModeEnv() *corev1.EnvVar {
+	const envVarName = "INSTANA_AGENT_MODE"
+	if e.zone != nil {
+		return &corev1.EnvVar{
+			Name:  envVarName,
+			Value: string(e.zone.Mode),
+		}
 	}
+	return stringToEnvVar(envVarName, string(e.agent.Spec.Agent.Mode))
+}
+
+func (e *envBuilder) zoneNameEnv() *corev1.EnvVar {
+	const envVarName = "INSTANA_ZONE"
+	if e.zone != nil {
+		return &corev1.EnvVar{Name: envVarName, Value: e.zone.Name.Name}
+	}
+	return stringToEnvVar(envVarName, e.agent.Spec.Zone.Name)
+}
+
+func (e *envBuilder) proxyUserPass() string {
+	return fmt.Sprintf("%s:%s@", e.agent.Spec.Agent.ProxyUser, e.agent.Spec.Agent.ProxyPassword)
+}
+
+func (e *envBuilder) httpsProxyEnv() *corev1.EnvVar {
+	if e.agent.Spec.Agent.ProxyHost == "" {
+		return nil
+	}
+
+	return &corev1.EnvVar{
+		Name: "HTTPS_PROXY",
+		Value: fmt.Sprintf(
+			"http://%s%s:%s",
+			e.proxyUserPass(),
+			e.agent.Spec.Agent.ProxyHost,
+			optional.Of(e.agent.Spec.Agent.ProxyPort).GetOrDefault("80"),
+		),
+	}
+}
+
+func (e *envBuilder) backendEnv() *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name: "BACKEND",
+		ValueFrom: &corev1.EnvVarSource{
+			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: e.helpers.K8sSensorResourcesName(),
+				},
+				Key: constants.BackendKey,
+			},
+		},
+	}
+}
+
+func (e *envBuilder) agentKeyHelper(name string) *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name: name,
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: optional.Of(e.agent.Spec.Agent.KeysSecret).GetOrDefault(e.agent.Name),
+				},
+				Key: constants.AgentKey,
+			},
+		},
+	}
+}
+
+func (e *envBuilder) downloadKeyEnv() *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name: "INSTANA_DOWNLOAD_KEY",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: optional.Of(e.agent.Spec.Agent.KeysSecret).GetOrDefault(e.agent.Name),
+				},
+				Key:      constants.DownloadKey,
+				Optional: pointer.To(true),
+			},
+		},
+	}
+}
+
+func (e *envBuilder) envWithObjectFieldSelector(name string, fieldPath string) *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name: name,
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: fieldPath,
+			},
+		},
+	}
+}
+
+func (e *envBuilder) getUserProvidedEnvs() []corev1.EnvVar {
+	envVars := []corev1.EnvVar{}
+	for name, value := range e.agent.Spec.Agent.Env {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  name,
+			Value: value,
+		})
+	}
+	return envVars
+}
+
+func stringToEnvVar(name string, val string) *corev1.EnvVar {
+	if val == "" {
+		return nil
+	}
+	return &corev1.EnvVar{Name: name, Value: val}
+}
+
+func boolToEnvVar(name string, val bool) *corev1.EnvVar {
+	if !val {
+		return nil
+	}
+	return &corev1.EnvVar{Name: name, Value: strconv.FormatBool(val)}
 }

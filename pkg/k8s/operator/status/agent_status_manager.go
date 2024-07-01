@@ -1,3 +1,20 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package status
 
 import (
@@ -5,8 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -15,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/Masterminds/semver/v3"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/env"
@@ -26,21 +42,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
-// Conditions
-const (
-	ConditionTypeReconcileSucceeded    = "ReconcileSucceeded"
-	ConditionTypeAllAgentsAvailable    = "AllAgentsAvailable"
-	CondtionTypeAllK8sSensorsAvailable = "AllK8sSensorsAvailable"
-)
-
-func NewAgentStatusManager(k8sClient client.Client, eventRecorder record.EventRecorder) AgentStatusManager {
-	return &agentStatusManager{
-		k8sClient:       instanaclient.NewClient(k8sClient),
-		eventRecorder:   eventRecorder,
-		agentDaemonsets: make([]client.ObjectKey, 0, 1),
-	}
-}
-
 type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
 	SetAgentOld(agent *instanav1.InstanaAgent)
@@ -50,24 +51,30 @@ type AgentStatusManager interface {
 }
 
 type agentStatusManager struct {
-	k8sClient     instanaclient.InstanaAgentClient
-	eventRecorder record.EventRecorder
-
-	agentOld *instanav1.InstanaAgent
-
+	instAgentClient     instanaclient.InstanaAgentClient
+	eventRecorder       record.EventRecorder
+	agentOld            *instanav1.InstanaAgent
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
 	agentConfigMap      client.ObjectKey
 }
 
-func (a *agentStatusManager) SetAgentOld(agent *instanav1.InstanaAgent) {
-	a.agentOld = agent.DeepCopy()
+func NewAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) AgentStatusManager {
+	return &agentStatusManager{
+		instAgentClient: instAgentClient,
+		eventRecorder:   eventRecorder,
+		agentDaemonsets: make([]client.ObjectKey, 0, 1),
+	}
 }
 
 func (a *agentStatusManager) AddAgentDaemonset(agentDaemonset client.ObjectKey) {
 	if !list.NewContainsElementChecker(a.agentDaemonsets).Contains(agentDaemonset) {
 		a.agentDaemonsets = append(a.agentDaemonsets, agentDaemonset)
 	}
+}
+
+func (a *agentStatusManager) SetAgentOld(agent *instanav1.InstanaAgent) {
+	a.agentOld = agent.DeepCopy()
 }
 
 func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey) {
@@ -78,31 +85,30 @@ func (a *agentStatusManager) SetAgentConfigMap(agentConfigMap client.ObjectKey) 
 	a.agentConfigMap = agentConfigMap
 }
 
-func getAgentPhase(reconcileErr error) instanav1.AgentOperatorState {
-	switch reconcileErr {
-	case nil:
-		return instanav1.OperatorStateRunning
-	default:
-		return instanav1.OperatorStateFailed
-	}
-}
+func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
+	defer recovery.Catch(&finalErr)
 
-func getReason(reconcileErr error) string {
-	switch reconcileErr {
-	case nil:
-		return ""
-	default:
-		return reconcileErr.Error()
+	if a.agentOld == nil {
+		return nil
 	}
-}
 
-func toResourceInfo(obj client.Object) result.Result[instanav1.ResourceInfo] {
-	return result.OfSuccess(
-		instanav1.ResourceInfo{
-			Name: obj.GetName(),
-			UID:  string(obj.GetUID()),
-		},
-	)
+	errBuilder := multierror.NewMultiErrorBuilder()
+
+	agentNew, _ :=
+		a.agentWithUpdatedStatus(ctx, reconcileErr).
+			OnFailure(errBuilder.AddSingle).
+			Get()
+
+	if err := a.instAgentClient.Status().Patch(
+		ctx,
+		agentNew,
+		client.MergeFrom(a.agentOld),
+		client.FieldOwner(instanaclient.FieldOwnerName),
+	); err != nil {
+		errBuilder.AddSingle(err)
+	}
+
+	return errBuilder.Build()
 }
 
 func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[instanav1.ResourceInfo] {
@@ -110,35 +116,15 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
 
-	ds := a.k8sClient.GetAsResult(ctx, a.agentDaemonsets[0], &appsv1.DaemonSet{})
+	ds := a.instAgentClient.GetAsResult(ctx, a.agentDaemonsets[0], &appsv1.DaemonSet{})
 
 	return result.Map(ds, toResourceInfo)
 }
 
 func (a *agentStatusManager) getConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
-	cm := a.k8sClient.GetAsResult(ctx, a.agentConfigMap, &corev1.ConfigMap{})
+	cm := a.instAgentClient.GetAsResult(ctx, a.agentConfigMap, &corev1.ConfigMap{})
 
 	return result.Map(cm, toResourceInfo)
-}
-
-func truncateMessage(message string) string {
-	const limit = 32768
-
-	if len(message) <= limit {
-		return message
-	} else {
-		return message[:limit]
-	}
-}
-
-func eventTypeFromCondition(condition metav1.Condition) string {
-	//nolint:exhaustive
-	switch condition.Status {
-	case metav1.ConditionTrue:
-		return corev1.EventTypeNormal
-	default:
-		return corev1.EventTypeWarning
-	}
 }
 
 func (a *agentStatusManager) setConditionAndFireEvent(agentNew *instanav1.InstanaAgent, condition metav1.Condition) {
@@ -170,23 +156,6 @@ func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) 
 	return res
 }
 
-func daemonsetIsAvailable(ds appsv1.DaemonSet) bool {
-	switch status := ds.Status; {
-	case optional.Of(status).IsNotPresent():
-		return false
-	case ds.Generation != status.ObservedGeneration:
-		return false
-	case status.NumberMisscheduled != 0:
-		return false
-	case status.DesiredNumberScheduled != status.NumberAvailable:
-		return false
-	case status.DesiredNumberScheduled != status.UpdatedNumberScheduled:
-		return false
-	default:
-		return true
-	}
-}
-
 func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               ConditionTypeAllAgentsAvailable,
@@ -200,7 +169,7 @@ func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context)
 
 	for _, key := range a.agentDaemonsets {
 		var ds appsv1.DaemonSet
-		switch res := a.k8sClient.GetAsResult(ctx, key, &ds); {
+		switch res := a.instAgentClient.GetAsResult(ctx, key, &ds); {
 		case res.IsSuccess():
 			dameonsets = append(dameonsets, ds)
 		case res.IsFailure():
@@ -208,7 +177,6 @@ func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context)
 
 			condition.Status = metav1.ConditionUnknown
 			condition.Reason = "AgentDaemonsetInfoUnavailable"
-			//goland:noinspection GoNilness
 			msg := fmt.Sprintf(
 				"failed to retrieve status of Agent Daemonset: %s due to error: %s",
 				key.Name,
@@ -234,62 +202,6 @@ func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context)
 	}
 
 	return result.OfSuccess(condition)
-}
-
-type deploymentConditionsMap map[appsv1.DeploymentConditionType]appsv1.DeploymentCondition
-
-func deploymentConditionsAsMap(conditions []appsv1.DeploymentCondition) deploymentConditionsMap {
-	res := make(deploymentConditionsMap, len(conditions))
-
-	for _, condition := range conditions {
-		res[condition.Type] = condition
-	}
-
-	return res
-}
-
-func deploymentHasMinimumAvailability(conditions deploymentConditionsMap) bool {
-	switch condition, isPresent := conditions[appsv1.DeploymentAvailable]; isPresent {
-	case true:
-		return condition.Status == corev1.ConditionTrue
-	default:
-		return false
-	}
-}
-
-func deploymentIsComplete(conditions deploymentConditionsMap) bool {
-	switch condition, isPresent := conditions[appsv1.DeploymentProgressing]; isPresent {
-	case true:
-		return condition.Status == corev1.ConditionTrue && condition.Reason == "NewReplicaSetAvailable"
-	default:
-		return false
-	}
-}
-
-func deploymentHasReplicaFailures(conditions deploymentConditionsMap) bool {
-	switch condition, isPresent := conditions[appsv1.DeploymentReplicaFailure]; isPresent {
-	case true:
-		return condition.Status == corev1.ConditionTrue
-	default:
-		return false
-	}
-}
-
-func deploymentIsAvailableAndComplete(dpl appsv1.Deployment) bool {
-	conditions := deploymentConditionsAsMap(dpl.Status.Conditions)
-
-	switch {
-	case dpl.Status.ObservedGeneration != dpl.Generation:
-		return false
-	case !deploymentHasMinimumAvailability(conditions):
-		return false
-	case !deploymentIsComplete(conditions):
-		return false
-	case deploymentHasReplicaFailures(conditions):
-		return false
-	default:
-		return true
-	}
 }
 
 func (a *agentStatusManager) updateWasPerformed() bool {
@@ -320,12 +232,11 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 
 	var deployment appsv1.Deployment
 
-	if res := a.k8sClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
+	if res := a.instAgentClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
 		_, err := res.Get()
 
 		condition.Status = metav1.ConditionUnknown
 		condition.Reason = "K8sSensorDeploymentInfoUnavailable"
-		//goland:noinspection GoNilness
 		msg := fmt.Sprintf(
 			"failed to retrieve status of K8sSensor Deployment: %s due to error: %s",
 			a.k8sSensorDeployment.Name,
@@ -349,35 +260,6 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	}
 
 	return result.OfSuccess(condition)
-}
-
-func setStatusDotDaemonset(agentNew *instanav1.InstanaAgent) func(ds instanav1.ResourceInfo) {
-	return func(ds instanav1.ResourceInfo) {
-		agentNew.Status.DaemonSet = ds
-	}
-}
-
-func setStatusDotConfigMap(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
-	return func(cm instanav1.ResourceInfo) {
-		agentNew.Status.ConfigMap = cm
-	}
-}
-
-func setStatusDotOperatorVersion(agentNew *instanav1.InstanaAgent) func(version *semver.Version) {
-	return func(version *semver.Version) {
-		agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
-	}
-}
-
-func logOperatorVersionParseFailure(logger logr.Logger) func(err error) {
-	return func(err error) {
-		logger.Error(
-			err,
-			"operator version is not a valid semantic version",
-			"OperatorVersion",
-			env.GetOperatorVersion(),
-		)
-	}
 }
 
 func (a *agentStatusManager) agentWithUpdatedStatus(
@@ -416,6 +298,7 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 		OnFailure(logOperatorVersionParseFailure(logger))
 
 	// Handle Conditions
+
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
 
 	reconcileSucceededCondition := a.getReconcileSucceededCondition(reconcileErr)
@@ -434,30 +317,4 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 	a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
 
 	return result.Of(agentNew, errBuilder.Build())
-}
-
-func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
-	defer recovery.Catch(&finalErr)
-
-	if a.agentOld == nil {
-		return nil
-	}
-
-	errBuilder := multierror.NewMultiErrorBuilder()
-
-	agentNew, _ :=
-		a.agentWithUpdatedStatus(ctx, reconcileErr).
-			OnFailure(errBuilder.AddSingle).
-			Get()
-
-	if err := a.k8sClient.Status().Patch(
-		ctx,
-		agentNew,
-		client.MergeFrom(a.agentOld),
-		client.FieldOwner(instanaclient.FieldOwnerName),
-	); err != nil {
-		errBuilder.AddSingle(err)
-	}
-
-	return errBuilder.Build()
 }

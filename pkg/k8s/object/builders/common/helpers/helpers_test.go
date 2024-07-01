@@ -95,47 +95,6 @@ func TestHelpers_ServiceAccountName(t *testing.T) {
 	}
 }
 
-func TestHelpers_KeysSecretName(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		expected string
-		agent    instanav1.InstanaAgent
-	}{
-		{
-			name:     "keys_secret_not_provided_by_user",
-			expected: "peposdgokds",
-			agent: instanav1.InstanaAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "peposdgokds",
-				},
-			},
-		},
-		{
-			name:     "keys_secret_is_provided_by_user",
-			expected: "riuoidfoisd",
-			agent: instanav1.InstanaAgent{
-				Spec: instanav1.InstanaAgentSpec{
-					Agent: instanav1.BaseAgentSpec{
-						KeysSecret: "riuoidfoisd",
-					},
-				},
-			},
-		},
-	} {
-		t.Run(
-			tc.name, func(t *testing.T) {
-				assertions := require.New(t)
-
-				h := NewHelpers(&tc.agent)
-
-				actual := h.KeysSecretName()
-
-				assertions.Equal(tc.expected, actual)
-			},
-		)
-	}
-}
-
 func TestHelpers_TLSIsEnabled(t *testing.T) {
 	for _, test := range []struct {
 		name        string

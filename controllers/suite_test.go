@@ -1,7 +1,19 @@
 /*
- * (c) Copyright IBM Corp. 2021
- * (c) Copyright Instana Inc. 2021
- */
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package controllers
 
@@ -13,6 +25,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo"
@@ -63,7 +76,12 @@ var agent = &instanav1.InstanaAgent{
 
 type object struct {
 	gvk schema.GroupVersionKind
-	key client.ObjectKey
+	key types.NamespacedName
+}
+
+var instanaAgentObjectKey types.NamespacedName = types.NamespacedName{
+	Name:      instanaAgentName,
+	Namespace: instanaAgentNamespace,
 }
 
 // agent resources
@@ -73,10 +91,7 @@ var (
 			Version: "v1",
 			Kind:    "ConfigMap",
 		},
-		key: client.ObjectKey{
-			Name:      instanaAgentName,
-			Namespace: instanaAgentNamespace,
-		},
+		key: instanaAgentObjectKey,
 	}
 	agentDaemonset = object{
 		gvk: schema.GroupVersionKind{
@@ -84,10 +99,7 @@ var (
 			Version: "v1",
 			Kind:    "DaemonSet",
 		},
-		key: client.ObjectKey{
-			Name:      instanaAgentName,
-			Namespace: instanaAgentNamespace,
-		},
+		key: instanaAgentObjectKey,
 	}
 	agentHeadlessService = object{
 		gvk: schema.GroupVersionKind{
@@ -104,20 +116,14 @@ var (
 			Version: "v1",
 			Kind:    "Service",
 		},
-		key: client.ObjectKey{
-			Name:      instanaAgentName,
-			Namespace: instanaAgentNamespace,
-		},
+		key: instanaAgentObjectKey,
 	}
 	agentKeysSecret = object{
 		gvk: schema.GroupVersionKind{
 			Version: "v1",
 			Kind:    "Secret",
 		},
-		key: client.ObjectKey{
-			Name:      instanaAgentName,
-			Namespace: instanaAgentNamespace,
-		},
+		key: instanaAgentObjectKey,
 	}
 	agentContainerSecret = object{
 		gvk: schema.GroupVersionKind{
@@ -134,10 +140,7 @@ var (
 			Version: "v1",
 			Kind:    "ServiceAccount",
 		},
-		key: client.ObjectKey{
-			Name:      instanaAgentName,
-			Namespace: instanaAgentNamespace,
-		},
+		key: instanaAgentObjectKey,
 	}
 )
 
@@ -214,7 +217,7 @@ var (
 
 var cfg *rest.Config
 var k8sClient client.Client
-var instanaClient instanaclient.InstanaAgentClient
+var instanaAgentClient instanaclient.InstanaAgentClient
 var testEnv *envtest.Environment
 var mgrCancel context.CancelFunc
 var ctx context.Context
@@ -261,7 +264,7 @@ var _ = BeforeSuite(
 		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient = k8sManager.GetClient()
-		instanaClient = instanaclient.NewClient(k8sClient)
+		instanaAgentClient = instanaclient.NewInstanaAgentClient(k8sClient)
 
 		// Create the Reconciler / Controller and register with the Manager (just like in the main.go)
 		err = Add(k8sManager)
@@ -269,9 +272,6 @@ var _ = BeforeSuite(
 
 		var mgrCtx context.Context
 		mgrCtx, mgrCancel = context.WithCancel(ctrl.SetupSignalHandler())
-
-		err = Add(k8sManager)
-		Expect(err).NotTo(HaveOccurred())
 
 		go func() {
 			err = k8sManager.Start(mgrCtx)
@@ -295,7 +295,7 @@ var _ = AfterSuite(
 )
 
 func exist(obj object) bool {
-	res, err := instanaClient.Exists(ctx, obj.gvk, obj.key).Get()
+	res, err := instanaAgentClient.Exists(ctx, obj.gvk, obj.key).Get()
 	return res && err == nil
 }
 
@@ -308,7 +308,7 @@ func allExist(o ...object) func() bool {
 }
 
 func doNotExist(obj object) bool {
-	res, err := instanaClient.Exists(ctx, obj.gvk, obj.key).Get()
+	res, err := instanaAgentClient.Exists(ctx, obj.gvk, obj.key).Get()
 	return !res && err == nil
 }
 
@@ -330,7 +330,7 @@ var _ = Describe(
 			"the CR is created", func() {
 				Specify(
 					"using the k8s client", func() {
-						instanaClient.Apply(ctx, agent).OnFailure(failTest)
+						instanaAgentClient.Apply(ctx, agent).OnFailure(failTest)
 					},
 				)
 				Specify(

@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -126,7 +127,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 		},
 	)
 
-	helpers := NewMockHelpers(ctrl)
+	helpers := mocks.NewMockHelpers(ctrl)
 	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName).Times(2)
 
 	cb := &clusterRoleBuilder{
