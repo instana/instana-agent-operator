@@ -1,3 +1,8 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc. 2024
+*/
+
 package configmap
 
 import (
@@ -21,6 +26,7 @@ import (
 type configMapBuilder struct {
 	*instanav1.InstanaAgent
 	statusManager status.AgentStatusManager
+	keysSecret    *corev1.Secret
 }
 
 func (c *configMapBuilder) ComponentName() string {
@@ -89,14 +95,68 @@ func (c *configMapBuilder) getData() map[string]string {
 		},
 	)
 
+	backendLines := make([]string, 0, 10)
+	backendLines = append(
+		backendLines,
+		keyEqualsValue("host", c.Spec.Agent.EndpointHost),
+		keyEqualsValue("port", optional.Of(c.Spec.Agent.EndpointPort).GetOrDefault("443")),
+		keyEqualsValue("protocol", "HTTP/2"),
+	)
+
+	if c.Spec.Agent.Key == "" {
+		// Agent key was retrieved from external secret
+		agentKey := c.keysSecret.Data["key"]
+		backendLines = append(
+			backendLines,
+			keyEqualsValue("key", string(agentKey)),
+		)
+	} else {
+		// Agent key was directly defined on the CRD
+		backendLines = append(
+			backendLines,
+			keyEqualsValue("key", c.Spec.Agent.Key),
+		)
+	}
+
+	optional.Of(c.Spec.Agent.ProxyHost).IfPresent(
+		func(proxyHost string) {
+			backendLines = append(
+				backendLines,
+				keyEqualsValue("proxy.type", "HTTP"),
+				keyEqualsValue("proxy.host", proxyHost),
+				keyEqualsValue(
+					"proxy.port", optional.Of(c.Spec.Agent.ProxyPort).GetOrDefault("80"),
+				),
+			)
+		},
+	)
+
+	optional.Of(c.Spec.Agent.ProxyUser).IfPresent(
+		func(proxyUser string) {
+			backendLines = append(backendLines, keyEqualsValue("proxy.user", proxyUser))
+		},
+	)
+
+	optional.Of(c.Spec.Agent.ProxyPassword).IfPresent(
+		func(proxyPassword string) {
+			backendLines = append(backendLines, keyEqualsValue("proxy.password", proxyPassword))
+		},
+	)
+
+	if c.Spec.Agent.ProxyUseDNS {
+		backendLines = append(backendLines, keyEqualsValue("proxyUseDNS", "true"))
+	}
+
+	res["additional-backend-"+strconv.Itoa(1)] = strings.Join(backendLines, "\n")
+
 	for i, backend := range c.Spec.Agent.AdditionalBackends {
 		lines := make([]string, 0, 10)
 		lines = append(
 			lines,
 			keyEqualsValue("host", backend.EndpointHost),
 			keyEqualsValue("port", optional.Of(backend.EndpointPort).GetOrDefault("443")),
-			keyEqualsValue("key", backend.Key),
 			keyEqualsValue("protocol", "HTTP/2"),
+			keyEqualsValue("key", backend.Key),
 		)
 
 		optional.Of(c.Spec.Agent.ProxyHost).IfPresent(
@@ -159,9 +219,10 @@ func (c *configMapBuilder) Build() (res optional.Optional[client.Object]) {
 	)
 }
 
-func NewConfigMapBuilder(agent *instanav1.InstanaAgent, statusManager status.AgentStatusManager) builder.ObjectBuilder {
+func NewConfigMapBuilder(agent *instanav1.InstanaAgent, statusManager status.AgentStatusManager, keysSecret *corev1.Secret) builder.ObjectBuilder {
 	return &configMapBuilder{
 		InstanaAgent:  agent,
 		statusManager: statusManager,
+		keysSecret:    keysSecret,
 	}
 }
