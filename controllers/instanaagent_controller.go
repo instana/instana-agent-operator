@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -110,12 +111,30 @@ func (r *InstanaAgentReconciler) reconcile(
 		return isOpenShiftRes
 	}
 
+	keysSecret := &corev1.Secret{}
+
+	if agent.Spec.Agent.KeysSecret == "" {
+		log.V(1).Info("No Agent KeysSecret defined, no need to retrieve a secret from Kubernetes")
+	} else {
+		secretName := agent.Spec.Agent.KeysSecret
+		namespace := agent.Namespace
+
+		if err := r.client.Get(ctx, client.ObjectKey{Name: secretName, Namespace: namespace}, keysSecret); err != nil {
+			log.Error(err, "Failed to fetch KeysSecret")
+		} else {
+			// secretData := secretKey.Data["key"]
+			// fmt.Printf("Secret value: %s\n", string(secretData))
+			fmt.Printf("Secret value found")
+		}
+	}
+
 	if applyResourcesRes := r.applyResources(
 		ctx,
 		agent,
 		isOpenShift,
 		operatorUtils,
 		statusManager,
+		keysSecret,
 	); applyResourcesRes.suppliesReconcileResult() {
 		return applyResourcesRes
 	}

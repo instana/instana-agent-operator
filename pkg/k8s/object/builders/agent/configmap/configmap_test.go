@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,6 +47,8 @@ func TestAgentConfigMapBuilder_Build(t *testing.T) {
 			},
 			Agent: instanav1.BaseAgentSpec{
 				ConfigurationYaml: "riosoidoijdsg",
+				Key:               "mykey",
+				EndpointHost:      "myendpointHost",
 				ProxyHost:         "weoisdoijsdg",
 				ProxyPort:         "lksdlkjsdglkjsd",
 				ProxyUser:         "peoijsadglkj",
@@ -78,7 +81,8 @@ func TestAgentConfigMapBuilder_Build(t *testing.T) {
 	statusManager := NewMockAgentStatusManager(ctrl)
 	statusManager.EXPECT().SetAgentConfigMap(gomock.Eq(client.ObjectKeyFromObject(agentCm)))
 
-	builder := NewConfigMapBuilder(agentCm, statusManager)
+	secretKey := &corev1.Secret{}
+	builder := NewConfigMapBuilder(agentCm, statusManager, secretKey)
 
 	actual := builder.Build()
 
@@ -98,8 +102,9 @@ func TestAgentConfigMapBuilder_Build(t *testing.T) {
 				"configuration-opentelemetry.yaml":             "com.instana.plugin.opentelemetry:\n    grpc: {}\n",
 				"configuration-prometheus-remote-write.yaml":   "com.instana.plugin.prometheus:\n    remote_write:\n        enabled: true\n",
 				"configuration-disable-kubernetes-sensor.yaml": "com.instana.plugin.kubernetes:\n    enabled: false\n",
-				"additional-backend-2":                         "host=eoijsdlkjf\nport=goieoijsdofj\nkey=eoisdljsdlkfj\nprotocol=HTTP/2\nproxy.type=HTTP\nproxy.host=weoisdoijsdg\nproxy.port=lksdlkjsdglkjsd\nproxy.user=peoijsadglkj\nproxy.password=relksdlkj\nproxyUseDNS=true",
-				"additional-backend-3":                         "host=glknsdlknmdsflk\nport=lgslkjsdfoieoiljsdf\nkey=sdlkjsadofjpoej\nprotocol=HTTP/2\nproxy.type=HTTP\nproxy.host=weoisdoijsdg\nproxy.port=lksdlkjsdglkjsd\nproxy.user=peoijsadglkj\nproxy.password=relksdlkj\nproxyUseDNS=true",
+				"additional-backend-1":                         "host=myendpointHost\nport=443\nprotocol=HTTP/2\nkey=mykey\nproxy.type=HTTP\nproxy.host=weoisdoijsdg\nproxy.port=lksdlkjsdglkjsd\nproxy.user=peoijsadglkj\nproxy.password=relksdlkj\nproxyUseDNS=true",
+				"additional-backend-2":                         "host=eoijsdlkjf\nport=goieoijsdofj\nprotocol=HTTP/2\nkey=eoisdljsdlkfj\nproxy.type=HTTP\nproxy.host=weoisdoijsdg\nproxy.port=lksdlkjsdglkjsd\nproxy.user=peoijsadglkj\nproxy.password=relksdlkj\nproxyUseDNS=true",
+				"additional-backend-3":                         "host=glknsdlknmdsflk\nport=lgslkjsdfoieoiljsdf\nprotocol=HTTP/2\nkey=sdlkjsadofjpoej\nproxy.type=HTTP\nproxy.host=weoisdoijsdg\nproxy.port=lksdlkjsdglkjsd\nproxy.user=peoijsadglkj\nproxy.password=relksdlkj\nproxyUseDNS=true",
 			},
 		},
 	)
