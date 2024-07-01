@@ -8,13 +8,12 @@
 set -e
 set -o pipefail
 
-abort_if_pr_exists() {
+abort_if_pr_for_latest_version_exists() {
     echo "Check if a PR is already open"
-    PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
-    EXISTING_PR_INFO_JSON=$(echo "$PR_LIST_JSON" | jq ".[] | select(.title | contains(\"$OPERATOR_PUBLIC_PR_NAME\"))")
-    if [ -n "$EXISTING_PR_INFO_JSON" ]; then
+    pr_list_json=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
+    existing_pr_info_json=$(echo "$pr_list_json" | jq ".[] | select(.title == (\"$commit_message\"))")
+    if [ -n "$existing_pr_info_json" ]; then
         echo "A PR is already open, exiting"
-        echo "A job can be retriggered once the open PR is resolved"
         exit 0
     fi
     echo "PR does not exist, creating a PR"
@@ -22,38 +21,36 @@ abort_if_pr_exists() {
 
 pushd instana-agent-operator-release
 
-OLM_BUNDLE_ZIP=$(ls olm*.zip)
-OPERATOR_RELEASE_VERSION="v$(echo "$OLM_BUNDLE_ZIP" | sed 's/olm-\(.*\)\.zip/\1/')"
-OPERATOR_PUBLIC_PR_NAME="operator instana-agent-operator"
+olm_bundle_zip=$(ls olm*.zip)
+operator_release_version="v$(echo "$olm_bundle_zip" | sed 's/olm-\(.*\)\.zip/\1/')"
+operator_public_pr_name="operator instana-agent-operator"
 if [ "$REPO" == "redhat-marketplace-operators" ]; then
-    OPERATOR_PUBLIC_PR_NAME="${OPERATOR_PUBLIC_PR_NAME}-rhmp"
+    operator_public_pr_name="${operator_public_pr_name}-rhmp"
 fi
 
-OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-export OPERATOR_PUBLIC_PR_NAME OWNER REPO
+olm_bundle_zip_PATH="$(pwd)/$olm_bundle_zip"
+commit_message="$operator_public_pr_name ($operator_release_version)"
 
-abort_if_pr_exists
-
+abort_if_pr_for_latest_version_exists
 popd
 
 pushd "$PUBLIC_REPO_LOCAL_NAME"/operators/"$OPERATOR_NAME"
 
-echo "Rebasing the fork from the upstream"
+echo "Creating a new feature branch from the upstream main"
 git remote add upstream https://github.com/"$OWNER"/"$REPO".git
 git fetch upstream
-git rebase upstream/main
-git push --force
-echo "Rebase successful"
+git checkout main
+git reset --hard upstream/main
+git checkout -b "$OPERATOR_NAME-$operator_release_version"
+echo "Creation of the new PR branch was successful"
 
-COMMIT_MESSAGE="$OPERATOR_PUBLIC_PR_NAME ($OPERATOR_RELEASE_VERSION)"
-echo "COMMIT_MESSAGE=$COMMIT_MESSAGE"
+echo "commit_message=$commit_message"
 set -x
-git pull -r
-mkdir -p "$OPERATOR_RELEASE_VERSION"
-unzip -o "$OLM_BUNDLE_ZIP_PATH" -d "$OPERATOR_RELEASE_VERSION"
+mkdir -p "$operator_release_version"
+unzip -o "$olm_bundle_zip_PATH" -d "$operator_release_version"
 
 if [ "$REPO" == "redhat-marketplace-operators" ]; then
-    pushd "$OPERATOR_RELEASE_VERSION"
+    pushd "$operator_release_version"
 
     pushd manifests
     yq -i '.metadata.annotations += {"marketplace.openshift.io/remote-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/pricing?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
@@ -73,6 +70,6 @@ git config --global user.name "instanacd"
 git config --global user.email "instanacd@instana.com"
 
 git add .
-git commit -s -m "$COMMIT_MESSAGE" --allow-empty
+git commit -s -m "$commit_message"
 
 popd

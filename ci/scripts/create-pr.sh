@@ -12,24 +12,24 @@ source pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
 
 pushd instana-agent-operator-release
 
-OLM_BUNDLE_ZIP=$(ls olm*.zip)
-OPERATOR_RELEASE_VERSION=$(echo "$OLM_BUNDLE_ZIP" | sed 's/olm-\(.*\)\.zip/\1/')
-OPERATOR_PUBLIC_PR_NAME="operator instana-agent-operator"
+olm_bundle_zip=$(ls olm*.zip)
+operator_release_version=$(echo "$olm_bundle_zip" | sed 's/olm-\(.*\)\.zip/\1/')
+operator_public_pr_name="operator instana-agent-operator"
 if [ "$REPO" == "redhat-marketplace-operators" ]; then
-    OPERATOR_PUBLIC_PR_NAME="${OPERATOR_PUBLIC_PR_NAME}-rhmp"
+    operator_public_pr_name="${operator_public_pr_name}-rhmp"
 fi
-COMMIT_MESSAGE="$OPERATOR_PUBLIC_PR_NAME ($OPERATOR_RELEASE_VERSION)"
-export OPERATOR_PUBLIC_PR_NAME OWNER REPO
+commit_message="$operator_public_pr_name ($operator_release_version)"
+export operator_public_pr_name OWNER REPO
 
-abort_if_pr_exists
+abort_if_pr_for_latest_version_exists
 
 popd
 
 # Create the PR
 set -x
 curl \
--fX POST \
--H "Accept: application/vnd.github+json" \
--H "Authorization: Bearer $GH_API_TOKEN" \
-https://api.github.com/repos/$OWNER/$REPO/pulls \
--d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+    -fX POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $GH_API_TOKEN" \
+    https://api.github.com/repos/$OWNER/$REPO/pulls \
+    -d "{\"title\":\"$commit_message\",\"head\":\"instana:main\",\"base\":\"main\"}"
