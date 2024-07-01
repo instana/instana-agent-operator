@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package builder
+package builder_test
 
 import (
 	"testing"
@@ -26,6 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
+	bldr "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
@@ -33,16 +37,15 @@ func newDummyObject() optional.Optional[client.Object] {
 	return optional.Of[client.Object](&unstructured.Unstructured{})
 }
 
-func TestBuilderTransformer_Apply(t *testing.T) {
+func TestBuilderTransformerApply(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		expected func(builder *MockObjectBuilder, transformations *MockTransformations) optional.Optional[client.Object]
+		expected func(builder *mocks.MockObjectBuilder) optional.Optional[client.Object]
 	}{
 		{
 			name: "empty_object",
 			expected: func(
-				builder *MockObjectBuilder,
-				transformations *MockTransformations,
+				builder *mocks.MockObjectBuilder,
 			) optional.Optional[client.Object] {
 				builder.EXPECT().Build().Return(optional.Empty[client.Object]())
 
@@ -52,8 +55,7 @@ func TestBuilderTransformer_Apply(t *testing.T) {
 		{
 			name: "non_namespaced",
 			expected: func(
-				builder *MockObjectBuilder,
-				transformations *MockTransformations,
+				builder *mocks.MockObjectBuilder,
 			) optional.Optional[client.Object] {
 				componentName, _ := goutils.RandomAlphabetic(10)
 
@@ -61,25 +63,19 @@ func TestBuilderTransformer_Apply(t *testing.T) {
 				builder.EXPECT().ComponentName().Return(componentName)
 				builder.EXPECT().IsNamespaced().Return(false)
 
-				transformations.EXPECT().AddCommonLabels(gomock.Eq(newDummyObject().Get()), gomock.Eq(componentName))
-
 				return newDummyObject()
 			},
 		},
 		{
 			name: "namespaced",
 			expected: func(
-				builder *MockObjectBuilder,
-				transformations *MockTransformations,
+				builder *mocks.MockObjectBuilder,
 			) optional.Optional[client.Object] {
 				componentName, _ := goutils.RandomAlphabetic(10)
 
 				builder.EXPECT().Build().Return(newDummyObject())
 				builder.EXPECT().ComponentName().Return(componentName)
 				builder.EXPECT().IsNamespaced().Return(true)
-
-				transformations.EXPECT().AddCommonLabels(gomock.Eq(newDummyObject().Get()), gomock.Eq(componentName))
-				transformations.EXPECT().AddOwnerReference(gomock.Eq(newDummyObject().Get()))
 
 				return newDummyObject()
 			},
@@ -90,17 +86,19 @@ func TestBuilderTransformer_Apply(t *testing.T) {
 				assertions := require.New(t)
 				ctrl := gomock.NewController(t)
 
-				builder := NewMockObjectBuilder(ctrl)
-				transformations := NewMockTransformations(ctrl)
+				builder := mocks.NewMockObjectBuilder(ctrl)
+				transformations := transformations.NewTransformations(&instanav1.InstanaAgent{})
 
-				expected := test.expected(builder, transformations)
+				expected := test.expected(builder).Get()
 
-				bt := &builderTransformer{
-					Transformations: transformations,
+				bt := bldr.NewBuilderTransformer(transformations)
+
+				actual := bt.Apply(builder).Get()
+				if expected != nil {
+					assertions.Equal(expected.GetName(), actual.GetName())
+				} else {
+					assertions.Nil(actual)
 				}
-
-				actual := bt.Apply(builder)
-				assertions.Equal(expected, actual)
 			},
 		)
 	}

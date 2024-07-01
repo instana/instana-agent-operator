@@ -29,11 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-func TestConfigMapBuilder_IsNamespaced_ComponentName(t *testing.T) {
+func TestConfigMapBuilderIsNamespacedComponentName(t *testing.T) {
 	assertions := require.New(t)
 
 	cmb := NewConfigMapBuilder(nil)
@@ -42,7 +43,7 @@ func TestConfigMapBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions.Equal(constants.ComponentK8Sensor, cmb.ComponentName())
 }
 
-func TestConfigMapBuilder_Build(t *testing.T) {
+func TestConfigMapBuilderBuild(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
 
@@ -80,7 +81,7 @@ func TestConfigMapBuilder_Build(t *testing.T) {
 		},
 	)
 
-	helpers := NewMockHelpers(ctrl)
+	helpers := mocks.NewMockHelpers(ctrl)
 	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName)
 
 	cmb := &configMapBuilder{

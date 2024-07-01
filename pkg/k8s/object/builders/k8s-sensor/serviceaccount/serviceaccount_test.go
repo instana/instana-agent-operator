@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -67,7 +68,7 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 		},
 	)
 
-	helpers := NewMockHelpers(ctrl)
+	helpers := mocks.NewMockHelpers(ctrl)
 	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName)
 
 	sb := &serviceAccountBuilder{
