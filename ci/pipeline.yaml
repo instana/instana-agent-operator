@@ -940,12 +940,12 @@ jobs:
     max_in_flight: 1
     plan:
       - get: instana-agent-operator-release
+        trigger: true
         version: every #fetch the latest operator release every time the job is triggered
         params:
           globs:
             - olm-*.zip
       - get: agent-operator-release-source
-        trigger: true
         passed: [operator-olm-github-release]
       - get: pipeline-source
         passed: [operator-olm-github-release]
