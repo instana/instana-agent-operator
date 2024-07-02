@@ -7,7 +7,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -114,7 +113,7 @@ func (r *InstanaAgentReconciler) reconcile(
 	keysSecret := &corev1.Secret{}
 
 	if agent.Spec.Agent.KeysSecret == "" {
-		log.V(1).Info("No Agent KeysSecret defined, no need to retrieve a secret from Kubernetes")
+		log.Info("No Agent KeysSecret defined, no need to retrieve a secret from Kubernetes")
 	} else {
 		secretName := agent.Spec.Agent.KeysSecret
 		namespace := agent.Namespace
@@ -124,7 +123,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		} else {
 			// secretData := secretKey.Data["key"]
 			// fmt.Printf("Secret value: %s\n", string(secretData))
-			fmt.Printf("Secret value found")
+			log.Info("Received key property from KeysSecret", "secretName", agent.Spec.Agent.KeysSecret)
 		}
 	}
 
