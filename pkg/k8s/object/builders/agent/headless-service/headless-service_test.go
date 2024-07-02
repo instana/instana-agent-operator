@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
@@ -53,13 +54,15 @@ func TestHeadlessServiceBuilder_Build(t *testing.T) {
 		},
 	}
 
-	hlprs := NewMockHelpers(ctrl)
+	hlprs := mocks.NewMockHelpers(ctrl)
 	hlprs.EXPECT().HeadlessServiceName().Return("headless-service-name")
 
-	podSelectorLabelGenerator := NewMockPodSelectorLabelGenerator(ctrl)
-	podSelectorLabelGenerator.EXPECT().GetPodSelectorLabels().Return(map[string]string{"foo": "bar", "hello": "world"})
+	podSelectorLabelGenerator := mocks.NewMockPodSelectorLabelGenerator(ctrl)
+	podSelectorLabelGenerator.EXPECT().
+		GetPodSelectorLabels().
+		Return(map[string]string{"foo": "bar", "hello": "world"})
 
-	portsBuilder := NewMockPortsBuilder(ctrl)
+	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
 	portsBuilder.EXPECT().GetServicePorts(
 		ports.AgentAPIsPort,
 		ports.OpenTelemetryLegacyPort,

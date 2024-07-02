@@ -20,7 +20,6 @@ type helpers struct {
 
 type Helpers interface {
 	ServiceAccountName() string
-	KeysSecretName() string
 	TLSIsEnabled() bool
 	TLSSecretName() string
 	HeadlessServiceName() string
@@ -41,10 +40,6 @@ func (h *helpers) serviceAccountNameDefault() string {
 
 func (h *helpers) ServiceAccountName() string {
 	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrDefault(h.serviceAccountNameDefault())
-}
-
-func (h *helpers) KeysSecretName() string {
-	return optional.Of(h.Spec.Agent.KeysSecret).GetOrDefault(h.Name)
 }
 
 func (h *helpers) TLSIsEnabled() bool {

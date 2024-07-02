@@ -1,3 +1,20 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package client
 
 import (
@@ -7,75 +24,140 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	FieldOwnerName = "instana-agent-operator"
 )
 
-// ObjectResult alias is needed to workaround issues in mockgen
-type ObjectResult = result.Result[k8sclient.Object]
-
-// MultiObjectResult alias is needed to workaround issues in mockgen
-type MultiObjectResult = result.Result[[]k8sclient.Object]
-
-// BoolResult alias is needed to workaround issues in mockgen
-type BoolResult = result.Result[bool]
+func NewInstanaAgentClient(k8sClient k8sClient.Client) InstanaAgentClient {
+	return &instanaAgentClient{
+		k8sClient: k8sClient,
+	}
+}
 
 type InstanaAgentClient interface {
-	k8sclient.Client
-	Apply(ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption) ObjectResult
-	GetAsResult(
-		ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
-	) ObjectResult
-	Exists(ctx context.Context, gvk schema.GroupVersionKind, key k8sclient.ObjectKey) BoolResult
-	DeleteAllInTimeLimit(
-		ctx context.Context,
-		objects []k8sclient.Object,
-		timeout time.Duration,
-		waitTime time.Duration,
-		opts ...k8sclient.DeleteOption,
-	) MultiObjectResult
+	Apply(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.PatchOption) result.Result[k8sClient.Object]
+	Exists(ctx context.Context, gvk schema.GroupVersionKind, key k8sClient.ObjectKey) result.Result[bool]
+	DeleteAllInTimeLimit(ctx context.Context, objects []k8sClient.Object, timeout time.Duration, waitTime time.Duration, opts ...k8sClient.DeleteOption) result.Result[[]k8sClient.Object]
+	Get(ctx context.Context, key types.NamespacedName, obj k8sClient.Object, opts ...k8sClient.GetOption) error
+	GetAsResult(ctx context.Context, key k8sClient.ObjectKey, obj k8sClient.Object, opts ...k8sClient.GetOption) result.Result[k8sClient.Object]
+	Status() k8sClient.SubResourceWriter
+	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
 }
 
 type instanaAgentClient struct {
-	k8sclient.Client
+	k8sClient k8sClient.Client
+}
+
+func (c *instanaAgentClient) DeleteAllInTimeLimit(
+	ctx context.Context,
+	objects []k8sClient.Object,
+	timeout time.Duration,
+	waitTime time.Duration,
+	opts ...k8sClient.DeleteOption,
+) result.Result[[]k8sClient.Object] {
+	return result.Of(
+		objects,
+		c.deleteAllInTimeLimit(ctx, objects, timeout, waitTime, opts...),
+	)
+}
+
+func (c *instanaAgentClient) Exists(
+	ctx context.Context,
+	gvk schema.GroupVersionKind,
+	key k8sClient.ObjectKey,
+) result.Result[bool] {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+
+	res := c.GetAsResult(ctx, key, obj)
+
+	return result.Map(res, wasRetrieved).Recover(ifNotFound)
+}
+
+func (c *instanaAgentClient) Get(
+	ctx context.Context,
+	key types.NamespacedName,
+	obj k8sClient.Object,
+	opts ...k8sClient.GetOption,
+) error {
+	return c.k8sClient.Get(ctx, key, obj, opts...)
+}
+
+func (c *instanaAgentClient) Patch(
+	ctx context.Context,
+	obj k8sClient.Object,
+	patch k8sClient.Patch,
+	opts ...k8sClient.PatchOption,
+) error {
+	return c.k8sClient.Patch(ctx, obj, patch, opts...)
+}
+
+func (c *instanaAgentClient) Apply(
+	ctx context.Context,
+	obj k8sClient.Object,
+	opts ...k8sClient.PatchOption,
+) result.Result[k8sClient.Object] {
+	obj.SetManagedFields(nil)
+	return result.Of(
+		obj,
+		c.k8sClient.Patch(
+			ctx,
+			obj,
+			k8sClient.Apply,
+			append(opts, k8sClient.ForceOwnership, k8sClient.FieldOwner(FieldOwnerName))...,
+		),
+	)
+}
+
+func (c *instanaAgentClient) GetAsResult(
+	ctx context.Context,
+	key k8sClient.ObjectKey,
+	obj k8sClient.Object,
+	opts ...k8sClient.GetOption,
+) result.Result[k8sClient.Object] {
+	return result.Of(obj, c.k8sClient.Get(ctx, key, obj, opts...))
+}
+
+func (c *instanaAgentClient) Status() k8sClient.SubResourceWriter {
+	return c.k8sClient.Status()
 }
 
 func (c *instanaAgentClient) objectsExist(
 	ctx context.Context,
-	objects []k8sclient.Object,
-) []BoolResult {
-	res := make([]BoolResult, 0, len(objects))
+	objects []k8sClient.Object,
+) []result.Result[bool] {
+	res := make([]result.Result[bool], 0, len(objects))
 
 	for _, obj := range objects {
-		objExistsRes := c.Exists(ctx, obj.GetObjectKind().GroupVersionKind(), k8sclient.ObjectKeyFromObject(obj)).
-			OnFailure(
-				func(err error) {
-					log := logf.FromContext(ctx)
-					log.Error(err, "failed to verify if resource has finished terminating", "Resource", obj)
-				},
-			)
+		objExistsRes := c.Exists(
+			ctx,
+			obj.GetObjectKind().GroupVersionKind(),
+			k8sClient.ObjectKeyFromObject(obj),
+		).OnFailure(
+			func(err error) {
+				log := logf.FromContext(ctx)
+				log.Error(err, "failed to verify if resource has finished terminating", "Resource", obj)
+			},
+		)
 		res = append(res, objExistsRes)
 	}
 
 	return res
 }
 
-func doNotExist(res BoolResult) bool {
-	return res.IsSuccess() && !res.ToOptional().Get()
-}
-
 func (c *instanaAgentClient) verifyDeletionStep(
 	ctx context.Context,
-	objects []k8sclient.Object,
+	objects []k8sClient.Object,
 	waitTime time.Duration,
 ) error {
 	objectsExistResults := c.objectsExist(ctx, objects)
@@ -91,7 +173,7 @@ func (c *instanaAgentClient) verifyDeletionStep(
 
 func (c *instanaAgentClient) verifyDeletion(
 	ctx context.Context,
-	objects []k8sclient.Object,
+	objects []k8sClient.Object,
 	waitTime time.Duration,
 ) error {
 	select {
@@ -104,14 +186,14 @@ func (c *instanaAgentClient) verifyDeletion(
 
 func (c *instanaAgentClient) deleteAll(
 	ctx context.Context,
-	objects []k8sclient.Object,
-	opts ...k8sclient.DeleteOption,
+	objects []k8sClient.Object,
+	opts ...k8sClient.DeleteOption,
 ) error {
 	errBuilder := multierror.NewMultiErrorBuilder()
 
 	for _, obj := range objects {
-		err := c.Delete(ctx, obj, opts...)
-		errBuilder.Add(k8sclient.IgnoreNotFound(err))
+		err := c.k8sClient.Delete(ctx, obj, opts...)
+		errBuilder.Add(k8sClient.IgnoreNotFound(err))
 	}
 
 	return errBuilder.Build()
@@ -119,10 +201,10 @@ func (c *instanaAgentClient) deleteAll(
 
 func (c *instanaAgentClient) deleteAllInTimeLimit(
 	ctx context.Context,
-	objects []k8sclient.Object,
+	objects []k8sClient.Object,
 	timeout time.Duration,
 	waitTime time.Duration,
-	opts ...k8sclient.DeleteOption,
+	opts ...k8sClient.DeleteOption,
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -132,62 +214,5 @@ func (c *instanaAgentClient) deleteAllInTimeLimit(
 		return c.verifyDeletion(ctx, objects, waitTime)
 	default:
 		return err
-	}
-}
-
-func (c *instanaAgentClient) DeleteAllInTimeLimit(
-	ctx context.Context,
-	objects []k8sclient.Object,
-	timeout time.Duration,
-	waitTime time.Duration,
-	opts ...k8sclient.DeleteOption,
-) MultiObjectResult {
-	return result.Of(objects, c.deleteAllInTimeLimit(ctx, objects, timeout, waitTime, opts...))
-}
-
-func wasRetrieved(_ k8sclient.Object) result.Result[bool] {
-	return result.OfSuccess(true)
-}
-
-func ifNotFound(err error) (bool, error) {
-	return false, k8sclient.IgnoreNotFound(err)
-}
-
-func (c *instanaAgentClient) Exists(
-	ctx context.Context,
-	gvk schema.GroupVersionKind,
-	key k8sclient.ObjectKey,
-) BoolResult {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(gvk)
-
-	res := c.GetAsResult(ctx, key, obj)
-
-	return result.Map(res, wasRetrieved).Recover(ifNotFound)
-}
-
-func (c *instanaAgentClient) Apply(
-	ctx context.Context, obj k8sclient.Object, opts ...k8sclient.PatchOption,
-) result.Result[k8sclient.Object] {
-	obj.SetManagedFields(nil)
-	return result.Of(
-		obj, c.Patch(
-			ctx,
-			obj,
-			k8sclient.Apply,
-			append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner(FieldOwnerName))...,
-		),
-	)
-}
-
-func (c *instanaAgentClient) GetAsResult(
-	ctx context.Context, key k8sclient.ObjectKey, obj k8sclient.Object, opts ...k8sclient.GetOption,
-) result.Result[k8sclient.Object] {
-	return result.Of(obj, c.Client.Get(ctx, key, obj, opts...))
-}
-
-func NewClient(k8sClient k8sclient.Client) InstanaAgentClient {
-	return &instanaAgentClient{
-		Client: k8sClient,
 	}
 }
