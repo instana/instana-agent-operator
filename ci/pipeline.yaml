@@ -341,8 +341,6 @@ jobs:
         - put: gh-status
           inputs: [ pipeline-source ]
           params: { state: failure, context: build/docker }
-      inputs: [ pipeline-source ]
-      params: { state: failure, context: build/docker }
     on_error:
         do:
         - put: slack-alert
