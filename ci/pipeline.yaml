@@ -12,6 +12,8 @@ groups:
     - end-to-end-tests
     - multiarch-operator-manifest-promotion
     - operator-olm-github-release
+  - name: public-pr-creation
+    jobs:
     - olm-release-pr-creation
   - name: build-test-images
     jobs:
@@ -52,6 +54,11 @@ resources:
       password: x-oauth-basic
       branch: main
       pool: k8s-clusters
+
+  - name: slack-alert
+    type: slack-notification
+    source:
+      url: ((tech-agent-delivery-notifications-slack-hook))
 
   - name: pipeline-source
     type: git
@@ -196,13 +203,25 @@ jobs:
       inputs: [ pipeline-source ]
       params: { state: success, context: self-update }
     on_failure:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: failure, context: self-update }
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: self-update }
     on_error:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: error, context: self-update }
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: self-update }
     on_abort:
       put: gh-status
       inputs: [ pipeline-source ]
@@ -235,6 +254,34 @@ jobs:
         file: pipeline-source/ci/pipeline.yaml
 
   - name: tag-release
+    on_success:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: success, context: tag-release }
+    on_failure:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: tag-release }
+    on_error:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: tag-release }
+    on_abort:
+      put: gh-status
+      inputs: [ pipeline-source ]
+      params: { state: error, context: tag-release }
     max_in_flight: 1
     plan:
       - get: pipeline-source
@@ -285,13 +332,27 @@ jobs:
       inputs: [ pipeline-source ]
       params: { state: success, context: build/docker }
     on_failure:
-      put: gh-status
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: failure, context: build/docker }
       inputs: [ pipeline-source ]
       params: { state: failure, context: build/docker }
     on_error:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: error, context: build/docker }
+        do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: error, context: build/docker }
     on_abort:
       put: gh-status
       inputs: [ pipeline-source ]
@@ -476,13 +537,25 @@ jobs:
               inputs: [ pipeline-source ]
               params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
             on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-21 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
             on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-21 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -543,13 +616,25 @@ jobs:
               inputs: [ pipeline-source ]
               params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
             on_failure:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-27 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
             on_error:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+              do:
+              - put: slack-alert
+                params:
+                  channel: '#tech-agent-delivery-notifications'
+                  text: |
+                    :x: the operator run-e2e-test-gke-27 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+              - put: gh-status
+                inputs: [ pipeline-source ]
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -754,13 +839,25 @@ jobs:
           inputs: [ pipeline-source ]
           params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_failure:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_error:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_abort:
           put: gh-status
           inputs: [ pipeline-source ]
@@ -924,13 +1021,25 @@ jobs:
           inputs: [ pipeline-source ]
           params: { state: success, context: operator-olm-github-release/build }
         on_failure:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: failure, context: operator-olm-github-release/build }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ pipeline-source ]
+              params: { state: failure, context: operator-olm-github-release/build }
         on_error:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: operator-olm-github-release/build }
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+            inputs: [ pipeline-source ]
+            params: { state: error, context: operator-olm-github-release/build }
         on_abort:
           put: gh-status
           inputs: [ pipeline-source ]
@@ -953,7 +1062,56 @@ jobs:
           steps:
             - do:
                 - get: community-operators-repo
-                - task: community-operator-commit-changes
+                - task: community-operators-rebase
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: community-operators-repo
+                    outputs:
+                      - name: community-operators-repo
+                    params:
+                      OWNER: k8s-operatorhub
+                      REPO: community-operators
+                      PUBLIC_REPO_LOCAL_NAME: community-operators-repo
+                    run:
+                      path: pipeline-source/ci/scripts/rebase-fork-branches.sh
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/community-operators-rebase }
+                  on_failure:
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/community-operators-rebase }
+                  on_error:
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
+                - task: community-operators-commit-changes
                   config:
                     platform: linux
                     image_resource:
@@ -972,63 +1130,42 @@ jobs:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: k8s-operatorhub
                       REPO: community-operators
+                      PUBLIC_REPO_LOCAL_NAME: community-operators-repo
+                      OPERATOR_NAME: instana-agent-operator
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          pushd community-operators-repo/operators/instana-agent-operator
-                          set -x
-                          git pull -r
-
-                          mkdir -p $OPERATOR_RELEASE_VERSION
-                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
-
-                          git config --global user.name "instanacd"
-                          git config --global user.email "instanacd@instana.com"
-
-                          git add .
-                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
-
-                          popd
+                      path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/community-operator-commit-changes }
+                    params: { state: success, context: olm-release-pr-creation/community-operators-commit-changes }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/community-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/community-operators-commit-changes }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operator-commit-changes }
+                    params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
                 - put: community-operators-repo
                   params:
                     repository: community-operators-repo
-                - task: community-operator-create-pr
+                - task: community-operators-create-pr
                   config:
                     platform: linux
                     image_resource:
@@ -1041,60 +1178,93 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
+                      - name: pipeline-source
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: k8s-operatorhub
                       REPO: community-operators
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION=$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          # Create the PR
-                          set -x
-                          curl \
-                            -fX POST \
-                            -H "Accept: application/vnd.github+json" \
-                            -H "Authorization: Bearer $GH_API_TOKEN" \
-                            https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                      path: pipeline-source/ci/scripts/create-pr.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/community-operator-create-pr }
+                    params: { state: success, context: olm-release-pr-creation/community-operators-create-pr }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/community-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/community-operators-create-pr }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/community-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/community-operators-create-pr }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operator-create-pr }
+                    params: { state: error, context: olm-release-pr-creation/community-operators-create-pr }
             - do:
                 - get: certified-operators-repo
-                - task: certified-operator-commit-changes
+                - task: certified-operators-rebase
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: certified-operators-repo
+                    outputs:
+                      - name: certified-operators-repo
+                    params:
+                      OWNER: k8s-operatorhub
+                      REPO: certified-operators
+                      PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
+                    run:
+                      path: pipeline-source/ci/scripts/rebase-fork-branches.sh
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/certified-operators-rebase }
+                  on_failure:
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/certified-operators-rebase }
+                  on_error:
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
+                - task: certified-operators-commit-changes
                   config:
                     platform: linux
                     image_resource:
@@ -1113,62 +1283,42 @@ jobs:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
+                      PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
+                      OPERATOR_NAME: instana-agent-operator
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          pushd certified-operators-repo/operators/instana-agent-operator
-                          set -x
-                          git pull -r
-                          mkdir -p $OPERATOR_RELEASE_VERSION
-                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
-
-                          git config --global user.name "instanacd"
-                          git config --global user.email "instanacd@instana.com"
-
-                          git add .
-                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
-
-                          popd
+                      path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/certified-operator-commit-changes }
+                    params: { state: success, context: olm-release-pr-creation/certified-operators-commit-changes }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/certified-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/certified-operators-commit-changes }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operator-commit-changes }
+                    params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
                 - put: certified-operators-repo
                   params:
                     repository: certified-operators-repo
-                - task: certified-operator-create-pr
+                - task: certified-operators-create-pr
                   config:
                     platform: linux
                     image_resource:
@@ -1181,58 +1331,92 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
+                      - name: pipeline-source
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-                          set -x
-                          # Create the PR
-                          curl \
-                            -fX POST \
-                            -H "Accept: application/vnd.github+json" \
-                            -H "Authorization: Bearer $GH_API_TOKEN" \
-                            https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                      path: pipeline-source/ci/scripts/create-pr.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/certified-operator-create-pr }
+                    params: { state: success, context: olm-release-pr-creation/certified-operators-create-pr }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/certified-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/certified-operators-create-pr }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/certified-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/certified-operators-create-pr }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operator-create-pr }
+                    params: { state: error, context: olm-release-pr-creation/certified-operators-create-pr }
             - do:
                 - get: redhat-marketplace-operators-repo
+                - task: redhat-marketplace-operators-rebase
+                  config:
+                    platform: linux
+                    image_resource:
+                      type: registry-image
+                      source:
+                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        tag: main
+                        username: _json_key
+                        password: ((project-berlin-tests-gcp-instana-qa))
+                    inputs:
+                      - name: instana-agent-operator-release
+                      - name: redhat-marketplace-operators-repo
+                    outputs:
+                      - name: redhat-marketplace-operators-repo
+                    params:
+                      OWNER: k8s-operatorhub
+                      REPO: redhat-marketplace-operators
+                      PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
+                    run:
+                      path: pipeline-source/ci/scripts/rebase-fork-branches.sh
+                  on_success:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                  on_failure:
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                  on_error:
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                  on_abort:
+                    put: gh-status
+                    inputs: [ pipeline-source ]
+                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
                 - task: redhat-marketplace-operator-commit-changes
                   config:
                     platform: linux
@@ -1252,70 +1436,34 @@ jobs:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
+                      PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
+                      OPERATOR_NAME: instana-agent-operator-rhmp
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-
-                          pushd redhat-marketplace-operators-repo/operators/instana-agent-operator-rhmp
-                          set -x
-                          git pull -r
-
-                          mkdir -p $OPERATOR_RELEASE_VERSION
-                          unzip -o $OLM_BUNDLE_ZIP_PATH -d $OPERATOR_RELEASE_VERSION
-
-                          pushd $OPERATOR_RELEASE_VERSION
-
-                          pushd manifests
-                          yq -i '.metadata.annotations += {"marketplace.openshift.io/remote-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/pricing?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
-                          yq -i '.metadata.annotations += {"marketplace.openshift.io/support-workflow": "https://marketplace.redhat.com/en-us/operators/instana-agent-operator-rhmp/support?utm_source=openshift_console"}' instana-agent-operator.clusterserviceversion.yaml
-                          mv instana-agent-operator.clusterserviceversion.yaml instana-agent-operator-rhmp.clusterserviceversion.yaml
-                          popd
-
-                          pushd metadata
-                          yq -i '.annotations."operators.operatorframework.io.bundle.package.v1" |= "instana-agent-operator-rhmp"' annotations.yaml
-                          popd
-
-                          popd
-
-                          git config --global user.name "instanacd"
-                          git config --global user.email "instanacd@instana.com"
-
-                          git add .
-                          git commit -s -m "$COMMIT_MESSAGE" --allow-empty
-
-                          popd
+                      path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_abort:
                     put: gh-status
                     inputs: [ pipeline-source ]
@@ -1336,48 +1484,27 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
+                      - name: pipeline-source
                     params:
                       GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
                     run:
-                      path: bash
-                      args:
-                        - -ce
-                        - |
-                          pushd instana-agent-operator-release
-
-                          OLM_BUNDLE_ZIP=$(ls olm*.zip)
-                          OPERATOR_RELEASE_VERSION="v$(echo $OLM_BUNDLE_ZIP | sed 's/olm-\(.*\)\.zip/\1/')"
-                          COMMIT_MESSAGE="operator instana-agent-operator-rhmp ($OPERATOR_RELEASE_VERSION)"
-                          OLM_BUNDLE_ZIP_PATH="$(pwd)/$OLM_BUNDLE_ZIP"
-
-                          echo "Check if the PR is already open"
-                          PR_LIST_JSON=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/pulls)
-                          EXISTING_PR_INFO_JSON=$(echo $PR_LIST_JSON | jq ".[] | select(.title==\"$COMMIT_MESSAGE\")")
-                          if [ ! -z "$EXISTING_PR_INFO_JSON" ]; then
-                            echo "PR already exists, exiting"
-                            exit 0
-                          fi
-                          echo "PR does not exist, creating a PR"
-
-                          popd
-                          set -x
-                          # Create the PR
-                          curl \
-                            -fX POST \
-                            -H "Accept: application/vnd.github+json" \
-                            -H "Authorization: Bearer $GH_API_TOKEN" \
-                            https://api.github.com/repos/$OWNER/$REPO/pulls \
-                            -d "{\"title\":\"$COMMIT_MESSAGE\",\"head\":\"instana:main\",\"base\":\"main\"}"
+                      path: pipeline-source/ci/scripts/create-pr.sh
                   on_success:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
                   on_failure:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
+                    do:
+                      - put: slack-alert
+                        params:
+                          channel: '#tech-agent-delivery-notifications'
+                          text: |
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
                   on_error:
                     put: gh-status
                     inputs: [ pipeline-source ]
