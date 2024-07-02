@@ -1038,8 +1038,8 @@ jobs:
                 text: |
                   :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
             - put: gh-status
-            inputs: [ pipeline-source ]
-            params: { state: error, context: operator-olm-github-release/build }
+              inputs: [ pipeline-source ]
+              params: { state: error, context: operator-olm-github-release/build }
         on_abort:
           put: gh-status
           inputs: [ pipeline-source ]
