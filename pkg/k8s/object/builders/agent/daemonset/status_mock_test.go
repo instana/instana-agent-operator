@@ -25,6 +25,7 @@ import (
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 	gomock "go.uber.org/mock/gomock"
+	"k8s.io/apimachinery/pkg/types"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -78,6 +79,18 @@ func (m *MockAgentStatusManager) SetAgentConfigMap(agentConfigMap client.ObjectK
 func (mr *MockAgentStatusManagerMockRecorder) SetAgentConfigMap(agentConfigMap any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAgentConfigMap", reflect.TypeOf((*MockAgentStatusManager)(nil).SetAgentConfigMap), agentConfigMap)
+}
+
+// SetAgentConfigSecret implements status.AgentStatusManager.
+func (m *MockAgentStatusManager) SetAgentConfigSecret(agentConfigSecret types.NamespacedName) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetAgentConfigSecret", agentConfigSecret)
+}
+
+// SetAgentConfigSecret indicates an expected call of SetAgentConfigSecret.
+func (mr *MockAgentStatusManagerMockRecorder) SetAgentConfigSecret(agentConfigSecret any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAgentConfigSecret", reflect.TypeOf((*MockAgentStatusManager)(nil).SetAgentConfigSecret), agentConfigSecret)
 }
 
 // SetAgentOld mocks base method.
