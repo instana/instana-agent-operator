@@ -199,10 +199,9 @@ func (v *volumeBuilder) configVolume() optional.Optional[VolumeWithMount] {
 			Volume: corev1.Volume{
 				Name: volumeName,
 				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: v.Name,
-						},
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  v.Name + "-config",
+						DefaultMode: pointer.To[int32](0440),
 					},
 				},
 			},

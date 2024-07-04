@@ -237,10 +237,9 @@ func TestConfigVolume(t *testing.T) {
 		{
 			Name: "config",
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: agentName,
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  agentName + "-config",
+					DefaultMode: pointer.To[int32](0440),
 				},
 			},
 		},

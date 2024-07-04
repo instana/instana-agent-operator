@@ -100,6 +100,7 @@ func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 }
 
 func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	// TODO: determine which volumes needs to be mounted for additional-backends
 	return d.VolumeBuilder.Build(
 		volume.DevVolume,
 		volume.RunVolume,
