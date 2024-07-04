@@ -271,8 +271,6 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/helpers_mock_test.go --package containers_instana_io_secret ${MOCKGEN_ARGS}
 	mockgen --source ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/docker_config_json.go --destination ./pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret/docker_config_json_mock_test.go --package containers_instana_io_secret ${MOCKGEN_ARGS}
 
-	mockgen --source ./pkg/k8s/operator/status/status.go --destination ./pkg/k8s/object/builders/agent/configmap/status_mock_test.go --package configmap ${MOCKGEN_ARGS}
-
 	mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget/helpers_mock_test.go --package poddisruptionbudget ${MOCKGEN_ARGS}
 	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget/pod_selector_mock_test.go --package poddisruptionbudget ${MOCKGEN_ARGS}
 

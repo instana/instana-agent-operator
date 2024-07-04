@@ -63,7 +63,6 @@ type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
 	SetAgentOld(agent *instanav1.InstanaAgent)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
-	SetAgentConfigMap(agentConfigMap client.ObjectKey)
 	SetAgentConfigSecret(agentConfigSecret client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
@@ -76,7 +75,6 @@ type agentStatusManager struct {
 
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
-	agentConfigMap      client.ObjectKey
 	agentConfigSecret   client.ObjectKey
 }
 
@@ -92,10 +90,6 @@ func (a *agentStatusManager) AddAgentDaemonset(agentDaemonset client.ObjectKey) 
 
 func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey) {
 	a.k8sSensorDeployment = k8sSensorDeployment
-}
-
-func (a *agentStatusManager) SetAgentConfigMap(agentConfigMap client.ObjectKey) {
-	a.agentConfigMap = agentConfigMap
 }
 
 func (a *agentStatusManager) SetAgentConfigSecret(agentConfigSecret types.NamespacedName) {
@@ -137,12 +131,6 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 	ds := a.k8sClient.GetAsResult(ctx, a.agentDaemonsets[0], &appsv1.DaemonSet{})
 
 	return result.Map(ds, toResourceInfo)
-}
-
-func (a *agentStatusManager) getConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
-	cm := a.k8sClient.GetAsResult(ctx, a.agentConfigMap, &corev1.ConfigMap{})
-
-	return result.Map(cm, toResourceInfo)
 }
 
 func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
@@ -387,12 +375,6 @@ func setStatusDotDaemonset(agentNew *instanav1.InstanaAgent) func(ds instanav1.R
 	}
 }
 
-func setStatusDotConfigMap(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
-	return func(cm instanav1.ResourceInfo) {
-		agentNew.Status.ConfigMap = cm
-	}
-}
-
 func setStatusDotConfigSecret(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
 	return func(cm instanav1.ResourceInfo) {
 		agentNew.Status.ConfigSecret = cm
@@ -433,10 +415,6 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	a.getDaemonSet(ctx).
 		OnSuccess(setStatusDotDaemonset(agentNew)).
-		OnFailure(errBuilder.AddSingle)
-
-	a.getConfigMap(ctx).
-		OnSuccess(setStatusDotConfigMap(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
 	a.getConfigSecret(ctx).

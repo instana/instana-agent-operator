@@ -116,7 +116,7 @@ type DeprecatedInstanaAgentStatus struct {
 
 	OldVersionsUpdated bool `json:"oldVersionsUpdated,omitempty"`
 
-	ConfigMap       ResourceInfo            `json:"configmap,omitempty"`
+	ConfigMap       ResourceInfo            `json:"configmap,omitempty"` // no longer present, but keep it in the struct for backwards-compatibility
 	DaemonSet       ResourceInfo            `json:"daemonset,omitempty"`
 	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
 }

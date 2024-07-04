@@ -68,16 +68,17 @@ type object struct {
 
 // agent resources
 var (
-	agentConfigMap = object{
+	agentConfigSecret = object{
 		gvk: schema.GroupVersionKind{
 			Version: "v1",
-			Kind:    "ConfigMap",
+			Kind:    "Secret",
 		},
 		key: client.ObjectKey{
-			Name:      instanaAgentName,
+			Name:      instanaAgentName + "-config",
 			Namespace: instanaAgentNamespace,
 		},
 	}
+
 	agentDaemonset = object{
 		gvk: schema.GroupVersionKind{
 			Group:   "apps",
@@ -337,7 +338,7 @@ var _ = Describe(
 					"the controller should create all of the expected resources", func() {
 						Eventually(
 							allExist(
-								agentConfigMap,
+								agentConfigSecret,
 								agentDaemonset,
 								agentHeadlessService,
 								agentService,
@@ -376,7 +377,7 @@ var _ = Describe(
 					"the controller should update the resources", func() {
 						Eventually(
 							allExist(
-								agentConfigMap,
+								agentConfigSecret,
 								agentDaemonset,
 								agentHeadlessService,
 								agentService,
@@ -417,7 +418,7 @@ var _ = Describe(
 					"the controller should delete all of the expected resources", func() {
 						Eventually(
 							noneExist(
-								agentConfigMap,
+								agentConfigSecret,
 								agentDaemonset,
 								agentHeadlessService,
 								agentService,

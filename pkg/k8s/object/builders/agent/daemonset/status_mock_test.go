@@ -69,18 +69,6 @@ func (mr *MockAgentStatusManagerMockRecorder) AddAgentDaemonset(agentDaemonset a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAgentDaemonset", reflect.TypeOf((*MockAgentStatusManager)(nil).AddAgentDaemonset), agentDaemonset)
 }
 
-// SetAgentConfigMap mocks base method.
-func (m *MockAgentStatusManager) SetAgentConfigMap(agentConfigMap client.ObjectKey) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetAgentConfigMap", agentConfigMap)
-}
-
-// SetAgentConfigMap indicates an expected call of SetAgentConfigMap.
-func (mr *MockAgentStatusManagerMockRecorder) SetAgentConfigMap(agentConfigMap any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAgentConfigMap", reflect.TypeOf((*MockAgentStatusManager)(nil).SetAgentConfigMap), agentConfigMap)
-}
-
 // SetAgentConfigSecret implements status.AgentStatusManager.
 func (m *MockAgentStatusManager) SetAgentConfigSecret(agentConfigSecret types.NamespacedName) {
 	m.ctrl.T.Helper()
