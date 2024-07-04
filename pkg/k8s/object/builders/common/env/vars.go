@@ -191,6 +191,15 @@ func (e *envBuilder) configPathEnv() optional.Optional[corev1.EnvVar] {
 	)
 }
 
+func (e *envBuilder) entrypointSkipBackendTemplateGeneration() optional.Optional[corev1.EnvVar] {
+	return optional.Of(
+		corev1.EnvVar{
+			Name:  "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION",
+			Value: "true",
+		},
+	)
+}
+
 // From a ConfigMap
 
 func (e *envBuilder) backendEnv() optional.Optional[corev1.EnvVar] {

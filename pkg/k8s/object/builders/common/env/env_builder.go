@@ -53,6 +53,7 @@ const (
 	BackendURLEnv
 	NoProxyEnv
 	ConfigPathEnv
+	EntrypointSkipBackendTemplateGeneration
 	BackendEnv
 	InstanaAgentKeyEnv
 	AgentKeyEnv
@@ -121,6 +122,8 @@ func (e *envBuilder) getBuilder(envVar EnvVar) func() optional.Optional[corev1.E
 		return e.noProxyEnv
 	case ConfigPathEnv:
 		return e.configPathEnv
+	case EntrypointSkipBackendTemplateGeneration:
+		return e.entrypointSkipBackendTemplateGeneration
 	case BackendEnv:
 		return e.backendEnv
 	case InstanaAgentKeyEnv:
