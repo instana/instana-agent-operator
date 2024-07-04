@@ -152,7 +152,7 @@ func (c *secretBuilder) getData() map[string][]byte {
 		backendLines = append(backendLines, keyEqualsValue("proxyUseDNS", "true"))
 	}
 
-	res["additional-backend-"+strconv.Itoa(1)] = []byte(strings.Join(backendLines, "\n"))
+	res["com.instana.agent.main.sender.Backend-1.cfg"] = []byte(strings.Join(backendLines, "\n"))
 
 	for i, backend := range c.Spec.Agent.AdditionalBackends {
 		lines := make([]string, 0, 10)
@@ -193,7 +193,7 @@ func (c *secretBuilder) getData() map[string][]byte {
 			lines = append(lines, keyEqualsValue("proxyUseDNS", "true"))
 		}
 
-		res["additional-backend-"+strconv.Itoa(i+2)] = []byte(strings.Join(lines, "\n"))
+		res["com.instana.agent.main.sender.Backend-"+strconv.Itoa(i+2)+".cfg"] = []byte(strings.Join(lines, "\n"))
 	}
 
 	return res

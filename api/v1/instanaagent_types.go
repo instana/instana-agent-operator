@@ -129,6 +129,7 @@ type SemanticVersion struct {
 }
 
 type InstanaAgentStatus struct {
+	ConfigSecret                 ResourceInfo `json:"configsecret,omitempty"`
 	DeprecatedInstanaAgentStatus `json:",inline"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge

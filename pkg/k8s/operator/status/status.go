@@ -145,6 +145,12 @@ func (a *agentStatusManager) getConfigMap(ctx context.Context) result.Result[ins
 	return result.Map(cm, toResourceInfo)
 }
 
+func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+	cm := a.k8sClient.GetAsResult(ctx, a.agentConfigSecret, &corev1.Secret{})
+
+	return result.Map(cm, toResourceInfo)
+}
+
 func truncateMessage(message string) string {
 	const limit = 32768
 
@@ -387,6 +393,12 @@ func setStatusDotConfigMap(agentNew *instanav1.InstanaAgent) func(cm instanav1.R
 	}
 }
 
+func setStatusDotConfigSecret(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
+	return func(cm instanav1.ResourceInfo) {
+		agentNew.Status.ConfigSecret = cm
+	}
+}
+
 func setStatusDotOperatorVersion(agentNew *instanav1.InstanaAgent) func(version *semver.Version) {
 	return func(version *semver.Version) {
 		agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
@@ -425,6 +437,10 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	a.getConfigMap(ctx).
 		OnSuccess(setStatusDotConfigMap(agentNew)).
+		OnFailure(errBuilder.AddSingle)
+
+	a.getConfigSecret(ctx).
+		OnSuccess(setStatusDotConfigSecret(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
 	if a.updateWasPerformed() {
