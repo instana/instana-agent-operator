@@ -127,12 +127,18 @@ func (c *secretBuilder) getData() map[string][]byte {
 		func(proxyHost string) {
 			backendLines = append(
 				backendLines,
-				keyEqualsValue("proxy.type", "HTTP"),
+				keyEqualsValue("proxy.type", optional.Of(c.Spec.Agent.ProxyProtocol).GetOrDefault("HTTP")),
 				keyEqualsValue("proxy.host", proxyHost),
 				keyEqualsValue(
 					"proxy.port", optional.Of(c.Spec.Agent.ProxyPort).GetOrDefault("80"),
 				),
 			)
+		},
+	)
+
+	optional.Of(c.Spec.Agent.ProxyUseDNS).IfPresent(
+		func(useDns bool) {
+			backendLines = append(backendLines, keyEqualsValue("proxy.dns", "true"))
 		},
 	)
 
@@ -168,12 +174,18 @@ func (c *secretBuilder) getData() map[string][]byte {
 			func(proxyHost string) {
 				lines = append(
 					lines,
-					keyEqualsValue("proxy.type", "HTTP"),
+					keyEqualsValue("proxy.type", optional.Of(c.Spec.Agent.ProxyProtocol).GetOrDefault("HTTP")),
 					keyEqualsValue("proxy.host", proxyHost),
 					keyEqualsValue(
 						"proxy.port", optional.Of(c.Spec.Agent.ProxyPort).GetOrDefault("80"),
 					),
 				)
+			},
+		)
+
+		optional.Of(c.Spec.Agent.ProxyUseDNS).IfPresent(
+			func(useDns bool) {
+				lines = append(lines, keyEqualsValue("proxy.dns", "true"))
 			},
 		)
 
