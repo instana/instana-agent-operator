@@ -119,11 +119,11 @@ spec:
     create: true
 
   opentelemetry:
-   enabled: false # legacy setting, will only enable grpc, defaults to false
+  # enabled: false # legacy setting, will only enable grpc, defaults to false
    grpc:
-     enabled: false # takes precedence over legacy settings above, defaults to true if "grpc:" is present
+     enabled: true # takes precedence over legacy settings above, defaults to true if "grpc:" is present
    http:
-     enabled: false # allows to enable http endpoints, defaults to true if "http:" is present
+     enabled: true # allows to enable http endpoints, defaults to true if "http:" is present
 
   prometheus:
     remoteWrite:
