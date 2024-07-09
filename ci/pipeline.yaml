@@ -1078,6 +1078,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
+                      - name: pipeline-source
                     outputs:
                       - name: community-operators-repo
                     params:
@@ -1231,6 +1232,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
+                      - name: pipeline-source
                     outputs:
                       - name: certified-operators-repo
                     params:
@@ -1384,6 +1386,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
+                      - name: pipeline-source
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
