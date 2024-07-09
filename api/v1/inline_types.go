@@ -370,7 +370,7 @@ type OpenTelemetry struct {
 func (otlp OpenTelemetry) GrpcIsEnabled() bool {
 	switch otlp.GRPC {
 	case nil:
-		return pointer.DerefOrEmpty(otlp.Enabled.Enabled)
+		return true
 	default:
 		return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
 	}
@@ -379,7 +379,7 @@ func (otlp OpenTelemetry) GrpcIsEnabled() bool {
 func (otlp OpenTelemetry) HttpIsEnabled() bool {
 	switch otlp.HTTP {
 	case nil:
-		return false
+		return true
 	default:
 		return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
 	}
