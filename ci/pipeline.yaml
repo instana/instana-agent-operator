@@ -44,6 +44,11 @@ resource_types:
     type: registry-image
     source:
       repository: gstack/keyval-resource
+  - name: slack-notification
+    type: registry-image
+    source:
+      repository: cfcommunity/slack-notification-resource
+      tag: latest
 
 resources:
   - name: test-clusters
@@ -66,7 +71,7 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
       paths:
-        - ci/
+        - ci/**
 
   - name: agent-operator-git-source
     type: git
