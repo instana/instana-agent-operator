@@ -1088,13 +1088,13 @@ jobs:
                       path: pipeline-source/ci/scripts/rebase-fork-branches.sh
                   on_success:
                     do:
-                     - put: gh-status
-                      inputs: [ pipeline-source ]
-                      params: { state: success, context: olm-release-pr-creation/community-operators-rebase }
-                    - put: community-operators-repo
-                      params:
-                        repository: community-operators-repo
-                        force: true
+                      - put: gh-status
+                        inputs: [ pipeline-source ]
+                        params: { state: success, context: olm-release-pr-creation/community-operators-rebase }
+                      - put: community-operators-repo
+                        params:
+                          repository: community-operators-repo
+                          force: true
                   on_failure:
                     do:
                       - put: slack-alert
