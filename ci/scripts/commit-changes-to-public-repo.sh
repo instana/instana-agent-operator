@@ -37,7 +37,7 @@ popd
 pushd "$PUBLIC_REPO_LOCAL_NAME"/operators/"$OPERATOR_NAME"
 
 echo "Creating a new feature branch from the upstream main"
-git remote add upstream https://github.com/"$OWNER"/"$REPO".git
+git remote add upstream https://github.com/"$OWNER"/"$REPO".git 2>/dev/null || echo "Remote upstream already exists"
 git fetch upstream
 git checkout main
 git reset --hard upstream/main

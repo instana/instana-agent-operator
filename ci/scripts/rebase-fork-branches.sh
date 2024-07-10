@@ -25,11 +25,12 @@ rebase_branches() {
     echo "Rebasing the forked main and the found PR branches from the upstream main branch"
     pushd "$PUBLIC_REPO_LOCAL_NAME"
     echo "Rebasing the forked main"
-    git remote add upstream https://github.com/"$OWNER"/"$REPO".git
+    git config --global user.name "instanacd"
+    git config --global user.email "instanacd@instana.com"
+    git remote add upstream https://github.com/"$OWNER"/"$REPO".git 2>/dev/null || echo "Remote upstream already exists"
     git fetch upstream
     git checkout main
     git rebase upstream/main
-    git push --force
     echo "Rebase of the forked main branch was successful"
 
     echo "Rebasing the feature branches"
@@ -37,7 +38,6 @@ rebase_branches() {
         echo "Rebasing PR branch $branch"
         git checkout "$branch"
         git rebase main
-        git push --force
         echo "Rebase of PR branch $branch was successful"
     done
     popd
