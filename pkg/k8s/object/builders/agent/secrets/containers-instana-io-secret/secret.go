@@ -18,19 +18,23 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var log = logf.Log.WithName("containers-instana-io-secret-builder")
 
 type secretBuilder struct {
 	*instanav1.InstanaAgent
 
 	helpers.Helpers
 	dockerConfigMarshaler
+	keysSecret *corev1.Secret
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.InstanaAgent, keysSecret *corev1.Secret) builder.ObjectBuilder {
 	return &secretBuilder{
-		InstanaAgent: agent,
-
+		InstanaAgent:          agent,
+		keysSecret:            keysSecret,
 		Helpers:               helpers.NewHelpers(agent),
 		dockerConfigMarshaler: json_or_die.NewJsonOrDie[DockerConfigJson](),
 	}
@@ -54,8 +58,23 @@ func (s *secretBuilder) Build() optional.Optional[client.Object] {
 }
 
 func (s *secretBuilder) buildDockerConfigJson() []byte {
-	password := optional.Of(s.Spec.Agent.DownloadKey).GetOrDefault(s.Spec.Agent.Key)
-	auth := fmt.Sprintf("_:%s", password)
+	// prefer downloadKey over key property
+	// prefer referenced secret over custom resource property
+	var downloadKey string = ""
+	if downloadKeyValueFromSecret, ok := s.keysSecret.Data["downloadKey"]; ok {
+		downloadKey = string(downloadKeyValueFromSecret)
+	} else if keyValueFromSecret, ok := s.keysSecret.Data["key"]; ok {
+		downloadKey = string(keyValueFromSecret)
+	} else if s.Spec.Agent.DownloadKey != "" {
+		downloadKey = s.Spec.Agent.DownloadKey
+	} else if s.Spec.Agent.Key != "" {
+		downloadKey = s.Spec.Agent.Key
+	} else {
+		// we are lacking any download key information
+		log.Error(fmt.Errorf("cannot extract download key from secret or custom resource"), "No download key available")
+	}
+
+	auth := fmt.Sprintf("_:%s", downloadKey)
 
 	json := DockerConfigJson{
 		Auths: map[string]DockerConfigAuth{
