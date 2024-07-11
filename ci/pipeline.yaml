@@ -1146,14 +1146,14 @@ jobs:
                   on_success:
                     do:
                       - load_var: community-operators-branch-name
-                        file: community-operators-branch-name
+                        file: ./community-operators-branch-name.txt
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: success, context: olm-release-pr-creation/community-operators-commit-changes }
                       - put: community-operators-repo
                         params:
                           repository: community-operators-repo
-                          branch: ((community-operators-branch-name))
+                          branch: ((.:community-operators-branch-name))
                           rebase: true
                   on_failure:
                     do:
@@ -1311,14 +1311,14 @@ jobs:
                   on_success:
                     do:
                       - load_var: certified-operators-branch-name
-                        file: certified-operators-branch-name
+                        file: ./certified-operators-branch-name.txt
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: success, context: olm-release-pr-creation/certified-operators-commit-changes }
                       - put: certified-operators-repo
                         params:
                           repository: certified-operators-repo
-                          branch: ((certified-operators-branch-name))
+                          branch: ((.:certified-operators-branch-name))
                           rebase: true
                   on_failure:
                     do:
@@ -1476,14 +1476,14 @@ jobs:
                   on_success:
                     do:
                       - load_var: redhat-marketplace-operators-branch-name
-                        file: redhat-marketplace-operators-branch-name
+                        file: ./redhat-marketplace-operators-branch-name.txt
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                       - put: redhat-marketplace-operators-repo
                         params:
                           repository: redhat-marketplace-operators-repo
-                          branch: ((redhat-marketplace-operators-branch-name))
+                          branch: ((.:redhat-marketplace-operators-branch-name))
                           rebase: true
                   on_failure:
                     do:
