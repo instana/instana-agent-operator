@@ -6,6 +6,8 @@
 package instana_agent_config
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -21,7 +23,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/or_die"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var log = logf.Log.WithName("instana-agent-config-secret-builder")
 
 type secretBuilder struct {
 	*instanav1.InstanaAgent
@@ -73,17 +78,13 @@ func (c *secretBuilder) Build() (res optional.Optional[client.Object]) {
 func (c *secretBuilder) getData() map[string][]byte {
 	res := make(map[string][]byte, 2)
 
-	optional.Of(c.Spec.Cluster.Name).IfPresent(
-		func(clusterName string) {
-			res["cluster_name"] = []byte(clusterName)
-		},
-	)
+	if c.Spec.Cluster.Name != "" {
+		res["cluster_name"] = []byte(c.Spec.Cluster.Name)
+	}
 
-	optional.Of(c.Spec.Agent.ConfigurationYaml).IfPresent(
-		func(configYaml string) {
-			res["configuration.yaml"] = []byte(configYaml)
-		},
-	)
+	if c.Spec.Agent.ConfigurationYaml != "" {
+		res["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
+	}
 
 	if otlp := c.Spec.OpenTelemetry; otlp.IsEnabled() {
 		otlpPluginSettings := map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp}
@@ -118,116 +119,116 @@ func (c *secretBuilder) getData() map[string][]byte {
 		),
 	)
 
-	backendLines := make([]string, 0, 10)
-	backendLines = append(
-		backendLines,
-		keyEqualsValue("host", c.Spec.Agent.EndpointHost),
-		keyEqualsValue("port", optional.Of(c.Spec.Agent.EndpointPort).GetOrDefault("443")),
-		keyEqualsValue("protocol", "HTTP/2"),
-	)
+	// appending the backend config
+	backendConfig, _ := getBackendConfig(c)
 
-	if c.Spec.Agent.Key == "" {
-		// Agent key was retrieved from external secret
-		agentKey := c.keysSecret.Data["key"]
-		backendLines = append(
-			backendLines,
-			keyEqualsValue("key", string(agentKey)),
-		)
-	} else {
-		// Agent key was directly defined on the CRD
-		backendLines = append(
-			backendLines,
-			keyEqualsValue("key", c.Spec.Agent.Key),
-		)
+	for k, v := range backendConfig {
+		res[k] = v
 	}
 
-	optional.Of(c.Spec.Agent.ProxyHost).IfPresent(
-		func(proxyHost string) {
-			backendLines = append(
-				backendLines,
-				keyEqualsValue("proxy.type", optional.Of(c.Spec.Agent.ProxyProtocol).GetOrDefault("HTTP")),
-				keyEqualsValue("proxy.host", proxyHost),
-				keyEqualsValue(
-					"proxy.port", optional.Of(c.Spec.Agent.ProxyPort).GetOrDefault("80"),
-				),
-			)
-		},
-	)
+	return res
+}
 
-	optional.Of(c.Spec.Agent.ProxyUseDNS).IfPresent(
-		func(useDns bool) {
-			backendLines = append(backendLines, keyEqualsValue("proxy.dns", "true"))
-		},
-	)
+func getBackendConfig(c *secretBuilder) (map[string][]byte, error) {
+	res := make(map[string][]byte, 2)
 
-	optional.Of(c.Spec.Agent.ProxyUser).IfPresent(
-		func(proxyUser string) {
-			backendLines = append(backendLines, keyEqualsValue("proxy.user", proxyUser))
-		},
-	)
-
-	optional.Of(c.Spec.Agent.ProxyPassword).IfPresent(
-		func(proxyPassword string) {
-			backendLines = append(backendLines, keyEqualsValue("proxy.password", proxyPassword))
-		},
-	)
-
-	if c.Spec.Agent.ProxyUseDNS {
-		backendLines = append(backendLines, keyEqualsValue("proxyUseDNS", "true"))
-	}
-
-	res["com.instana.agent.main.sender.Backend-1.cfg"] = []byte(strings.Join(backendLines, "\n"))
-
+	// render additional backends configuration
 	for i, backend := range c.Spec.Agent.AdditionalBackends {
 		lines := make([]string, 0, 10)
+		if backend.Key == "" || backend.EndpointHost == "" {
+			// skip backend as it would be broken anyways, should be caught by the schema validator anyways, but better be safe than sorry
+			log.Error(fmt.Errorf("key or endpointHost undefined"), "skipping additional backend due to missing values")
+			continue
+		}
 		lines = append(
 			lines,
 			keyEqualsValue("host", backend.EndpointHost),
-			keyEqualsValue("port", optional.Of(backend.EndpointPort).GetOrDefault("443")),
+			keyEqualsValueWithDefault("port", backend.EndpointPort, "443"),
 			keyEqualsValue("protocol", "HTTP/2"),
 			keyEqualsValue("key", backend.Key),
 		)
 
-		optional.Of(c.Spec.Agent.ProxyHost).IfPresent(
-			func(proxyHost string) {
-				lines = append(
-					lines,
-					keyEqualsValue("proxy.type", optional.Of(c.Spec.Agent.ProxyProtocol).GetOrDefault("HTTP")),
-					keyEqualsValue("proxy.host", proxyHost),
-					keyEqualsValue(
-						"proxy.port", optional.Of(c.Spec.Agent.ProxyPort).GetOrDefault("80"),
-					),
-				)
-			},
-		)
-
-		optional.Of(c.Spec.Agent.ProxyUseDNS).IfPresent(
-			func(useDns bool) {
-				lines = append(lines, keyEqualsValue("proxy.dns", "true"))
-			},
-		)
-
-		optional.Of(c.Spec.Agent.ProxyUser).IfPresent(
-			func(proxyUser string) {
-				lines = append(lines, keyEqualsValue("proxy.user", proxyUser))
-			},
-		)
-
-		optional.Of(c.Spec.Agent.ProxyPassword).IfPresent(
-			func(proxyPassword string) {
-				lines = append(lines, keyEqualsValue("proxy.password", proxyPassword))
-			},
-		)
-
-		if c.Spec.Agent.ProxyUseDNS {
-			lines = append(lines, keyEqualsValue("proxyUseDNS", "true"))
+		if c.Spec.Agent.ProxyHost != "" {
+			lines = append(
+				lines,
+				keyEqualsValueWithDefault("proxy.type", c.Spec.Agent.ProxyProtocol, "HTTP"),
+				keyEqualsValue("proxy.host", c.Spec.Agent.ProxyHost),
+				keyEqualsValueWithDefault("proxy.port", c.Spec.Agent.ProxyPort, "80"),
+			)
 		}
 
-		res["com.instana.agent.main.sender.Backend-"+strconv.Itoa(i+2)+".cfg"] = []byte(strings.Join(lines, "\n"))
+		if c.Spec.Agent.ProxyUseDNS {
+			lines = append(lines, keyEqualsValue("proxy.dns", "true"))
+		}
+
+		if c.Spec.Agent.ProxyUser != "" && c.Spec.Agent.ProxyPassword != "" {
+			lines = append(
+				lines,
+				keyEqualsValue("proxy.user", c.Spec.Agent.ProxyUser),
+				keyEqualsValue("proxy.password", c.Spec.Agent.ProxyPassword),
+			)
+		}
+
+		res["com.instana.agent.main.sender.Backend-"+strconv.Itoa(i+2)+".cfg"] = []byte(strings.Join(lines, "\n") + "\n")
 	}
 
-	return res
+	if c.Spec.Agent.EndpointHost == "" {
+		// We don't have sufficient information to produce this backend, an endpointHost is required, skip rendering and return
+		return res, errors.New("spec.Agent.EndpointHost is not defined and required to render the given backend config")
+	}
 
+	var agentKey string
+	if keyValueFromSecret, ok := c.keysSecret.Data["key"]; ok {
+		agentKey = string(keyValueFromSecret)
+		if c.Spec.Agent.Key != "" {
+			log.V(1).Info("keysSecret and spec.agent.key are both defined, preferring keysSecret")
+		}
+	} else {
+		if c.Spec.Agent.Key != "" {
+			agentKey = string(c.Spec.Agent.Key)
+		} else {
+			err := errors.New("keysSecret does not contain key attribute and spec.Agent.Key is not defined either")
+			log.Error(err, "Missing agent key, skipping to render main backend")
+			return res, err
+		}
+	}
+
+	backendLines := make([]string, 0, 10)
+	backendLines = append(
+		backendLines,
+		keyEqualsValue("host", c.Spec.Agent.EndpointHost),
+		keyEqualsValueWithDefault("port", c.Spec.Agent.EndpointPort, "443"),
+		keyEqualsValue("protocol", "HTTP/2"),
+	)
+
+	backendLines = append(
+		backendLines,
+		keyEqualsValue("key", string(agentKey)),
+	)
+
+	if c.Spec.Agent.ProxyHost != "" {
+		backendLines = append(
+			backendLines,
+			keyEqualsValueWithDefault("proxy.type", c.Spec.Agent.ProxyProtocol, "HTTP"),
+			keyEqualsValue("proxy.host", c.Spec.Agent.ProxyHost),
+			keyEqualsValueWithDefault("proxy.port", c.Spec.Agent.ProxyPort, "80"),
+		)
+	}
+
+	if c.Spec.Agent.ProxyUseDNS {
+		backendLines = append(backendLines, keyEqualsValue("proxy.dns", "true"))
+	}
+
+	if c.Spec.Agent.ProxyUser != "" {
+		backendLines = append(backendLines, keyEqualsValue("proxy.user", c.Spec.Agent.ProxyUser))
+	}
+
+	if c.Spec.Agent.ProxyPassword != "" {
+		backendLines = append(backendLines, keyEqualsValue("proxy.password", c.Spec.Agent.ProxyPassword))
+	}
+
+	res["com.instana.agent.main.sender.Backend-1.cfg"] = []byte(strings.Join(backendLines, "\n") + "\n")
+	return res, nil
 }
 
 func yamlOrDie(obj any) string {
@@ -239,6 +240,13 @@ func yamlOrDie(obj any) string {
 				},
 			),
 	)
+}
+
+func keyEqualsValueWithDefault(key string, value string, defaultValue string) string {
+	if value != "" {
+		return keyEqualsValue(key, value)
+	}
+	return keyEqualsValue(key, defaultValue)
 }
 
 func keyEqualsValue(key string, value string) string {
