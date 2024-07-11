@@ -29,6 +29,14 @@ type secretBuilder struct {
 	keysSecret    *corev1.Secret
 }
 
+func NewSecretBuilder(agent *instanav1.InstanaAgent, statusManager status.AgentStatusManager, keysSecret *corev1.Secret) builder.ObjectBuilder {
+	return &secretBuilder{
+		InstanaAgent:  agent,
+		statusManager: statusManager,
+		keysSecret:    keysSecret,
+	}
+}
+
 func (c *secretBuilder) ComponentName() string {
 	return constants.ComponentInstanaAgent
 }
@@ -37,19 +45,29 @@ func (c *secretBuilder) IsNamespaced() bool {
 	return true
 }
 
-func yamlOrDie(obj any) string {
-	return string(
-		or_die.New[[]byte]().
-			ResultOrDie(
-				func() ([]byte, error) {
-					return yaml.Marshal(obj)
-				},
-			),
-	)
-}
+func (c *secretBuilder) Build() (res optional.Optional[client.Object]) {
+	defer func() {
+		res.IfPresent(
+			func(cm client.Object) {
+				c.statusManager.SetAgentConfigSecret(client.ObjectKeyFromObject(cm))
+			},
+		)
+	}()
 
-func keyEqualsValue(key string, value string) string {
-	return key + "=" + value
+	return optional.Of[client.Object](
+		&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      c.Name + "-config",
+				Namespace: c.Namespace,
+			},
+			Data: c.getData(),
+			Type: corev1.SecretTypeOpaque,
+		},
+	)
 }
 
 func (c *secretBuilder) getData() map[string][]byte {
@@ -212,35 +230,17 @@ func (c *secretBuilder) getData() map[string][]byte {
 
 }
 
-func (c *secretBuilder) Build() (res optional.Optional[client.Object]) {
-	defer func() {
-		res.IfPresent(
-			func(cm client.Object) {
-				c.statusManager.SetAgentConfigSecret(client.ObjectKeyFromObject(cm))
-			},
-		)
-	}()
-
-	return optional.Of[client.Object](
-		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      c.Name + "-config",
-				Namespace: c.Namespace,
-			},
-			Data: c.getData(),
-			Type: corev1.SecretTypeOpaque,
-		},
+func yamlOrDie(obj any) string {
+	return string(
+		or_die.New[[]byte]().
+			ResultOrDie(
+				func() ([]byte, error) {
+					return yaml.Marshal(obj)
+				},
+			),
 	)
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent, statusManager status.AgentStatusManager, keysSecret *corev1.Secret) builder.ObjectBuilder {
-	return &secretBuilder{
-		InstanaAgent:  agent,
-		statusManager: statusManager,
-		keysSecret:    keysSecret,
-	}
+func keyEqualsValue(key string, value string) string {
+	return key + "=" + value
 }

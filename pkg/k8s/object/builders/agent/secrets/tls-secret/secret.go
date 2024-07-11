@@ -1,3 +1,8 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc. 2024
+*/
+
 package tls_secret
 
 import (
@@ -18,12 +23,29 @@ type secretBuilder struct {
 	helpers.Helpers
 }
 
-func (s *secretBuilder) IsNamespaced() bool {
-	return true
+func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &secretBuilder{
+		InstanaAgent: agent,
+
+		Helpers: helpers.NewHelpers(agent),
+	}
 }
 
 func (s *secretBuilder) ComponentName() string {
 	return constants.ComponentInstanaAgent
+}
+
+func (s *secretBuilder) IsNamespaced() bool {
+	return true
+}
+
+func (s *secretBuilder) Build() optional.Optional[client.Object] {
+	switch tls := s.Spec.Agent.TlsSpec; tls.SecretName == "" && len(tls.Key) > 0 && len(tls.Certificate) > 0 {
+	case true:
+		return optional.Of[client.Object](s.build())
+	default:
+		return optional.Empty[client.Object]()
+	}
 }
 
 func (s *secretBuilder) build() *corev1.Secret {
@@ -41,22 +63,5 @@ func (s *secretBuilder) build() *corev1.Secret {
 			corev1.TLSPrivateKeyKey: s.Spec.Agent.TlsSpec.Key,
 		},
 		Type: corev1.SecretTypeTLS,
-	}
-}
-
-func (s *secretBuilder) Build() optional.Optional[client.Object] {
-	switch tls := s.Spec.Agent.TlsSpec; tls.SecretName == "" && len(tls.Key) > 0 && len(tls.Certificate) > 0 {
-	case true:
-		return optional.Of[client.Object](s.build())
-	default:
-		return optional.Empty[client.Object]()
-	}
-}
-
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &secretBuilder{
-		InstanaAgent: agent,
-
-		Helpers: helpers.NewHelpers(agent),
 	}
 }

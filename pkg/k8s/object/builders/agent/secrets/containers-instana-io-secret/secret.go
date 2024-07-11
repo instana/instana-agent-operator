@@ -1,3 +1,8 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc. 2024
+*/
+
 package containers_instana_io_secret
 
 import (
@@ -22,12 +27,30 @@ type secretBuilder struct {
 	dockerConfigMarshaler
 }
 
-func (s *secretBuilder) IsNamespaced() bool {
-	return true
+func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &secretBuilder{
+		InstanaAgent: agent,
+
+		Helpers:               helpers.NewHelpers(agent),
+		dockerConfigMarshaler: json_or_die.NewJsonOrDie[DockerConfigJson](),
+	}
 }
 
 func (s *secretBuilder) ComponentName() string {
 	return constants.ComponentInstanaAgent
+}
+
+func (s *secretBuilder) IsNamespaced() bool {
+	return true
+}
+
+func (s *secretBuilder) Build() optional.Optional[client.Object] {
+	switch s.UseContainersSecret() {
+	case true:
+		return optional.Of[client.Object](s.build())
+	default:
+		return optional.Empty[client.Object]()
+	}
 }
 
 func (s *secretBuilder) buildDockerConfigJson() []byte {
@@ -59,23 +82,5 @@ func (s *secretBuilder) build() *corev1.Secret {
 			corev1.DockerConfigJsonKey: s.buildDockerConfigJson(),
 		},
 		Type: corev1.SecretTypeDockerConfigJson,
-	}
-}
-
-func (s *secretBuilder) Build() optional.Optional[client.Object] {
-	switch s.UseContainersSecret() {
-	case true:
-		return optional.Of[client.Object](s.build())
-	default:
-		return optional.Empty[client.Object]()
-	}
-}
-
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &secretBuilder{
-		InstanaAgent: agent,
-
-		Helpers:               helpers.NewHelpers(agent),
-		dockerConfigMarshaler: json_or_die.NewJsonOrDie[DockerConfigJson](),
 	}
 }

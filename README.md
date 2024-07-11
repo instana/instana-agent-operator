@@ -47,6 +47,14 @@ Developing (and running) the Operator is easiest in two ways:
    minikube start
    ```
 
+   Note: If you run on the kvm2 driver, make sure to have sufficient CPUs and Memory defined before starting minikube.
+
+   ```shell
+   minikube config set driver kvm2
+   minikube config set cpus 4
+   minikube config set memory 16384
+   ```
+
 2. Install the CRD by running `make install` at the root of the repository
 
    ```shell
