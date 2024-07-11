@@ -30,6 +30,8 @@ fi
 
 olm_bundle_zip_PATH="$(pwd)/$olm_bundle_zip"
 commit_message="$operator_public_pr_name ($operator_release_version)"
+new_release_branch=$OPERATOR_NAME-$operator_release_version
+echo "${new_release_branch}" > ../branch-name
 
 abort_if_pr_for_latest_version_exists
 popd
@@ -41,7 +43,7 @@ git remote add upstream https://github.com/"$OWNER"/"$REPO".git 2>/dev/null || e
 git fetch upstream
 git checkout main
 git reset --hard upstream/main
-git checkout -b "$OPERATOR_NAME-$operator_release_version"
+git checkout -b "$new_release_branch"
 echo "Creation of the new PR branch was successful"
 
 echo "commit_message=$commit_message"
