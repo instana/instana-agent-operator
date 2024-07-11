@@ -1145,12 +1145,16 @@ jobs:
                       path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     do:
+                      - load_var: branch-name
+                        file: branch-name
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: success, context: olm-release-pr-creation/community-operators-commit-changes }
                       - put: community-operators-repo
                         params:
                           repository: community-operators-repo
+                          branch: ((branch-name))
+                          rebase: true
                   on_failure:
                     do:
                       - put: slack-alert
@@ -1306,12 +1310,16 @@ jobs:
                       path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     do:
+                      - load_var: branch-name
+                        file: branch-name
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: success, context: olm-release-pr-creation/certified-operators-commit-changes }
                       - put: certified-operators-repo
                         params:
                           repository: certified-operators-repo
+                          branch: ((branch-name))
+                          rebase: true
                   on_failure:
                     do:
                       - put: slack-alert
@@ -1467,12 +1475,16 @@ jobs:
                       path: pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     do:
+                      - load_var: branch-name
+                        file: branch-name
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                       - put: redhat-marketplace-operators-repo
                         params:
                           repository: redhat-marketplace-operators-repo
+                          branch: ((branch-name))
+                          rebase: true
                   on_failure:
                     do:
                       - put: slack-alert
