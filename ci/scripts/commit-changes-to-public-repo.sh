@@ -31,7 +31,7 @@ fi
 olm_bundle_zip_PATH="$(pwd)/$olm_bundle_zip"
 commit_message="$operator_public_pr_name ($operator_release_version)"
 new_release_branch=$OPERATOR_NAME-$operator_release_version
-echo "${new_release_branch}" > ../branch-name
+echo "${new_release_branch}" > ../"${REPO}"-branch-name
 
 abort_if_pr_for_latest_version_exists
 popd
