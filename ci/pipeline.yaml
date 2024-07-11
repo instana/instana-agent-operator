@@ -1242,7 +1242,7 @@ jobs:
                     outputs:
                       - name: certified-operators-repo
                     params:
-                      OWNER: k8s-operatorhub
+                      OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
                       PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
                     run:
@@ -1403,7 +1403,7 @@ jobs:
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
-                      OWNER: k8s-operatorhub
+                      OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
                       PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
                     run:
