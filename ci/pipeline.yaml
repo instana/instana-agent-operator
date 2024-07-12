@@ -201,6 +201,14 @@ resources:
       username: instanacd
       password: ((instanacd-github-api-token))
 
+  - name: every-tuesday
+    type: time
+    icon: clock-outline
+    source:
+      days: [Tuesday]
+      start: 9:00 AM #UTC
+      end: 10:00 PM
+
 jobs:
   - name: self-update
     on_success:
@@ -292,6 +300,7 @@ jobs:
       - get: pipeline-source
         passed: [self-update]
       - get: agent-operator-git-source
+      - get: every-tuesday
         trigger: true
       - task: tag-with-new-semver
         config:
