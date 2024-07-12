@@ -201,6 +201,14 @@ resources:
       username: instanacd
       password: ((instanacd-github-api-token))
 
+  - name: every-tuesday
+    type: time
+    icon: clock-outline
+    source:
+      days: [Tuesday]
+      start: 9:00 AM #UTC
+      end: 10:00 PM
+
 jobs:
   - name: self-update
     on_success:
@@ -260,9 +268,15 @@ jobs:
 
   - name: tag-release
     on_success:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: success, context: tag-release }
+      do:
+        - put: agent-operator-git-source
+          params:
+            repository: agent-operator-git-source
+            tag_file: agent-operator-git-source/ci/version.txt
+            force: true
+        - put: gh-status
+          inputs: [ pipeline-source ]
+          params: { state: success, context: tag-release }
     on_failure:
       do:
         - put: slack-alert
@@ -292,6 +306,7 @@ jobs:
       - get: pipeline-source
         passed: [self-update]
       - get: agent-operator-git-source
+      - get: every-tuesday
         trigger: true
       - task: tag-with-new-semver
         config:
@@ -308,27 +323,7 @@ jobs:
           outputs:
             - name: agent-operator-git-source
           run:
-            path: bash
-            args:
-              - -ceu
-              - |
-
-                cd agent-operator-git-source
-                git pull -r
-                latest_release=$(git tag | sort -r --version-sort | head -n1)
-                echo "Latest release is ${latest_release}"
-                new_release=$(echo $latest_release | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
-
-                echo "Tagging repo with the new release tag ${new_release}"
-                git config --global user.name "instanacd"
-                git config --global user.email "instanacd@instana.com"
-                git tag ${new_release}
-                echo ${new_release} > ci/version.txt
-      - put: agent-operator-git-source
-        params:
-          repository: agent-operator-git-source
-          tag_file: agent-operator-git-source/ci/version.txt
-          force: true
+            path: pipeline-source/ci/scripts/tag-new-release.sh
 
   - name: docker-build
     max_in_flight: 1
