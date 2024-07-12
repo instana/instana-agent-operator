@@ -44,6 +44,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+GOPATH=$(shell go env GOPATH)
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -222,9 +224,9 @@ controller-yaml: manifests kustomize ## Output the YAML for deployment, so it ca
 	$(KUSTOMIZE) build config/default
 
 get-mockgen:
-	which mockgen >> /dev/null 2>&1 || go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
+	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
 
-gen-mocks: get-mockgen 
+gen-mocks: get-mockgen
 	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.17.2/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
 	mockgen --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
 	mockgen --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
