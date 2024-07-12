@@ -27,11 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-func TestAgentConfigMapBuilder_Build(t *testing.T) {
+func TestAgentConfigMapBuilderBuild(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
 
@@ -75,7 +76,7 @@ func TestAgentConfigMapBuilder_Build(t *testing.T) {
 		},
 	}
 
-	statusManager := NewMockAgentStatusManager(ctrl)
+	statusManager := mocks.NewMockAgentStatusManager(ctrl)
 	statusManager.EXPECT().SetAgentConfigMap(gomock.Eq(client.ObjectKeyFromObject(agentCm)))
 
 	builder := NewConfigMapBuilder(agentCm, statusManager)

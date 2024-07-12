@@ -15,22 +15,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
+package ports
 
-// components
-const (
-	ComponentInstanaAgent = "instana-agent"
-	ComponentK8Sensor     = "k8sensor"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// labels
-const (
-	LabelAgentMode = "instana/agent-mode"
-)
+func toServicePort(port InstanaAgentPort) corev1.ServicePort {
+	return corev1.ServicePort{
+		Name:       port.String(),
+		Protocol:   corev1.ProtocolTCP,
+		Port:       port.PortNumber(),
+		TargetPort: intstr.FromString(port.String()),
+	}
+}
 
-// keys
-const (
-	AgentKey    = "key"
-	DownloadKey = "downloadKey"
-	BackendKey  = "backend"
-)
+func toContainerPort(port InstanaAgentPort) corev1.ContainerPort {
+	return corev1.ContainerPort{
+		Name:          port.String(),
+		ContainerPort: port.PortNumber(),
+		Protocol:      corev1.ProtocolTCP,
+	}
+}
