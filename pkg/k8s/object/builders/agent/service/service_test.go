@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -79,21 +80,30 @@ func TestServiceBuilder_Build(t *testing.T) {
 							},
 						}
 
-						otlpSettings := NewMockOpenTelemetrySettings(ctrl)
+						var otlpSettings instanav1.OpenTelemetry
 						if !pointer.DerefOrEmpty(serviceCreate) && (remoteWriteEnabled.Enabled == nil || !*remoteWriteEnabled.Enabled) {
-							otlpSettings.EXPECT().IsEnabled().Return(otlpIsEnabled)
+							otlpSettings = instanav1.OpenTelemetry{
+								Enabled: instanav1.Enabled{Enabled: &otlpIsEnabled},
+								GRPC:    &instanav1.Enabled{Enabled: &otlpIsEnabled},
+								HTTP:    &instanav1.Enabled{Enabled: &otlpIsEnabled},
+							}
+						} else {
+							otlpSettings = instanav1.OpenTelemetry{
+								Enabled: instanav1.Enabled{Enabled: pointer.To(false)},
+								GRPC:    &instanav1.Enabled{Enabled: pointer.To(false)},
+								HTTP:    &instanav1.Enabled{Enabled: pointer.To(false)},
+							}
 						}
 
-						podSelectorLabelGenerator := NewMockPodSelectorLabelGenerator(ctrl)
+						podSelectorLabelGenerator := mocks.NewMockPodSelectorLabelGenerator(ctrl)
 
-						portsBuilder := NewMockPortsBuilder(ctrl)
+						portsBuilder := mocks.NewMockPortsBuilder(ctrl)
 
 						sb := &serviceBuilder{
-							InstanaAgent: &agent,
-
-							PodSelectorLabelGenerator: podSelectorLabelGenerator,
-							PortsBuilder:              portsBuilder,
-							OpenTelemetrySettings:     otlpSettings,
+							instanaAgent:              &agent,
+							podSelectorLabelGenerator: podSelectorLabelGenerator,
+							portsBuilder:              portsBuilder,
+							openTelemetrySettings:     otlpSettings,
 						}
 
 						if pointer.DerefOrEmpty(serviceCreate) || (remoteWriteEnabled.Enabled != nil && *remoteWriteEnabled.Enabled) || otlpIsEnabled {
@@ -105,15 +115,9 @@ func TestServiceBuilder_Build(t *testing.T) {
 							podSelectorLabelGenerator.EXPECT().GetPodSelectorLabels().Return(expectedSelectorLabels)
 
 							expectedServicePorts := []corev1.ServicePort{
-								{
-									Name: rand.String(rand.IntnRange(1, 15)),
-								},
-								{
-									Name: rand.String(rand.IntnRange(1, 15)),
-								},
-								{
-									Name: rand.String(rand.IntnRange(1, 15)),
-								},
+								{Name: rand.String(rand.IntnRange(1, 15))},
+								{Name: rand.String(rand.IntnRange(1, 15))},
+								{Name: rand.String(rand.IntnRange(1, 15))},
 							}
 							portsBuilder.EXPECT().GetServicePorts(
 								ports.AgentAPIsPort,

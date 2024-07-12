@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
@@ -42,16 +43,6 @@ func TestSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 
 func randString() string {
 	return rand.String(rand.IntnRange(1, 15))
-}
-
-func dockerConfigJsonForMarshal(password string) *DockerConfigJson {
-	return &DockerConfigJson{
-		Auths: map[string]DockerConfigAuth{
-			"containers.instana.io": {
-				Auth: []byte("_:" + password),
-			},
-		},
-	}
 }
 
 func TestSecretBuilder_Build(t *testing.T) {
@@ -124,21 +115,26 @@ func TestSecretBuilder_Build(t *testing.T) {
 					},
 				}
 
-				helpers := NewMockHelpers(ctrl)
+				helpers := mocks.NewMockHelpers(ctrl)
 				helpers.EXPECT().UseContainersSecret().Return(test.useContainerSecret)
 				if test.useContainerSecret {
 					helpers.EXPECT().ContainersSecretName().Return(randomContainerSecretName)
 				}
-
-				marshaler := NewMockdockerConfigMarshaler(ctrl)
+				marshaler := mocks.NewMockJsonOrDieMarshaler[*DockerConfigJson](ctrl)
 				if test.useContainerSecret {
-					marshaler.EXPECT().MarshalOrDie(dockerConfigJsonForMarshal(test.expectedPassword)).Return(randomMarshalResult)
+					marshaler.EXPECT().MarshalOrDie(&DockerConfigJson{
+						Auths: map[string]DockerConfigAuth{
+							"containers.instana.io": {
+								Auth: []byte("_:" + test.expectedPassword),
+							},
+						},
+					}).Return(randomMarshalResult)
 				}
 
 				sb := &secretBuilder{
-					InstanaAgent:          agent,
-					Helpers:               helpers,
-					dockerConfigMarshaler: marshaler,
+					instanaAgent: agent,
+					helpers:      helpers,
+					marshaler:    marshaler,
 				}
 
 				actual := sb.Build()

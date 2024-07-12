@@ -20,6 +20,7 @@ package daemonset
 import (
 	"testing"
 
+	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
@@ -108,7 +109,7 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 					"e8uriunv":  "rrudsiu",
 				}
 
-				podSelector := NewMockPodSelectorLabelGenerator(ctrl)
+				podSelector := mocks.NewMockPodSelectorLabelGenerator(ctrl)
 				podSelector.EXPECT().GetPodLabels(gomock.Eq(test.getPodLabelsInput)).Return(expected)
 
 				d := &daemonSetBuilder{
@@ -141,7 +142,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		},
 	}
 
-	envBuilder := NewMockEnvBuilder(ctrl)
+	envBuilder := mocks.NewMockEnvBuilder(ctrl)
 	envBuilder.EXPECT().Build(
 		env.AgentModeEnv,
 		env.ZoneNameEnv,
@@ -189,7 +190,7 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 		},
 	}
 
-	portsBuilder := NewMockPortsBuilder(ctrl)
+	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
 	portsBuilder.EXPECT().GetContainerPorts(
 		ports.AgentAPIsPort,
 		ports.AgentSocketPort,
@@ -214,7 +215,7 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 	expectedVolumes := []corev1.Volume{{Name: rand.String(10)}}
 	expectedVolumeMounts := []corev1.VolumeMount{{Name: rand.String(10)}}
 
-	volumeBuilder := NewMockVolumeBuilder(ctrl)
+	volumeBuilder := mocks.NewMockVolumeBuilder(ctrl)
 	volumeBuilder.EXPECT().Build(
 		gomock.Eq(volume.DevVolume),
 		gomock.Eq(volume.RunVolume),
@@ -391,7 +392,7 @@ func TestDaemonSetBuilder_Build(t *testing.T) {
 				assertions := assert.New(t)
 				ctrl := gomock.NewController(t)
 
-				status := NewMockAgentStatusManager(ctrl)
+				status := mocks.NewMockAgentStatusManager(ctrl)
 				if test.expectPresent {
 					status.EXPECT().AddAgentDaemonset(gomock.Any())
 				}

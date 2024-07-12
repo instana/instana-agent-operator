@@ -15,22 +15,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
+package client
 
-// components
-const (
-	ComponentInstanaAgent = "instana-agent"
-	ComponentK8Sensor     = "k8sensor"
+import (
+	"github.com/instana/instana-agent-operator/pkg/result"
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// labels
-const (
-	LabelAgentMode = "instana/agent-mode"
-)
+func wasRetrieved(_ k8sClient.Object) result.Result[bool] {
+	return result.OfSuccess(true)
+}
 
-// keys
-const (
-	AgentKey    = "key"
-	DownloadKey = "downloadKey"
-	BackendKey  = "backend"
-)
+func ifNotFound(err error) (bool, error) {
+	return false, k8sClient.IgnoreNotFound(err)
+}
+
+func doNotExist(res result.Result[bool]) bool {
+	return res.IsSuccess() && !res.ToOptional().Get()
+}

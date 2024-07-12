@@ -41,7 +41,7 @@ Developing (and running) the Operator is easiest in two ways:
 
 1. Start minikube ([minikube docs](https://minikube.sigs.k8s.io/docs/start/))
    > [!NOTE]
-   When minikube runs on docker (at least on `RHEL 8`), there are network issues for pods reaching the internet. This causes connection issues for the agent and will prevent auto-updates or connections to the backend. To avoid this, use kvm2 driver instead: `minikube start --driver=kvm2`. If one is using podman, don't forget to create the minikube with the podman driver: `minikube start --driver=podman`. More info and options can be found in Minikube documentation about [podman](https://minikube.sigs.k8s.io/docs/drivers/podman/)
+   When minikube runs on docker (at least on `RHEL 8`), there are network issues for pods reaching the internet. This causes connection issues for the agent and will prevent auto-updates or connections to the backend. To avoid this, use kvm2 driver instead: `minikube start --driver=kvm2`. If one is using podman, don't forget to create the minikube with the podman driver: `minikube start --driver=podman --container-runtime=cri-o`. More info and options can be found in Minikube documentation about [podman](https://minikube.sigs.k8s.io/docs/drivers/podman/)
 
    ```shell
    minikube start
@@ -100,7 +100,7 @@ To stop, take the following actions:
    # Final cleanup e.g `kubectl delete -k config/crd`
    make uninstall
    # Will stop the service
-   minikube start
+   minikube stop
    # Will reset the whole set-up
    minikube delete
    ```

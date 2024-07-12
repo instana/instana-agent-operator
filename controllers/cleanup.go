@@ -1,3 +1,20 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controllers
 
 import (
@@ -42,8 +59,7 @@ func (r *InstanaAgentReconciler) cleanupDependents(
 	if !controllerutil.RemoveFinalizer(agentNew, finalizerV3) {
 		log.V(2).Info("agent finalizer not present, so no further cleanup is needed")
 		return reconcileContinue()
-	} else if deleteRes := operatorUtils.DeleteAll(); deleteRes.IsFailure() {
-		_, err := deleteRes.Get()
+	} else if err := operatorUtils.DeleteAll(); err != nil {
 		log.Error(err, "failed to cleanup agent dependents during uninstall")
 		return reconcileFailure(err)
 	} else {

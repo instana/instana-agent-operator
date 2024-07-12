@@ -1,7 +1,19 @@
 /*
- * (c) Copyright IBM Corp. 2021, 2024
- * (c) Copyright Instana Inc. 2021, 2024
- */
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package controllers
 
@@ -21,6 +33,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/lifecycle"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
@@ -34,17 +47,6 @@ const (
 
 // Add will create a new Instana Agent Controller and add this to the Manager for reconciling
 func Add(mgr manager.Manager) error {
-	return add(
-		mgr, NewInstanaAgentReconciler(
-			mgr.GetClient(),
-			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("agent-controller"),
-		),
-	)
-}
-
-// add sets up the controller with the Manager.
-func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanav1.InstanaAgent{}).
 		Owns(&appsv1.DaemonSet{}).
@@ -56,7 +58,13 @@ func add(mgr ctrl.Manager, r *InstanaAgentReconciler) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		WithEventFilter(filterPredicate()).
-		Complete(r)
+		Complete(
+			NewInstanaAgentReconciler(
+				mgr.GetClient(),
+				mgr.GetScheme(),
+				mgr.GetEventRecorderFor("agent-controller"),
+			),
+		)
 }
 
 // NewInstanaAgentReconciler initializes a new InstanaAgentReconciler instance
@@ -66,7 +74,7 @@ func NewInstanaAgentReconciler(
 	recorder record.EventRecorder,
 ) *InstanaAgentReconciler {
 	return &InstanaAgentReconciler{
-		client:   instanaclient.NewClient(client),
+		client:   instanaclient.NewInstanaAgentClient(client),
 		recorder: recorder,
 		scheme:   scheme,
 	}
@@ -95,7 +103,12 @@ func (r *InstanaAgentReconciler) reconcile(
 	log.Info("reconciling Agent CR")
 
 	agent.Default()
-	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent)
+	operatorUtils := operator_utils.NewOperatorUtils(
+		ctx,
+		r.client,
+		agent,
+		lifecycle.NewDependentLifecycleManager(ctx, agent, r.client),
+	)
 
 	if handleDeletionRes := r.handleDeletion(ctx, agent, operatorUtils); handleDeletionRes.suppliesReconcileResult() {
 		return handleDeletionRes

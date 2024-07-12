@@ -8,7 +8,6 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -19,12 +18,21 @@ const (
 	componentName = constants.ComponentInstanaAgent
 )
 
-type serviceBuilder struct {
-	*instanav1.InstanaAgent
+func NewServiceBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &serviceBuilder{
+		instanaAgent: agent,
 
-	transformations.PodSelectorLabelGenerator
-	ports.PortsBuilder
-	helpers.OpenTelemetrySettings
+		podSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
+		portsBuilder:              ports.NewPortsBuilder(agent),
+		openTelemetrySettings:     agent.Spec.OpenTelemetry,
+	}
+}
+
+type serviceBuilder struct {
+	instanaAgent              *instanav1.InstanaAgent
+	podSelectorLabelGenerator transformations.PodSelectorLabelGenerator
+	portsBuilder              ports.PortsBuilder
+	openTelemetrySettings     instanav1.OpenTelemetry
 }
 
 func (s *serviceBuilder) ComponentName() string {
@@ -42,12 +50,12 @@ func (s *serviceBuilder) build() *corev1.Service {
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.Name,
-			Namespace: s.Namespace,
+			Name:      s.instanaAgent.Name,
+			Namespace: s.instanaAgent.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: s.GetPodSelectorLabels(),
-			Ports: s.GetServicePorts(
+			Selector: s.podSelectorLabelGenerator.GetPodSelectorLabels(),
+			Ports: s.portsBuilder.GetServicePorts(
 				ports.AgentAPIsPort,
 				ports.OpenTelemetryLegacyPort,
 				ports.OpenTelemetryGRPCPort,
@@ -60,23 +68,13 @@ func (s *serviceBuilder) build() *corev1.Service {
 
 func (s *serviceBuilder) Build() optional.Optional[client.Object] {
 	switch {
-	case pointer.DerefOrEmpty(s.Spec.Service.Create):
+	case pointer.DerefOrEmpty(s.instanaAgent.Spec.Service.Create):
 		fallthrough
-	case pointer.DerefOrEmpty(s.Spec.Prometheus.RemoteWrite.Enabled):
+	case pointer.DerefOrEmpty(s.instanaAgent.Spec.Prometheus.RemoteWrite.Enabled):
 		fallthrough
-	case s.OpenTelemetrySettings.IsEnabled():
+	case s.openTelemetrySettings.IsEnabled():
 		return optional.Of[client.Object](s.build())
 	default:
 		return optional.Empty[client.Object]()
-	}
-}
-
-func NewServiceBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &serviceBuilder{
-		InstanaAgent: agent,
-
-		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
-		PortsBuilder:              ports.NewPortsBuilder(agent),
-		OpenTelemetrySettings:     agent.Spec.OpenTelemetry,
 	}
 }
