@@ -21,10 +21,10 @@ import (
 	"context"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	agentconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/headless-service"
 	containersinstanaiosecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret"
+	agentconfigsecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/instana-agent-config"
 	keyssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/keys-secret"
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
@@ -37,6 +37,7 @@ import (
 	k8ssensorserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/serviceaccount"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func getDaemonSetBuilders(
@@ -66,15 +67,16 @@ func (r *InstanaAgentReconciler) applyResources(
 	isOpenShift bool,
 	operatorUtils operator_utils.OperatorUtils,
 	statusManager status.AgentStatusManager,
+	keysSecret *corev1.Secret,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
 
 	builders := append(
 		getDaemonSetBuilders(agent, isOpenShift, statusManager),
-		agentconfigmap.NewConfigMapBuilder(agent, statusManager),
+		agentconfigsecret.NewSecretBuilder(agent, statusManager, keysSecret),
 		headlessservice.NewHeadlessServiceBuilder(agent),
-		containersinstanaiosecret.NewSecretBuilder(agent),
+		containersinstanaiosecret.NewSecretBuilder(agent, keysSecret),
 		keyssecret.NewSecretBuilder(agent),
 		tlssecret.NewSecretBuilder(agent),
 		service.NewServiceBuilder(agent),

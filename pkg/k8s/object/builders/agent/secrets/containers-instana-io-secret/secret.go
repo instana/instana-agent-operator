@@ -1,18 +1,5 @@
 /*
 (c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 */
 
 package containers_instana_io_secret
@@ -30,7 +17,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var log = logf.Log.WithName("containers-instana-io-secret-builder")
 
 type DockerConfigAuth struct {
 	Auth []byte `json:"auth"`
@@ -44,22 +34,15 @@ type secretBuilder struct {
 	instanaAgent *instanav1.InstanaAgent
 	helpers      helpers.Helpers
 	marshaler    json_or_die.JsonOrDieMarshaler[*DockerConfigJson]
+	keysSecret   *corev1.Secret
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.InstanaAgent, keysSecret *corev1.Secret) builder.ObjectBuilder {
 	return &secretBuilder{
 		instanaAgent: agent,
+		keysSecret:   keysSecret,
 		helpers:      helpers.NewHelpers(agent),
 		marshaler:    json_or_die.NewJsonOrDie[DockerConfigJson](),
-	}
-}
-
-func (s *secretBuilder) Build() optional.Optional[client.Object] {
-	switch s.helpers.UseContainersSecret() {
-	case true:
-		return optional.Of[client.Object](s.build())
-	default:
-		return optional.Empty[client.Object]()
 	}
 }
 
@@ -71,19 +54,13 @@ func (s *secretBuilder) ComponentName() string {
 	return constants.ComponentInstanaAgent
 }
 
-func (s *secretBuilder) buildDockerConfigJson() []byte {
-	password := optional.Of(s.instanaAgent.Spec.Agent.DownloadKey).GetOrDefault(s.instanaAgent.Spec.Agent.Key)
-	auth := fmt.Sprintf("_:%s", password)
-
-	json := DockerConfigJson{
-		Auths: map[string]DockerConfigAuth{
-			helpers.ContainersInstanaIORegistry: {
-				Auth: []byte(auth),
-			},
-		},
+func (s *secretBuilder) Build() optional.Optional[client.Object] {
+	switch s.helpers.UseContainersSecret() {
+	case true:
+		return optional.Of[client.Object](s.build())
+	default:
+		return optional.Empty[client.Object]()
 	}
-
-	return s.marshaler.MarshalOrDie(&json)
 }
 
 func (s *secretBuilder) build() *corev1.Secret {
@@ -101,4 +78,33 @@ func (s *secretBuilder) build() *corev1.Secret {
 		},
 		Type: corev1.SecretTypeDockerConfigJson,
 	}
+}
+
+func (s *secretBuilder) buildDockerConfigJson() []byte {
+	// prefer downloadKey over key property
+	// prefer referenced secret over custom resource property
+	var downloadKey string = ""
+	if downloadKeyValueFromSecret, ok := s.keysSecret.Data["downloadKey"]; ok {
+		downloadKey = string(downloadKeyValueFromSecret)
+	} else if keyValueFromSecret, ok := s.keysSecret.Data["key"]; ok {
+		downloadKey = string(keyValueFromSecret)
+	} else if s.instanaAgent.Spec.Agent.DownloadKey != "" {
+		downloadKey = s.instanaAgent.Spec.Agent.DownloadKey
+	} else if s.instanaAgent.Spec.Agent.Key != "" {
+		downloadKey = s.instanaAgent.Spec.Agent.Key
+	} else {
+		// we are lacking any download key information
+		log.Error(fmt.Errorf("cannot extract download key from secret or custom resource"), "No download key available")
+	}
+
+	auth := fmt.Sprintf("_:%s", downloadKey)
+
+	json := DockerConfigJson{
+		Auths: map[string]DockerConfigAuth{
+			helpers.ContainersInstanaIORegistry: {
+				Auth: []byte(auth),
+			},
+		},
+	}
+	return s.marshaler.MarshalOrDie(&json)
 }

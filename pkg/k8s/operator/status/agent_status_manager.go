@@ -1,18 +1,5 @@
 /*
 (c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-	http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 */
 
 package status
@@ -26,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -46,7 +34,7 @@ type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
 	SetAgentOld(agent *instanav1.InstanaAgent)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
-	SetAgentConfigMap(agentConfigMap client.ObjectKey)
+	SetAgentConfigSecret(agentConfigSecret client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
 
@@ -56,7 +44,7 @@ type agentStatusManager struct {
 	agentOld            *instanav1.InstanaAgent
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
-	agentConfigMap      client.ObjectKey
+	agentConfigSecret   client.ObjectKey
 }
 
 func NewAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) AgentStatusManager {
@@ -81,8 +69,8 @@ func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.O
 	a.k8sSensorDeployment = k8sSensorDeployment
 }
 
-func (a *agentStatusManager) SetAgentConfigMap(agentConfigMap client.ObjectKey) {
-	a.agentConfigMap = agentConfigMap
+func (a *agentStatusManager) SetAgentConfigSecret(agentConfigSecret types.NamespacedName) {
+	a.agentConfigSecret = agentConfigSecret
 }
 
 func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
@@ -121,8 +109,8 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 	return result.Map(ds, toResourceInfo)
 }
 
-func (a *agentStatusManager) getConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
-	cm := a.instAgentClient.GetAsResult(ctx, a.agentConfigMap, &corev1.ConfigMap{})
+func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+	cm := a.instAgentClient.GetAsResult(ctx, a.agentConfigSecret, &corev1.Secret{})
 
 	return result.Map(cm, toResourceInfo)
 }
@@ -281,8 +269,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 		OnSuccess(setStatusDotDaemonset(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
-	a.getConfigMap(ctx).
-		OnSuccess(setStatusDotConfigMap(agentNew)).
+	a.getConfigSecret(ctx).
+		OnSuccess(setStatusDotConfigSecret(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
 	if a.updateWasPerformed() {
