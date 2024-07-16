@@ -8,7 +8,7 @@
 set -e
 set -o pipefail
 
-source pipeline-source/ci/scripts/commit-changes-to-public-repo.sh
+source pipeline-source/ci/scripts/helpers.sh
 
 pushd instana-agent-operator-release
 
