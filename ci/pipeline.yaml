@@ -207,7 +207,7 @@ resources:
     source:
       days: [Tuesday]
       start: 9:00 AM #UTC
-      end: 10:00 PM
+      stop: 10:00 AM
 
 jobs:
   - name: self-update
