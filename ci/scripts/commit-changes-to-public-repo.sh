@@ -31,7 +31,6 @@ fi
 olm_bundle_zip_PATH="$(pwd)/$olm_bundle_zip"
 commit_message="$operator_public_pr_name ($operator_release_version)"
 new_release_branch=$OPERATOR_NAME-$operator_release_version
-echo "${new_release_branch}" > ../"${REPO}"-branch-name.txt
 
 abort_if_pr_for_latest_version_exists
 popd
@@ -68,10 +67,14 @@ if [ "$REPO" == "redhat-marketplace-operators" ]; then
 fi
 
 
-git config --global user.name "instanacd"
+git config --global user.name "$USERNAME"
 git config --global user.email "instanacd@instana.com"
+
+echo "https://${USERNAME}:${GH_API_TOKEN}@github.com" >> ~/.git-credentials
+git config --global credential.helper store
 
 git add .
 git commit -s -m "$commit_message"
+git push origin -u "${new_release_branch}"
 
 popd
