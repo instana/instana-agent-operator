@@ -1114,7 +1114,7 @@ jobs:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
-                - task: community-operators-commit-changes
+                - task: community-operators-commit-changes-and-create-pr
                   config:
                     platform: linux
                     image_resource:
@@ -1150,7 +1150,7 @@ jobs:
                         params:
                           channel: '#tech-agent-delivery-notifications'
                           text: |
-                            :x: The operator olm-release-pr-creation/community-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                            :x: The operator olm-release-pr-creation/community-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: failure, context: olm-release-pr-creation/community-operators-commit-changes }
@@ -1160,7 +1160,7 @@ jobs:
                         params:
                           channel: '#tech-agent-delivery-notifications'
                           text: |
-                            :x: The operator olm-release-pr-creation/community-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                            :x: The operator olm-release-pr-creation/community-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
@@ -1168,54 +1168,6 @@ jobs:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
-                - task: community-operators-create-pr
-                  config:
-                    platform: linux
-                    image_resource:
-                      type: registry-image
-                      source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-                        tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
-                    inputs:
-                      - name: instana-agent-operator-release
-                      - name: community-operators-repo
-                      - name: pipeline-source
-                    params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
-                      OWNER: k8s-operatorhub
-                      REPO: community-operators
-                    run:
-                      path: pipeline-source/ci/scripts/create-pr.sh
-                  on_success:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/community-operators-create-pr }
-                  on_failure:
-                    do:
-                      - put: slack-alert
-                        params:
-                          channel: '#tech-agent-delivery-notifications'
-                          text: |
-                            :x: The operator olm-release-pr-creation/community-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-                      - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/community-operators-create-pr }
-                  on_error:
-                    do:
-                      - put: slack-alert
-                        params:
-                          channel: '#tech-agent-delivery-notifications'
-                          text: |
-                            :x: The operator olm-release-pr-creation/community-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-                      - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/community-operators-create-pr }
-                  on_abort:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operators-create-pr }
             - do:
                 - get: certified-operators-repo
                 - task: certified-operators-rebase
@@ -1273,7 +1225,7 @@ jobs:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
-                - task: certified-operators-commit-changes
+                - task: certified-operators-commit-changes-and-create-pr
                   config:
                     platform: linux
                     image_resource:
@@ -1309,7 +1261,7 @@ jobs:
                         params:
                           channel: '#tech-agent-delivery-notifications'
                           text: |
-                            :x: The operator olm-release-pr-creation/certified-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                            :x: The operator olm-release-pr-creation/certified-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: failure, context: olm-release-pr-creation/certified-operators-commit-changes }
@@ -1327,54 +1279,6 @@ jobs:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
-                - task: certified-operators-create-pr
-                  config:
-                    platform: linux
-                    image_resource:
-                      type: registry-image
-                      source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-                        tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
-                    inputs:
-                      - name: instana-agent-operator-release
-                      - name: certified-operators-repo
-                      - name: pipeline-source
-                    params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
-                      OWNER: redhat-openshift-ecosystem
-                      REPO: certified-operators
-                    run:
-                      path: pipeline-source/ci/scripts/create-pr.sh
-                  on_success:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/certified-operators-create-pr }
-                  on_failure:
-                    do:
-                      - put: slack-alert
-                        params:
-                          channel: '#tech-agent-delivery-notifications'
-                          text: |
-                            :x: The operator olm-release-pr-creation/certified-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-                      - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/certified-operators-create-pr }
-                  on_error:
-                    do:
-                      - put: slack-alert
-                        params:
-                          channel: '#tech-agent-delivery-notifications'
-                          text: |
-                            :x: The operator olm-release-pr-creation/certified-operators-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-                      - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/certified-operators-create-pr }
-                  on_abort:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operators-create-pr }
             - do:
                 - get: redhat-marketplace-operators-repo
                 - task: redhat-marketplace-operators-rebase
@@ -1432,7 +1336,7 @@ jobs:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
-                - task: redhat-marketplace-operator-commit-changes
+                - task: redhat-marketplace-operator-commit-changes-and-create-pr
                   config:
                     platform: linux
                     image_resource:
@@ -1468,7 +1372,7 @@ jobs:
                         params:
                           channel: '#tech-agent-delivery-notifications'
                           text: |
-                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
@@ -1478,7 +1382,7 @@ jobs:
                         params:
                           channel: '#tech-agent-delivery-notifications'
                           text: |
-                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
                         inputs: [ pipeline-source ]
                         params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
@@ -1486,48 +1390,6 @@ jobs:
                     put: gh-status
                     inputs: [ pipeline-source ]
                     params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
-                - task: redhat-marketplace-operator-create-pr
-                  config:
-                    platform: linux
-                    image_resource:
-                      type: registry-image
-                      source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-                        tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
-                    inputs:
-                      - name: instana-agent-operator-release
-                      - name: redhat-marketplace-operators-repo
-                      - name: pipeline-source
-                    params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
-                      OWNER: redhat-openshift-ecosystem
-                      REPO: redhat-marketplace-operators
-                    run:
-                      path: pipeline-source/ci/scripts/create-pr.sh
-                  on_success:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
-                  on_failure:
-                    do:
-                      - put: slack-alert
-                        params:
-                          channel: '#tech-agent-delivery-notifications'
-                          text: |
-                            :x: The operator olm-release-pr-creation/redhat-marketplace-operator-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-                      - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
-                  on_error:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
-                  on_abort:
-                    put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-create-pr }
 
   - name: build-e2e-operator-base-image
     max_in_flight: 1
