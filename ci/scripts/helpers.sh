@@ -16,5 +16,5 @@ abort_if_pr_for_latest_version_exists() {
         echo "A PR is already open, exiting"
         exit 0
     fi
-    echo "PR does not exist, creating a PR"
+    echo "PR does not exist"
 }
