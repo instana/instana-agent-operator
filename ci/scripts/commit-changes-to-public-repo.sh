@@ -8,7 +8,16 @@
 set -e
 set -o pipefail
 
-source pipeline-source/ci/scripts/helpers.sh
+abort_if_pr_for_latest_version_exists() {
+    echo "Check if a PR is already open"
+    pr_list_json=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
+    existing_pr_info_json=$(echo "$pr_list_json" | jq ".[] | select(.title == (\"$commit_message\"))")
+    if [ -n "$existing_pr_info_json" ]; then
+        echo "A PR is already open, exiting"
+        exit 0
+    fi
+    echo "PR does not exist"
+}
 
 pushd instana-agent-operator-release
 
@@ -67,5 +76,12 @@ git config --global credential.helper store
 git add .
 git commit -s -m "$commit_message"
 git push origin -u "${new_release_branch}" --force
+
+curl \
+    -fX POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $GH_API_TOKEN" \
+    https://api.github.com/repos/$OWNER/$REPO/pulls \
+    -d "{\"title\":\"$commit_message\",\"head\":\"instana:${new_release_branch}\",\"base\":\"main\"}"
 
 popd
