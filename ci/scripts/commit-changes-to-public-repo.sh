@@ -66,6 +66,6 @@ git config --global credential.helper store
 
 git add .
 git commit -s -m "$commit_message"
-git push origin -u "${new_release_branch}"
+git push origin -u "${new_release_branch}" --force
 
 popd
