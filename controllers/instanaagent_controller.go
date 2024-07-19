@@ -124,19 +124,9 @@ func (r *InstanaAgentReconciler) reconcile(
 	}
 
 	keysSecret := &corev1.Secret{}
-
-	if agent.Spec.Agent.KeysSecret == "" {
-		log.Info("No Agent KeysSecret defined, no need to retrieve a secret from Kubernetes")
-	} else {
-		secretName := agent.Spec.Agent.KeysSecret
-		namespace := agent.Namespace
-
-		if err := r.client.Get(ctx, client.ObjectKey{Name: secretName, Namespace: namespace}, keysSecret); err != nil {
-			log.Error(err, "Failed to fetch KeysSecret")
-		} else {
-			// secretData := secretKey.Data["key"]
-			// fmt.Printf("Secret value: %s\n", string(secretData))
-			log.Info("Received key property from KeysSecret", "secretName", agent.Spec.Agent.KeysSecret)
+	if agent.Spec.Agent.KeysSecret != "" {
+		if err := r.client.Get(ctx, client.ObjectKey{Name: agent.Spec.Agent.KeysSecret, Namespace: agent.Namespace}, keysSecret); err != nil {
+			log.Error(err, "unable to get KeysSecret-field")
 		}
 	}
 

@@ -23,8 +23,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/headless-service"
-	containersinstanaiosecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/containers-instana-io-secret"
-	agentconfigsecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/instana-agent-config"
+	agentsecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets"
 	keyssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/keys-secret"
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
@@ -74,9 +73,9 @@ func (r *InstanaAgentReconciler) applyResources(
 
 	builders := append(
 		getDaemonSetBuilders(agent, isOpenShift, statusManager),
-		agentconfigsecret.NewSecretBuilder(agent, statusManager, keysSecret),
 		headlessservice.NewHeadlessServiceBuilder(agent),
-		containersinstanaiosecret.NewSecretBuilder(agent, keysSecret),
+		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret),
+		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		keyssecret.NewSecretBuilder(agent),
 		tlssecret.NewSecretBuilder(agent),
 		service.NewServiceBuilder(agent),
