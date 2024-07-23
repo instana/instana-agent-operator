@@ -25,9 +25,9 @@ fi
 
 only_ci_changes=true
 for file in $(git diff --name-only "$latest_release"..HEAD); do 
-    # check if $file does not start with "ci/"
-    if [[ ! $file =~ ^ci/ ]]; then
-        echo "Found file that is not in ci/ directory: $file"
+    # check if the file path does not start with "ci/", ".", doesn't end with .md, nor it's a Makefile
+    if [[ ! $file == ci* && ! $file == .* && ! $file == *.md && ! $file =~ Makefile ]]; then
+        echo "Found file that is not in ci/ directory, it's not a hidden file/directory, an .md file nor Makefile: $file"
         only_ci_changes=false
         break
     fi
