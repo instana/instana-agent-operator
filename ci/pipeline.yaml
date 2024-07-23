@@ -320,6 +320,7 @@ jobs:
               password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
             - name: agent-operator-git-source
+            - name: pipeline-source
           outputs:
             - name: agent-operator-git-source
           run:
