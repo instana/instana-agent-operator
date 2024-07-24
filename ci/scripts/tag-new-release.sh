@@ -26,11 +26,21 @@ fi
 only_ci_changes=true
 for file in $(git diff --name-only "$latest_release"..HEAD); do 
     # check if the file path does not start with "ci/", ".", doesn't end with .md, nor it's a Makefile
-    if [[ ! $file == ci* && ! $file == .* && ! $file == *.md && ! $file =~ Makefile ]]; then
-        echo "Found file that is not in ci/ directory, it's not a hidden file/directory, an .md file nor Makefile: $file"
-        only_ci_changes=false
-        break
+    if [[ $file == ci* ]]; then
+        continue
     fi
+    if [[ $file == .* ]]; then
+        continue
+    fi
+    if [[ $file == *.md ]]; then
+        continue
+    fi
+    if [[ $file =~ Makefile ]]; then
+        continue
+    fi
+    echo "Found file that is not in ci/ directory, it's not a hidden file/directory, an .md file nor Makefile: $file"
+    only_ci_changes=false
+    break
 done
 # Assisted by WCA@IBM
 # Latest GenAI contribution: ibm/granite-20b-code-instruct-v2
