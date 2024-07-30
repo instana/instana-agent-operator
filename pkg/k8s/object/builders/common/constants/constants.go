@@ -35,6 +35,10 @@ const (
 	BackendKey  = "backend"
 )
 
+const (
+	AgentPort = 42699
+)
+
 // ReaderVerbs are the list RBAC Verbs used for being able to read resources for a specific api group as specified in a PolicyRule, i.e: "get", "list", "watch"
 func ReaderVerbs() []string {
 	return []string{"get", "list", "watch"}

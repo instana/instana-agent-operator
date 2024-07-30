@@ -31,6 +31,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
+	corev1 "k8s.io/api/core/v1"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -53,6 +54,7 @@ type InstanaAgentClient interface {
 	Status() k8sClient.SubResourceWriter
 	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
 	Delete(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.DeleteOption) error
+	ListNodes(ctx context.Context) (*corev1.NodeList, error)
 }
 
 type instanaAgentClient struct {
@@ -224,4 +226,10 @@ func (c *instanaAgentClient) deleteAllInTimeLimit(
 	default:
 		return err
 	}
+}
+
+func (c *instanaAgentClient) ListNodes(ctx context.Context) (*corev1.NodeList, error) {
+	nodeList := &corev1.NodeList{}
+	err := c.k8sClient.List(ctx, nodeList)
+	return nodeList, err
 }

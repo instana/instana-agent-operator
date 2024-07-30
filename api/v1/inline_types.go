@@ -295,6 +295,10 @@ type HostSpec struct {
 type ServiceMeshSpec struct {
 	// +kubebuilder:validation:Optional
 	Enabled bool `json:"enabled,omitempty"`
+	// +kubebuilder:validation:Optional
+	Namespace string `json:"namespace,omitempty"`
+	// +kubebuilder:validation:Optional
+	Configmap string `json:"configmap,omitempty"`
 }
 
 type Prometheus struct {

@@ -136,6 +136,12 @@ var (
 		},
 		key: agentNamespace,
 	}
+	agentServiceEntries = object{
+		gvk: schema.GroupVersionKind{
+			Version: "networking.istio.io/v1alpha3",
+			Kind:    "ServiceEntry",
+		},
+	}
 )
 
 // number of k8sensor resources used for diffing whether the controller functions properly
@@ -314,6 +320,16 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 		10*time.Second,
 		time.Second,
 		"Should contain all objects in the schema",
+	)
+
+	require.Eventually(suite.T(),
+		suite.all(
+			suite.notExist,
+			agentServiceEntries,
+		),
+		10*time.Second,
+		time.Second,
+		"Should not contain ServiceEntries by default",
 	)
 
 	agentNew := agent.DeepCopy()
