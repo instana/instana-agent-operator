@@ -7,8 +7,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/go-errors/errors v1.4.2
 	github.com/go-logr/logr v1.4.1
-	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.31.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.4.0
