@@ -142,6 +142,13 @@ rules:
   - patch
   - update
 - apiGroups:
+  - networking.istio.io
+  resources:
+  - serviceentries
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
