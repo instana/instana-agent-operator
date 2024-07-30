@@ -173,6 +173,8 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
+	optional.ValueOrDefault(&in.Spec.Agent.ServiceMesh.Namespace, "istio-system")
+	optional.ValueOrDefault(&in.Spec.Agent.ServiceMesh.Configmap, "istio")
 }
 
 // +kubebuilder:object:root=true
