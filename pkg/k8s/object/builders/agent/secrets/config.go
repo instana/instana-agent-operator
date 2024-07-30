@@ -70,7 +70,7 @@ func (c *configBuilder) Build() optional.Optional[client.Object] {
 		Type: corev1.SecretTypeOpaque,
 	}
 
-	c.statusManager.SetAgentConfigSecret(client.ObjectKeyFromObject(secret))
+	c.statusManager.SetAgentSecretConfig(client.ObjectKeyFromObject(secret))
 
 	return optional.Of[client.Object](secret)
 }

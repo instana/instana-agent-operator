@@ -32,8 +32,8 @@ func TestConfigBuilderIsNamespaced(t *testing.T) {
 	assert.Equal(t, "instana-agent", s.ComponentName())
 }
 
-// TestAgentConfigSecretBuild is a all-in-one test to go through the agent config to extract secrets in all cases
-func TestAgentConfigSecretBuild(t *testing.T) {
+// TestAgentSecretConfigBuild is a all-in-one test to go through the agent config to extract secrets in all cases
+func TestAgentSecretConfigBuild(t *testing.T) {
 	objectMeta := metav1.ObjectMeta{
 		Name:      "object-name-value",
 		Namespace: "object-namespace-value",
@@ -290,7 +290,7 @@ func TestAgentConfigSecretBuild(t *testing.T) {
 				ctrl := gomock.NewController(t)
 
 				statusManager := mocks.NewMockAgentStatusManager(ctrl)
-				statusManager.EXPECT().SetAgentConfigSecret(gomock.Any()).AnyTimes()
+				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
 
 				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret)
 

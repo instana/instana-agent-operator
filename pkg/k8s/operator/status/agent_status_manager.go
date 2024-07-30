@@ -34,7 +34,7 @@ type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
 	SetAgentOld(agent *instanav1.InstanaAgent)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
-	SetAgentConfigSecret(agentConfigSecret client.ObjectKey)
+	SetAgentSecretConfig(agentSecretConfig client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
 
@@ -44,7 +44,7 @@ type agentStatusManager struct {
 	agentOld            *instanav1.InstanaAgent
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
-	agentConfigSecret   client.ObjectKey
+	agentSecretConfig   client.ObjectKey
 }
 
 func NewAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) AgentStatusManager {
@@ -69,8 +69,8 @@ func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.O
 	a.k8sSensorDeployment = k8sSensorDeployment
 }
 
-func (a *agentStatusManager) SetAgentConfigSecret(agentConfigSecret types.NamespacedName) {
-	a.agentConfigSecret = agentConfigSecret
+func (a *agentStatusManager) SetAgentSecretConfig(agentSecretConfig types.NamespacedName) {
+	a.agentSecretConfig = agentSecretConfig
 }
 
 func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
@@ -110,7 +110,7 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 }
 
 func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
-	cm := a.instAgentClient.GetAsResult(ctx, a.agentConfigSecret, &corev1.Secret{})
+	cm := a.instAgentClient.GetAsResult(ctx, a.agentSecretConfig, &corev1.Secret{})
 
 	return result.Map(cm, toResourceInfo)
 }

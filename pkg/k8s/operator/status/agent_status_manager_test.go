@@ -48,9 +48,9 @@ func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 
 	agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
 	agentStatusManager.SetAgentOld(&instanav1.InstanaAgent{})
-	agentStatusManager.SetAgentConfigSecret(types.NamespacedName{
-		Name:      "SetAgentConfigSecretName",
-		Namespace: "SetAgentConfigSecretNamespace",
+	agentStatusManager.SetAgentSecretConfig(types.NamespacedName{
+		Name:      "SetAgentSecretConfigName",
+		Namespace: "SetAgentSecretConfigNamespace",
 	})
 	agentStatusManager.AddAgentDaemonset(types.NamespacedName{
 		Name:      "AddAgentDaemonsetName",
@@ -63,8 +63,8 @@ func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 func TestUpdateAgentStatus(t *testing.T) {
 	instanaAgent := instanav1.InstanaAgent{}
 	configSecret := types.NamespacedName{
-		Name:      "SetAgentConfigSecretName",
-		Namespace: "SetAgentConfigSecretNamespace",
+		Name:      "SetAgentSecretConfigName",
+		Namespace: "SetAgentSecretConfigNamespace",
 	}
 	daemonsets := []*types.NamespacedName{{
 		Name:      "AddAgentDaemonsetName",
@@ -295,7 +295,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 					agentStatusManager.SetAgentOld(test.agent)
 				}
 				if test.configSecret != nil {
-					agentStatusManager.SetAgentConfigSecret(*test.configSecret)
+					agentStatusManager.SetAgentSecretConfig(*test.configSecret)
 				}
 				if test.k8sSensorDeployment != nil {
 					agentStatusManager.SetK8sSensorDeployment(*test.k8sSensorDeployment)
