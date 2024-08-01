@@ -13,6 +13,7 @@ POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=5           # s  Pod-check interval time
 OPERATOR_LOG_LINE='Agent installed/upgraded successfully'
 OPERATOR_LOG_LINE_NEW='successfully finished reconcile on agent CR'
+NAMESPACE="instana-agent"
 
 # Wait for a pod to be running
 # It uses the global variables:
@@ -21,27 +22,26 @@ OPERATOR_LOG_LINE_NEW='successfully finished reconcile on agent CR'
 function wait_for_running_pod() {
     timeout=0
     status=0
-    namespace="instana-agent"
     label=${1}
     deployment=${2}
     pods_are_running=false
 
-    status=$(kubectl get pod -n "${namespace}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
-    echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
+    status=$(kubectl get pod -n "${NAMESPACE}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
+    echo "The status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ "${#status[@]}" -eq "1" && "${status[0]}" == "Running" ]]; then
-            echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\". Ending waiting
+            echo "The status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\". Ending waiting
             loop here."
             pods_are_running=true
             break
         fi
-        status=$(kubectl get pod -n "${namespace}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
-        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
+        status=$(kubectl get pod -n "${NAMESPACE}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
+        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
     done
     if [[ "${pods_are_running}" == "false" ]]; then
-        echo "${namespace} failed to initialize. Exceeded timeout of
+        echo "${NAMESPACE} failed to initialize. Exceeded timeout of
         ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
@@ -51,16 +51,14 @@ function wait_for_running_pod() {
 # Checks if one of the controller-manager pods logged successful installation
 function wait_for_successfull_agent_installation() {
     local timeout=0
-    local namespace="instana-agent"
     local label="app.kubernetes.io/name=instana-agent-operator"
     local agent_found=false
-    local cr_status="Failed"
 
     #Workaround as grep will return -1 if the line is not found.
     #With pipefail enabled, this would fail the script if the if statement omitted.
-    if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
+    if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
         # Try to fetch the new log line if the old one is not there
-        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
             crd_installed_successfully=""
         fi
     fi
@@ -74,9 +72,9 @@ function wait_for_successfull_agent_installation() {
         sleep $POD_WAIT_INTERVAL
         #Workaround as grep will return -1 if the line is not found.
         #With pipefail enabled, this would fail the script if the if statement omitted.
-        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
             # Try to fetch the new log line if the old one is not there
-            if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+            if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
                 crd_installed_successfully=""
             fi
         fi
@@ -86,8 +84,15 @@ function wait_for_successfull_agent_installation() {
         exit 1
     fi
 
+    return 0;
+}
+
+function wait_for_running_cr_state() {
+    local timeout=0
+    local cr_status="Failed"
+
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
-        cr_status=$(kubectl -n ${namespace} get agent instana-agent -o yaml | yq .status.status)
+        cr_status=$(kubectl -n ${NAMESPACE} get agent instana-agent -o yaml | yq .status.status)
         echo "CR state: ${cr_status}"
         if [[ "${cr_status}" == "Running" ]]; then
             echo "The custom resource reflects the Running state correctly. Ending waiting loop here."
@@ -100,11 +105,9 @@ function wait_for_successfull_agent_installation() {
     if [[ "${cr_status}" != "Running" ]]; then
         echo "The custom resource did not reflect the Running state correctly."
         echo "Displaying state found on the CR"
-        kubectl -n ${namespace} get agent instana-agent -o yaml | yq .status
+        kubectl -n ${NAMESPACE} get agent instana-agent -o yaml | yq .status
         exit 1
     fi
-
-    return 0;
 }
 
 function install_crd() {
@@ -154,5 +157,6 @@ pushd pipeline-source
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     wait_for_successfull_agent_installation
+    wait_for_running_cr_state
     echo "Upgrade has been successful"
 popd
