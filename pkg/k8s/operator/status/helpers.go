@@ -40,9 +40,9 @@ const (
 
 func getAgentPhase(reconcileErr error) instanav1.AgentOperatorState {
 	if reconcileErr != nil {
-		return instanav1.OperatorStateRunning
+		return instanav1.OperatorStateFailed
 	}
-	return instanav1.OperatorStateFailed
+	return instanav1.OperatorStateRunning
 }
 
 func getReason(reconcileErr error) string {
