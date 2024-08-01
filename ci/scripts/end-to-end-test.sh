@@ -54,6 +54,7 @@ function wait_for_successfull_agent_installation() {
     local namespace="instana-agent"
     local label="app.kubernetes.io/name=instana-agent-operator"
     local agent_found=false
+    local cr_status="Failed"
 
     #Workaround as grep will return -1 if the line is not found.
     #With pipefail enabled, this would fail the script if the if statement omitted.
@@ -84,6 +85,25 @@ function wait_for_successfull_agent_installation() {
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
+
+    while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        cr_status=$(kubectl -n ${namespace} get agent instana-agent -o yaml | yq .status.status)
+        echo "CR state: ${cr_status}"
+        if [[ "${cr_status}" == "Running" ]]; then
+            echo "The custom resource reflects the Running state correctly. Ending waiting loop here."
+            break
+        fi
+        ((timeout+=POD_WAIT_INTERVAL))
+        sleep $POD_WAIT_INTERVAL
+    done
+
+    if [[ "${cr_status}" != "Running" ]]; then
+        echo "The custom resource did not reflect the Running state correctly."
+        echo "Displaying state found on the CR"
+        kubectl -n ${namespace} get agent instana-agent -o yaml | yq .status
+        exit 1
+    fi
+
     return 0;
 }
 
