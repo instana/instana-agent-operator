@@ -1,3 +1,7 @@
+/*
+(c) Copyright IBM Corp. 2024
+*/
+
 package keys_secret
 
 import (
@@ -15,12 +19,42 @@ type secretBuilder struct {
 	*instanav1.InstanaAgent
 }
 
+func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &secretBuilder{
+		InstanaAgent: agent,
+	}
+}
+
 func (s *secretBuilder) IsNamespaced() bool {
 	return true
 }
 
 func (s *secretBuilder) ComponentName() string {
 	return constants.ComponentInstanaAgent
+}
+
+func (s *secretBuilder) Build() optional.Optional[client.Object] {
+	switch s.Spec.Agent.KeysSecret {
+	case "":
+		return optional.Of[client.Object](s.build())
+	default:
+		return optional.Empty[client.Object]()
+	}
+}
+
+func (s *secretBuilder) build() *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      s.Name,
+			Namespace: s.Namespace,
+		},
+		Data: s.getData(),
+		Type: corev1.SecretTypeOpaque,
+	}
 }
 
 func (s *secretBuilder) getData() map[string][]byte {
@@ -39,34 +73,4 @@ func (s *secretBuilder) getData() map[string][]byte {
 	)
 
 	return data
-}
-
-func (s *secretBuilder) build() *corev1.Secret {
-	return &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.Name,
-			Namespace: s.Namespace,
-		},
-		Data: s.getData(),
-		Type: corev1.SecretTypeOpaque,
-	}
-}
-
-func (s *secretBuilder) Build() optional.Optional[client.Object] {
-	switch s.Spec.Agent.KeysSecret {
-	case "":
-		return optional.Of[client.Object](s.build())
-	default:
-		return optional.Empty[client.Object]()
-	}
-}
-
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &secretBuilder{
-		InstanaAgent: agent,
-	}
 }

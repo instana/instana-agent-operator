@@ -89,8 +89,11 @@ lint: golangci-lint ## Run the golang-ci linter
 	$(GOLANGCI_LINT) run --timeout 5m
 
 test: gen-mocks manifests generate fmt vet lint envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
 
+.PHONY: e2e
+e2e:
+	go test -v $(shell go list ./... | grep /e2e)
 
 ##@ Build
 
