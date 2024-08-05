@@ -161,6 +161,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.ListenAddressEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
+		env.EntrypointSkipBackendTemplateGeneration,
 		env.InstanaAgentKeyEnv,
 		env.DownloadKeyEnv,
 		env.InstanaAgentPodNameEnv,
