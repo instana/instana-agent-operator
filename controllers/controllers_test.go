@@ -77,13 +77,6 @@ type object struct {
 
 // number of agent resources used for diffing whether the controller functions properly
 var (
-	agentConfigMap = object{
-		gvk: schema.GroupVersionKind{
-			Version: "v1",
-			Kind:    "ConfigMap",
-		},
-		key: agentNamespace,
-	}
 	agentDaemonset = object{
 		gvk: schema.GroupVersionKind{
 			Group:   "apps",
@@ -99,6 +92,16 @@ var (
 		},
 		key: client.ObjectKey{
 			Name:      agentNamespace.Name + "-headless",
+			Namespace: agentNamespace.Namespace,
+		},
+	}
+	agentSecretConfig = object{
+		gvk: schema.GroupVersionKind{
+			Version: "v1",
+			Kind:    "Secret",
+		},
+		key: client.ObjectKey{
+			Name:      agentNamespace.Name + "-config",
 			Namespace: agentNamespace.Namespace,
 		},
 	}
@@ -295,9 +298,9 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.exist,
-			agentConfigMap,
 			agentDaemonset,
 			agentHeadlessService,
+			agentSecretConfig,
 			agentService,
 			agentServiceAccount,
 			agentKeysSecret,
@@ -327,9 +330,9 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.exist,
-			agentConfigMap,
 			agentDaemonset,
 			agentHeadlessService,
+			agentSecretConfig,
 			agentService,
 			agentServiceAccount,
 			agentContainerSecret,
@@ -359,9 +362,9 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.notExist,
-			agentConfigMap,
 			agentDaemonset,
 			agentHeadlessService,
+			agentSecretConfig,
 			agentService,
 			agentServiceAccount,
 			agentKeysSecret,

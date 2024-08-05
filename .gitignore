@@ -59,3 +59,7 @@ mocks/
 
 # Binary
 instana-agent-operator
+
+# CI
+backend.cfg
+

@@ -40,8 +40,17 @@ Developing (and running) the Operator is easiest in two ways:
 ### **Option 1:** Running Go Operator locally against a **Minikube** cluster
 
 1. Start minikube ([minikube docs](https://minikube.sigs.k8s.io/docs/start/))
-   > [!NOTE]
-   When minikube runs on docker (at least on `RHEL 8`), there are network issues for pods reaching the internet. This causes connection issues for the agent and will prevent auto-updates or connections to the backend. To avoid this, use kvm2 driver instead: `minikube start --driver=kvm2`. If one is using podman, don't forget to create the minikube with the podman driver: `minikube start --driver=podman --container-runtime=cri-o`. More info and options can be found in Minikube documentation about [podman](https://minikube.sigs.k8s.io/docs/drivers/podman/)
+   > [!NOTE] RHEL8 & KVM
+   > At least `RHEL 8` can have issues reaching the internet which can prevent auto-updates and connections. Try kvm2-driver with by `minikube start --driver=kvm2`. Make sure to have sufficient CPUs and Memory defined before starting minikube.
+   > ```shell
+   > minikube config set driver kvm2
+   > minikube config set cpus 4
+   > minikube config set memory 16384
+   > ```
+
+   > [!NOTE] Macs
+   > Macs using Podman have been successfully run with using `minikube start --driver=podman --container-runtime=cri-o`. More info [here](https://minikube.sigs.k8s.io/docs/drivers/podman/). Make sure to be able to reach outside podman. With default install, one can reach outside by: `podman system connection default podman-machine-default-root`
+   
 
    ```shell
    minikube start

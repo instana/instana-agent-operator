@@ -110,9 +110,9 @@ function wait_for_running_cr_state() {
     fi
 }
 
-function install_crd() {
-    # install the CRD
-    echo "Contruct CRD with the agent key, zone, port, and the host"
+function install_cr() {
+    # install the Custom Resource
+    echo "Contruct CR with the agent key, zone, port, and the host"
     path_to_crd="config/samples/instana_v1_instanaagent.yaml"
     yq eval -i '.spec.zone.name = env(NAME)' ${path_to_crd}
     yq eval -i '.spec.cluster.name = env(NAME)' ${path_to_crd}
@@ -120,8 +120,52 @@ function install_crd() {
     yq eval -i '.spec.agent.endpointPort = strenv(INSTANA_ENDPOINT_PORT)' ${path_to_crd}
     yq eval -i '.spec.agent.endpointHost = env(INSTANA_ENDPOINT_HOST)' ${path_to_crd}
 
-    echo "Install the CRD"
+    echo "Install the CR"
     kubectl apply -f ${path_to_crd}
+}
+
+function install_cr_multi_backend_external_keyssecret() {
+    # install the Custom Resource
+    path_to_crd="config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml"
+    path_to_keyssecret="config/samples/external_secret_instana_agent_key.yaml"
+
+    echo "Install the keysSecret and CR"
+    # credentials are invalid here, but that's okay, we just test the operator behavior, not the agent
+    kubectl apply -f ${path_to_keyssecret}
+    kubectl apply -f ${path_to_crd}
+}
+
+function verify_multi_backend_config_generation_and_injection() {
+    echo "Checking if instana-agent-config secret is present with 2 backends"
+    kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml
+    kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml | yq '.data["com.instana.agent.main.sender.Backend-1.cfg"]' | base64 -d > backend.cfg
+    echo "Validate backend config structure for backend 1"
+    grep "host=first-backend.instana.io" backend.cfg
+    grep "port=443" backend.cfg
+    grep "protocol=HTTP/2" backend.cfg
+    # check for key, safe to log as just a dummy value
+    grep "key=xxx" backend.cfg
+
+    kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml | yq '.data["com.instana.agent.main.sender.Backend-2.cfg"]' | base64 -d > backend.cfg
+    echo "Validate backend config structure for backend 2"
+    grep "host=second-backend.instana.io" backend.cfg
+    grep "port=443" backend.cfg
+    grep "protocol=HTTP/2" backend.cfg
+    # check for key, safe to log as just a dummy value
+    grep "key=yyy" backend.cfg
+
+    echo "Validate that backend config files are available inside the agent pod"
+    echo "Getting pod name for exec"
+    pod_name=$(kubectl get pods -n ${NAMESPACE} -l app.kubernetes.io/component=instana-agent -o yaml  | yq ".items[0].metadata.name")
+    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg
+    echo "Check if the right backend was mounted"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg | grep "host=first-backend.instana.io"
+    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-2.cfg is present"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg
+    echo "Check if the right backend was mounted"
+    kubectl exec -n ${NAMESPACE}  "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg | grep "host=second-backend.instana.io"
+    kubectl -n ${NAMESPACE} get agent instana-agent -o yaml
 }
 
 source pipeline-source/ci/scripts/cluster-authentication.sh
@@ -133,7 +177,7 @@ echo "Verify that the controller manager pods are running"
 wait_for_running_pod app.kubernetes.io/name=instana-agent-operator controller-manager
 
 pushd pipeline-source
-    install_crd
+    install_cr
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     wait_for_successfull_agent_installation
@@ -159,4 +203,9 @@ pushd pipeline-source
     wait_for_successfull_agent_installation
     wait_for_running_cr_state
     echo "Upgrade has been successful"
+
+    echo "Install CR to connect to an additional backend with external keysSecret"
+    install_cr_multi_backend_external_keyssecret
+    wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
+    verify_multi_backend_config_generation_and_injection
 popd

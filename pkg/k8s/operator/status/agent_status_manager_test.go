@@ -1,18 +1,5 @@
 /*
 (c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 */
 
 package status
@@ -61,9 +48,9 @@ func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 
 	agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
 	agentStatusManager.SetAgentOld(&instanav1.InstanaAgent{})
-	agentStatusManager.SetAgentConfigMap(types.NamespacedName{
-		Name:      "SetAgentConfigMapName",
-		Namespace: "SetAgentConfigMapNamespace",
+	agentStatusManager.SetAgentSecretConfig(types.NamespacedName{
+		Name:      "SetAgentSecretConfigName",
+		Namespace: "SetAgentSecretConfigNamespace",
 	})
 	agentStatusManager.AddAgentDaemonset(types.NamespacedName{
 		Name:      "AddAgentDaemonsetName",
@@ -75,9 +62,9 @@ func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 
 func TestUpdateAgentStatus(t *testing.T) {
 	instanaAgent := instanav1.InstanaAgent{}
-	configMap := types.NamespacedName{
-		Name:      "SetAgentConfigMapName",
-		Namespace: "SetAgentConfigMapNamespace",
+	configSecret := types.NamespacedName{
+		Name:      "SetAgentSecretConfigName",
+		Namespace: "SetAgentSecretConfigNamespace",
 	}
 	daemonsets := []*types.NamespacedName{{
 		Name:      "AddAgentDaemonsetName",
@@ -93,7 +80,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 		name                  string
 		getAsResultErrors     []error
 		agent                 *instanav1.InstanaAgent
-		configMap             *types.NamespacedName
+		configSecret          *types.NamespacedName
 		daemonsets            []*types.NamespacedName
 		k8sSensorDeployment   *types.NamespacedName
 		reconciliationErrors  error
@@ -104,7 +91,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "Should not return errors with full configuration",
 			getAsResultErrors:    []error{nil, nil, nil, nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -118,7 +105,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 					ObservedGeneration: &num,
 				},
 			},
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -136,7 +123,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 					Generation: num,
 				},
 			},
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -154,7 +141,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 					Generation: num,
 				},
 			},
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -172,7 +159,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 					Generation: num,
 				},
 			},
-			configMap:             &configMap,
+			configSecret:          &configSecret,
 			daemonsets:            daemonsets,
 			k8sSensorDeployment:   k8sSensorDeployment,
 			reconciliationErrors:  nil,
@@ -183,7 +170,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "Return empty when InstanaAgent is nil",
 			getAsResultErrors:    []error{},
 			agent:                nil,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -193,7 +180,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "Return empty when ConfigMap is nil",
 			getAsResultErrors:    []error{nil, nil, nil, nil},
 			agent:                &instanaAgent,
-			configMap:            nil,
+			configSecret:         nil,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -203,7 +190,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "Return empty when DaemonSets are nil",
 			getAsResultErrors:    []error{nil, nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           nil,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -213,7 +200,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "Return empty when K8SSensor Deployment is nil",
 			getAsResultErrors:    []error{nil, nil, nil, nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  nil,
 			reconciliationErrors: nil,
@@ -223,7 +210,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#1",
 			getAsResultErrors:    []error{errors.New("first_call_errors"), nil, nil, nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -233,7 +220,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#2",
 			getAsResultErrors:    []error{nil, errors.New("second_call_errors"), nil, nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -243,7 +230,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#3",
 			getAsResultErrors:    []error{nil, nil, errors.New("third_call_errors"), nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -253,7 +240,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#4",
 			getAsResultErrors:    []error{nil, nil, nil, errors.New("fourth_call_errors")},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: nil,
@@ -263,7 +250,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			name:                 "Reconciliation error does not affect returning errors",
 			getAsResultErrors:    []error{nil, nil, nil, nil},
 			agent:                &instanaAgent,
-			configMap:            &configMap,
+			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
 			reconciliationErrors: errors.New("reconciliation_error"),
@@ -307,8 +294,8 @@ func TestUpdateAgentStatus(t *testing.T) {
 				if test.agent != nil {
 					agentStatusManager.SetAgentOld(test.agent)
 				}
-				if test.configMap != nil {
-					agentStatusManager.SetAgentConfigMap(*test.configMap)
+				if test.configSecret != nil {
+					agentStatusManager.SetAgentSecretConfig(*test.configSecret)
 				}
 				if test.k8sSensorDeployment != nil {
 					agentStatusManager.SetK8sSensorDeployment(*test.k8sSensorDeployment)
