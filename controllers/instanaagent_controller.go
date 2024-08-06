@@ -123,6 +123,11 @@ func (r *InstanaAgentReconciler) reconcile(
 		return isOpenShiftRes
 	}
 
+	isIstioRegistryOnlyEnabled, nodeIPs, isIstioRegistryOnlyEnabledRes := r.getIstioOutboundConfigAndNodeIps(ctx, agent.Spec.ServiceMesh.Namespace, agent.Spec.ServiceMesh.Configmap)
+	if isIstioRegistryOnlyEnabledRes.suppliesReconcileResult() {
+		return isIstioRegistryOnlyEnabledRes
+  }
+
 	keysSecret := &corev1.Secret{}
 	if agent.Spec.Agent.KeysSecret != "" {
 		if err := r.client.Get(ctx, client.ObjectKey{Name: agent.Spec.Agent.KeysSecret, Namespace: agent.Namespace}, keysSecret); err != nil {
@@ -134,6 +139,8 @@ func (r *InstanaAgentReconciler) reconcile(
 		ctx,
 		agent,
 		isOpenShift,
+		isIstioRegistryOnlyEnabled,
+		nodeIPs,
 		operatorUtils,
 		statusManager,
 		keysSecret,
@@ -165,6 +172,7 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=apps.openshift.io,resources=deploymentconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=podsecuritypolicies,verbs=use
+// +kubebuilder:rbac:groups=networking.istio.io,resources=serviceentries,verbs=create;patch
 
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	res ctrl.Result,

@@ -19,13 +19,23 @@ package controllers
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
+
+type IstioMeshConfig struct {
+	OutboundTrafficPolicy struct {
+		Mode string `yaml:"mode"`
+	} `yaml:"outboundTrafficPolicy"`
+}
 
 func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils operator_utils.OperatorUtils) (
 	bool,
@@ -40,6 +50,62 @@ func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils 
 	}
 	log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", isOpenShiftRes)
 	return isOpenShiftRes, reconcileContinue()
+}
+
+func (r *InstanaAgentReconciler) getIstioOutboundConfigAndNodeIps(ctx context.Context, namespace string, configmap string) (
+	bool,
+	[]string,
+	reconcileReturn,
+) {
+	log := logf.FromContext(ctx)
+	var nodeIPs []string
+
+	isIstioRegistryOnlyEnabled := r.checkRegistryOnlyMode(ctx, namespace, configmap)
+
+	if isIstioRegistryOnlyEnabled {
+		nodes, err := r.client.ListNodes(ctx)
+		if err != nil {
+			log.Error(err, "could not list nodes for generating ServiceEntries")
+		}
+		nodeIPs = getNodeIPs(nodes)
+	}
+
+	return isIstioRegistryOnlyEnabled, nodeIPs, reconcileContinue()
+}
+
+func (r *InstanaAgentReconciler) checkRegistryOnlyMode(ctx context.Context, namespace string, configmap string) bool {
+	istioConfigMap := &corev1.ConfigMap{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: configmap, Namespace: namespace}, istioConfigMap)
+	if err != nil {
+		return false
+	}
+	if istioConfigMap.Data == nil {
+		return false
+	}
+	meshConfigData, ok := istioConfigMap.Data["mesh"]
+	if !ok {
+		return false
+	}
+
+	var meshConfig IstioMeshConfig
+	err = yaml.Unmarshal([]byte(meshConfigData), &meshConfig)
+	if err != nil {
+		return false
+	}
+
+	return strings.EqualFold(meshConfig.OutboundTrafficPolicy.Mode, "REGISTRY_ONLY")
+}
+
+func getNodeIPs(nodes *corev1.NodeList) []string {
+	var nodeIPs []string
+	for _, node := range nodes.Items {
+		for _, address := range node.Status.Addresses {
+			if address.Type == corev1.NodeInternalIP {
+				nodeIPs = append(nodeIPs, address.Address)
+			}
+		}
+	}
+	return nodeIPs
 }
 
 func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {
