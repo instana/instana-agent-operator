@@ -126,6 +126,13 @@ func (r *InstanaAgentReconciler) reconcile(
 	isIstioRegistryOnlyEnabled, nodeIPs, isIstioRegistryOnlyEnabledRes := r.getIstioOutboundConfigAndNodeIps(ctx, agent.Spec.ServiceMesh.Namespace, agent.Spec.ServiceMesh.Configmap)
 	if isIstioRegistryOnlyEnabledRes.suppliesReconcileResult() {
 		return isIstioRegistryOnlyEnabledRes
+  }
+
+	keysSecret := &corev1.Secret{}
+	if agent.Spec.Agent.KeysSecret != "" {
+		if err := r.client.Get(ctx, client.ObjectKey{Name: agent.Spec.Agent.KeysSecret, Namespace: agent.Namespace}, keysSecret); err != nil {
+			log.Error(err, "unable to get KeysSecret-field")
+		}
 	}
 
 	if applyResourcesRes := r.applyResources(
@@ -136,6 +143,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		nodeIPs,
 		operatorUtils,
 		statusManager,
+		keysSecret,
 	); applyResourcesRes.suppliesReconcileResult() {
 		return applyResourcesRes
 	}

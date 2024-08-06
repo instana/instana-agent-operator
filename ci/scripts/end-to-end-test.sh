@@ -13,6 +13,7 @@ POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=5           # s  Pod-check interval time
 OPERATOR_LOG_LINE='Agent installed/upgraded successfully'
 OPERATOR_LOG_LINE_NEW='successfully finished reconcile on agent CR'
+NAMESPACE="instana-agent"
 
 # Wait for a pod to be running
 # It uses the global variables:
@@ -21,27 +22,26 @@ OPERATOR_LOG_LINE_NEW='successfully finished reconcile on agent CR'
 function wait_for_running_pod() {
     timeout=0
     status=0
-    namespace="instana-agent"
     label=${1}
     deployment=${2}
     pods_are_running=false
 
-    status=$(kubectl get pod -n "${namespace}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
-    echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
+    status=$(kubectl get pod -n "${NAMESPACE}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
+    echo "The status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         if [[ "${#status[@]}" -eq "1" && "${status[0]}" == "Running" ]]; then
-            echo "The status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\". Ending waiting
+            echo "The status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\". Ending waiting
             loop here."
             pods_are_running=true
             break
         fi
-        status=$(kubectl get pod -n "${namespace}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
-        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${namespace} is: \"$status\""
+        status=$(kubectl get pod -n "${NAMESPACE}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
+        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
     done
     if [[ "${pods_are_running}" == "false" ]]; then
-        echo "${namespace} failed to initialize. Exceeded timeout of
+        echo "${NAMESPACE} failed to initialize. Exceeded timeout of
         ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
@@ -51,15 +51,14 @@ function wait_for_running_pod() {
 # Checks if one of the controller-manager pods logged successful installation
 function wait_for_successfull_agent_installation() {
     local timeout=0
-    local namespace="instana-agent"
     local label="app.kubernetes.io/name=instana-agent-operator"
     local agent_found=false
 
     #Workaround as grep will return -1 if the line is not found.
     #With pipefail enabled, this would fail the script if the if statement omitted.
-    if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
+    if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
         # Try to fetch the new log line if the old one is not there
-        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
             crd_installed_successfully=""
         fi
     fi
@@ -73,9 +72,9 @@ function wait_for_successfull_agent_installation() {
         sleep $POD_WAIT_INTERVAL
         #Workaround as grep will return -1 if the line is not found.
         #With pipefail enabled, this would fail the script if the if statement omitted.
-        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
+        if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE}"); then
             # Try to fetch the new log line if the old one is not there
-            if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${namespace} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
+            if ! crd_installed_successfully=$(kubectl logs -l=${label} -n ${NAMESPACE} --tail=-1 | grep "${OPERATOR_LOG_LINE_NEW}"); then
                 crd_installed_successfully=""
             fi
         fi
@@ -84,12 +83,36 @@ function wait_for_successfull_agent_installation() {
         echo "Agent failed to be installed/upgraded successfully. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
         exit 1
     fi
+
     return 0;
 }
 
-function install_crd() {
-    # install the CRD
-    echo "Contruct CRD with the agent key, zone, port, and the host"
+function wait_for_running_cr_state() {
+    local timeout=0
+    local cr_status="Failed"
+
+    while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        cr_status=$(kubectl -n ${NAMESPACE} get agent instana-agent -o yaml | yq .status.status)
+        echo "CR state: ${cr_status}"
+        if [[ "${cr_status}" == "Running" ]]; then
+            echo "The custom resource reflects the Running state correctly. Ending waiting loop here."
+            break
+        fi
+        ((timeout+=POD_WAIT_INTERVAL))
+        sleep $POD_WAIT_INTERVAL
+    done
+
+    if [[ "${cr_status}" != "Running" ]]; then
+        echo "The custom resource did not reflect the Running state correctly."
+        echo "Displaying state found on the CR"
+        kubectl -n ${NAMESPACE} get agent instana-agent -o yaml | yq .status
+        exit 1
+    fi
+}
+
+function install_cr() {
+    # install the Custom Resource
+    echo "Contruct CR with the agent key, zone, port, and the host"
     path_to_crd="config/samples/instana_v1_instanaagent.yaml"
     yq eval -i '.spec.zone.name = env(NAME)' ${path_to_crd}
     yq eval -i '.spec.cluster.name = env(NAME)' ${path_to_crd}
@@ -97,8 +120,52 @@ function install_crd() {
     yq eval -i '.spec.agent.endpointPort = strenv(INSTANA_ENDPOINT_PORT)' ${path_to_crd}
     yq eval -i '.spec.agent.endpointHost = env(INSTANA_ENDPOINT_HOST)' ${path_to_crd}
 
-    echo "Install the CRD"
+    echo "Install the CR"
     kubectl apply -f ${path_to_crd}
+}
+
+function install_cr_multi_backend_external_keyssecret() {
+    # install the Custom Resource
+    path_to_crd="config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml"
+    path_to_keyssecret="config/samples/external_secret_instana_agent_key.yaml"
+
+    echo "Install the keysSecret and CR"
+    # credentials are invalid here, but that's okay, we just test the operator behavior, not the agent
+    kubectl apply -f ${path_to_keyssecret}
+    kubectl apply -f ${path_to_crd}
+}
+
+function verify_multi_backend_config_generation_and_injection() {
+    echo "Checking if instana-agent-config secret is present with 2 backends"
+    kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml
+    kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml | yq '.data["com.instana.agent.main.sender.Backend-1.cfg"]' | base64 -d > backend.cfg
+    echo "Validate backend config structure for backend 1"
+    grep "host=first-backend.instana.io" backend.cfg
+    grep "port=443" backend.cfg
+    grep "protocol=HTTP/2" backend.cfg
+    # check for key, safe to log as just a dummy value
+    grep "key=xxx" backend.cfg
+
+    kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml | yq '.data["com.instana.agent.main.sender.Backend-2.cfg"]' | base64 -d > backend.cfg
+    echo "Validate backend config structure for backend 2"
+    grep "host=second-backend.instana.io" backend.cfg
+    grep "port=443" backend.cfg
+    grep "protocol=HTTP/2" backend.cfg
+    # check for key, safe to log as just a dummy value
+    grep "key=yyy" backend.cfg
+
+    echo "Validate that backend config files are available inside the agent pod"
+    echo "Getting pod name for exec"
+    pod_name=$(kubectl get pods -n ${NAMESPACE} -l app.kubernetes.io/component=instana-agent -o yaml  | yq ".items[0].metadata.name")
+    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg
+    echo "Check if the right backend was mounted"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg | grep "host=first-backend.instana.io"
+    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-2.cfg is present"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg
+    echo "Check if the right backend was mounted"
+    kubectl exec -n ${NAMESPACE}  "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg | grep "host=second-backend.instana.io"
+    kubectl -n ${NAMESPACE} get agent instana-agent -o yaml
 }
 
 source pipeline-source/ci/scripts/cluster-authentication.sh
@@ -110,7 +177,7 @@ echo "Verify that the controller manager pods are running"
 wait_for_running_pod app.kubernetes.io/name=instana-agent-operator controller-manager
 
 pushd pipeline-source
-    install_crd
+    install_cr
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     wait_for_successfull_agent_installation
@@ -134,5 +201,11 @@ pushd pipeline-source
     echo "Verify that the agent pods are running"
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     wait_for_successfull_agent_installation
+    wait_for_running_cr_state
     echo "Upgrade has been successful"
+
+    echo "Install CR to connect to an additional backend with external keysSecret"
+    install_cr_multi_backend_external_keyssecret
+    wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
+    verify_multi_backend_config_generation_and_injection
 popd

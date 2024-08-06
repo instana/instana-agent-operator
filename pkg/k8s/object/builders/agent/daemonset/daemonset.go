@@ -92,6 +92,7 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.ListenAddressEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
+		env.EntrypointSkipBackendTemplateGeneration,
 		env.InstanaAgentKeyEnv,
 		env.DownloadKeyEnv,
 		env.InstanaAgentPodNameEnv,
