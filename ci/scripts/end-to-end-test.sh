@@ -101,12 +101,14 @@ function ensure_new_operator_deployment() {
     echo "Scaling controller-manager deployment down to zero"
     kubectl scale -n ${NAMESPACE} --replicas=0 deployment/controller-manager
     set +e
+    local operator_present=true
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         echo "Showing pods"
         kubectl get -n ${NAMESPACE} pods
         controller_manager_gone=$(kubectl get -n ${NAMESPACE} pods | grep controller-manager)
         if [ "$controller_manager_gone" == "" ]; then
             echo "Operator pods are gone"
+            operator_present=false
             break
         else
             echo "Operator pods are still present"
@@ -114,6 +116,19 @@ function ensure_new_operator_deployment() {
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
     done
+
+    echo "=== Operator logs start ==="
+    kubectl logs -n ${NAMESPACE} -l "app.kubernetes.io/name=instana-agent-operator"
+    echo "=== Operator logs end ==="
+    echo
+
+    if [[ "${operator_present}" == "true" ]]; then
+        echo "Failed to scale operator to 0 instance. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
+        exit 1
+    fi
+
     set -e
 
     echo "Scaling operator deployment to 1 instance"
@@ -121,19 +136,34 @@ function ensure_new_operator_deployment() {
 
     set +e
     timeout=0
+    operator_present=false
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         echo "Showing pods"
         kubectl get -n ${NAMESPACE} pods
-        controller_manager_present=$(kubectl get -n ${NAMESPACE} pods | grep "controller-manager" | grep "Running")
+        controller_manager_present=$(kubectl get -n ${NAMESPACE} pods | grep "controller-manager" | grep "Running" | grep "1/1")
         if [ "$controller_manager_present" == "" ]; then
             echo "Operator pod is not running yet"
         else
             echo "Operator pod is running now"
+            operator_present=true
+            break
         fi
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
     done
     set -e
+
+    echo "=== Operator logs start ==="
+    kubectl logs -n ${NAMESPACE} -l "app.kubernetes.io/name=instana-agent-operator"
+    echo "=== Operator logs end ==="
+    echo
+
+    if [[ "${operator_present}" == "false" ]]; then
+        echo "Failed to scale operator to 1 instance. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
+        exit 1
+    fi
 }
 
 function wait_for_running_cr_state() {
