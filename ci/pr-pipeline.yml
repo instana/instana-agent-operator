@@ -565,9 +565,10 @@ jobs:
     plan:
       - get: pipeline-source
         trigger: true
-        passed: [operator-olm-build]
-      - get: agent-operator-image-amd64
-        passed: [docker-build]
+        passed: [operator-olm-build, docker-build]
+      - load_var: git-commit
+        file: pipeline-source/.git/short_ref
+        reveal: true
       - <<: *gh-status-set-pending-e2e-gke-21
       - <<: *gh-status-set-pending-e2e-gke-27
       #      - <<: *gh-status-set-pending-e2e-openshift
@@ -591,6 +592,7 @@ jobs:
                       username: _json_key
                       password: ((project-berlin-tests-gcp-instana-qa))
                   params:
+                    GIT_COMMIT: ((.:git-commit))
                     CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-21
@@ -603,7 +605,6 @@ jobs:
                     ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   inputs:
                     - name: pipeline-source
-                    - name: agent-operator-image-amd64
                   run:
                     path: pipeline-source/ci/scripts/end-to-end-test.sh
                 on_success:
@@ -671,6 +672,7 @@ jobs:
                 config:
                   <<: *gke-e2e-test-config
                   params:
+                    GIT_COMMIT: ((.:git-commit))
                     CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-27
@@ -686,7 +688,6 @@ jobs:
                     ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   inputs:
                     - name: pipeline-source
-                    - name: agent-operator-image-amd64
                   run:
                     path: pipeline-source/ci/scripts/end-to-end-test.sh
                 on_success:
@@ -754,6 +755,7 @@ jobs:
         #     config:
         #       <<: *gke-e2e-test-config
         #       params:
+        #         GIT_COMMIT: ((.:git-commit))
         #         CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
         #         CLUSTER_TYPE: openshift
         #         KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
@@ -771,7 +773,6 @@ jobs:
         #         ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
         #       inputs:
         #         - name: pipeline-source
-        #         - name: agent-operator-image-amd64
         #       run:
         #         path: pipeline-source/ci/scripts/end-to-end-test.sh
         #     on_success:

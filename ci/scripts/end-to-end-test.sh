@@ -269,7 +269,7 @@ pushd pipeline-source
 
     # upgrade the operator
     echo "Deploying the operator from feature branch"
-    IMG="$(cat ../agent-operator-image-amd64/repository):${BUILD_BRANCH}"
+    IMG="delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:${GIT_COMMIT}"
     export IMG
     echo "Create secret for $IMG"
     kubectl create secret -n instana-agent docker-registry delivery.instana \
