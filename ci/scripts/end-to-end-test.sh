@@ -7,7 +7,6 @@
 
 set -e
 set -o pipefail
-set -x
 
 POD_WAIT_TIME_OUT=120         # s  Pod-check max waiting time
 POD_WAIT_INTERVAL=5           # s  Pod-check interval time
@@ -20,12 +19,15 @@ NAMESPACE="instana-agent"
 # POD_WAIT_TIME_OUT, POD_WAIT_INTERVAL
 # Takes label as a first arg and a second arg is deployment
 function wait_for_running_pod() {
+    echo "=== wait_for_running_pod ==="
     timeout=0
     status=0
     label=${1}
     deployment=${2}
     pods_are_running=false
 
+    echo "Showing running pods"
+    kubectl get pods -n "${NAMESPACE}"
     status=$(kubectl get pod -n "${NAMESPACE}" -l="${label}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}' | uniq)
     echo "The status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
@@ -35,14 +37,18 @@ function wait_for_running_pod() {
             pods_are_running=true
             break
         fi
-        status=$(kubectl get pod -n "${NAMESPACE}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
-        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
+        status=$(kubectl get pod -n "${NAMESPACE}" -o go-template='{{ range .items }}{{ println .status.phase }}{{ end }}'| uniq)
+        echo "DEBUG, the status of pods from deployment ${deployment} in namespace ${NAMESPACE} is: \"$status\""
     done
     if [[ "${pods_are_running}" == "false" ]]; then
         echo "${NAMESPACE} failed to initialize. Exceeded timeout of
         ${POD_WAIT_TIME_OUT} s. Exit here"
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
         exit 1
     fi
     return 0;
@@ -50,6 +56,7 @@ function wait_for_running_pod() {
 
 # Checks if one of the controller-manager pods logged successful installation
 function wait_for_successfull_agent_installation() {
+    echo "=== wait_for_successfull_agent_installation ==="
     local timeout=0
     local label="app.kubernetes.io/name=instana-agent-operator"
     local agent_found=false
@@ -87,7 +94,80 @@ function wait_for_successfull_agent_installation() {
     return 0;
 }
 
+function ensure_new_operator_deployment() {
+    echo "=== ensure_new_operator_deployment ==="
+    local timeout=0
+
+    echo "Scaling controller-manager deployment down to zero"
+    kubectl scale -n ${NAMESPACE} --replicas=0 deployment/controller-manager
+    set +e
+    local operator_present=true
+    while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        echo "Showing pods"
+        kubectl get -n ${NAMESPACE} pods
+        controller_manager_gone=$(kubectl get -n ${NAMESPACE} pods | grep controller-manager)
+        if [ "$controller_manager_gone" == "" ]; then
+            echo "Operator pods are gone"
+            operator_present=false
+            break
+        else
+            echo "Operator pods are still present"
+        fi
+        ((timeout+=POD_WAIT_INTERVAL))
+        sleep $POD_WAIT_INTERVAL
+    done
+
+    echo "=== Operator logs start ==="
+    kubectl logs -n ${NAMESPACE} -l "app.kubernetes.io/name=instana-agent-operator"
+    echo "=== Operator logs end ==="
+    echo
+
+    if [[ "${operator_present}" == "true" ]]; then
+        echo "Failed to scale operator to 0 instance. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
+        exit 1
+    fi
+
+    set -e
+
+    echo "Scaling operator deployment to 1 instance"
+    kubectl scale -n ${NAMESPACE} --replicas=1 deployment/controller-manager
+
+    set +e
+    timeout=0
+    operator_present=false
+    while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        echo "Showing pods"
+        kubectl get -n ${NAMESPACE} pods
+        controller_manager_present=$(kubectl get -n ${NAMESPACE} pods | grep "controller-manager" | grep "Running" | grep "1/1")
+        if [ "$controller_manager_present" == "" ]; then
+            echo "Operator pod is not running yet"
+        else
+            echo "Operator pod is running now"
+            operator_present=true
+            break
+        fi
+        ((timeout+=POD_WAIT_INTERVAL))
+        sleep $POD_WAIT_INTERVAL
+    done
+    set -e
+
+    echo "=== Operator logs start ==="
+    kubectl logs -n ${NAMESPACE} -l "app.kubernetes.io/name=instana-agent-operator"
+    echo "=== Operator logs end ==="
+    echo
+
+    if [[ "${operator_present}" == "false" ]]; then
+        echo "Failed to scale operator to 1 instance. Exceeded timeout of ${POD_WAIT_TIME_OUT} s. Exit here"
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
+        exit 1
+    fi
+}
+
 function wait_for_running_cr_state() {
+    echo "=== wait_for_running_cr_state ==="
     local timeout=0
     local cr_status="Failed"
 
@@ -111,6 +191,7 @@ function wait_for_running_cr_state() {
 }
 
 function install_cr() {
+    echo "=== install_cr ==="
     # install the Custom Resource
     echo "Contruct CR with the agent key, zone, port, and the host"
     path_to_crd="config/samples/instana_v1_instanaagent.yaml"
@@ -125,6 +206,8 @@ function install_cr() {
 }
 
 function install_cr_multi_backend_external_keyssecret() {
+    echo "=== install_cr_multi_backend_external_keyssecret ==="
+
     # install the Custom Resource
     path_to_crd="config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml"
     path_to_keyssecret="config/samples/external_secret_instana_agent_key.yaml"
@@ -136,6 +219,8 @@ function install_cr_multi_backend_external_keyssecret() {
 }
 
 function verify_multi_backend_config_generation_and_injection() {
+    echo "=== function verify_multi_backend_config_generation_and_injection ==="
+
     echo "Checking if instana-agent-config secret is present with 2 backends"
     kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml
     kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml | yq '.data["com.instana.agent.main.sender.Backend-1.cfg"]' | base64 -d > backend.cfg
@@ -196,6 +281,7 @@ pushd pipeline-source
 
     echo "Add imagePullSecrets to the controller-manager deployment"
     kubectl patch deployment controller-manager -n instana-agent -p '"spec": { "template" : {"spec": { "imagePullSecrets": [{"name": "delivery.instana"}]}}}'
+    ensure_new_operator_deployment
     wait_for_running_pod app.kubernetes.io/name=instana-agent-operator controller-manager
 
     echo "Verify that the agent pods are running"
