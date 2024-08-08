@@ -19,6 +19,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -60,6 +61,7 @@ func (r *InstanaAgentReconciler) getIstioOutboundConfigAndNodeIps(ctx context.Co
 	log := logf.FromContext(ctx)
 	var nodeIPs []string
 
+	log.Info("Check if REGISTRY_ONLY is enabled")
 	isIstioRegistryOnlyEnabled := r.checkRegistryOnlyMode(ctx, namespace, configmap)
 
 	if isIstioRegistryOnlyEnabled {
@@ -75,11 +77,15 @@ func (r *InstanaAgentReconciler) getIstioOutboundConfigAndNodeIps(ctx context.Co
 
 func (r *InstanaAgentReconciler) checkRegistryOnlyMode(ctx context.Context, namespace string, configmap string) bool {
 	istioConfigMap := &corev1.ConfigMap{}
+	log := logf.FromContext(ctx)
+	log.Info(fmt.Sprintf("Checking Istio ConfigMap %s in namespace %s for outbound traffic policy", configmap, namespace))
 	err := r.client.Get(ctx, types.NamespacedName{Name: configmap, Namespace: namespace}, istioConfigMap)
 	if err != nil {
+		log.Error(err, "Failed fetching istio ConfigMap")
 		return false
 	}
 	if istioConfigMap.Data == nil {
+		log.Info(fmt.Sprintf("Istio configmap %s in namespace %s data in nil", configmap, namespace))
 		return false
 	}
 	meshConfigData, ok := istioConfigMap.Data["mesh"]
@@ -88,10 +94,13 @@ func (r *InstanaAgentReconciler) checkRegistryOnlyMode(ctx context.Context, name
 	}
 
 	var meshConfig IstioMeshConfig
+	log.Info("Unmarshalling config data")
 	err = yaml.Unmarshal([]byte(meshConfigData), &meshConfig)
 	if err != nil {
+		log.Error(err, "Unmarshalling config data ERROR")
 		return false
 	}
+	log.Info("Checking if policy is REGISTRY_ONLY")
 
 	return strings.EqualFold(meshConfig.OutboundTrafficPolicy.Mode, "REGISTRY_ONLY")
 }
