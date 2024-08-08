@@ -49,5 +49,10 @@ func (p *portsBuilder) GetServicePorts(ports ...InstanaAgentPort) []corev1.Servi
 }
 
 func (p *portsBuilder) GetContainerPorts(ports ...InstanaAgentPort) []corev1.ContainerPort {
-	return list.NewListMapTo[InstanaAgentPort, corev1.ContainerPort]().MapTo(ports, toContainerPort)
+	enabledPorts := list.NewListFilter[InstanaAgentPort]().Filter(
+		ports, func(port InstanaAgentPort) bool {
+			return port.IsEnabled(p.InstanaAgent.Spec.OpenTelemetry)
+		},
+	)
+	return list.NewListMapTo[InstanaAgentPort, corev1.ContainerPort]().MapTo(enabledPorts, toContainerPort)
 }

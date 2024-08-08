@@ -56,16 +56,12 @@ func (p InstanaAgentPort) PortNumber() int32 {
 }
 
 func (p InstanaAgentPort) IsEnabled(openTelemetrySettings instanav1.OpenTelemetry) bool {
-	switch p {
-	case OpenTelemetryLegacyPort:
-		fallthrough
-	case OpenTelemetryGRPCPort:
+	if p == OpenTelemetryLegacyPort || p == OpenTelemetryGRPCPort {
 		return openTelemetrySettings.GrpcIsEnabled()
-	case OpenTelemetryHTTPPort:
-		return openTelemetrySettings.HttpIsEnabled()
-	case AgentAPIsPort:
-		fallthrough
-	default:
-		return true
 	}
+	if p == OpenTelemetryHTTPPort {
+		return openTelemetrySettings.HttpIsEnabled()
+	}
+	// AgentAPIsPort is always enabled
+	return true
 }
