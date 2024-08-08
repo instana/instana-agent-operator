@@ -53,6 +53,8 @@ make uninstall &> /dev/null || true
 
 echo "Deleting instana-agent namespace"
 if kubectl get namespace/instana-agent ; then
+    # if the agent CR has a finalizer but no operator is running, it will block the namespace from terminating correctly
+    kubectl patch agent -n instana-agent instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge || true
     kubectl delete namespace/instana-agent
     kubectl wait --for=delete namespace/instana-agent --timeout=30s
     echo "Deleted namespace instana-agent"
