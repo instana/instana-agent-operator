@@ -252,7 +252,7 @@ function verify_multi_backend_config_generation_and_injection() {
         if kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg; then
             echo "Could cat file"
             exec_successful=true
-            continue
+            break
         fi
         set -e
         ((timeout+=POD_WAIT_INTERVAL))
