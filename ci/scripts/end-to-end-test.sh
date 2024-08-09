@@ -220,6 +220,7 @@ function install_cr_multi_backend_external_keyssecret() {
 
 function verify_multi_backend_config_generation_and_injection() {
     echo "=== function verify_multi_backend_config_generation_and_injection ==="
+    local timeout=0
 
     echo "Checking if instana-agent-config secret is present with 2 backends"
     kubectl get secret -n ${NAMESPACE} instana-agent-config -o yaml
@@ -242,8 +243,29 @@ function verify_multi_backend_config_generation_and_injection() {
     echo "Validate that backend config files are available inside the agent pod"
     echo "Getting pod name for exec"
     pod_name=$(kubectl get pods -n ${NAMESPACE} -l app.kubernetes.io/component=instana-agent -o yaml  | yq ".items[0].metadata.name")
-    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
-    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg
+
+    exec_successful=false
+    while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
+        set +e
+        echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
+
+        if kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg; then
+            echo "Could cat file"
+            exec_successful=true
+            continue
+        fi
+        set -e
+        ((timeout+=POD_WAIT_INTERVAL))
+        sleep $POD_WAIT_INTERVAL
+    done
+
+    if [[ "${exec_successful}" == "false" ]]; then
+        echo "Failed to cat file, check if the symlink logic in the entrypoint script of the agent container image is correct"
+        echo "Showing running pods"
+        kubectl get pods -n "${NAMESPACE}"
+        exit 1
+    fi
+
     echo "Check if the right backend was mounted"
     kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg | grep "host=first-backend.instana.io"
     echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-2.cfg is present"
