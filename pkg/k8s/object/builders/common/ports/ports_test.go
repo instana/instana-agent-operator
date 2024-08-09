@@ -49,14 +49,6 @@ func TestInstanaAgentPortMappings(t *testing.T) {
 		},
 
 		{
-			name:                  string(ports.AgentSocketPort),
-			port:                  ports.AgentSocketPort,
-			openTelemetrySettings: instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &enabled}},
-			expectedPortNumber:    ports.AgentSocketPortNumber,
-			expectEnabled:         true,
-		},
-
-		{
 			name:                  string(ports.OpenTelemetryLegacyPort) + "_not_enabled",
 			port:                  ports.OpenTelemetryLegacyPort,
 			openTelemetrySettings: instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &disabled}},
@@ -142,12 +134,6 @@ func TestPortsBuilderGetServicePorts(t *testing.T) {
 			Protocol:   corev1.ProtocolTCP,
 		},
 		{
-			Name:       string(ports.AgentSocketPort),
-			Port:       ports.AgentSocketPortNumber,
-			TargetPort: intstr.FromString(string(ports.AgentSocketPort)),
-			Protocol:   corev1.ProtocolTCP,
-		},
-		{
 			Name:       string(ports.OpenTelemetryGRPCPort),
 			Port:       ports.OpenTelemetryGRPCPortNumber,
 			TargetPort: intstr.FromString(string(ports.OpenTelemetryGRPCPort)),
@@ -169,7 +155,6 @@ func TestPortsBuilderGetServicePorts(t *testing.T) {
 	actual := pb.
 		GetServicePorts(
 			ports.AgentAPIsPort,
-			ports.AgentSocketPort,
 			ports.OpenTelemetryGRPCPort,
 			ports.OpenTelemetryHTTPPort,
 		)
@@ -187,11 +172,6 @@ func TestPortsBuilderGetContainerPorts(t *testing.T) {
 			Protocol:      corev1.ProtocolTCP,
 		},
 		{
-			Name:          string(ports.AgentSocketPort),
-			ContainerPort: ports.AgentSocketPortNumber,
-			Protocol:      corev1.ProtocolTCP,
-		},
-		{
 			Name:          string(ports.OpenTelemetryGRPCPort),
 			ContainerPort: ports.OpenTelemetryGRPCPortNumber,
 			Protocol:      corev1.ProtocolTCP,
@@ -202,7 +182,6 @@ func TestPortsBuilderGetContainerPorts(t *testing.T) {
 		NewPortsBuilder(&instanav1.InstanaAgent{}).
 		GetContainerPorts(
 			ports.AgentAPIsPort,
-			ports.AgentSocketPort,
 			ports.OpenTelemetryGRPCPort,
 		)
 

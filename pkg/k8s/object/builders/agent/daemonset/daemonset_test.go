@@ -194,7 +194,6 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
 	portsBuilder.EXPECT().GetContainerPorts(
 		ports.AgentAPIsPort,
-		ports.AgentSocketPort,
 		ports.OpenTelemetryLegacyPort,
 		ports.OpenTelemetryGRPCPort,
 		ports.OpenTelemetryHTTPPort,
