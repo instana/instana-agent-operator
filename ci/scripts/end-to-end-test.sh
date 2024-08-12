@@ -268,12 +268,12 @@ function verify_multi_backend_config_generation_and_injection() {
         exit 1
     fi
 
-    echo "Check if the right backend was mounted"
+    echo "Check if the right backend was mounted in Backend-1.cfg"
     echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
     kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg
     kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg | grep "host=first-backend.instana.io"
 
-    echo "Check if the right backend was mounted"
+    echo "Check if the right backend was mounted in Backend-2.cfg"
     kubectl exec -n ${NAMESPACE}  "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg | grep "host=second-backend.instana.io"
     kubectl -n ${NAMESPACE} get agent instana-agent -o yaml
 }
