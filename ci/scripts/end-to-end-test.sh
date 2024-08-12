@@ -247,9 +247,9 @@ function verify_multi_backend_config_generation_and_injection() {
     exec_successful=false
     while [[ "${timeout}" -le "${POD_WAIT_TIME_OUT}" ]]; do
         set +e
-        echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
+        echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-2.cfg is present"
 
-        if kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg; then
+        if kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg; then
             echo "Could cat file"
             exec_successful=true
             break
@@ -257,6 +257,8 @@ function verify_multi_backend_config_generation_and_injection() {
         set -e
         ((timeout+=POD_WAIT_INTERVAL))
         sleep $POD_WAIT_INTERVAL
+        echo "Getting pod name for exec"
+        pod_name=$(kubectl get pods -n ${NAMESPACE} -l app.kubernetes.io/component=instana-agent -o yaml  | yq ".items[0].metadata.name")
     done
 
     if [[ "${exec_successful}" == "false" ]]; then
@@ -267,9 +269,10 @@ function verify_multi_backend_config_generation_and_injection() {
     fi
 
     echo "Check if the right backend was mounted"
+    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-1.cfg is present"
+    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg
     kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-1.cfg | grep "host=first-backend.instana.io"
-    echo "Exec into pod ${pod_name} and see if etc/instana/com.instana.agent.main.sender.Backend-2.cfg is present"
-    kubectl exec -n ${NAMESPACE} "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg
+
     echo "Check if the right backend was mounted"
     kubectl exec -n ${NAMESPACE}  "${pod_name}" -- cat /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-2.cfg | grep "host=second-backend.instana.io"
     kubectl -n ${NAMESPACE} get agent instana-agent -o yaml
