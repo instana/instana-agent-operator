@@ -140,6 +140,12 @@ func TestPortsBuilderGetServicePorts(t *testing.T) {
 			Protocol:   corev1.ProtocolTCP,
 		},
 		{
+			Name:       string(ports.OpenTelemetryLegacyPort),
+			Port:       ports.OpenTelemetryLegacyPortNumber,
+			TargetPort: intstr.FromString(string(ports.OpenTelemetryLegacyPort)),
+			Protocol:   corev1.ProtocolTCP,
+		},
+		{
 			Name:       string(ports.OpenTelemetryHTTPPort),
 			Port:       ports.OpenTelemetryHTTPPortNumber,
 			TargetPort: intstr.FromString(string(ports.OpenTelemetryHTTPPort)),
@@ -156,6 +162,7 @@ func TestPortsBuilderGetServicePorts(t *testing.T) {
 		GetServicePorts(
 			ports.AgentAPIsPort,
 			ports.OpenTelemetryGRPCPort,
+			ports.OpenTelemetryLegacyPort,
 			ports.OpenTelemetryHTTPPort,
 		)
 
@@ -176,13 +183,40 @@ func TestPortsBuilderGetContainerPorts(t *testing.T) {
 			ContainerPort: ports.OpenTelemetryGRPCPortNumber,
 			Protocol:      corev1.ProtocolTCP,
 		},
+		{
+			Name:          string(ports.OpenTelemetryHTTPPort),
+			ContainerPort: ports.OpenTelemetryHTTPPortNumber,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          string(ports.OpenTelemetryLegacyPort),
+			ContainerPort: ports.OpenTelemetryLegacyPortNumber,
+			Protocol:      corev1.ProtocolTCP,
+		},
 	}
 
+	enabled := true
 	actual := ports.
-		NewPortsBuilder(&instanav1.InstanaAgent{}).
+		NewPortsBuilder(&instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				OpenTelemetry: instanav1.OpenTelemetry{
+					Enabled: instanav1.Enabled{
+						Enabled: &enabled,
+					},
+					GRPC: &instanav1.Enabled{
+						Enabled: &enabled,
+					},
+					HTTP: &instanav1.Enabled{
+						Enabled: &enabled,
+					},
+				},
+			},
+		}).
 		GetContainerPorts(
 			ports.AgentAPIsPort,
 			ports.OpenTelemetryGRPCPort,
+			ports.OpenTelemetryHTTPPort,
+			ports.OpenTelemetryLegacyPort,
 		)
 
 	assertions.Equal(expected, actual)
