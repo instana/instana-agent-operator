@@ -368,21 +368,27 @@ type OpenTelemetry struct {
 }
 
 func (otlp OpenTelemetry) GrpcIsEnabled() bool {
-	switch otlp.GRPC {
-	case nil:
-		return true
-	default:
-		return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
+	if otlp.GRPC == nil {
+		// Tolerate legacy setting, if GRPC was not enabled explicitly, check if legacy setting was explicitly set to false
+		// otlp.Enabled.Enabled == false and otlp.GRPC == nil -> should evaulate to false, as otherwise existing opt-outs would be ignored
+		if otlp.Enabled.Enabled == nil {
+			return true
+		}
+		return pointer.DerefOrDefault(otlp.Enabled.Enabled, true)
 	}
+	return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
 }
 
 func (otlp OpenTelemetry) HttpIsEnabled() bool {
-	switch otlp.HTTP {
-	case nil:
-		return true
-	default:
-		return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
+	if otlp.HTTP == nil {
+		// Tolerate legacy setting, if HTTP was not enabled explicitly, check if legacy setting was explicitly set to false
+		// otlp.Enabled.Enabled == false and otlp.HTTP == nil -> should evaulate to false, as otherwise existing opt-outs would be ignored
+		if otlp.Enabled.Enabled == nil {
+			return true
+		}
+		return pointer.DerefOrDefault(otlp.Enabled.Enabled, true)
 	}
+	return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
 }
 
 func (otlp OpenTelemetry) IsEnabled() bool {

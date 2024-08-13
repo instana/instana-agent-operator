@@ -208,10 +208,22 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelHTTP},
 		},
 		{
-			name:                   "Disable all OLTP ports",
-			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &disabled}, GRPC: &instanav1.Enabled{Enabled: &disabled}, HTTP: &instanav1.Enabled{Enabled: &disabled}},
+			name:                   "Disable all OLTP ports without legacy setting",
+			openTelemetrySettings:  instanav1.OpenTelemetry{GRPC: &instanav1.Enabled{Enabled: &disabled}, HTTP: &instanav1.Enabled{Enabled: &disabled}},
 			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI},
 			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI},
+		},
+		{
+			name:                   "Disable all OLTP ports via legacy setting",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &disabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI},
+		},
+		{
+			name:                   "Conflicting supported and legacy settings",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &disabled}, GRPC: &instanav1.Enabled{Enabled: &enabled}, HTTP: &instanav1.Enabled{Enabled: &enabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI, containerPortOtelGPRC, containerPortOtelHTTP, containerPortOtelLegacy},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelGRPC, servicePortOtelHTTP, servicePortOtelLegacy},
 		},
 	} {
 		assertions := require.New(t)
@@ -241,7 +253,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 				ports.OpenTelemetryLegacyPort,
 			)
 
-		assertions.Equal(test.expectedContainerPorts, actualContainerPorts)
+		assertions.Equal(test.expectedContainerPorts, actualContainerPorts, test.openTelemetrySettings)
 		assertions.Equal(test.expectedServicePorts, actualServicePorts)
 	}
 }
