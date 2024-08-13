@@ -18,7 +18,6 @@ limitations under the License.
 package v1
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -28,8 +27,6 @@ import (
 
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
-	"github.com/instana/instana-agent-operator/pkg/or_die"
-	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func TestImageSpec_Image(t *testing.T) {
@@ -83,116 +80,229 @@ func TestImageSpec_Image(t *testing.T) {
 	}
 }
 
-var (
-	allPossibleEnabled = []Enabled{
-		{},
-		{
-			Enabled: pointer.To(true),
-		},
-		{
-			Enabled: pointer.To(false),
-		},
-	}
-	allPossibleEnabledPtr = []*Enabled{
-		nil,
-		{},
-		{
-			Enabled: pointer.To(true),
-		},
-		{
-			Enabled: pointer.To(false),
-		},
-	}
-)
-
-func jsonStringOrDie(obj interface{}) string {
-	return string(
-		or_die.New[[]byte]().ResultOrDie(
-			func() ([]byte, error) {
-				return json.Marshal(obj)
-			},
-		),
-	)
-}
-
-func testForOtlp(t *testing.T, otlp *OpenTelemetry, getExpected func(otlp *OpenTelemetry) bool, getActual func() bool) {
-	t.Run(
-		jsonStringOrDie(otlp), func(t *testing.T) {
-			assertions := require.New(t)
-
-			expected := getExpected(otlp)
-			actual := getActual()
-
-			assertions.Equal(expected, actual)
-		},
-	)
-}
-
-func grpcIsEnabled_expected(otlp *OpenTelemetry) bool {
-	switch grpc := otlp.GRPC; grpc {
-	case nil:
-		return true
-	default:
-		switch enabled := grpc.Enabled; enabled {
-		case nil:
-			return true
-		default:
-			return *enabled
-		}
-	}
-}
-
 func TestOpenTelemetry_GrpcIsEnabled(t *testing.T) {
-	for _, enabled := range allPossibleEnabled {
-		for _, grpc := range allPossibleEnabledPtr {
-			otlp := &OpenTelemetry{
-				Enabled: enabled,
-				GRPC:    grpc,
-			}
-			testForOtlp(t, otlp, grpcIsEnabled_expected, otlp.GrpcIsEnabled)
-		}
-	}
-}
+	enabled := true
+	disabled := false
 
-func httpIsEnabled_expected(otlp *OpenTelemetry) bool {
-	switch http := otlp.HTTP; http {
-	case nil:
-		return true
-	default:
-		switch enabled := http.Enabled; enabled {
-		case nil:
-			return true
-		default:
-			return *enabled
-		}
+	for _, test := range []struct {
+		name                  string
+		openTelemetrySettings OpenTelemetry
+		expected              bool
+	}{
+		{
+			name:                  "Enable by default, if nothing is defined",
+			openTelemetrySettings: OpenTelemetry{},
+			expected:              true,
+		},
+		{
+			name:                  "Legacy setting enabled",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Legacy setting disabled",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New GRPC setting enabled, no legacy setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New GRPC setting disabled, no legacy setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "Explicit opt-in with all settings",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}, GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Explicitly opt-out with all settings",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}, GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New setting opt-out, legacy setting opt-in -> new should win",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}, GRPC: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New setting opt-in, legacy setting opt-out -> new should win",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}, GRPC: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New setting opt-in GRPC=true is not interfering with HTTP=true setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New setting opt-in GRPC=false is not interfering with HTTP=true setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New setting opt-in GRPC=true is not interfering with HTTP=false setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertions := require.New(t)
+			assertions.Equal(test.expected, test.openTelemetrySettings.GrpcIsEnabled(), test.name)
+		})
 	}
 }
 
 func TestOpenTelemetry_HttpIsEnabled(t *testing.T) {
-	for _, http := range allPossibleEnabledPtr {
-		otlp := &OpenTelemetry{
-			HTTP: http,
-		}
-		testForOtlp(t, otlp, httpIsEnabled_expected, otlp.HttpIsEnabled)
+	enabled := true
+	disabled := false
+
+	for _, test := range []struct {
+		name                  string
+		openTelemetrySettings OpenTelemetry
+		expected              bool
+	}{
+		{
+			name:                  "Enable by default, if nothing is defined",
+			openTelemetrySettings: OpenTelemetry{},
+			expected:              true,
+		},
+		{
+			name:                  "Legacy setting enabled",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Legacy setting disabled",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New HTTP setting enabled, no legacy setting",
+			openTelemetrySettings: OpenTelemetry{HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New HTTP setting disabled, no legacy setting",
+			openTelemetrySettings: OpenTelemetry{HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "Explicit opt-in with all settings",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}, GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Explicitly opt-out with all settings",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}, GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New setting opt-out, legacy setting opt-in -> new should win",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New setting opt-in, legacy setting opt-out -> new should win",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New setting opt-in HTTP=true is not interfering with GRPC=true setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New setting opt-in HTTP=false is not interfering with GRPC=true setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New setting opt-in HTTP=true is not interfering with GRPC=false setting",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertions := require.New(t)
+			assertions.Equal(test.expected, test.openTelemetrySettings.HttpIsEnabled(), test.name)
+		})
 	}
 }
 
-func isEnabled_expected(otlp *OpenTelemetry) bool {
-	return grpcIsEnabled_expected(otlp) || httpIsEnabled_expected(otlp)
-}
-
 func TestOpenTelemetry_IsEnabled(t *testing.T) {
-	for _, enabled := range allPossibleEnabled {
-		for _, grpc := range allPossibleEnabledPtr {
-			for _, http := range allPossibleEnabledPtr {
-				otlp := &OpenTelemetry{
-					Enabled: enabled,
-					GRPC:    grpc,
-					HTTP:    http,
-				}
-				testForOtlp(t, otlp, isEnabled_expected, otlp.IsEnabled)
-			}
-		}
+	enabled := true
+	disabled := false
+
+	for _, test := range []struct {
+		name                  string
+		openTelemetrySettings OpenTelemetry
+		expected              bool
+	}{
+		{
+			name:                  "Enable by default, if nothing is defined",
+			openTelemetrySettings: OpenTelemetry{},
+			expected:              true,
+		},
+		{
+			name:                  "Legacy setting enabled",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Legacy setting disabled",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New HTTP setting enabled, no legacy setting",
+			openTelemetrySettings: OpenTelemetry{HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New HTTP setting disabled, no legacy setting, fallback to GPRC enabled -> overall enabled",
+			openTelemetrySettings: OpenTelemetry{HTTP: &Enabled{Enabled: &disabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New GRPC setting disabled, no legacy setting, fallback to HTTP enabled -> overall enabled",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &disabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Explicit opt-in with all settings",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}, GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "Explicitly opt-out with all settings",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &disabled}, GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New settings opt-out, legacy setting opt-in -> new should win",
+			openTelemetrySettings: OpenTelemetry{Enabled: Enabled{Enabled: &enabled}, GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              false,
+		},
+		{
+			name:                  "New settings explicit opt-in for HTTP and opt-out for GRPC -> overall true",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &disabled}, HTTP: &Enabled{Enabled: &enabled}},
+			expected:              true,
+		},
+		{
+			name:                  "New settings explicit opt-out for HTTP and opt-in for GRPC -> overall true",
+			openTelemetrySettings: OpenTelemetry{GRPC: &Enabled{Enabled: &enabled}, HTTP: &Enabled{Enabled: &disabled}},
+			expected:              true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertions := require.New(t)
+			assertions.Equal(test.expected, test.openTelemetrySettings.IsEnabled(), test.name)
+		})
 	}
 }
 

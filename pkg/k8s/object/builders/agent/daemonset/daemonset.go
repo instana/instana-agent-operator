@@ -105,7 +105,6 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
 	return d.GetContainerPorts(
 		ports.AgentAPIsPort,
-		ports.AgentSocketPort,
 		ports.OpenTelemetryLegacyPort,
 		ports.OpenTelemetryGRPCPort,
 		ports.OpenTelemetryHTTPPort,
