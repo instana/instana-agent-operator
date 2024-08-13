@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
-	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type AgentMode string
@@ -368,27 +367,29 @@ type OpenTelemetry struct {
 }
 
 func (otlp OpenTelemetry) GrpcIsEnabled() bool {
-	if otlp.GRPC == nil {
-		// Tolerate legacy setting, if GRPC was not enabled explicitly, check if legacy setting was explicitly set to false
-		// otlp.Enabled.Enabled == false and otlp.GRPC == nil -> should evaulate to false, as otherwise existing opt-outs would be ignored
-		if otlp.Enabled.Enabled == nil {
-			return true
-		}
-		return pointer.DerefOrDefault(otlp.Enabled.Enabled, true)
+	// explicit opt-out or opt-in via new setting
+	if otlp.GRPC != nil && otlp.GRPC.Enabled != nil {
+		return *otlp.GRPC.Enabled
 	}
-	return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
+	// explicit opt-out via legacy setting
+	if otlp.Enabled.Enabled != nil && !*otlp.Enabled.Enabled {
+		return false
+	}
+	// enabled by default
+	return true
 }
 
 func (otlp OpenTelemetry) HttpIsEnabled() bool {
-	if otlp.HTTP == nil {
-		// Tolerate legacy setting, if HTTP was not enabled explicitly, check if legacy setting was explicitly set to false
-		// otlp.Enabled.Enabled == false and otlp.HTTP == nil -> should evaulate to false, as otherwise existing opt-outs would be ignored
-		if otlp.Enabled.Enabled == nil {
-			return true
-		}
-		return pointer.DerefOrDefault(otlp.Enabled.Enabled, true)
+	// explicit opt-out or opt-in via new setting
+	if otlp.HTTP != nil && otlp.HTTP.Enabled != nil {
+		return *otlp.HTTP.Enabled
 	}
-	return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
+	// explicit opt-out via legacy setting
+	if otlp.Enabled.Enabled != nil && !*otlp.Enabled.Enabled {
+		return false
+	}
+	// enabled by default
+	return true
 }
 
 func (otlp OpenTelemetry) IsEnabled() bool {

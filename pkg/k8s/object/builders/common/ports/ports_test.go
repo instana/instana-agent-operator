@@ -254,6 +254,6 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			)
 
 		assertions.Equal(test.expectedContainerPorts, actualContainerPorts, test.openTelemetrySettings)
-		assertions.Equal(test.expectedServicePorts, actualServicePorts)
+		assertions.Equal(test.expectedServicePorts, actualServicePorts, test.openTelemetrySettings)
 	}
 }
