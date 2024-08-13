@@ -28,8 +28,6 @@ type InstanaAgentPort string
 const (
 	AgentAPIsPort                 InstanaAgentPort = "agent-apis"
 	AgentAPIsPortNumber           int32            = 42699
-	AgentSocketPort               InstanaAgentPort = "agent-socket"
-	AgentSocketPortNumber         int32            = 42666
 	OpenTelemetryLegacyPort       InstanaAgentPort = "otlp-legacy"
 	OpenTelemetryLegacyPortNumber int32            = 55680
 	OpenTelemetryGRPCPort         InstanaAgentPort = "otlp-grpc"
@@ -46,8 +44,6 @@ func (p InstanaAgentPort) PortNumber() int32 {
 	switch p {
 	case AgentAPIsPort:
 		return AgentAPIsPortNumber
-	case AgentSocketPort:
-		return AgentSocketPortNumber
 	case OpenTelemetryLegacyPort:
 		return OpenTelemetryLegacyPortNumber
 	case OpenTelemetryGRPCPort:
@@ -60,18 +56,12 @@ func (p InstanaAgentPort) PortNumber() int32 {
 }
 
 func (p InstanaAgentPort) IsEnabled(openTelemetrySettings instanav1.OpenTelemetry) bool {
-	switch p {
-	case OpenTelemetryLegacyPort:
-		fallthrough
-	case OpenTelemetryGRPCPort:
+	if p == OpenTelemetryLegacyPort || p == OpenTelemetryGRPCPort {
 		return openTelemetrySettings.GrpcIsEnabled()
-	case OpenTelemetryHTTPPort:
-		return openTelemetrySettings.HttpIsEnabled()
-	case AgentAPIsPort:
-		fallthrough
-	case AgentSocketPort:
-		fallthrough
-	default:
-		return true
 	}
+	if p == OpenTelemetryHTTPPort {
+		return openTelemetrySettings.HttpIsEnabled()
+	}
+	// AgentAPIsPort is always enabled
+	return true
 }

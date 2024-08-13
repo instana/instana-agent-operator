@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
-	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 type AgentMode string
@@ -368,21 +367,29 @@ type OpenTelemetry struct {
 }
 
 func (otlp OpenTelemetry) GrpcIsEnabled() bool {
-	switch otlp.GRPC {
-	case nil:
-		return true
-	default:
-		return pointer.DerefOrDefault(otlp.GRPC.Enabled, true)
+	// explicit opt-out or opt-in via new setting
+	if otlp.GRPC != nil && otlp.GRPC.Enabled != nil {
+		return *otlp.GRPC.Enabled
 	}
+	// explicit opt-out via legacy setting
+	if otlp.Enabled.Enabled != nil && !*otlp.Enabled.Enabled {
+		return false
+	}
+	// enabled by default
+	return true
 }
 
 func (otlp OpenTelemetry) HttpIsEnabled() bool {
-	switch otlp.HTTP {
-	case nil:
-		return true
-	default:
-		return pointer.DerefOrDefault(otlp.HTTP.Enabled, true)
+	// explicit opt-out or opt-in via new setting
+	if otlp.HTTP != nil && otlp.HTTP.Enabled != nil {
+		return *otlp.HTTP.Enabled
 	}
+	// explicit opt-out via legacy setting
+	if otlp.Enabled.Enabled != nil && !*otlp.Enabled.Enabled {
+		return false
+	}
+	// enabled by default
+	return true
 }
 
 func (otlp OpenTelemetry) IsEnabled() bool {

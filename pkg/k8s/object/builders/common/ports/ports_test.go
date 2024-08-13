@@ -49,14 +49,6 @@ func TestInstanaAgentPortMappings(t *testing.T) {
 		},
 
 		{
-			name:                  string(ports.AgentSocketPort),
-			port:                  ports.AgentSocketPort,
-			openTelemetrySettings: instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &enabled}},
-			expectedPortNumber:    ports.AgentSocketPortNumber,
-			expectEnabled:         true,
-		},
-
-		{
 			name:                  string(ports.OpenTelemetryLegacyPort) + "_not_enabled",
 			port:                  ports.OpenTelemetryLegacyPort,
 			openTelemetrySettings: instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &disabled}},
@@ -129,82 +121,139 @@ func TestInstanaAgentPortMappings(t *testing.T) {
 	}
 }
 
-func TestPortsBuilderGetServicePorts(t *testing.T) {
-	assertions := require.New(t)
+func TestPortsBuilderGetPorts(t *testing.T) {
+	enabled := true
+	disabled := false
 
-	otlp := instanav1.OpenTelemetry{}
-
-	expected := []corev1.ServicePort{
-		{
-			Name:       string(ports.AgentAPIsPort),
-			Port:       ports.AgentAPIsPortNumber,
-			TargetPort: intstr.FromString(string(ports.AgentAPIsPort)),
-			Protocol:   corev1.ProtocolTCP,
-		},
-		{
-			Name:       string(ports.AgentSocketPort),
-			Port:       ports.AgentSocketPortNumber,
-			TargetPort: intstr.FromString(string(ports.AgentSocketPort)),
-			Protocol:   corev1.ProtocolTCP,
-		},
-		{
-			Name:       string(ports.OpenTelemetryGRPCPort),
-			Port:       ports.OpenTelemetryGRPCPortNumber,
-			TargetPort: intstr.FromString(string(ports.OpenTelemetryGRPCPort)),
-			Protocol:   corev1.ProtocolTCP,
-		},
-		{
-			Name:       string(ports.OpenTelemetryHTTPPort),
-			Port:       ports.OpenTelemetryHTTPPortNumber,
-			TargetPort: intstr.FromString(string(ports.OpenTelemetryHTTPPort)),
-			Protocol:   corev1.ProtocolTCP,
-		},
+	containerPortAgentAPI := corev1.ContainerPort{
+		Name:          string(ports.AgentAPIsPort),
+		ContainerPort: ports.AgentAPIsPortNumber,
+		Protocol:      corev1.ProtocolTCP,
 	}
 
-	pb := ports.NewPortsBuilder(&instanav1.InstanaAgent{
-		Spec: instanav1.InstanaAgentSpec{
-			OpenTelemetry: otlp,
-		},
-	})
-	actual := pb.
-		GetServicePorts(
-			ports.AgentAPIsPort,
-			ports.AgentSocketPort,
-			ports.OpenTelemetryGRPCPort,
-			ports.OpenTelemetryHTTPPort,
-		)
-
-	assertions.Equal(expected, actual, "Should contain all ServicePorts added to the list")
-}
-
-func TestPortsBuilderGetContainerPorts(t *testing.T) {
-	assertions := require.New(t)
-
-	expected := []corev1.ContainerPort{
-		{
-			Name:          string(ports.AgentAPIsPort),
-			ContainerPort: ports.AgentAPIsPortNumber,
-			Protocol:      corev1.ProtocolTCP,
-		},
-		{
-			Name:          string(ports.AgentSocketPort),
-			ContainerPort: ports.AgentSocketPortNumber,
-			Protocol:      corev1.ProtocolTCP,
-		},
-		{
-			Name:          string(ports.OpenTelemetryGRPCPort),
-			ContainerPort: ports.OpenTelemetryGRPCPortNumber,
-			Protocol:      corev1.ProtocolTCP,
-		},
+	containerPortOtelGPRC := corev1.ContainerPort{
+		Name:          string(ports.OpenTelemetryGRPCPort),
+		ContainerPort: ports.OpenTelemetryGRPCPortNumber,
+		Protocol:      corev1.ProtocolTCP,
 	}
 
-	actual := ports.
-		NewPortsBuilder(&instanav1.InstanaAgent{}).
-		GetContainerPorts(
-			ports.AgentAPIsPort,
-			ports.AgentSocketPort,
-			ports.OpenTelemetryGRPCPort,
-		)
+	containerPortOtelHTTP := corev1.ContainerPort{
+		Name:          string(ports.OpenTelemetryHTTPPort),
+		ContainerPort: ports.OpenTelemetryHTTPPortNumber,
+		Protocol:      corev1.ProtocolTCP,
+	}
 
-	assertions.Equal(expected, actual)
+	containerPortOtelLegacy := corev1.ContainerPort{
+		Name:          string(ports.OpenTelemetryLegacyPort),
+		ContainerPort: ports.OpenTelemetryLegacyPortNumber,
+		Protocol:      corev1.ProtocolTCP,
+	}
+
+	servicePortAgentAPI := corev1.ServicePort{
+		Name:       string(ports.AgentAPIsPort),
+		Port:       ports.AgentAPIsPortNumber,
+		TargetPort: intstr.FromString(string(ports.AgentAPIsPort)),
+		Protocol:   corev1.ProtocolTCP,
+	}
+
+	servicePortOtelGRPC := corev1.ServicePort{
+		Name:       string(ports.OpenTelemetryGRPCPort),
+		Port:       ports.OpenTelemetryGRPCPortNumber,
+		TargetPort: intstr.FromString(string(ports.OpenTelemetryGRPCPort)),
+		Protocol:   corev1.ProtocolTCP,
+	}
+
+	servicePortOtelLegacy := corev1.ServicePort{
+		Name:       string(ports.OpenTelemetryLegacyPort),
+		Port:       ports.OpenTelemetryLegacyPortNumber,
+		TargetPort: intstr.FromString(string(ports.OpenTelemetryLegacyPort)),
+		Protocol:   corev1.ProtocolTCP,
+	}
+
+	servicePortOtelHTTP := corev1.ServicePort{
+		Name:       string(ports.OpenTelemetryHTTPPort),
+		Port:       ports.OpenTelemetryHTTPPortNumber,
+		TargetPort: intstr.FromString(string(ports.OpenTelemetryHTTPPort)),
+		Protocol:   corev1.ProtocolTCP,
+	}
+
+	for _, test := range []struct {
+		name                   string
+		openTelemetrySettings  instanav1.OpenTelemetry
+		expectedContainerPorts []corev1.ContainerPort
+		expectedServicePorts   []corev1.ServicePort
+	}{
+		{
+			name:                   "Enabled all by default",
+			openTelemetrySettings:  instanav1.OpenTelemetry{},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI, containerPortOtelGPRC, containerPortOtelHTTP, containerPortOtelLegacy},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelGRPC, servicePortOtelHTTP, servicePortOtelLegacy},
+		},
+		{
+			name:                   "Enabled all with opt-in",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &enabled}, HTTP: &instanav1.Enabled{Enabled: &enabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI, containerPortOtelGPRC, containerPortOtelHTTP, containerPortOtelLegacy},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelGRPC, servicePortOtelHTTP, servicePortOtelLegacy},
+		},
+		{
+			name:                   "Enabled only GPRC",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &enabled}, HTTP: &instanav1.Enabled{Enabled: &disabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI, containerPortOtelGPRC, containerPortOtelLegacy},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelGRPC, servicePortOtelLegacy},
+		},
+		{
+			name:                   "Enabled only HTTP",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &enabled}, GRPC: &instanav1.Enabled{Enabled: &disabled}, HTTP: &instanav1.Enabled{Enabled: &enabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI, containerPortOtelHTTP},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelHTTP},
+		},
+		{
+			name:                   "Disable all OLTP ports without legacy setting",
+			openTelemetrySettings:  instanav1.OpenTelemetry{GRPC: &instanav1.Enabled{Enabled: &disabled}, HTTP: &instanav1.Enabled{Enabled: &disabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI},
+		},
+		{
+			name:                   "Disable all OLTP ports via legacy setting",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &disabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI},
+		},
+		{
+			name:                   "Conflicting supported and legacy settings",
+			openTelemetrySettings:  instanav1.OpenTelemetry{Enabled: instanav1.Enabled{Enabled: &disabled}, GRPC: &instanav1.Enabled{Enabled: &enabled}, HTTP: &instanav1.Enabled{Enabled: &enabled}},
+			expectedContainerPorts: []corev1.ContainerPort{containerPortAgentAPI, containerPortOtelGPRC, containerPortOtelHTTP, containerPortOtelLegacy},
+			expectedServicePorts:   []corev1.ServicePort{servicePortAgentAPI, servicePortOtelGRPC, servicePortOtelHTTP, servicePortOtelLegacy},
+		},
+	} {
+		assertions := require.New(t)
+		actualContainerPorts := ports.
+			NewPortsBuilder(&instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					OpenTelemetry: test.openTelemetrySettings,
+				},
+			}).
+			GetContainerPorts(
+				ports.AgentAPIsPort,
+				ports.OpenTelemetryGRPCPort,
+				ports.OpenTelemetryHTTPPort,
+				ports.OpenTelemetryLegacyPort,
+			)
+
+		actualServicePorts := ports.
+			NewPortsBuilder(&instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					OpenTelemetry: test.openTelemetrySettings,
+				},
+			}).
+			GetServicePorts(
+				ports.AgentAPIsPort,
+				ports.OpenTelemetryGRPCPort,
+				ports.OpenTelemetryHTTPPort,
+				ports.OpenTelemetryLegacyPort,
+			)
+
+		assertions.Equal(test.expectedContainerPorts, actualContainerPorts, test.openTelemetrySettings)
+		assertions.Equal(test.expectedServicePorts, actualServicePorts, test.openTelemetrySettings)
+	}
 }
