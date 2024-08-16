@@ -34,3 +34,7 @@ const (
 	DownloadKey = "downloadKey"
 	BackendKey  = "backend"
 )
+
+const (
+	AgentPort = 42699
+)
