@@ -22,7 +22,7 @@ abort_if_pr_for_latest_version_exists() {
 pushd instana-agent-operator-release
 
 olm_bundle_zip=$(ls olm*.zip)
-operator_release_version="v$(echo "$olm_bundle_zip" | sed 's/olm-\(.*\)\.zip/\1/')"
+operator_release_version="$(echo "$olm_bundle_zip" | sed 's/olm-\(.*\)\.zip/\1/')"
 operator_public_pr_name="operator instana-agent-operator"
 if [ "$REPO" == "redhat-marketplace-operators" ]; then
     operator_public_pr_name="${operator_public_pr_name}-rhmp"
