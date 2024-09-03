@@ -231,7 +231,7 @@ get-mockgen:
 	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
 
 gen-mocks: get-mockgen
-	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.17.2/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
+	mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.18.5/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
 	mockgen --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
 	mockgen --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
 	mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 
