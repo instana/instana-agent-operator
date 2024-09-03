@@ -4,7 +4,7 @@
 #
 
 # Build the manager binary, always build on amd64 platform
-FROM --platform=linux/amd64 golang:1.22 AS builder
+FROM --platform=linux/amd64 golang:1.23 AS builder
 
 ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev

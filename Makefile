@@ -157,7 +157,7 @@ ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 endif
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2)
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3)
 
 OPERATOR_SDK = $(shell command -v operator-sdk 2>/dev/null || echo "operator-sdk")
 # Test if operator-sdk is available on the system, otherwise download locally
