@@ -4,7 +4,7 @@
 #
 
 # Build the manager binary, always build on amd64 platform
-FROM --platform=linux/amd64 golang:1.22 AS builder
+FROM --platform=linux/amd64 golang:1.23 AS builder
 
 ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
@@ -33,7 +33,7 @@ RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'li
 	go build -ldflags="-X 'github.com/instana/instana-agent-operator/version.Version=${VERSION}' -X 'github.com/instana/instana-agent-operator/version.GitCommit=${GIT_COMMIT}'" -a -o manager main.go
 
 # Resulting image with actual Operator
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
@@ -63,7 +63,7 @@ ENV OPERATOR=instana-agent-operator \
     USER_UID=1001 \
     USER_NAME=instana-agent-operator
 
-RUN microdnf update \
+RUN microdnf update -y \
   && microdnf clean all
 
 WORKDIR /
