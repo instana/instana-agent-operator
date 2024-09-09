@@ -606,7 +606,15 @@ jobs:
                   inputs:
                     - name: pipeline-source
                   run:
-                    path: pipeline-source/ci/scripts/end-to-end-test.sh
+                    path: bash
+                    args:
+                      - -ceu
+                      - |
+                        cd pipeline-source
+                        echo "Run old e2e suite"
+                        bash pipeline-source/ci/scripts/end-to-end-test.sh
+                        echo "Run new e2e suite"
+                        make e2e
                 on_success:
                   put: gh-status
                   inputs: [pipeline-source]
@@ -689,7 +697,15 @@ jobs:
                   inputs:
                     - name: pipeline-source
                   run:
-                    path: pipeline-source/ci/scripts/end-to-end-test.sh
+                    path: bash
+                    args:
+                      - -ceu
+                      - |
+                        cd pipeline-source
+                        echo "Run old e2e suite"
+                        bash pipeline-source/ci/scripts/end-to-end-test.sh
+                        echo "Run new e2e suite"
+                        make e2e
                 on_success:
                   put: gh-status
                   inputs: [pipeline-source]

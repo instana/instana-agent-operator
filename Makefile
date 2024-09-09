@@ -88,13 +88,16 @@ vet: ## Run go vet against code
 lint: golangci-lint ## Run the golang-ci linter
 	$(GOLANGCI_LINT) run --timeout 5m
 
-EXCLUDED_TEST_DIRS = mocks
+EXCLUDED_TEST_DIRS = mocks e2e
 EXCLUDE_PATTERN = $(shell echo $(EXCLUDED_TEST_DIRS) | sed 's/ /|/g')
 PACKAGES = $(shell go list ./... | grep -vE "$(EXCLUDE_PATTERN)" | tr '\n' ' ')
 KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
 test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
 	 KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
+.PHONY: e2e
+e2e:
+	go test -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
 
