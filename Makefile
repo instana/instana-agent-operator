@@ -97,7 +97,7 @@ test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore 
 
 .PHONY: e2e
 e2e:
-	go test -count=1 -v github.com/instana/instana-agent-operator/e2e
+	go test -timeout=5m -count=1 -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
 
