@@ -610,9 +610,9 @@ jobs:
                     args:
                       - -ceu
                       - |
-                        cd pipeline-source
                         echo "Run old e2e suite"
-                        bash pipeline-source/ci/scripts/end-to-end-test.sh
+                        bash ./pipeline-source/ci/scripts/end-to-end-test.sh
+                        cd pipeline-source
                         echo "Run new e2e suite"
                         make e2e
                 on_success:
@@ -701,9 +701,9 @@ jobs:
                     args:
                       - -ceu
                       - |
-                        cd pipeline-source
                         echo "Run old e2e suite"
-                        bash pipeline-source/ci/scripts/end-to-end-test.sh
+                        bash ./pipeline-source/ci/scripts/end-to-end-test.sh
+                        cd pipeline-source
                         echo "Run new e2e suite"
                         make e2e
                 on_success:
