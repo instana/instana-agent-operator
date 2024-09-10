@@ -12,6 +12,7 @@ import (
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/e2e-framework/klient/conf"
@@ -44,6 +45,7 @@ func TestMain(m *testing.M) {
 			if err != nil {
 				return ctx, fmt.Errorf("Cleanup: Error initializing client to delete agent CR: %w", err)
 			}
+
 			r.WithNamespace(namespace)
 			err = v1.AddToScheme(r.GetScheme())
 			if err != nil {
@@ -55,8 +57,13 @@ func TestMain(m *testing.M) {
 			// to remove the finalizer. Afterwards, it can be deleted just fine.
 			agent := &v1.InstanaAgent{}
 			err = r.Get(ctx, "instana-agent", "instana-agent", agent)
+			if errors.IsNotFound(err) {
+				// no agent cr found, skip this cleanup step
+				return ctx, nil
+			}
+
 			if err != nil {
-				fmt.Println(fmt.Errorf("Cleanup: Fetch agent CR failed, might not be present (ignoring): %w", err))
+				return ctx, fmt.Errorf("Cleanup: Fetch agent CR failed: %w", err)
 			}
 
 			agentCrToDelete := &v1.InstanaAgent{
@@ -76,14 +83,14 @@ func TestMain(m *testing.M) {
 				Data:      []byte(`{"metadata":{"finalizers":[]}}`),
 			})
 			if err != nil {
-				fmt.Println(fmt.Errorf("Cleanup: Patch agent CR failed, might not be present (ignoring): %w", err))
+				return ctx, fmt.Errorf("Cleanup: Patch agent CR failed: %w", err)
 			}
 
 			// delete explicitly, namespace deletion would delete the agent CR as well if the finalizer is not present
 			err = r.Delete(ctx, agentCrToDelete)
 
 			if err != nil {
-				fmt.Println(fmt.Errorf("Cleanup: Delete agent CR failed, might not be present (ignoring): %w", err))
+				return ctx, fmt.Errorf("Cleanup: Delete agent CR failed: %w", err)
 			}
 
 			agentCrList := &v1.InstanaAgentList{
@@ -104,7 +111,7 @@ func TestMain(m *testing.M) {
 			// ensure to wait for the agent CR to disappear before continuing
 			err = wait.For(conditions.New(r).ResourcesDeleted(agentCrList))
 			if err != nil {
-				fmt.Println(fmt.Errorf("Cleanup: Waiting for agent CR deletion failed, might not be present (ignoring): %w", err))
+				return ctx, fmt.Errorf("Cleanup: Waiting for agent CR deletion failed: %w", err)
 			}
 			return ctx, nil
 		},
