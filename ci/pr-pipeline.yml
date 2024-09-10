@@ -565,7 +565,7 @@ jobs:
     plan:
       - get: pipeline-source
         trigger: true
-        passed: [operator-olm-build, docker-build]
+        passed: [docker-build]
       - load_var: git-commit
         file: pipeline-source/.git/short_ref
         reveal: true

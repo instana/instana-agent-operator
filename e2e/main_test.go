@@ -45,7 +45,10 @@ func TestMain(m *testing.M) {
 				return ctx, fmt.Errorf("Cleanup: Error initializing client to delete agent CR: %w", err)
 			}
 			r.WithNamespace(namespace)
-			v1.AddToScheme(r.GetScheme())
+			err = v1.AddToScheme(r.GetScheme())
+			if err != nil {
+				return ctx, fmt.Errorf("Cleanup: Error could not add agent types to current scheme: %w", err)
+			}
 
 			// If the agent cr is available, but the operator is already gone, the finalizer will never be removed
 			// This will lead to a terminating namespace which never disappears, to avoid that, patch the agent CR
