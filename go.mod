@@ -10,6 +10,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/go-errors/errors v1.4.2
 	github.com/go-logr/logr v1.4.1
+	github.com/openshift/client-go v0.0.0-20240906181530-b2f7c4ab0984
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.4.0
@@ -104,6 +105,7 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc6 // indirect
+	github.com/openshift/api v0.0.0-20240906165951-d73f2e11e0be // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect

@@ -11,8 +11,10 @@ import (
 	"testing"
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
+	securityv1 "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
@@ -24,7 +26,6 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
-	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
 var testEnv env.Environment
@@ -38,7 +39,7 @@ func DeleteAgentNamespaceIfPresent() env.Func {
 		// Create a client to interact with the Kube API
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: Error initializing client to delete agent CR: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Error initializing client to delete agent CR: %v", err)
 		}
 
 		// Check if namespace exist, otherwise just skip over it
@@ -49,7 +50,7 @@ func DeleteAgentNamespaceIfPresent() env.Func {
 		}
 		// Something on the API request failed, this should fail the cleanup
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: Getting namespace failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Getting namespace failed: %v", err)
 		}
 
 		// Cleanup a potentially existing Agent CR first
@@ -59,7 +60,7 @@ func DeleteAgentNamespaceIfPresent() env.Func {
 
 		// Delete the Namespace
 		if err = r.Delete(ctx, agentNamespace); err != nil {
-			return ctx, fmt.Errorf("Cleanup: Delete namespace failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Delete namespace failed: %v", err)
 		}
 
 		// Wait for the termination of the namespace
@@ -71,7 +72,7 @@ func DeleteAgentNamespaceIfPresent() env.Func {
 
 		err = wait.For(conditions.New(r).ResourcesDeleted(namespaceList))
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: waiting for namespace deletion failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: waiting for namespace deletion failed: %v", err)
 		}
 		return ctx, nil
 	}
@@ -82,7 +83,7 @@ func DeleteAgentCRIfPresent() env.Func {
 		// Create a client to interact with the Kube API
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: Error initializing client to delete agent CR: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Error initializing client to delete agent CR: %v", err)
 		}
 
 		// Assume an existing namespace at this point, check if an agent CR is present (requires to adjust schema of current client)
@@ -90,7 +91,7 @@ func DeleteAgentCRIfPresent() env.Func {
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
 			// If this fails, the cleanup will not work properly -> failing
-			return ctx, fmt.Errorf("Cleanup: Error could not add agent types to current scheme: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Error could not add agent types to current scheme: %v", err)
 		}
 
 		// If the agent cr is available, but the operator is already gone, the finalizer will never be removed
@@ -105,7 +106,7 @@ func DeleteAgentCRIfPresent() env.Func {
 
 		// The agent CR could not be fetched due to a different reason, failing
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: Fetch agent CR failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Fetch agent CR failed: %v", err)
 		}
 
 		// Removing the finalizer from the existing Agent CR to make it deletable
@@ -115,7 +116,7 @@ func DeleteAgentCRIfPresent() env.Func {
 			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
 		})
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: Patch agent CR failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Patch agent CR failed: %v", err)
 		}
 
 		// delete explicitly, namespace deletion would delete the agent CR as well if the finalizer is not present
@@ -123,7 +124,7 @@ func DeleteAgentCRIfPresent() env.Func {
 
 		if err != nil {
 			// The deletion failed for some reason, failing the cleanup
-			return ctx, fmt.Errorf("Cleanup: Delete agent CR failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Delete agent CR failed: %v", err)
 		}
 
 		agentCrList := &v1.InstanaAgentList{
@@ -133,7 +134,7 @@ func DeleteAgentCRIfPresent() env.Func {
 		// Ensure to wait for the agent CR to disappear before continuing
 		err = wait.For(conditions.New(r).ResourcesDeleted(agentCrList))
 		if err != nil {
-			return ctx, fmt.Errorf("Cleanup: Waiting for agent CR deletion failed: %w", err)
+			return ctx, fmt.Errorf("Cleanup: Waiting for agent CR deletion failed: %v", err)
 		}
 		return ctx, nil
 	}
@@ -145,13 +146,13 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 		// Create a client to interact with the Kube API
 		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		if err != nil {
-			return ctx, fmt.Errorf("Error creating a clientset: %w", err)
+			return ctx, fmt.Errorf("Error creating a clientset: %v", err)
 		}
 
 		discoveryClient := discovery.NewDiscoveryClient(clientSet.RESTClient())
 		apiGroups, err := discoveryClient.ServerGroups()
 		if err != nil {
-			return ctx, fmt.Errorf("Failed to fetch apiGroups: %w", err)
+			return ctx, fmt.Errorf("Failed to fetch apiGroups: %v", err)
 		}
 
 		isOpenShift := false
@@ -164,9 +165,46 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 
 		if isOpenShift {
 			command := "oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent"
-			fmt.Printf("OpenShift detected, running command to ensure correct permissions: %s\n", command)
-			p := utils.RunCommand(command)
-			return ctx, p.Err()
+			fmt.Printf("OpenShift detected, adding instana-agent service account to SecurityContextConstraints: %s\n", command)
+
+			// replaced command execution with SDK call to not require `oc` cli
+			securityClient, err := securityv1.NewForConfig(cfg.Client().RESTConfig())
+			if err != nil {
+				return ctx, fmt.Errorf("Could not initalize securityClient: %v", err)
+			}
+
+			// security context
+			scc, err := securityClient.SecurityContextConstraints().Get(ctx, "privileged", metav1.GetOptions{})
+			if err != nil {
+				return ctx, fmt.Errorf("Failed to get SecurityContextContraints: %v", err)
+			}
+
+			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", namespace, "instana-agent")
+			userFound := false
+
+			for _, user := range scc.Users {
+				if user == serviceAccountId {
+					userFound = true
+					break
+				}
+			}
+
+			if userFound {
+				fmt.Printf("Security Context Constraint \"privileged\" already lists service account user: %v\n", serviceAccountId)
+				return ctx, nil
+			}
+
+			// updating Security Context Constraints
+			scc.Users = append(scc.Users, serviceAccountId)
+
+			_, err = securityClient.SecurityContextConstraints().Update(ctx, scc, metav1.UpdateOptions{})
+			if err != nil {
+				return ctx, fmt.Errorf("Could not update Security Context Constraints on OCP cluster: %v", err)
+			}
+
+			// p := utils.RunCommand(command)
+			// return ctx, p.Err()
+			return ctx, nil
 		} else {
 			fmt.Println("Vanilla Kubernetes detected")
 		}
