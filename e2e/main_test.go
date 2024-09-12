@@ -14,6 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/e2e-framework/klient/conf"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -140,8 +142,35 @@ func DeleteAgentCRIfPresent() env.Func {
 // On OpenShift we need to ensure the instana-agent service account gets permission to the privilged security context
 func AdjustOcpPermissionsIfNecessary() env.Func {
 	return func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
-		p := utils.RunCommand("oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent")
-		return ctx, p.Err()
+		// Create a client to interact with the Kube API
+		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		if err != nil {
+			return ctx, fmt.Errorf("Error creating a clientset: %w", err)
+		}
+
+		discoveryClient := discovery.NewDiscoveryClient(clientSet.RESTClient())
+		apiGroups, err := discoveryClient.ServerGroups()
+		if err != nil {
+			return ctx, fmt.Errorf("Failed to fetch apiGroups: %w", err)
+		}
+
+		isOpenShift := false
+		for _, group := range apiGroups.Groups {
+			if group.Name == "apps.openshift.io" {
+				isOpenShift = true
+				break
+			}
+		}
+
+		if isOpenShift {
+			command := "oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent"
+			fmt.Printf("OpenShift detected, running command to ensure correct permissions: %s\n", command)
+			p := utils.RunCommand(command)
+			return ctx, p.Err()
+		} else {
+			fmt.Println("Vanilla Kubernetes detected")
+		}
+		return ctx, nil
 	}
 }
 
@@ -154,5 +183,9 @@ func TestMain(m *testing.M) {
 		envfuncs.CreateNamespace(namespace),
 		AdjustOcpPermissionsIfNecessary(),
 	)
+	// Consider leave artifacts in cluster for easier debugging,
+	// as a new run needs to cleanup anyways. Cleanup for now to ensure
+	// that the existing test suite is not facing issues.
+	testEnv.Finish(DeleteAgentNamespaceIfPresent())
 	os.Exit(testEnv.Run(m))
 }

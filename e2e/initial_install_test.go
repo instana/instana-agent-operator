@@ -54,6 +54,44 @@ func TestInitialInstall(t *testing.T) {
 			return ctx
 		}).Feature()
 
+	f2 := features.New("deploy agent cr").
+		Assess("deploy example agent cr with defaults", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			client, err := cfg.NewClient()
+			if err != nil {
+				assert.Nil(t, err, "Could not create new client")
+			}
+
+			if p := utils.RunCommand("kubectl apply -f ../config/samples/instana_v1_instanaagent.yaml"); p.Err() != nil {
+				assert.Nil(t, p.Err(), "Error while applying latest operator yaml")
+				assert.Equal(t, 0, p.ExitCode())
+			}
+
+			t.Log("Wait for agent daemonset to become ready")
+			ds := appsv1.DaemonSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "instana-agent", Namespace: cfg.Namespace()},
+			}
+			err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*2))
+			if err != nil {
+				assert.Nil(t, err)
+			}
+			t.Log("Agent DeamonSet is ready")
+
+			t.Log("Wait for k8sensor deployment to become ready")
+			dep := appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "instana-agent-k8sensor", Namespace: cfg.Namespace()},
+			}
+			// wait for operator pods of the deployment to become ready
+			err = wait.For(conditions.New(client.Resources()).ResourceMatch(&dep, func(object k8s.Object) bool {
+				return dep.Status.ReadyReplicas == *dep.Spec.Replicas
+			}), wait.WithTimeout(time.Minute*2))
+
+			if err != nil {
+				assert.Nil(t, err)
+			}
+			t.Log("K8sensor deployment is ready")
+			return ctx
+		}).Feature()
+
 	// test feature
-	testEnv.Test(t, f1)
+	testEnv.Test(t, f1, f2)
 }
