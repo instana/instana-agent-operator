@@ -170,7 +170,7 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 			// replaced command execution with SDK call to not require `oc` cli
 			securityClient, err := securityv1.NewForConfig(cfg.Client().RESTConfig())
 			if err != nil {
-				return ctx, fmt.Errorf("Could not initalize securityClient: %v", err)
+				return ctx, fmt.Errorf("Could not initialize securityClient: %v", err)
 			}
 
 			// security context

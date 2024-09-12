@@ -288,7 +288,7 @@ function verify_multi_backend_config_generation_and_injection() {
     kubectl -n ${NAMESPACE} get agent instana-agent -o yaml
 }
 
-source ci/scripts/cluster-authentication.sh
+source pipeline-source/ci/scripts/cluster-authentication.sh
 
 echo "Deploying the public operator"
 wget https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml
