@@ -212,6 +212,54 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 	}
 }
 
+func NewAgentCr(t *testing.T) v1.InstanaAgent {
+	var name, key, endpointHost, endpointPort string
+	var found bool
+	name, found = os.LookupEnv("NAME")
+	if !found {
+		t.Log("NAME not defined, falling back to default")
+		name = "e2e"
+	}
+	key, found = os.LookupEnv("INSTANA_API_KEY")
+	if !found {
+		t.Fatal("INSTANA_API_KEY not defined, connection will not work, failing suite")
+		key = "xxx"
+	}
+	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
+	if !found {
+		t.Log("INSTANA_ENDPOINT_HOST not defined, defaulting to ingress-red-saas.instana.io")
+		endpointHost = "ingress-red-saas.instana.io"
+	}
+	endpointPort, found = os.LookupEnv("INSTANA_ENDPOINT_PORT")
+	if !found {
+		endpointPort = "443"
+	}
+
+	boolTrue := true
+
+	return v1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instana-agent",
+			Namespace: namespace,
+		},
+		Spec: v1.InstanaAgentSpec{
+			Zone: v1.Name{
+				Name: name,
+			},
+			Cluster: v1.Name{Name: name},
+			Agent: v1.BaseAgentSpec{
+				Key:          key,
+				EndpointHost: endpointHost,
+				EndpointPort: endpointPort,
+			},
+			OpenTelemetry: v1.OpenTelemetry{
+				GRPC: &v1.Enabled{Enabled: &boolTrue},
+				HTTP: &v1.Enabled{Enabled: &boolTrue},
+			},
+		},
+	}
+}
+
 func TestMain(m *testing.M) {
 	path := conf.ResolveKubeConfigFile()
 	cfg := envconf.NewWithKubeConfig(path)

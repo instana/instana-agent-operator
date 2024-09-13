@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -38,29 +37,7 @@ func TestUpdateInstall(t *testing.T) {
 				t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
 			}
 
-			// using kubectl to apply real yaml file
-			// p = utils.RunCommand("kubectl apply -f ../config/samples/instana_v1_instanaagent.yaml")
-			// if p.Err() != nil {
-			// 	t.Fatal("Error while applying example Agent CR", p.Command(), p.Err(), p.Out(), p.ExitCode())
-			// }
-
-			// API approach
-			client, err := cfg.NewClient()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			agent := NewAgentCr(t)
-			r := client.Resources(namespace)
-			v1.AddToScheme(r.GetScheme())
-			err = r.Create(ctx, &agent)
-			if err != nil {
-				t.Fatal("Could not create Agent CR", err)
-			}
-
-			return ctx
-		}).
-		Assess("wait for controller-manager deployment to become ready", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			// Wait for controller-manager deployment to ensure that CRD is installed correctly before proceeding
 			client, err := cfg.NewClient()
 			if err != nil {
 				t.Fatal(err)
@@ -72,6 +49,21 @@ func TestUpdateInstall(t *testing.T) {
 			err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			// using kubectl to apply real yaml file
+			// p = utils.RunCommand("kubectl apply -f ../config/samples/instana_v1_instanaagent.yaml")
+			// if p.Err() != nil {
+			// 	t.Fatal("Error while applying example Agent CR", p.Command(), p.Err(), p.Out(), p.ExitCode())
+			// }
+
+			// using API to create Agent CR
+			agent := NewAgentCr(t)
+			r := client.Resources(namespace)
+			v1.AddToScheme(r.GetScheme())
+			err = r.Create(ctx, &agent)
+			if err != nil {
+				t.Fatal("Could not create Agent CR", err)
 			}
 
 			return ctx
@@ -113,7 +105,7 @@ func TestUpdateInstall(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			podList, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=instana-agent"})
+			podList, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -157,52 +149,4 @@ func TestUpdateInstall(t *testing.T) {
 
 	// test feature
 	testEnv.Test(t, f1)
-}
-
-func NewAgentCr(t *testing.T) v1.InstanaAgent {
-	var name, key, endpointHost, endpointPort string
-	var found bool
-	name, found = os.LookupEnv("NAME")
-	if !found {
-		t.Log("NAME not defined, falling back to default")
-		name = "e2e"
-	}
-	key, found = os.LookupEnv("INSTANA_API_KEY")
-	if !found {
-		t.Fatal("INSTANA_API_KEY not defined, connection will not work, failing suite")
-		key = "xxx"
-	}
-	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
-	if !found {
-		t.Log("INSTANA_ENDPOINT_HOST not defined, defaulting to ingress-red-saas.instana.io")
-		endpointHost = "ingress-red-saas.instana.io"
-	}
-	endpointPort, found = os.LookupEnv("INSTANA_ENDPOINT_PORT")
-	if !found {
-		endpointPort = "443"
-	}
-
-	boolTrue := true
-
-	return v1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "instana-agent",
-			Namespace: namespace,
-		},
-		Spec: v1.InstanaAgentSpec{
-			Zone: v1.Name{
-				Name: name,
-			},
-			Cluster: v1.Name{Name: name},
-			Agent: v1.BaseAgentSpec{
-				Key:          key,
-				EndpointHost: endpointHost,
-				EndpointPort: endpointPort,
-			},
-			OpenTelemetry: v1.OpenTelemetry{
-				GRPC: &v1.Enabled{Enabled: &boolTrue},
-				HTTP: &v1.Enabled{Enabled: &boolTrue},
-			},
-		},
-	}
 }

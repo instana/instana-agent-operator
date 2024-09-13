@@ -131,3 +131,17 @@ Now you should have a successful running Operator.
 To remove the Operator again, run:
 * `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml`
 * `make undeploy`.
+
+### Running tests
+
+Unit tests can be executed by running `make test` without adjustments of the local environment.
+
+For end-to-end testing, it is necessary to have a valid kubeconfig in the default location and to export variables before starting the test:
+
+```bash
+export INSTANA_API_KEY=xxx
+export INSTANA_ENDPOINT_HOST=xxx
+
+# optional values
+export NAME=e2e
+```
