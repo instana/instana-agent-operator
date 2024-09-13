@@ -6,14 +6,20 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
+	v1 "github.com/instana/instana-agent-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -32,9 +38,24 @@ func TestUpdateInstall(t *testing.T) {
 				t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
 			}
 
-			p = utils.RunCommand("kubectl apply -f ../config/samples/instana_v1_instanaagent.yaml")
-			if p.Err() != nil {
-				t.Fatal("Error while applying example Agent CR", p.Command(), p.Err(), p.Out(), p.ExitCode())
+			// using kubectl to apply real yaml file
+			// p = utils.RunCommand("kubectl apply -f ../config/samples/instana_v1_instanaagent.yaml")
+			// if p.Err() != nil {
+			// 	t.Fatal("Error while applying example Agent CR", p.Command(), p.Err(), p.Out(), p.ExitCode())
+			// }
+
+			// API approach
+			client, err := cfg.NewClient()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			agent := NewAgentCr(t)
+			r := client.Resources(namespace)
+			v1.AddToScheme(r.GetScheme())
+			err = r.Create(ctx, &agent)
+			if err != nil {
+				t.Fatal("Could not create Agent CR", err)
 			}
 
 			return ctx
@@ -87,8 +108,101 @@ func TestUpdateInstall(t *testing.T) {
 
 			return ctx
 		}).
+		Assess("check agent log for successful connection", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			podList, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=instana-agent"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(podList.Items) == 0 {
+				t.Fatal("No pods found")
+			}
+
+			connectionSuccessful := false
+			var buf *bytes.Buffer
+			for i := 0; i < 6; i++ {
+				time.Sleep(10 * time.Second)
+				logReq := clientSet.CoreV1().Pods(namespace).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
+				podLogs, err := logReq.Stream(ctx)
+				if err != nil {
+					t.Fatal("Could not stream logs", err)
+				}
+				defer podLogs.Close()
+
+				buf = new(bytes.Buffer)
+				_, err = io.Copy(buf, podLogs)
+
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
+					t.Log("Connection established correctly")
+					connectionSuccessful = true
+					break
+				} else {
+					t.Log("Could not find working connection in log of the first pod yet")
+				}
+			}
+
+			if !connectionSuccessful {
+				t.Error("Agent pod did not log successful connection, dumping log", buf.String())
+			}
+
+			return ctx
+		}).
 		Feature()
 
 	// test feature
 	testEnv.Test(t, f1)
+}
+
+func NewAgentCr(t *testing.T) v1.InstanaAgent {
+	var name, key, endpointHost, endpointPort string
+	var found bool
+	name, found = os.LookupEnv("NAME")
+	if !found {
+		t.Log("NAME not defined, falling back to default")
+		name = "e2e"
+	}
+	key, found = os.LookupEnv("INSTANA_API_KEY")
+	if !found {
+		t.Fatal("INSTANA_API_KEY not defined, connection will not work, failing suite")
+		key = "xxx"
+	}
+	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
+	if !found {
+		t.Log("INSTANA_ENDPOINT_HOST not defined, defaulting to ingress-red-saas.instana.io")
+		endpointHost = "ingress-red-saas.instana.io"
+	}
+	endpointPort, found = os.LookupEnv("INSTANA_ENDPOINT_PORT")
+	if !found {
+		endpointPort = "443"
+	}
+
+	boolTrue := true
+
+	return v1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instana-agent",
+			Namespace: namespace,
+		},
+		Spec: v1.InstanaAgentSpec{
+			Zone: v1.Name{
+				Name: name,
+			},
+			Cluster: v1.Name{Name: name},
+			Agent: v1.BaseAgentSpec{
+				Key:          key,
+				EndpointHost: endpointHost,
+				EndpointPort: endpointPort,
+			},
+			OpenTelemetry: v1.OpenTelemetry{
+				GRPC: &v1.Enabled{Enabled: &boolTrue},
+				HTTP: &v1.Enabled{Enabled: &boolTrue},
+			},
+		},
+	}
 }
