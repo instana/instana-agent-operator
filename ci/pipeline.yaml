@@ -807,7 +807,7 @@ jobs:
                 export PREFIX="v"
                 export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
 
-                echo "---> Pushing multi-architectural manifest to icr.io"
+                echo "---> Pushing multi-architectural manifest to icr.io with version tag"
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
                   --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
@@ -815,6 +815,15 @@ jobs:
                   --dest-password ${ICR_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
+
+                echo "---> Pushing multi-architectural manifest to icr.io with the latest tag"
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --dest-username ${ICR_USERNAME} \
+                  --dest-password ${ICR_PASSWORD} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${ICR_REPOSITORY}:latest
 
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
