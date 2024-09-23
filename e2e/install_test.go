@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
@@ -143,6 +144,31 @@ func TestUpdateInstall(t *testing.T) {
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
 		Feature()
 
+	f3 := features.New("check reconcile works with new operator deployment").
+		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			// delete agent daemonset
+			err = clientSet.AppsV1().DaemonSets(cfg.Namespace()).Delete(ctx, "instana-agent", metav1.DeleteOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// delete k8sensor deployment
+			err = clientSet.AppsV1().Deployments(cfg.Namespace()).Delete(ctx, "instana-agent-k8sensor", metav1.DeleteOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			return ctx
+		}).
+		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
+		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
+		Feature()
+
 	// test feature
-	testEnv.Test(t, f1, f2)
+	testEnv.Test(t, f1, f2, f3)
 }
