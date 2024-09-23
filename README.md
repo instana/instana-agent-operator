@@ -136,12 +136,25 @@ To remove the Operator again, run:
 
 Unit tests can be executed by running `make test` without adjustments of the local environment.
 
-For end-to-end testing, it is necessary to have a valid kubeconfig in the default location and to export variables before starting the test:
+For end-to-end testing, it is necessary to have a valid kubeconfig in the default location and to export variables before starting the test.
+An example template file is available in [e2e/.env.template](./e2e/.env.template), copy it to `./e2e/.env` and adjust it accordingly.
 
-```bash
-export INSTANA_API_KEY=xxx
-export INSTANA_ENDPOINT_HOST=xxx
+The test can be executed by sourcing the config `source ./e2e/.env` and running `make e2e` or by using the VSCode.
 
-# optional values
-export NAME=e2e
+For VSCode, ensure to have a valid `.vscode/settings.json` in your root folder.
+
+Example:
+
+```json
+{
+    "wcaForGP.enable": true,
+    "go.testEnvVars": {
+        "KUBEBUILDER_ASSETS": "~/.local/share/kubebuilder-envtest/k8s/1.30.0-linux-amd64",
+        "INSTANA_API_KEY": "xxx",
+        "ARTIFACTORY_USERNAME": "xxx",
+        "ARTIFACTORY_PASSWORD": "xxx"
+    },
+    "wca.enable": false,
+    "go.testTimeout": "300s"
+}
 ```

@@ -2,12 +2,14 @@
  * (c) Copyright IBM Corp. 2024
  * (c) Copyright Instana Inc. 2024
  */
+
 package e2e
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
@@ -29,6 +31,7 @@ import (
 )
 
 var testEnv env.Environment
+var instanaTestConfig InstanaTestConfig
 
 const namespace string = "instana-agent"
 
@@ -213,28 +216,6 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 }
 
 func NewAgentCr(t *testing.T) v1.InstanaAgent {
-	var name, key, endpointHost, endpointPort string
-	var found bool
-	name, found = os.LookupEnv("NAME")
-	if !found {
-		t.Log("NAME not defined, falling back to default")
-		name = "e2e"
-	}
-	key, found = os.LookupEnv("INSTANA_API_KEY")
-	if !found {
-		t.Fatal("INSTANA_API_KEY not defined, connection will not work, failing suite")
-		key = "xxx"
-	}
-	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
-	if !found {
-		t.Log("INSTANA_ENDPOINT_HOST not defined, defaulting to ingress-red-saas.instana.io")
-		endpointHost = "ingress-red-saas.instana.io"
-	}
-	endpointPort, found = os.LookupEnv("INSTANA_ENDPOINT_PORT")
-	if !found {
-		endpointPort = "443"
-	}
-
 	boolTrue := true
 
 	return v1.InstanaAgent{
@@ -244,13 +225,14 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 		},
 		Spec: v1.InstanaAgentSpec{
 			Zone: v1.Name{
-				Name: name,
+				Name: "e2e",
 			},
-			Cluster: v1.Name{Name: name},
+			// ensure to not overlap between concurrent test runs on different clusters, randomize cluster name, but have consistent zone
+			Cluster: v1.Name{Name: envconf.RandomName("e2e", 4)},
 			Agent: v1.BaseAgentSpec{
-				Key:          key,
-				EndpointHost: endpointHost,
-				EndpointPort: endpointPort,
+				Key:          instanaTestConfig.InstanaBackend.AgentKey,
+				EndpointHost: instanaTestConfig.InstanaBackend.EndpointHost,
+				EndpointPort: strconv.Itoa(instanaTestConfig.InstanaBackend.EndpointPort),
 			},
 			OpenTelemetry: v1.OpenTelemetry{
 				GRPC: &v1.Enabled{Enabled: &boolTrue},
@@ -261,6 +243,7 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 }
 
 func TestMain(m *testing.M) {
+	instanaTestConfig = LoadConfig()
 	path := conf.ResolveKubeConfigFile()
 	cfg := envconf.NewWithKubeConfig(path)
 	testEnv = env.NewWithConfig(cfg)

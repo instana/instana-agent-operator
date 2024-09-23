@@ -6,11 +6,8 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +15,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -37,7 +36,9 @@ func TestUpdateInstall(t *testing.T) {
 				t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
 			}
 
-			// Wait for controller-manager deployment to ensure that CRD is installed correctly before proceeding
+			// Wait for controller-manager deployment to ensure that CRD is installed correctly before proceeding.
+			// Technically, it could be categorized as "Assess" method, but the setup process requires to wait in between.
+			// Therefore, keeping the wait logic in this section.
 			client, err := cfg.NewClient()
 			if err != nil {
 				t.Fatal(err)
@@ -51,16 +52,14 @@ func TestUpdateInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// using kubectl to apply real yaml file
-			// p = utils.RunCommand("kubectl apply -f ../config/samples/instana_v1_instanaagent.yaml")
-			// if p.Err() != nil {
-			// 	t.Fatal("Error while applying example Agent CR", p.Command(), p.Err(), p.Out(), p.ExitCode())
-			// }
-
-			// using API to create Agent CR
+			// Create Agent CR
 			agent := NewAgentCr(t)
 			r := client.Resources(namespace)
-			v1.AddToScheme(r.GetScheme())
+			err = v1.AddToScheme(r.GetScheme())
+			if err != nil {
+				t.Fatal("Could not add Agent CR to client scheme", err)
+			}
+
 			err = r.Create(ctx, &agent)
 			if err != nil {
 				t.Fatal("Could not create Agent CR", err)
@@ -68,85 +67,82 @@ func TestUpdateInstall(t *testing.T) {
 
 			return ctx
 		}).
-		Assess("wait for k8sensor deployment to become ready", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			client, err := cfg.NewClient()
-			if err != nil {
-				t.Fatal(err)
+		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
+		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
+		Feature()
+
+	f2 := features.New("upgrade install from latest released to dev-operator-build").
+		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			// Create pull secret for custom registry
+			p := utils.RunCommand(
+				fmt.Sprintf("kubectl create secret -n %s docker-registry delivery.instana --docker-server=%s --docker-username=%s --docker-password=%s",
+					cfg.Namespace(),
+					instanaTestConfig.ContainerRegistry.Host,
+					instanaTestConfig.ContainerRegistry.User,
+					instanaTestConfig.ContainerRegistry.Password),
+			)
+			if p.Err() != nil {
+				t.Fatal("Error while creating pull secret", p.Command(), p.Err(), p.Out(), p.ExitCode())
 			}
 
-			dep := appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: "instana-agent-k8sensor", Namespace: cfg.Namespace()},
+			// Use make logic to ensure that local dev commands and test commands are in sync
+			p = utils.RunCommand(fmt.Sprintf("bash -c 'cd .. && IMG=%s:%s make install deploy'", instanaTestConfig.OperatorImage.Name, instanaTestConfig.OperatorImage.Tag))
+			if p.Err() != nil {
+				t.Fatal("Error while deploying custom operator build during update installation", p.Command(), p.Err(), p.Out(), p.ExitCode())
 			}
-			// wait for operator pods of the deployment to become ready
-			err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
+
+			// Inject image pull secret into deployment, ensure to scale to 0 replicas and back to 2 replicas, otherwise pull secrets are not propagated correctly
+			r, err := resources.New(cfg.Client().RESTConfig())
 			if err != nil {
-				t.Error(err)
+				t.Fatal("Cleanup: Error initializing client", err)
 			}
+			r.WithNamespace(namespace)
+			agent := &appsv1.Deployment{}
+			err = r.Get(ctx, "controller-manager", namespace, agent)
+			if err != nil {
+				t.Fatal("Failed to get deployment-manager deployment", err)
+			}
+			err = r.Patch(ctx, agent, k8s.Patch{
+				PatchType: types.MergePatchType,
+				Data:      []byte(`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "delivery.instana"}]}}}}`),
+			})
+			if err != nil {
+				t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+			}
+
+			err = r.Patch(ctx, agent, k8s.Patch{
+				PatchType: types.MergePatchType,
+				Data:      []byte(`{"spec":{ "replicas": 2 }}`),
+			})
+			if err != nil {
+				t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+			}
+
+			// // delete existing pods to ensure the new pull secret is being used correctly
+			// clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+			// if err != nil {
+			// 	t.Error(err)
+			// }
+
+			// // podList, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=instana-agent-operator"})
+			// // if err != nil {
+			// // 	t.Error(err)
+			// // }
+
+			// clientSet.CoreV1().Pods(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=instana-agent-operator"})
+			// if err != nil {
+			// 	t.Error(err)
+			// }
 
 			return ctx
 		}).
-		Assess("wait for agent daemonset to become ready", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			client, err := cfg.NewClient()
-			if err != nil {
-				t.Fatal(err)
-			}
-			ds := appsv1.DaemonSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "instana-agent", Namespace: cfg.Namespace()},
-			}
-			err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*2))
-			if err != nil {
-				t.Error(err)
-			}
-
-			return ctx
-		}).
-		Assess("check agent log for successful connection", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
-			if err != nil {
-				t.Fatal(err)
-			}
-			podList, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(podList.Items) == 0 {
-				t.Fatal("No pods found")
-			}
-
-			connectionSuccessful := false
-			var buf *bytes.Buffer
-			for i := 0; i < 6; i++ {
-				time.Sleep(10 * time.Second)
-				logReq := clientSet.CoreV1().Pods(namespace).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
-				podLogs, err := logReq.Stream(ctx)
-				if err != nil {
-					t.Fatal("Could not stream logs", err)
-				}
-				defer podLogs.Close()
-
-				buf = new(bytes.Buffer)
-				_, err = io.Copy(buf, podLogs)
-
-				if err != nil {
-					t.Fatal(err)
-				}
-				if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
-					t.Log("Connection established correctly")
-					connectionSuccessful = true
-					break
-				} else {
-					t.Log("Could not find working connection in log of the first pod yet")
-				}
-			}
-
-			if !connectionSuccessful {
-				t.Error("Agent pod did not log successful connection, dumping log", buf.String())
-			}
-
-			return ctx
-		}).
+		Assess("wait for controller-manager deployment to become ready", WaitForDeploymentToBecomeReady("controller-manager")).
+		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
+		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
 		Feature()
 
 	// test feature
-	testEnv.Test(t, f1)
+	testEnv.Test(t, f1, f2)
 }
