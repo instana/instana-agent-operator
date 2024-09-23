@@ -524,7 +524,7 @@ jobs:
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_ENDPOINT_PORT: 443
                 BUILD_BRANCH: main
-                INSTANA_API_KEY: ((qa-instana-api-token))
+                INSTANA_API_KEY: ((qa-instana-agent-key))
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               inputs:
@@ -613,7 +613,7 @@ jobs:
                 INSTANA_API_URL: ((instana-qa.api_url))
                 INSTANA_API_TOKEN: ((instana-qa.api_token))
                 BUILD_BRANCH: main
-                INSTANA_API_KEY: ((qa-instana-api-token))
+                INSTANA_API_KEY: ((qa-instana-agent-key))
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               inputs:
@@ -704,7 +704,7 @@ jobs:
         #         INSTANA_API_URL: ((instana-qa.api_url))
         #         INSTANA_API_TOKEN: ((instana-qa.api_token))
         #         BUILD_BRANCH: main
-        #         INSTANA_API_KEY: ((qa-instana-api-token))
+        #         INSTANA_API_KEY: ((qa-instana-agent-key))
         #         ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
         #         ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
         #       inputs:
