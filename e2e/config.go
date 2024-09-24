@@ -6,9 +6,9 @@
 package e2e
 
 import (
-	"fmt"
 	"os"
 
+	log "k8s.io/klog/v2"
 	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
@@ -36,51 +36,59 @@ type OperatorImage struct {
 	Tag  string
 }
 
-func LoadConfig() InstanaTestConfig {
+var InstanaTestCfg InstanaTestConfig
+
+const InstanaNamespace string = "instana-agent"
+const InstanaOperatorDeploymentName string = "controller-manager"
+const AgentDaemonSetName string = "instana-agent"
+const AgentCustomResourceName string = "instana-agent"
+const K8sensorDeploymentName string = "instana-agent-k8sensor"
+
+func init() {
 	var instanaApiKey, containerRegistryUser, containerRegistryPassword, containerRegistryHost, endpointHost, operatorImageName, operatorImageTag string
 	var found, fatal bool
 
 	instanaApiKey, found = os.LookupEnv("INSTANA_API_KEY")
 	if !found {
-		fmt.Println("Required: $INSTANA_API_KEY not defined")
+		log.Errorln("Required: $INSTANA_API_KEY not defined")
 		fatal = true
 	}
 	containerRegistryUser, found = os.LookupEnv("ARTIFACTORY_USERNAME")
 	if !found {
-		fmt.Println("Required: $ARTIFACTORY_USERNAME not defined")
+		log.Errorln("Required: $ARTIFACTORY_USERNAME not defined")
 		fatal = true
 	}
 	containerRegistryPassword, found = os.LookupEnv("ARTIFACTORY_PASSWORD")
 	if !found {
-		fmt.Println("Required: $ARTIFACTORY_PASSWORD not defined")
+		log.Errorln("Required: $ARTIFACTORY_PASSWORD not defined")
 		fatal = true
 	}
 	containerRegistryHost, found = os.LookupEnv("ARTIFACTORY_HOST")
 	if !found {
-		fmt.Println("Optional: $ARTIFACTORY_HOST not defined, using default")
+		log.Warningln("Optional: $ARTIFACTORY_HOST not defined, using default")
 		containerRegistryHost = "delivery.instana.io"
 	}
 	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
 	if !found {
-		fmt.Println("Optional: $INSTANA_ENDPOINT_HOST not defined, using default")
+		log.Warningln("Optional: $INSTANA_ENDPOINT_HOST not defined, using default")
 		endpointHost = "ingress-red-saas.instana.io"
 	}
 	operatorImageName, found = os.LookupEnv("OPERATOR_IMAGE_NAME")
 	if !found {
-		fmt.Println("Optional: $OPERATOR_IMAGE_NAME not defined, using default")
+		log.Warningln("Optional: $OPERATOR_IMAGE_NAME not defined, using default")
 		operatorImageName = "delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build"
 	}
 
 	operatorImageTag, found = os.LookupEnv("OPERATOR_IMAGE_TAG")
 	if !found {
-		fmt.Println("Optional: $OPERATOR_IMAGE_TAG not defined, falling back to $GIT_COMMIT")
+		log.Warningln("Optional: $OPERATOR_IMAGE_TAG not defined, falling back to $GIT_COMMIT")
 		operatorImageTag, found = os.LookupEnv("GIT_COMMIT")
 		if !found {
-			fmt.Println("Optional: $GIT_COMMIT is not defined, falling back to git cli to resolve last commit")
+			log.Warningln("Optional: $GIT_COMMIT is not defined, falling back to git cli to resolve last commit")
 			p := utils.RunCommand("git rev-parse HEAD")
 			if p.Err() != nil {
-				fmt.Printf("Error while getting git commit via cli: %v, %v, %v, %v\n", p.Command(), p.Err(), p.Out(), p.ExitCode())
-				fmt.Println("Required: Either $OPERATOR_IMAGE_TAG or $GIT_COMMIT must be set to be able to deploy a custom operator build")
+				log.Warningf("Error while getting git commit via cli: %v, %v, %v, %v\n", p.Command(), p.Err(), p.Out(), p.ExitCode())
+				log.Fatalln("Required: Either $OPERATOR_IMAGE_TAG or $GIT_COMMIT must be set to be able to deploy a custom operator build")
 				fatal = true
 			}
 			// using short commit as tag (default)
@@ -89,10 +97,10 @@ func LoadConfig() InstanaTestConfig {
 	}
 
 	if fatal {
-		panic("Fatal: Required configuration is missing, tests woud not work without those settings, terminating execution")
+		log.Fatalln("Fatal: Required configuration is missing, tests woud not work without those settings, terminating execution")
 	}
 
-	return InstanaTestConfig{
+	InstanaTestCfg = InstanaTestConfig{
 		ContainerRegistry: &ContainerRegistry{
 			Name:     "delivery-instana",
 			User:     containerRegistryUser,

@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	v1 "github.com/instana/instana-agent-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +26,7 @@ import (
 
 func WaitForDeploymentToBecomeReady(name string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Waiting for deployment %s to become ready", name)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
@@ -36,29 +39,33 @@ func WaitForDeploymentToBecomeReady(name string) func(ctx context.Context, t *te
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Logf("Deployment %s is ready", name)
 		return ctx
 	}
 }
 
 func WaitForAgentDaemonSetToBecomeReady() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Waiting for DaemonSet %s is ready", AgentDaemonSetName)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
 		}
 		ds := appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{Name: "instana-agent", Namespace: cfg.Namespace()},
+			ObjectMeta: metav1.ObjectMeta{Name: AgentDaemonSetName, Namespace: cfg.Namespace()},
 		}
 		err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*5))
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Logf("DaemonSet %s is ready", AgentDaemonSetName)
 		return ctx
 	}
 }
 
 func WaitForAgentSuccessfulBackendConnection() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Log("Searching for successful backend connection in agent logs")
 		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		if err != nil {
 			t.Fatal(err)
@@ -74,7 +81,9 @@ func WaitForAgentSuccessfulBackendConnection() func(ctx context.Context, t *test
 		connectionSuccessful := false
 		var buf *bytes.Buffer
 		for i := 0; i < 9; i++ {
+			t.Log("Sleeping 10 seconds")
 			time.Sleep(10 * time.Second)
+			t.Log("Fetching logs")
 			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
@@ -100,5 +109,32 @@ func WaitForAgentSuccessfulBackendConnection() func(ctx context.Context, t *test
 			t.Fatal("Agent pod did not log successful connection, dumping log", buf.String())
 		}
 		return ctx
+	}
+}
+
+func NewAgentCr(t *testing.T) v1.InstanaAgent {
+	boolTrue := true
+
+	return v1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instana-agent",
+			Namespace: InstanaNamespace,
+		},
+		Spec: v1.InstanaAgentSpec{
+			Zone: v1.Name{
+				Name: "e2e",
+			},
+			// ensure to not overlap between concurrent test runs on different clusters, randomize cluster name, but have consistent zone
+			Cluster: v1.Name{Name: envconf.RandomName("e2e", 4)},
+			Agent: v1.BaseAgentSpec{
+				Key:          InstanaTestCfg.InstanaBackend.AgentKey,
+				EndpointHost: InstanaTestCfg.InstanaBackend.EndpointHost,
+				EndpointPort: strconv.Itoa(InstanaTestCfg.InstanaBackend.EndpointPort),
+			},
+			OpenTelemetry: v1.OpenTelemetry{
+				GRPC: &v1.Enabled{Enabled: &boolTrue},
+				HTTP: &v1.Enabled{Enabled: &boolTrue},
+			},
+		},
 	}
 }

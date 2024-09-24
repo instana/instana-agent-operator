@@ -9,8 +9,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"testing"
+
+	log "k8s.io/klog/v2"
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 	securityv1 "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -31,9 +32,6 @@ import (
 )
 
 var testEnv env.Environment
-var instanaTestConfig InstanaTestConfig
-
-const namespace string = "instana-agent"
 
 // DeleteAgentNamespace ensures a proper cleanup of existing instana agent installations.
 // The namespace cannot be just deleted in all scenarios, as finalizers on the agent CR might block the namespace termination
@@ -47,7 +45,7 @@ func DeleteAgentNamespaceIfPresent() env.Func {
 
 		// Check if namespace exist, otherwise just skip over it
 		agentNamespace := &corev1.Namespace{}
-		err = r.Get(ctx, namespace, namespace, agentNamespace)
+		err = r.Get(ctx, InstanaNamespace, InstanaNamespace, agentNamespace)
 		if errors.IsNotFound(err) {
 			return ctx, nil
 		}
@@ -90,7 +88,7 @@ func DeleteAgentCRIfPresent() env.Func {
 		}
 
 		// Assume an existing namespace at this point, check if an agent CR is present (requires to adjust schema of current client)
-		r.WithNamespace(namespace)
+		r.WithNamespace(InstanaNamespace)
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
 			// If this fails, the cleanup will not work properly -> failing
@@ -101,7 +99,7 @@ func DeleteAgentCRIfPresent() env.Func {
 		// This will lead to a delayed namespace termination which never completes. To avoid that, patch the agent CR
 		// to remove the finalizer. Afterwards, it can be successfully deleted.
 		agent := &v1.InstanaAgent{}
-		err = r.Get(ctx, "instana-agent", "instana-agent", agent)
+		err = r.Get(ctx, AgentCustomResourceName, InstanaNamespace, agent)
 		if errors.IsNotFound(err) {
 			// No agent cr found, skip this cleanup step
 			return ctx, nil
@@ -168,7 +166,7 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 
 		if isOpenShift {
 			command := "oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent"
-			fmt.Printf("OpenShift detected, adding instana-agent service account to SecurityContextConstraints: %s\n", command)
+			log.Infof("OpenShift detected, adding instana-agent service account to SecurityContextConstraints via api, command would be: %s\n", command)
 
 			// replaced command execution with SDK call to not require `oc` cli
 			securityClient, err := securityv1.NewForConfig(cfg.Client().RESTConfig())
@@ -176,13 +174,14 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 				return ctx, fmt.Errorf("Could not initialize securityClient: %v", err)
 			}
 
-			// security context
+			// get security context constraints
 			scc, err := securityClient.SecurityContextConstraints().Get(ctx, "privileged", metav1.GetOptions{})
 			if err != nil {
 				return ctx, fmt.Errorf("Failed to get SecurityContextContraints: %v", err)
 			}
 
-			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", namespace, "instana-agent")
+			// check if service account user is already listed in the scc
+			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", InstanaNamespace, "instana-agent")
 			userFound := false
 
 			for _, user := range scc.Users {
@@ -193,11 +192,11 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 			}
 
 			if userFound {
-				fmt.Printf("Security Context Constraint \"privileged\" already lists service account user: %v\n", serviceAccountId)
+				log.Infof("Security Context Constraint \"privileged\" already lists service account user: %v\n", serviceAccountId)
 				return ctx, nil
 			}
 
-			// updating Security Context Constraints
+			// updating Security Context Constraints to list instana service account
 			scc.Users = append(scc.Users, serviceAccountId)
 
 			_, err = securityClient.SecurityContextConstraints().Update(ctx, scc, metav1.UpdateOptions{})
@@ -205,51 +204,23 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 				return ctx, fmt.Errorf("Could not update Security Context Constraints on OCP cluster: %v", err)
 			}
 
-			// p := utils.RunCommand(command)
-			// return ctx, p.Err()
 			return ctx, nil
 		} else {
-			fmt.Println("Vanilla Kubernetes detected")
+			// non-ocp environments do not require changes in the Security Context Constraints
+			log.Infoln("Vanilla Kubernetes detected")
 		}
 		return ctx, nil
 	}
 }
 
-func NewAgentCr(t *testing.T) v1.InstanaAgent {
-	boolTrue := true
-
-	return v1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "instana-agent",
-			Namespace: namespace,
-		},
-		Spec: v1.InstanaAgentSpec{
-			Zone: v1.Name{
-				Name: "e2e",
-			},
-			// ensure to not overlap between concurrent test runs on different clusters, randomize cluster name, but have consistent zone
-			Cluster: v1.Name{Name: envconf.RandomName("e2e", 4)},
-			Agent: v1.BaseAgentSpec{
-				Key:          instanaTestConfig.InstanaBackend.AgentKey,
-				EndpointHost: instanaTestConfig.InstanaBackend.EndpointHost,
-				EndpointPort: strconv.Itoa(instanaTestConfig.InstanaBackend.EndpointPort),
-			},
-			OpenTelemetry: v1.OpenTelemetry{
-				GRPC: &v1.Enabled{Enabled: &boolTrue},
-				HTTP: &v1.Enabled{Enabled: &boolTrue},
-			},
-		},
-	}
-}
-
 func TestMain(m *testing.M) {
-	instanaTestConfig = LoadConfig()
 	path := conf.ResolveKubeConfigFile()
 	cfg := envconf.NewWithKubeConfig(path)
+	cfg.WithNamespace(InstanaNamespace)
 	testEnv = env.NewWithConfig(cfg)
 	testEnv.Setup(
 		DeleteAgentNamespaceIfPresent(),
-		envfuncs.CreateNamespace(namespace),
+		envfuncs.CreateNamespace(cfg.Namespace()),
 		AdjustOcpPermissionsIfNecessary(),
 	)
 	// Consider leave artifacts in cluster for easier debugging,
