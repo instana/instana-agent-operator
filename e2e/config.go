@@ -43,6 +43,7 @@ const InstanaOperatorDeploymentName string = "controller-manager"
 const AgentDaemonSetName string = "instana-agent"
 const AgentCustomResourceName string = "instana-agent"
 const K8sensorDeploymentName string = "instana-agent-k8sensor"
+const InstanaAgentConfigSecretName string = "instana-agent-config"
 
 func init() {
 	var instanaApiKey, containerRegistryUser, containerRegistryPassword, containerRegistryHost, endpointHost, operatorImageName, operatorImageTag string

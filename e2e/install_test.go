@@ -17,9 +17,10 @@ import (
 )
 
 func TestInitialInstall(t *testing.T) {
+	agent := NewAgentCr(t)
 	initialInstallFeature := features.New("initial install dev-operator-build").
 		Setup(SetupOperatorDevBuild()).
-		Setup(DeployAgentCr()).
+		Setup(DeployAgentCr(&agent)).
 		Assess("wait for controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
@@ -30,6 +31,7 @@ func TestInitialInstall(t *testing.T) {
 	testEnv.Test(t, initialInstallFeature)
 }
 func TestUpdateInstall(t *testing.T) {
+	agent := NewAgentCr(t)
 	installLatestFeature := features.New("deploy latest released instana-agent-operator").
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			const latestOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml"
@@ -42,8 +44,9 @@ func TestUpdateInstall(t *testing.T) {
 			}
 			return ctx
 		}).
-		Setup(DeployAgentCr()).
-		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
+		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+		Setup(DeployAgentCr(&agent)).
+		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
 		Feature()

@@ -289,7 +289,7 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 	}
 }
 
-func DeployAgentCr() e2etypes.StepFunc {
+func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		// Wait for controller-manager deployment to ensure that CRD is installed correctly before proceeding.
 		// Technically, it could be categorized as "Assess" method, but the setup process requires to wait in between.
@@ -298,28 +298,16 @@ func DeployAgentCr() e2etypes.StepFunc {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dep := appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorDeploymentName, Namespace: cfg.Namespace()},
-		}
-
-		t.Log("Waiting for operator deployment to become ready")
-
-		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		t.Log("Creating a new Agent CR")
 
 		// Create Agent CR
-		agent := NewAgentCr(t)
 		r := client.Resources(cfg.Namespace())
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
 			t.Fatal("Could not add Agent CR to client scheme", err)
 		}
 
-		err = r.Create(ctx, &agent)
+		err = r.Create(ctx, agent)
 		if err != nil {
 			t.Fatal("Could not create Agent CR", err)
 		}
