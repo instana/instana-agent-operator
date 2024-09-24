@@ -8,6 +8,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -18,13 +19,79 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
+	e2etypes "sigs.k8s.io/e2e-framework/pkg/types"
+	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
-func WaitForDeploymentToBecomeReady(name string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+// This file exposes the reusable assets which are used during the e2e test
+
+// Setup functions
+func SetupOperatorDevBuild() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		// Create pull secret for custom registry
+		t.Logf("Creating custom pull secret for %s", InstanaTestCfg.ContainerRegistry.Host)
+		p := utils.RunCommand(
+			fmt.Sprintf("kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
+				cfg.Namespace(),
+				InstanaTestCfg.ContainerRegistry.Name,
+				InstanaTestCfg.ContainerRegistry.Host,
+				InstanaTestCfg.ContainerRegistry.User,
+				InstanaTestCfg.ContainerRegistry.Password),
+		)
+		if p.Err() != nil {
+			t.Fatal("Error while creating pull secret", p.Command(), p.Err(), p.Out(), p.ExitCode())
+		}
+		t.Log("Pull secret created")
+
+		// Use make logic to ensure that local dev commands and test commands are in sync
+		t.Log("Deploy new dev build by running: make install deploy")
+		p = utils.RunCommand(fmt.Sprintf("bash -c 'cd .. && IMG=%s:%s make install deploy'", InstanaTestCfg.OperatorImage.Name, InstanaTestCfg.OperatorImage.Tag))
+		if p.Err() != nil {
+			t.Fatal("Error while deploying custom operator build during update installation", p.Command(), p.Err(), p.Out(), p.ExitCode())
+		}
+		t.Log("Deployment submitted")
+
+		// Inject image pull secret into deployment, ensure to scale to 0 replicas and back to 2 replicas, otherwise pull secrets are not propagated correctly
+		t.Log("Patch instana operator deployment to redeploy pods with image pull secret")
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			t.Fatal("Cleanup: Error initializing client", err)
+		}
+		r.WithNamespace(cfg.Namespace())
+		agent := &appsv1.Deployment{}
+		err = r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), agent)
+		if err != nil {
+			t.Fatal("Failed to get deployment-manager deployment", err)
+		}
+		err = r.Patch(ctx, agent, k8s.Patch{
+			PatchType: types.MergePatchType,
+			Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`, InstanaTestCfg.ContainerRegistry.Name)),
+		})
+		if err != nil {
+			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+		}
+
+		err = r.Patch(ctx, agent, k8s.Patch{
+			PatchType: types.MergePatchType,
+			Data:      []byte(`{"spec":{ "replicas": 2 }}`),
+		})
+		if err != nil {
+			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+		}
+		t.Log("Patching completed")
+		return ctx
+	}
+}
+
+// Assess functions
+func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Logf("Waiting for deployment %s to become ready", name)
 		client, err := cfg.NewClient()
@@ -44,7 +111,7 @@ func WaitForDeploymentToBecomeReady(name string) func(ctx context.Context, t *te
 	}
 }
 
-func WaitForAgentDaemonSetToBecomeReady() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+func WaitForAgentDaemonSetToBecomeReady() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Logf("Waiting for DaemonSet %s is ready", AgentDaemonSetName)
 		client, err := cfg.NewClient()
@@ -63,7 +130,7 @@ func WaitForAgentDaemonSetToBecomeReady() func(ctx context.Context, t *testing.T
 	}
 }
 
-func WaitForAgentSuccessfulBackendConnection() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Searching for successful backend connection in agent logs")
 		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
@@ -112,6 +179,7 @@ func WaitForAgentSuccessfulBackendConnection() func(ctx context.Context, t *test
 	}
 }
 
+// Helper to produce test structs
 func NewAgentCr(t *testing.T) v1.InstanaAgent {
 	boolTrue := true
 
