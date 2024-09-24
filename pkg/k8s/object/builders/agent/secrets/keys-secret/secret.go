@@ -17,12 +17,25 @@ import (
 
 type secretBuilder struct {
 	*instanav1.InstanaAgent
+	endpointKey        string
+	downloadKey        string
+	resourceNameSuffix string
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.InstanaAgent, endpointKey string, downloadKey, resourceNameSuffix string) builder.ObjectBuilder {
 	return &secretBuilder{
-		InstanaAgent: agent,
+		InstanaAgent:       agent,
+		endpointKey:        endpointKey,
+		downloadKey:        downloadKey,
+		resourceNameSuffix: resourceNameSuffix,
 	}
+}
+
+func (s *secretBuilder) getResourceName() string {
+	if s.resourceNameSuffix == "" {
+		return s.Name
+	}
+	return s.Name + s.resourceNameSuffix
 }
 
 func (s *secretBuilder) IsNamespaced() bool {
@@ -49,7 +62,7 @@ func (s *secretBuilder) build() *corev1.Secret {
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.Name,
+			Name:      s.getResourceName(),
 			Namespace: s.Namespace,
 		},
 		Data: s.getData(),
@@ -60,13 +73,13 @@ func (s *secretBuilder) build() *corev1.Secret {
 func (s *secretBuilder) getData() map[string][]byte {
 	data := make(map[string][]byte, 2)
 
-	optional.Of(s.Spec.Agent.Key).IfPresent(
+	optional.Of(s.endpointKey).IfPresent(
 		func(key string) {
 			data[constants.AgentKey] = []byte(key)
 		},
 	)
 
-	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
+	optional.Of(s.downloadKey).IfPresent(
 		func(downloadKey string) {
 			data[constants.DownloadKey] = []byte(downloadKey)
 		},

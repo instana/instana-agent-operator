@@ -17,6 +17,16 @@ import (
 type configMapBuilder struct {
 	*instanav1.InstanaAgent
 	helpers.Helpers
+	endpointHost       string
+	endpointPort       string
+	resourceNameSuffix string
+}
+
+func (c *configMapBuilder) getResourceName() string {
+	if c.resourceNameSuffix == "" {
+		return c.K8sSensorResourcesName()
+	}
+	return c.K8sSensorResourcesName() + c.resourceNameSuffix
 }
 
 func (c *configMapBuilder) IsNamespaced() bool {
@@ -35,19 +45,22 @@ func (c *configMapBuilder) Build() optional.Optional[client.Object] {
 				Kind:       "ConfigMap",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      c.K8sSensorResourcesName(),
+				Name:      c.getResourceName(),
 				Namespace: c.Namespace,
 			},
 			Data: map[string]string{
-				constants.BackendKey: fmt.Sprintf("%s:%s", c.Spec.Agent.EndpointHost, c.Spec.Agent.EndpointPort),
+				constants.BackendKey: fmt.Sprintf("%s:%s", c.endpointHost, c.endpointPort),
 			},
 		},
 	)
 }
 
-func NewConfigMapBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+func NewConfigMapBuilder(agent *instanav1.InstanaAgent, endpointHost string, endpointPort string, resourceNameSuffix string) builder.ObjectBuilder {
 	return &configMapBuilder{
-		InstanaAgent: agent,
-		Helpers:      helpers.NewHelpers(agent),
+		InstanaAgent:       agent,
+		Helpers:            helpers.NewHelpers(agent),
+		endpointHost:       endpointHost,
+		endpointPort:       endpointPort,
+		resourceNameSuffix: resourceNameSuffix,
 	}
 }

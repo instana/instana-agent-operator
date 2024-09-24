@@ -37,7 +37,7 @@ import (
 func TestConfigMapBuilderIsNamespacedComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	cmb := NewConfigMapBuilder(nil)
+	cmb := NewConfigMapBuilder(nil, "", "", "")
 
 	assertions.True(cmb.IsNamespaced())
 	assertions.Equal(constants.ComponentK8Sensor, cmb.ComponentName())
@@ -87,6 +87,8 @@ func TestConfigMapBuilderBuild(t *testing.T) {
 	cmb := &configMapBuilder{
 		InstanaAgent: agent,
 		Helpers:      helpers,
+		endpointHost: endpointHost,
+		endpointPort: endpointPort,
 	}
 
 	actual := cmb.Build()

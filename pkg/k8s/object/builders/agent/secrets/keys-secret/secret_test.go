@@ -1,3 +1,19 @@
+/*
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package keys_secret
 
 import (
@@ -17,7 +33,7 @@ import (
 func TestSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	s := NewSecretBuilder(&instanav1.InstanaAgent{})
+	s := NewSecretBuilder(&instanav1.InstanaAgent{}, "", "", "")
 
 	assertions.True(s.IsNamespaced())
 	assertions.Equal("instana-agent", s.ComponentName())
@@ -61,7 +77,7 @@ func TestSecretBuilder_Build(t *testing.T) {
 							},
 						}
 
-						sb := NewSecretBuilder(&agent)
+						sb := NewSecretBuilder(&agent, key, downloadKey, "")
 
 						actual := sb.Build()
 

@@ -19,6 +19,7 @@ package controllers
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,6 +41,26 @@ func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils 
 	}
 	log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", isOpenShiftRes)
 	return isOpenShiftRes, reconcileContinue()
+}
+
+func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAgent) []K8SensorBackend {
+	k8SensorBackends := make([]K8SensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
+	k8SensorBackends = append(
+		k8SensorBackends,
+		*NewK8SensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
+	)
+
+	if len(agent.Spec.Agent.AdditionalBackends) == 0 {
+		return k8SensorBackends
+	}
+
+	for i, additionalBackend := range agent.Spec.Agent.AdditionalBackends {
+		k8SensorBackends = append(
+			k8SensorBackends,
+			*NewK8SensorBackend("-additional-backend-"+strconv.Itoa(i+1), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
+		)
+	}
+	return k8SensorBackends
 }
 
 func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {

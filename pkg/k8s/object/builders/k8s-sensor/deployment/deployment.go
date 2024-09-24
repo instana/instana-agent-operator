@@ -31,11 +31,12 @@ type deploymentBuilder struct {
 	*instanav1.InstanaAgent
 	statusManager status.AgentStatusManager
 
-	helpers.Helpers
+	helpers helpers.Helpers
 	transformations.PodSelectorLabelGenerator
 	env.EnvBuilder
 	volume.VolumeBuilder
 	ports.PortsBuilder
+	backendResourceSuffix string
 }
 
 func (d *deploymentBuilder) IsNamespaced() bool {
@@ -53,9 +54,7 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 }
 
 func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
-	return d.EnvBuilder.Build(
-		env.AgentKeyEnv,
-		env.BackendEnv,
+	envVars := d.EnvBuilder.Build(
 		env.BackendURLEnv,
 		env.AgentZoneEnv,
 		env.PodUIDEnv,
@@ -67,6 +66,31 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
 	)
+	backendEnvVars := []corev1.EnvVar{
+		{
+			Name: "BACKEND",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: d.helpers.K8sSensorResourcesName() + d.backendResourceSuffix,
+					},
+					Key: constants.BackendKey,
+				},
+			},
+		},
+		{
+			Name: "AGENT_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name) + d.backendResourceSuffix,
+					},
+					Key: constants.AgentKey,
+				},
+			},
+		},
+	}
+	return append(backendEnvVars, envVars...)
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
@@ -89,7 +113,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.K8sSensorResourcesName(),
+			Name:      d.helpers.K8sSensorResourcesName() + d.backendResourceSuffix,
 			Namespace: d.Namespace,
 			Labels:    addAppLabel(nil),
 		},
@@ -105,10 +129,10 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					Annotations: d.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: d.K8sSensorResourcesName(),
+					ServiceAccountName: d.helpers.K8sSensorResourcesName(),
 					NodeSelector:       d.Spec.K8sSensor.DeploymentSpec.Pod.NodeSelector,
 					PriorityClassName:  d.Spec.K8sSensor.DeploymentSpec.Pod.PriorityClassName,
-					ImagePullSecrets:   d.ImagePullSecrets(),
+					ImagePullSecrets:   d.helpers.ImagePullSecrets(),
 					Containers: []corev1.Container{
 						{
 							Name:            "instana-agent",
@@ -174,14 +198,16 @@ func NewDeploymentBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
+	backendResourceSuffix string,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
 		statusManager:             statusManager,
-		Helpers:                   helpers.NewHelpers(agent),
+		helpers:                   helpers.NewHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
+		backendResourceSuffix:     backendResourceSuffix,
 	}
 }
