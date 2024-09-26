@@ -610,13 +610,9 @@ jobs:
                     args:
                       - -ceu
                       - |
-                        bash ./pipeline-source/ci/scripts/cluster-authentication-go-e2e.sh
-                        pushd pipeline-source
-                        echo "Run new e2e suite"
+                        cd pipeline-source
+                        bash ./ci/scripts/cluster-authentication.sh
                         make e2e
-                        popd
-                        echo "Run old e2e suite"
-                        bash ./pipeline-source/ci/scripts/end-to-end-test.sh
                 on_success:
                   put: gh-status
                   inputs: [pipeline-source]
@@ -703,13 +699,9 @@ jobs:
                     args:
                       - -ceu
                       - |
-                        bash ./pipeline-source/ci/scripts/cluster-authentication-go-e2e.sh
-                        pushd pipeline-source
-                        echo "Run new e2e suite"
+                        cd pipeline-source
+                        bash ./ci/scripts/cluster-authentication.sh
                         make e2e
-                        popd
-                        echo "Run old e2e suite"
-                        bash ./pipeline-source/ci/scripts/end-to-end-test.sh
                 on_success:
                   put: gh-status
                   inputs: [pipeline-source]
