@@ -152,9 +152,11 @@ Example:
         "KUBEBUILDER_ASSETS": "~/.local/share/kubebuilder-envtest/k8s/1.30.0-linux-amd64",
         "INSTANA_API_KEY": "xxx",
         "ARTIFACTORY_USERNAME": "xxx",
-        "ARTIFACTORY_PASSWORD": "xxx"
+        "ARTIFACTORY_PASSWORD": "xxx",
+        "OPERATOR_IMAGE_NAME": "xxx",
+        "OPERATOR_IMAGE_TAG": "xxx"
     },
     "wca.enable": false,
-    "go.testTimeout": "300s"
+    "go.testTimeout": "600s"
 }
 ```
