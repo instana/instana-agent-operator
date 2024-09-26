@@ -205,16 +205,14 @@ function install_cr() {
     kubectl apply -f ${path_to_crd}
 }
 
-function install_cr_multi_backend_external_keyssecret() {
-    echo "=== install_cr_multi_backend_external_keyssecret ==="
+function install_cr_multi_backend() {
+    echo "=== install_cr_multi_backend ==="
 
     # install the Custom Resource
-    path_to_crd="config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml"
-    path_to_keyssecret="config/samples/external_secret_instana_agent_key.yaml"
+    path_to_crd="config/samples/instana_v1_instanaagent_multiple_backends.yaml"
 
-    echo "Install the keysSecret and CR"
+    echo "Install the multi-backend CR"
     # credentials are invalid here, but that's okay, we just test the operator behavior, not the agent
-    kubectl apply -f ${path_to_keyssecret}
     kubectl apply -f ${path_to_crd}
 }
 
@@ -314,8 +312,8 @@ pushd pipeline-source
     wait_for_running_cr_state
     echo "Upgrade has been successful"
 
-    echo "Install CR to connect to an additional backend with external keysSecret"
-    install_cr_multi_backend_external_keyssecret
+    echo "Install CR to connect to an additional backend for both k8sensor and instana-agent"
+    install_cr_multi_backend
     wait_for_running_pod app.kubernetes.io/name=instana-agent instana-agent
     verify_multi_backend_config_generation_and_injection
 popd

@@ -9,10 +9,10 @@ spec:
   cluster:
     name: my-cluster
   agent:
+    key: xxx
     endpointHost: first-backend.instana.io
     endpointPort: "443"
     env: {}
-    keysSecret: instana-agent-key
     additionalBackends:
     - endpointHost: second-backend.instana.io
       endpointPort: "443"
