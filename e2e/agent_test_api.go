@@ -405,6 +405,86 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 	}
 }
 
+func ValidateMultiBackendConfiguration() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		log.Infof("Fetching secret %s", InstanaAgentConfigSecretName)
+		// Create a client to interact with the Kube API
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check if namespace exist, otherwise just skip over it
+		instanaAgentConfigSecret := &corev1.Secret{}
+		err = r.Get(ctx, InstanaAgentConfigSecretName, InstanaNamespace, instanaAgentConfigSecret)
+		if err != nil {
+			t.Fatal("Secret could not be fetched", InstanaAgentConfigSecretName, err)
+		}
+
+		firstBackendConfigString := string(instanaAgentConfigSecret.Data["com.instana.agent.main.sender.Backend-1.cfg"])
+		expectedFirstBackendConfigString := "host=first-backend.instana.io\nport=443\nprotocol=HTTP/2\nkey=xxx\n"
+		secondBackendConfigString := string(instanaAgentConfigSecret.Data["com.instana.agent.main.sender.Backend-2.cfg"])
+		expectedSecondBackendConfigString := "host=second-backend.instana.io\nport=443\nprotocol=HTTP/2\nkey=yyy\n"
+
+		if firstBackendConfigString != expectedFirstBackendConfigString {
+			t.Error("First backend does not match the expected string", firstBackendConfigString, expectedFirstBackendConfigString)
+		} else {
+			t.Log("First backend config confirmed")
+		}
+		if secondBackendConfigString != expectedSecondBackendConfigString {
+			t.Error("Second backend does not match the expected string", secondBackendConfigString, expectedSecondBackendConfigString)
+		} else {
+			t.Log("Second backend config confirmed")
+		}
+
+		pods := &corev1.PodList{}
+		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
+		err = r.List(ctx, pods, listOps)
+		if err != nil || pods.Items == nil {
+			t.Error("error while getting pods", err)
+		}
+		var stdout, stderr bytes.Buffer
+		podName := pods.Items[0].Name
+		containerName := "instana-agent"
+
+		backendCheckMatrix := []struct {
+			fileSuffix            string
+			expectedBackendString string
+		}{
+			{
+				fileSuffix:            "1",
+				expectedBackendString: "first-backend.instana.io",
+			},
+			{
+				fileSuffix:            "2",
+				expectedBackendString: "second-backend.instana.io",
+			},
+		}
+
+		for _, currentBackend := range backendCheckMatrix {
+			if err := r.ExecInPod(
+				ctx,
+				cfg.Namespace(),
+				podName,
+				containerName,
+				[]string{"cat", fmt.Sprintf("/opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.fileSuffix)},
+				&stdout,
+				&stderr,
+			); err != nil {
+				t.Log(stderr.String())
+				t.Error(err)
+			}
+			if strings.Contains(stdout.String(), currentBackend.expectedBackendString) {
+				t.Logf("ExecInPod returned expected backend config for file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.fileSuffix)
+			} else {
+				t.Error(fmt.Sprintf("Expected to find %s in file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.expectedBackendString, currentBackend.fileSuffix), stdout.String())
+			}
+		}
+
+		return ctx
+	}
+}
+
 // Helper to produce test structs
 func NewAgentCr(t *testing.T) v1.InstanaAgent {
 	boolTrue := true
