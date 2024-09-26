@@ -63,7 +63,10 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			instanav1.AddToScheme(r.GetScheme())
+			err = instanav1.AddToScheme(r.GetScheme())
+			if err != nil {
+				t.Fatal(err)
+			}
 			r.WithNamespace(cfg.Namespace())
 
 			// read the same custom resource, but adjust it
