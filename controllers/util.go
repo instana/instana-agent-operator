@@ -25,6 +25,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
@@ -43,11 +44,11 @@ func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils 
 	return isOpenShiftRes, reconcileContinue()
 }
 
-func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAgent) []K8SensorBackend {
-	k8SensorBackends := make([]K8SensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
+func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAgent) []backends.K8SensorBackend {
+	k8SensorBackends := make([]backends.K8SensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
 	k8SensorBackends = append(
 		k8SensorBackends,
-		*NewK8SensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
+		*backends.NewK8SensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
 	)
 
 	if len(agent.Spec.Agent.AdditionalBackends) == 0 {
@@ -57,7 +58,7 @@ func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAge
 	for i, additionalBackend := range agent.Spec.Agent.AdditionalBackends {
 		k8SensorBackends = append(
 			k8SensorBackends,
-			*NewK8SensorBackend("-additional-backend-"+strconv.Itoa(i+1), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
+			*backends.NewK8SensorBackend("-"+strconv.Itoa(i+1), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
 		)
 	}
 	return k8SensorBackends

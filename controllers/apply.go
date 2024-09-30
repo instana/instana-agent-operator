@@ -28,6 +28,7 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
@@ -60,50 +61,18 @@ func getDaemonSetBuilders(
 	return builders
 }
 
-func getConfigMapBuilders(
-	agent *instanav1.InstanaAgent,
-	k8SensorBackends []K8SensorBackend,
-) []builder.ObjectBuilder {
-	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
-
-	for _, backend := range k8SensorBackends {
-		builders = append(
-			builders,
-			k8ssensorconfigmap.NewConfigMapBuilder(agent, backend.endpointHost, backend.endpointPort, backend.resourceSuffix),
-		)
-	}
-
-	return builders
-}
-
-func getSecretBuilders(
-	agent *instanav1.InstanaAgent,
-	k8SensorBackends []K8SensorBackend,
-) []builder.ObjectBuilder {
-	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
-
-	for _, backend := range k8SensorBackends {
-		builders = append(
-			builders,
-			keyssecret.NewSecretBuilder(agent, backend.endpointKey, backend.downloadKey, backend.resourceSuffix),
-		)
-	}
-
-	return builders
-}
-
 func getK8sSensorDeployments(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
-	k8SensorBackends []K8SensorBackend,
+	k8SensorBackends []backends.K8SensorBackend,
 ) []builder.ObjectBuilder {
 	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
 
 	for _, backend := range k8SensorBackends {
 		builders = append(
 			builders,
-			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend.resourceSuffix),
+			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend),
 		)
 	}
 
@@ -117,7 +86,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	operatorUtils operator_utils.OperatorUtils,
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
-	k8SensorBackends []K8SensorBackend,
+	k8SensorBackends []backends.K8SensorBackend,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
@@ -134,10 +103,10 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
+		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
+		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
 	)
 
-	builders = append(builders, getConfigMapBuilders(agent, k8SensorBackends)...)
-	builders = append(builders, getSecretBuilders(agent, k8SensorBackends)...)
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {

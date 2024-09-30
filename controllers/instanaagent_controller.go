@@ -86,30 +86,6 @@ type InstanaAgentReconciler struct {
 	scheme   *runtime.Scheme
 }
 
-func NewK8SensorBackend(
-	resourceSuffix string,
-	endpointKey string,
-	downloadKey string,
-	endpointHost string,
-	endpointPort string,
-) *K8SensorBackend {
-	return &K8SensorBackend{
-		resourceSuffix: resourceSuffix,
-		endpointKey:    endpointKey,
-		downloadKey:    downloadKey,
-		endpointHost:   endpointHost,
-		endpointPort:   endpointPort,
-	}
-}
-
-type K8SensorBackend struct {
-	resourceSuffix string
-	endpointKey    string
-	downloadKey    string
-	endpointHost   string
-	endpointPort   string
-}
-
 func (r *InstanaAgentReconciler) reconcile(
 	ctx context.Context,
 	req ctrl.Request,

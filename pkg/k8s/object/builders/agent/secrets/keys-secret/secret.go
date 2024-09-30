@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -17,25 +18,14 @@ import (
 
 type secretBuilder struct {
 	*instanav1.InstanaAgent
-	endpointKey        string
-	downloadKey        string
-	resourceNameSuffix string
+	backends []backends.K8SensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent, endpointKey string, downloadKey, resourceNameSuffix string) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.InstanaAgent, backends []backends.K8SensorBackend) builder.ObjectBuilder {
 	return &secretBuilder{
-		InstanaAgent:       agent,
-		endpointKey:        endpointKey,
-		downloadKey:        downloadKey,
-		resourceNameSuffix: resourceNameSuffix,
+		InstanaAgent: agent,
+		backends:     backends,
 	}
-}
-
-func (s *secretBuilder) getResourceName() string {
-	if s.resourceNameSuffix == "" {
-		return s.Name
-	}
-	return s.Name + s.resourceNameSuffix
 }
 
 func (s *secretBuilder) IsNamespaced() bool {
@@ -62,7 +52,7 @@ func (s *secretBuilder) build() *corev1.Secret {
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.getResourceName(),
+			Name:      s.Name,
 			Namespace: s.Namespace,
 		},
 		Data: s.getData(),
@@ -71,19 +61,21 @@ func (s *secretBuilder) build() *corev1.Secret {
 }
 
 func (s *secretBuilder) getData() map[string][]byte {
-	data := make(map[string][]byte, 2)
+	data := make(map[string][]byte, len(s.backends)+1)
 
-	optional.Of(s.endpointKey).IfPresent(
-		func(key string) {
-			data[constants.AgentKey] = []byte(key)
-		},
-	)
-
-	optional.Of(s.downloadKey).IfPresent(
+	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
 		func(downloadKey string) {
 			data[constants.DownloadKey] = []byte(downloadKey)
 		},
 	)
+
+	for _, backend := range s.backends {
+		optional.Of(backend.EndpointKey).IfPresent(
+			func(key string) {
+				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
+			},
+		)
+	}
 
 	return data
 }

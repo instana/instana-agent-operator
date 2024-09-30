@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
@@ -36,7 +37,7 @@ type deploymentBuilder struct {
 	env.EnvBuilder
 	volume.VolumeBuilder
 	ports.PortsBuilder
-	backendResourceSuffix string
+	backend backends.K8SensorBackend
 }
 
 func (d *deploymentBuilder) IsNamespaced() bool {
@@ -72,9 +73,9 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: d.helpers.K8sSensorResourcesName() + d.backendResourceSuffix,
+						Name: d.helpers.K8sSensorResourcesName(),
 					},
-					Key: constants.BackendKey,
+					Key: constants.BackendKey + d.backend.ResourceSuffix,
 				},
 			},
 		},
@@ -83,9 +84,9 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name) + d.backendResourceSuffix,
+						Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name),
 					},
-					Key: constants.AgentKey,
+					Key: constants.AgentKey + d.backend.ResourceSuffix,
 				},
 			},
 		},
@@ -113,7 +114,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.helpers.K8sSensorResourcesName() + d.backendResourceSuffix,
+			Name:      d.helpers.K8sSensorResourcesName() + d.backend.ResourceSuffix,
 			Namespace: d.Namespace,
 			Labels:    addAppLabel(nil),
 		},
@@ -198,7 +199,7 @@ func NewDeploymentBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
-	backendResourceSuffix string,
+	backend backends.K8SensorBackend,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
@@ -208,6 +209,6 @@ func NewDeploymentBuilder(
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
-		backendResourceSuffix:     backendResourceSuffix,
+		backend:                   backend,
 	}
 }
