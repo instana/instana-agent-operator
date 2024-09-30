@@ -27,13 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
 func TestSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	s := NewSecretBuilder(&instanav1.InstanaAgent{}, "", "", "")
+	s := NewSecretBuilder(&instanav1.InstanaAgent{}, make([]backends.K8SensorBackend, 0))
 
 	assertions.True(s.IsNamespaced())
 	assertions.Equal("instana-agent", s.ComponentName())
@@ -77,7 +78,11 @@ func TestSecretBuilder_Build(t *testing.T) {
 							},
 						}
 
-						sb := NewSecretBuilder(&agent, key, downloadKey, "")
+						backend := backends.NewK8SensorBackend("", key, downloadKey, "", "")
+						var backends [1]backends.K8SensorBackend
+						backends[0] = *backend
+
+						sb := NewSecretBuilder(&agent, backends[:])
 
 						actual := sb.Build()
 

@@ -12,6 +12,15 @@ spec:
   agent:
     # replace with your Instana agent key
     key: replace-key
+    # Rather than specifying the agent key and optionally the download key, you can "bring your
+    # own secret" creating it in the namespace in which you install the `instana-agent` and
+    # specify its name in the `keysSecret` field. The secret you create must contains
+    # a field called `key` and optionally one called `downloadKey`, which contain, respectively,
+    # the values you'd otherwise set in `.agent.key` and `agent.downloadKey`.
+    # If you are using multiple backends, the fields in the secret should be called
+    # `key`, `key-1`, `key-2`, etc for each reporting backend.
+    # The order of the keys and the backends listed in additionalBackends below need to match.
+    # keysSecret: null
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
     # The minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available
