@@ -122,17 +122,24 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 
 	// render additional backends configuration
 	for i, backend := range c.Spec.Agent.AdditionalBackends {
-		if backend.Key == "" || backend.EndpointHost == "" {
+		if (c.Spec.Agent.KeysSecret == "" && backend.Key == "") || backend.EndpointHost == "" {
 			// skip backend as it would be broken anyways, should be caught by the schema validator anyways, but better be safe than sorry
-			c.logger.Error(fmt.Errorf("key or endpointHost undefined"), "skipping additional backend due to missing values")
+			c.logger.Error(fmt.Errorf("backend not defined: backend key (plaintext or through secret) or endpoint missing"), "skipping additional backend due to missing values")
 			continue
+		}
+
+		var backendKey string
+		if keyValueFromSecret, ok := c.keysSecret.Data["key"]; ok {
+			backendKey = string(keyValueFromSecret)
+		} else if c.Spec.Agent.Key != "" {
+			backendKey = string(c.Spec.Agent.Key)
 		}
 
 		lines := []string{
 			toInlineVariable("host", backend.EndpointHost),
 			toInlineVariable("port", backend.EndpointPort, "443"),
 			toInlineVariable("protocol", "HTTP/2"),
-			toInlineVariable("key", backend.Key),
+			toInlineVariable("key", backendKey),
 		}
 		if c.Spec.Agent.ProxyHost != "" {
 			lines = append(
