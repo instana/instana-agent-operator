@@ -20,6 +20,7 @@ spec:
     # If you are using multiple backends, the fields in the secret should be called
     # `key`, `key-1`, `key-2`, etc for each reporting backend.
     # The order of the keys and the backends listed in additionalBackends below need to match.
+    # If the keySecret is defined, the key specified for each backend is ignored.
     # keysSecret: null
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
