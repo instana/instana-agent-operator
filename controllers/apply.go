@@ -94,7 +94,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	builders := append(
 		getDaemonSetBuilders(agent, isOpenShift, statusManager),
 		headlessservice.NewHeadlessServiceBuilder(agent),
-		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret),
+		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		tlssecret.NewSecretBuilder(agent),
 		service.NewServiceBuilder(agent),
