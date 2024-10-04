@@ -4,9 +4,10 @@
 #
 
 # Build the manager binary, always build on amd64 platform
-FROM --platform=linux/amd64 golang:1.23 AS builder
+FROM --platform=linux/amd64 docker.io/library/golang:1.23 AS builder
 
-ARG TARGETPLATFORM='linux/amd64'
+# podman does not allow redeclaration of TARGETPLATFORM if --platform is defined at the top
+#ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
 
@@ -35,7 +36,8 @@ RUN export ARCH=$(case "${TARGETPLATFORM}" in 'linux/amd64') echo 'amd64' ;; 'li
 # Resulting image with actual Operator
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
-ARG TARGETPLATFORM='linux/amd64'
+# podman does not allow redeclaration of TARGETPLATFORM if --platform is defined at the top
+#ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
 ARG BUILD=1
 ARG GIT_COMMIT=unspecified

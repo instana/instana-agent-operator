@@ -61,6 +61,13 @@ ifeq ($(uname), Darwin)
 get_ip_addr := ipconfig getifaddr en0
 endif
 
+# Detect if podman or docker is available locally
+ifeq ($(shell command -v podman 2> /dev/null),)
+    CONTAINER_CMD=docker
+else
+    CONTAINER_CMD=podman
+endif
+
 
 all: build
 
@@ -109,10 +116,10 @@ run: generate fmt vet manifests ## Run against the configured Kubernetes cluster
 	go run ./
 
 docker-build: test ## Build docker image with the manager.
-	docker build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg DATE="$$(date)" -t ${IMG} .
+	$(CONTAINER_CMD) build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg DATE="$$(date)" -t ${IMG} .
 
 docker-push: ## Push the docker image with the manager.
-	docker push ${IMG}
+	$(CONTAINER_CMD) push ${IMG}
 
 
 ##@ Deployment
@@ -132,7 +139,7 @@ scale-to-zero: ## Scales the operator to zero in the cluster to allow local test
 
 deploy-minikube: manifests kustomize ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
-	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
+	$(CONTAINER_CMD) save ${IMG} | (eval $$(minikube docker-env) && $(CONTAINER_CMD) load)
 	# Update correct Controller Manager image to be used
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	# Make certain we don't try to pull images from somewhere else
@@ -224,7 +231,7 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image for OLM.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_CMD) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
