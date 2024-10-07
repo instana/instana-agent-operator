@@ -328,7 +328,7 @@ func TestDaemonSetBuilder_getResourceRequirements(t *testing.T) {
 				for _, providedCpuLimit := range []string{"", "4.5"} {
 					tests = append(
 						tests, testParams{
-							expectedMemRequest: optional.Of(providedMemRequest).GetOrDefault("512Mi"),
+							expectedMemRequest: optional.Of(providedMemRequest).GetOrDefault("768Mi"),
 							expectedCpuRequest: optional.Of(providedCpuRequest).GetOrDefault("0.5"),
 							expectedMemLimit:   optional.Of(providedMemLimit).GetOrDefault("768Mi"),
 							expectedCpuLimit:   optional.Of(providedCpuLimit).GetOrDefault("1.5"),
