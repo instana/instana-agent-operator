@@ -8,18 +8,6 @@
 set -e
 set -o pipefail
 
-function cleanup_namespace() {
-    echo "Deleting the namespaces"
-    if kubectl get namespace/instana-agent ; then
-        kubectl delete namespace/instana-agent
-        kubectl wait --for=delete namespace/instana-agent --timeout=30s
-        echo "Deleted namespace instana-agent"
-    else
-        echo "Namespace instana-agent does not exist; skipping delete"
-    fi
-    echo "OK"
-}
-
 case "${CLUSTER_TYPE}" in
     gke)
         echo 'Testing on a GKE cluster'
@@ -42,7 +30,6 @@ case "${CLUSTER_TYPE}" in
         export USE_GKE_GCLOUD_AUTH_PLUGIN=True
         gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --zone "${GKE_ZONE}" --project "${GKE_PROJECT}"
 
-        cleanup_namespace
         ;;
     openshift)
         echo "${KUBECONFIG_SOURCE}" > kubeconfig
@@ -50,11 +37,10 @@ case "${CLUSTER_TYPE}" in
         KUBECONFIG="$(pwd)/kubeconfig"
         export KUBECONFIG
 
-        cleanup_namespace
-
-		echo 'Download OpenShift CLI to modify rights for default ServiceAccount, so it has priviliged access'
-		curl -L --fail --show-error --silent https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz -o /tmp/oc.tar.gz
-		tar -xzvf /tmp/oc.tar.gz --overwrite --directory /tmp
+        # go test does not require oc cli
+		# echo 'Download OpenShift CLI to modify rights for default ServiceAccount, so it has priviliged access'
+		# curl -L --fail --show-error --silent https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz -o /tmp/oc.tar.gz
+		# tar -xzvf /tmp/oc.tar.gz --overwrite --directory /tmp
 
         ;;
     *)

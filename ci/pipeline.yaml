@@ -524,13 +524,19 @@ jobs:
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_ENDPOINT_PORT: 443
                 BUILD_BRANCH: main
-                INSTANA_API_KEY: ((qa-instana-api-token))
+                INSTANA_API_KEY: ((qa-instana-agent-key))
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               inputs:
                 - name: pipeline-source
               run:
-                path: pipeline-source/ci/scripts/end-to-end-test.sh
+                path: bash
+                args:
+                  - -ceu
+                  - |
+                    cd pipeline-source
+                    bash ./ci/scripts/cluster-authentication.sh
+                    make e2e
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -603,13 +609,19 @@ jobs:
                 INSTANA_API_URL: ((instana-qa.api_url))
                 INSTANA_API_TOKEN: ((instana-qa.api_token))
                 BUILD_BRANCH: main
-                INSTANA_API_KEY: ((qa-instana-api-token))
+                INSTANA_API_KEY: ((qa-instana-agent-key))
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               inputs:
                 - name: pipeline-source
               run:
-                path: pipeline-source/ci/scripts/end-to-end-test.sh
+                path: bash
+                args:
+                  - -ceu
+                  - |
+                    cd pipeline-source
+                    bash ./ci/scripts/cluster-authentication.sh
+                    make e2e
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
@@ -684,7 +696,7 @@ jobs:
         #         INSTANA_API_URL: ((instana-qa.api_url))
         #         INSTANA_API_TOKEN: ((instana-qa.api_token))
         #         BUILD_BRANCH: main
-        #         INSTANA_API_KEY: ((qa-instana-api-token))
+        #         INSTANA_API_KEY: ((qa-instana-agent-key))
         #         ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
         #         ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
         #       inputs:
