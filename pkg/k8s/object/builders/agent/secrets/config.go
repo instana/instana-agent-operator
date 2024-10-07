@@ -126,7 +126,7 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 	// render additional backends configuration
 	var backendKey string
 	for i, backend := range c.backends {
-		if (c.Spec.Agent.KeysSecret == "" && backend.EndpointKey == "") || backend.EndpointHost == "" {
+		if (c.keysSecret.Name == "" && backend.EndpointKey == "") || backend.EndpointHost == "" {
 			// skip backend as it would be broken anyways, should be caught by the schema validator anyways, but better be safe than sorry
 			c.logger.Error(fmt.Errorf("backend not defined: backend key (plaintext or through secret) or endpoint missing"), "skipping additional backend due to missing values")
 			continue
@@ -137,6 +137,10 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 			backendKey = string(keyValueFromSecret)
 		} else if backend.EndpointKey != "" {
 			backendKey = string(backend.EndpointKey)
+		}
+
+		if backendKey == "" {
+			continue
 		}
 
 		lines := []string{
