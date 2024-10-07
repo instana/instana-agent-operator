@@ -63,11 +63,10 @@ endif
 
 # Detect if podman or docker is available locally
 ifeq ($(shell command -v podman 2> /dev/null),)
-    CONTAINER_CMD=docker
+    CONTAINER_CMD = docker
 else
-    CONTAINER_CMD=podman
+    CONTAINER_CMD = podman
 endif
-
 
 all: build
 
@@ -115,12 +114,13 @@ run: export DEBUG_MODE=true
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
-docker-build: test ## Build docker image with the manager.
-	$(CONTAINER_CMD) build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg DATE="$$(date)" -t ${IMG} .
+docker-build: test container-build ## Build docker image with the manager.
 
 docker-push: ## Push the docker image with the manager.
-	$(CONTAINER_CMD) push ${IMG}
+	${CONTAINER_CMD} push ${IMG}
 
+container-build: buildctl
+	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build --frontend=dockerfile.v0 --local context=. --local dockerfile=. --output type=oci,name=${IMG} --opt build-arg:VERSION=0.0.1 --opt build-arg:GIT_COMMIT=${GIT_COMMIT}  --opt build-arg:DATE="$$(date)" | $(CONTAINER_CMD) load
 
 ##@ Deployment
 
@@ -139,7 +139,7 @@ scale-to-zero: ## Scales the operator to zero in the cluster to allow local test
 
 deploy-minikube: manifests kustomize ## Convenience target to push the docker image to a local running Minikube cluster and deploy the Operator there.
 	(eval $$(minikube docker-env) && docker rmi ${IMG} || true)
-	$(CONTAINER_CMD) save ${IMG} | (eval $$(minikube docker-env) && $(CONTAINER_CMD) load)
+	docker save ${IMG} | (eval $$(minikube docker-env) && docker load)
 	# Update correct Controller Manager image to be used
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	# Make certain we don't try to pull images from somewhere else
@@ -177,6 +177,26 @@ endif
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
 	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0,operator-sdk_$${OS}_$${ARCH})
 
+BUILDCTL = $(shell pwd)/bin/buildctl
+BUILDKITD_CONTAINER_NAME = buildkitd
+# Test if buildctl is available in the GOPATH, if not, set to local and download if needed
+buildctl: ## Download the buildctl cli locally if necessary.
+	@if [ "`podman ps -a -q -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
+		if [ "`podman ps -aq -f status=exited -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
+			echo "Starting buildkitd container $(BUILDKITD_CONTAINER_NAME)"; \
+			$(CONTAINER_CMD) start $(BUILDKITD_CONTAINER_NAME) || true; \
+			echo "Allowing 5 seconds to bootup"; \
+			sleep 5; \
+		else \
+			echo "Buildkit daemon is already running, skip container creation"; \
+		fi \
+	else \
+		echo "$(BUILDKITD_CONTAINER_NAME) container is not present, launching it now"; \
+		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:v0.16.0; \
+		echo "Allowing 5 seconds to bootup"; \
+		sleep 5; \
+	fi
+	$(call go-install-tool,$(BUILDCTL),github.com/moby/buildkit/cmd/buildctl@v0.16)
 
 # go-install-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -230,8 +250,9 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
-bundle-build: ## Build the bundle image for OLM.
-	$(CONTAINER_CMD) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+bundle-build: buildctl ## Build the bundle image for OLM.
+	#docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build --frontend gateway.v0 --opt source=docker/dockerfile --opt filename=./bundle.Dockerfile --local context=. --local dockerfile=. --output type=oci,name=${BUNDLE_IMG} | $(CONTAINER_CMD) load
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
@@ -253,4 +274,4 @@ gen-mocks: get-mockgen
 	mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./mocks/builder_mock.go --package mocks 
 	mockgen --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
 	mockgen --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
-	mockgen --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks 
+	mockgen --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks
