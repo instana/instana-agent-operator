@@ -63,3 +63,4 @@ instana-agent-operator
 # CI
 backend.cfg
 
+e2e/.env

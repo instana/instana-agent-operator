@@ -1,5 +1,8 @@
 module github.com/instana/instana-agent-operator
 
+// use full version x.y.z
+// see https://github.com/instana/instana-agent-operator/pull/218
+// and https://github.com/golang/go/issues/62278#issuecomment-1693538776
 go 1.23.2
 
 require (
@@ -7,6 +10,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/go-errors/errors v1.4.2
 	github.com/go-logr/logr v1.4.1
+	github.com/openshift/client-go v0.0.0-20240906181530-b2f7c4ab0984
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.4.0
@@ -16,7 +20,9 @@ require (
 	k8s.io/api v0.30.3
 	k8s.io/apimachinery v0.30.3
 	k8s.io/client-go v0.30.3
+	k8s.io/klog/v2 v2.120.1
 	sigs.k8s.io/controller-runtime v0.18.5
+	sigs.k8s.io/e2e-framework v0.4.0
 )
 
 require (
@@ -29,6 +35,7 @@ require (
 	github.com/Microsoft/hcsshim v0.11.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/containerd/containerd v1.7.12 // indirect
@@ -99,6 +106,7 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc6 // indirect
+	github.com/openshift/api v0.0.0-20240906165951-d73f2e11e0be // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
@@ -113,6 +121,7 @@ require (
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/vladimirvivien/gexe v0.2.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
@@ -143,7 +152,6 @@ require (
 	k8s.io/apiserver v0.30.3 // indirect
 	k8s.io/cli-runtime v0.30.3 // indirect
 	k8s.io/component-base v0.30.3 // indirect
-	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/kubectl v0.30.3 // indirect
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e // indirect
