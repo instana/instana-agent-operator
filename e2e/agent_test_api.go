@@ -405,7 +405,7 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 	}
 }
 
-func ValidateMultiBackendConfiguration() e2etypes.StepFunc {
+func ValidateAgentMultiBackendConfiguration() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		log.Infof("Fetching secret %s", InstanaAgentConfigSecretName)
 		// Create a client to interact with the Kube API

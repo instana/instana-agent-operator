@@ -7,6 +7,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -45,9 +46,10 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 
 			return ctx
 		}).
-		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
+		Assess("wait for first k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
+		Assess("wait for second k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(fmt.Sprintf("%s-1", K8sensorDeploymentName))).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
-		Assess("validate instana-agent-config secret contains 2 backends", ValidateMultiBackendConfiguration()).
+		Assess("validate instana-agent-config secret contains 2 backends", ValidateAgentMultiBackendConfiguration()).
 		Feature()
 
 	// test feature
@@ -70,7 +72,7 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 			r.WithNamespace(cfg.Namespace())
 
 			// read the same custom resource, but adjust it
-			f, err := os.Open("../config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml")
+			f, err := os.Open("../config/samples/instana_v1_instanaagent_multiple_backends.yaml")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -79,10 +81,6 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 			if err != nil {
 				t.Fatal("Could not decode agent", err)
 			}
-
-			// replace keysSecret with inline key, a new test case gets a new namespace, so the secret was implicitly deleted already
-			agent.Spec.Agent.KeysSecret = ""
-			agent.Spec.Agent.Key = "xxx"
 
 			t.Logf("Creating dummy agent CR with inline key")
 
@@ -95,8 +93,9 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 			return ctx
 		}).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
+		Assess("wait for second k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(fmt.Sprintf("%s-1", K8sensorDeploymentName))).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
-		Assess("validate instana-agent-config secret contains 2 backends", ValidateMultiBackendConfiguration()).
+		Assess("validate instana-agent-config secret contains 2 backends", ValidateAgentMultiBackendConfiguration()).
 		Feature()
 
 	// test feature
