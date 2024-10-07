@@ -281,7 +281,7 @@ type BackendSpec struct {
 	EndpointHost string `json:"endpointHost"`
 	// +kubebuilder:validation:Required
 	EndpointPort string `json:"endpointPort"`
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	Key string `json:"key"`
 }
 

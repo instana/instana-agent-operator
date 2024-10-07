@@ -5,13 +5,13 @@
 package secrets
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	commonbuilder "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
@@ -29,17 +29,20 @@ type configBuilder struct {
 	statusManager status.AgentStatusManager
 	keysSecret    *corev1.Secret
 	logger        logr.Logger
+	backends      []backends.K8SensorBackend
 }
 
 func NewConfigBuilder(
 	agent *instanav1.InstanaAgent,
 	statusManager status.AgentStatusManager,
-	keysSecret *corev1.Secret) commonbuilder.ObjectBuilder {
+	keysSecret *corev1.Secret,
+	backends []backends.K8SensorBackend) commonbuilder.ObjectBuilder {
 	return &configBuilder{
 		InstanaAgent:  agent,
 		statusManager: statusManager,
 		keysSecret:    keysSecret,
 		logger:        logf.Log.WithName("instana-agent-config-secret-builder"),
+		backends:      backends,
 	}
 }
 
@@ -121,10 +124,22 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 	config := map[string][]byte{}
 
 	// render additional backends configuration
-	for i, backend := range c.Spec.Agent.AdditionalBackends {
-		if backend.Key == "" || backend.EndpointHost == "" {
+	var backendKey string
+	for i, backend := range c.backends {
+		if (c.keysSecret.Name == "" && backend.EndpointKey == "") || backend.EndpointHost == "" {
 			// skip backend as it would be broken anyways, should be caught by the schema validator anyways, but better be safe than sorry
-			c.logger.Error(fmt.Errorf("key or endpointHost undefined"), "skipping additional backend due to missing values")
+			c.logger.Error(fmt.Errorf("backend not defined: backend key (plaintext or through secret) or endpoint missing"), "skipping additional backend due to missing values")
+			continue
+		}
+
+		backendKey = ""
+		if keyValueFromSecret, ok := c.keysSecret.Data["key"+backend.ResourceSuffix]; ok {
+			backendKey = string(keyValueFromSecret)
+		} else if backend.EndpointKey != "" {
+			backendKey = string(backend.EndpointKey)
+		}
+
+		if backendKey == "" {
 			continue
 		}
 
@@ -132,7 +147,7 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 			toInlineVariable("host", backend.EndpointHost),
 			toInlineVariable("port", backend.EndpointPort, "443"),
 			toInlineVariable("protocol", "HTTP/2"),
-			toInlineVariable("key", backend.Key),
+			toInlineVariable("key", backendKey),
 		}
 		if c.Spec.Agent.ProxyHost != "" {
 			lines = append(
@@ -153,48 +168,8 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 			)
 		}
 
-		config["com.instana.agent.main.sender.Backend-"+strconv.Itoa(i+2)+".cfg"] = []byte(strings.Join(lines, "\n") + "\n")
+		config["com.instana.agent.main.sender.Backend-"+strconv.Itoa(i+1)+".cfg"] = []byte(strings.Join(lines, "\n") + "\n")
 	}
-
-	if c.Spec.Agent.EndpointHost == "" {
-		return config, errors.New("agent endpoint host has not been set")
-	}
-
-	var agentKey string
-	if keyValueFromSecret, ok := c.keysSecret.Data["key"]; ok {
-		agentKey = string(keyValueFromSecret)
-	} else if c.Spec.Agent.Key != "" {
-		agentKey = string(c.Spec.Agent.Key)
-	} else {
-		return config, errors.New("agent key has not been set")
-	}
-
-	backendLines := []string{
-		toInlineVariable("host", c.Spec.Agent.EndpointHost),
-		toInlineVariable("port", c.Spec.Agent.EndpointPort, "443"),
-		toInlineVariable("protocol", "HTTP/2"),
-		toInlineVariable("key", agentKey),
-	}
-	if c.Spec.Agent.ProxyHost != "" {
-		backendLines = append(
-			backendLines,
-			toInlineVariable("proxy.type", c.Spec.Agent.ProxyProtocol, "HTTP"),
-			toInlineVariable("proxy.host", c.Spec.Agent.ProxyHost),
-			toInlineVariable("proxy.port", c.Spec.Agent.ProxyPort, "80"),
-		)
-	}
-	if c.Spec.Agent.ProxyUseDNS {
-		backendLines = append(backendLines, toInlineVariable("proxy.dns", "true"))
-	}
-	if c.Spec.Agent.ProxyUser != "" {
-		backendLines = append(backendLines, toInlineVariable("proxy.user", c.Spec.Agent.ProxyUser))
-	}
-	if c.Spec.Agent.ProxyPassword != "" {
-		backendLines = append(backendLines, toInlineVariable("proxy.password", c.Spec.Agent.ProxyPassword))
-	}
-
-	config["com.instana.agent.main.sender.Backend-1.cfg"] = []byte(strings.Join(backendLines, "\n") + "\n")
-
 	return config, nil
 }
 

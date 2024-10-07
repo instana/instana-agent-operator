@@ -9,6 +9,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/mocks"
+	backend "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/stretchr/testify/assert"
 	gomock "go.uber.org/mock/gomock"
@@ -19,7 +20,7 @@ import (
 func TestConfigBuilderComponentName(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	statusManager := mocks.NewMockAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{})
+	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
 
 	assert.True(t, s.IsNamespaced())
 }
@@ -27,7 +28,7 @@ func TestConfigBuilderComponentName(t *testing.T) {
 func TestConfigBuilderIsNamespaced(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	statusManager := mocks.NewMockAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{})
+	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
 
 	assert.Equal(t, "instana-agent", s.ComponentName())
 }
@@ -76,10 +77,11 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 	}
 
 	for _, test := range []struct {
-		name       string
-		agent      instanav1.InstanaAgent
-		keysSecret *corev1.Secret
-		expected   map[string][]byte
+		name        string
+		agent       instanav1.InstanaAgent
+		k8sBackends []backend.K8SensorBackend
+		keysSecret  *corev1.Secret
+		expected    map[string][]byte
 	}{
 		{
 			name: "Should return v1.Secret struct containing data from the InstanaAgentSpec as Backend-1.cfg with inline field, yaml and pure string fields",
@@ -100,6 +102,14 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					},
 					OpenTelemetry: otlp,
 					Prometheus:    prometheus,
+				},
+			},
+			k8sBackends: []backend.K8SensorBackend{
+				{
+					ResourceSuffix: "",
+					EndpointHost:   "main-backend-host",
+					EndpointPort:   "main-backend-port",
+					EndpointKey:    "main-backend-key",
 				},
 			},
 			keysSecret: &corev1.Secret{},
@@ -126,6 +136,32 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 						AdditionalBackends: backends,
 					},
 					OpenTelemetry: otlp,
+				},
+			},
+			k8sBackends: []backend.K8SensorBackend{
+				{
+					ResourceSuffix: "",
+					EndpointHost:   "",
+					EndpointPort:   "",
+					EndpointKey:    "",
+				},
+				{
+					ResourceSuffix: "-2",
+					EndpointHost:   "additional-backend-2-host",
+					EndpointPort:   "additional-backend-2-port",
+					EndpointKey:    "additional-backend-2-key",
+				},
+				{
+					ResourceSuffix: "-3",
+					EndpointHost:   "additional-backend-3-host",
+					EndpointPort:   "additional-backend-3-port",
+					EndpointKey:    "additional-backend-3-key",
+				},
+				{
+					ResourceSuffix: "-4",
+					EndpointHost:   "additional-backend-4-host",
+					EndpointPort:   "additional-backend-4-port",
+					EndpointKey:    "additional-backend-4-key",
 				},
 			},
 			keysSecret: &corev1.Secret{},
@@ -157,6 +193,31 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			keysSecret: &corev1.Secret{},
+			k8sBackends: []backend.K8SensorBackend{
+				{
+					EndpointHost: "main-backend-host",
+					EndpointPort: "main-backend-port",
+					EndpointKey:  "main-backend-key",
+				},
+				{
+					ResourceSuffix: "-2",
+					EndpointHost:   "additional-backend-2-host",
+					EndpointPort:   "additional-backend-2-port",
+					EndpointKey:    "additional-backend-2-key",
+				},
+				{
+					ResourceSuffix: "-3",
+					EndpointHost:   "additional-backend-3-host",
+					EndpointPort:   "additional-backend-3-port",
+					EndpointKey:    "additional-backend-3-key",
+				},
+				{
+					ResourceSuffix: "-4",
+					EndpointHost:   "additional-backend-4-host",
+					EndpointPort:   "additional-backend-4-port",
+					EndpointKey:    "additional-backend-4-key",
+				},
+			},
 			expected: map[string][]byte{
 				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc: {}\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
@@ -208,6 +269,12 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					"key": []byte("key-from-secret"),
 				},
 			},
+			k8sBackends: []backend.K8SensorBackend{
+				{
+					EndpointHost: "main-backend-host",
+					EndpointPort: "main-backend-port",
+				},
+			},
 			expected: map[string][]byte{
 				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc: {}\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
@@ -249,6 +316,23 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					"key": []byte("key-from-secret"),
 				},
 			},
+			k8sBackends: []backend.K8SensorBackend{
+				{
+					ResourceSuffix: "",
+					EndpointHost:   "main-backend-host",
+					EndpointPort:   "main-backend-port",
+				},
+				{
+					ResourceSuffix: "-2",
+					EndpointPort:   "additional-backend-2-port",
+				},
+				{
+					ResourceSuffix: "-3",
+					EndpointHost:   "additional-backend-3-host",
+					EndpointPort:   "additional-backend-3-port",
+					EndpointKey:    "additional-backend-3-key",
+				},
+			},
 			expected: map[string][]byte{
 				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc: {}\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
@@ -279,6 +363,16 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			keysSecret: &corev1.Secret{},
+			k8sBackends: []backend.K8SensorBackend{
+				{
+					EndpointHost: "main-backend-host",
+					EndpointPort: "main-backend-port",
+				},
+				{
+					ResourceSuffix: "-2",
+					EndpointPort:   "additional-backend-2-port",
+				},
+			},
 			expected: map[string][]byte{
 				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc: {}\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
@@ -292,7 +386,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				statusManager := mocks.NewMockAgentStatusManager(ctrl)
 				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
 
-				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret)
+				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.k8sBackends)
 
 				actual := builder.Build().Get()
 

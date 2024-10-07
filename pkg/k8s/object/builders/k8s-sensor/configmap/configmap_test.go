@@ -30,6 +30,7 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/mocks"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -37,7 +38,7 @@ import (
 func TestConfigMapBuilderIsNamespacedComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	cmb := NewConfigMapBuilder(nil)
+	cmb := NewConfigMapBuilder(nil, make([]backends.K8SensorBackend, 0))
 
 	assertions.True(cmb.IsNamespaced())
 	assertions.Equal(constants.ComponentK8Sensor, cmb.ComponentName())
@@ -84,9 +85,13 @@ func TestConfigMapBuilderBuild(t *testing.T) {
 	helpers := mocks.NewMockHelpers(ctrl)
 	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName)
 
+	backend := backends.NewK8SensorBackend("", "", "", endpointHost, endpointPort)
+	var backends [1]backends.K8SensorBackend
+	backends[0] = *backend
 	cmb := &configMapBuilder{
 		InstanaAgent: agent,
 		Helpers:      helpers,
+		backends:     backends[:],
 	}
 
 	actual := cmb.Build()
