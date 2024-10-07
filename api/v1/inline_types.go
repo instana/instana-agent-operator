@@ -170,7 +170,7 @@ type ResourceRequirements corev1.ResourceRequirements
 
 func (r ResourceRequirements) GetOrDefault() corev1.ResourceRequirements {
 	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Requests))
-	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("768Mi"))
 	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
 
 	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Limits))
