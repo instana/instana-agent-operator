@@ -130,6 +130,8 @@ func (r *InstanaAgentReconciler) reconcile(
 		}
 	}
 
+	k8SensorBackends := r.getK8SensorBackends(agent)
+
 	if applyResourcesRes := r.applyResources(
 		ctx,
 		agent,
@@ -137,6 +139,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		operatorUtils,
 		statusManager,
 		keysSecret,
+		k8SensorBackends,
 	); applyResourcesRes.suppliesReconcileResult() {
 		return applyResourcesRes
 	}

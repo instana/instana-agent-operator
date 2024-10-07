@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -17,11 +18,13 @@ import (
 
 type secretBuilder struct {
 	*instanav1.InstanaAgent
+	backends []backends.K8SensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.InstanaAgent, backends []backends.K8SensorBackend) builder.ObjectBuilder {
 	return &secretBuilder{
 		InstanaAgent: agent,
+		backends:     backends,
 	}
 }
 
@@ -58,19 +61,21 @@ func (s *secretBuilder) build() *corev1.Secret {
 }
 
 func (s *secretBuilder) getData() map[string][]byte {
-	data := make(map[string][]byte, 2)
-
-	optional.Of(s.Spec.Agent.Key).IfPresent(
-		func(key string) {
-			data[constants.AgentKey] = []byte(key)
-		},
-	)
+	data := make(map[string][]byte, len(s.backends)+1)
 
 	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
 		func(downloadKey string) {
 			data[constants.DownloadKey] = []byte(downloadKey)
 		},
 	)
+
+	for _, backend := range s.backends {
+		optional.Of(backend.EndpointKey).IfPresent(
+			func(key string) {
+				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
+			},
+		)
+	}
 
 	return data
 }

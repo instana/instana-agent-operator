@@ -28,6 +28,7 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
@@ -60,6 +61,24 @@ func getDaemonSetBuilders(
 	return builders
 }
 
+func getK8sSensorDeployments(
+	agent *instanav1.InstanaAgent,
+	isOpenShift bool,
+	statusManager status.AgentStatusManager,
+	k8SensorBackends []backends.K8SensorBackend,
+) []builder.ObjectBuilder {
+	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
+
+	for _, backend := range k8SensorBackends {
+		builders = append(
+			builders,
+			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend),
+		)
+	}
+
+	return builders
+}
+
 func (r *InstanaAgentReconciler) applyResources(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
@@ -67,6 +86,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	operatorUtils operator_utils.OperatorUtils,
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
+	k8SensorBackends []backends.K8SensorBackend,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
@@ -74,19 +94,20 @@ func (r *InstanaAgentReconciler) applyResources(
 	builders := append(
 		getDaemonSetBuilders(agent, isOpenShift, statusManager),
 		headlessservice.NewHeadlessServiceBuilder(agent),
-		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret),
+		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
-		keyssecret.NewSecretBuilder(agent),
 		tlssecret.NewSecretBuilder(agent),
 		service.NewServiceBuilder(agent),
 		agentserviceaccount.NewServiceAccountBuilder(agent),
-		k8ssensorconfigmap.NewConfigMapBuilder(agent),
-		k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager),
 		k8ssensorpoddisruptionbudget.NewPodDisruptionBudgetBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
+		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
+		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
 	)
+
+	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
