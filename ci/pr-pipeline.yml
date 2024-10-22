@@ -50,14 +50,14 @@ gh-status-set-pending-docker-build: &gh-status-set-pending-docker-build
   put: gh-status
   inputs: [pipeline-source]
   params: { state: pending, context: build/docker }
-gh-status-set-pending-e2e-gke-21: &gh-status-set-pending-e2e-gke-21
+gh-status-set-pending-e2e-gke-lowest: &gh-status-set-pending-e2e-gke-lowest
   put: gh-status
   inputs: [pipeline-source]
-  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
-gh-status-set-pending-e2e-gke-27: &gh-status-set-pending-e2e-gke-27
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest }
+gh-status-set-pending-e2e-gke-latest: &gh-status-set-pending-e2e-gke-latest
   put: gh-status
   inputs: [pipeline-source]
-  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
+  params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest }
 # gh-status-set-pending-e2e-openshift: &gh-status-set-pending-e2e-openshift
 #   put: gh-status
 #   inputs: [ pipeline-source ]
@@ -569,17 +569,17 @@ jobs:
       - load_var: git-commit
         file: pipeline-source/.git/short_ref
         reveal: true
-      - <<: *gh-status-set-pending-e2e-gke-21
-      - <<: *gh-status-set-pending-e2e-gke-27
+      - <<: *gh-status-set-pending-e2e-gke-lowest
+      - <<: *gh-status-set-pending-e2e-gke-latest
       #      - <<: *gh-status-set-pending-e2e-openshift
       - in_parallel:
           - do:
-              - put: gke-21
+              - put: gke-lowest
                 inputs: detect
                 resource: test-clusters
                 params:
-                  claim: gke-21
-              - task: run-e2e-test-gke-21
+                  claim: gke-lowest
+              - task: run-e2e-test-gke-lowest
                 timeout: 30m
                 attempts: 1
                 config: &gke-e2e-test-config
@@ -593,9 +593,9 @@ jobs:
                       password: ((project-berlin-tests-gcp-instana-qa))
                   params:
                     GIT_COMMIT: ((.:git-commit))
-                    CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-21
+                    NAME: gke-lowest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                     INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                     INSTANA_ENDPOINT_PORT: 443
@@ -619,7 +619,7 @@ jobs:
                   params:
                     {
                       state: success,
-                      context: end-to-end-tests/run-e2e-test-gke-21,
+                      context: end-to-end-tests/run-e2e-test-gke-lowest,
                     }
                 on_failure:
                   put: gh-status
@@ -627,7 +627,7 @@ jobs:
                   params:
                     {
                       state: failure,
-                      context: end-to-end-tests/run-e2e-test-gke-21,
+                      context: end-to-end-tests/run-e2e-test-gke-lowest,
                     }
                 on_error:
                   put: gh-status
@@ -635,7 +635,7 @@ jobs:
                   params:
                     {
                       state: error,
-                      context: end-to-end-tests/run-e2e-test-gke-21,
+                      context: end-to-end-tests/run-e2e-test-gke-lowest,
                     }
                 on_abort:
                   put: gh-status
@@ -643,7 +643,7 @@ jobs:
                   params:
                     {
                       state: error,
-                      context: end-to-end-tests/run-e2e-test-gke-21,
+                      context: end-to-end-tests/run-e2e-test-gke-lowest,
                     }
                 ensure:
                   do:
@@ -653,9 +653,9 @@ jobs:
                         platform: linux
                         image_resource: *e2e-test-image-resource
                         params:
-                          CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                          CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                           CLUSTER_TYPE: gke
-                          NAME: gke-21
+                          NAME: gke-lowest
                           GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                         inputs:
                           - name: pipeline-source
@@ -664,24 +664,24 @@ jobs:
                     - put: test-clusters
                       inputs: detect
                       params:
-                        release: gke-21
+                        release: gke-lowest
 
           - do:
-              - put: gke-27
+              - put: gke-latest
                 inputs: detect
                 resource: test-clusters
                 params:
-                  claim: gke-27
-              - task: run-e2e-test-gke-27
+                  claim: gke-latest
+              - task: run-e2e-test-gke-latest
                 timeout: 30m
                 attempts: 1
                 config:
                   <<: *gke-e2e-test-config
                   params:
                     GIT_COMMIT: ((.:git-commit))
-                    CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-27
+                    NAME: gke-latest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                     INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                     INSTANA_ENDPOINT_PORT: 443
@@ -708,7 +708,7 @@ jobs:
                   params:
                     {
                       state: success,
-                      context: end-to-end-tests/run-e2e-test-gke-27,
+                      context: end-to-end-tests/run-e2e-test-gke-latest,
                     }
                 on_failure:
                   put: gh-status
@@ -716,7 +716,7 @@ jobs:
                   params:
                     {
                       state: failure,
-                      context: end-to-end-tests/run-e2e-test-gke-27,
+                      context: end-to-end-tests/run-e2e-test-gke-latest,
                     }
                 on_error:
                   put: gh-status
@@ -724,7 +724,7 @@ jobs:
                   params:
                     {
                       state: error,
-                      context: end-to-end-tests/run-e2e-test-gke-27,
+                      context: end-to-end-tests/run-e2e-test-gke-latest,
                     }
                 on_abort:
                   put: gh-status
@@ -732,7 +732,7 @@ jobs:
                   params:
                     {
                       state: error,
-                      context: end-to-end-tests/run-e2e-test-gke-27,
+                      context: end-to-end-tests/run-e2e-test-gke-latest,
                     }
                 ensure:
                   do:
@@ -742,9 +742,9 @@ jobs:
                         platform: linux
                         image_resource: *e2e-test-image-resource
                         params:
-                          CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                          CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
                           CLUSTER_TYPE: gke
-                          NAME: gke-27
+                          NAME: gke-latest
 
                           GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                         inputs:
@@ -754,7 +754,7 @@ jobs:
                     - put: test-clusters
                       inputs: detect
                       params:
-                        release: gke-27
+                        release: gke-latest
         # - do:
         #   - put: openshift-4.11
         #     inputs: detect
