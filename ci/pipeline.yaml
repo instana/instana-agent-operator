@@ -20,8 +20,8 @@ groups:
     - build-e2e-operator-base-image
   - name: manual-unlock
     jobs:
-    - gke-21-release-unlock-manual
-    - gke-27-release-unlock-manual
+    - gke-lowest-release-unlock-manual
+    - gke-latest-release-unlock-manual
     - openshift-4.11-release-unlock-manual
 
 var:
@@ -250,10 +250,10 @@ jobs:
         params: { state: pending, context: build/docker }
       - put: gh-status
         inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-21 }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest }
       - put: gh-status
         inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-27 }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest }
       - put: gh-status
         inputs: [ pipeline-source ]
         params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
@@ -498,12 +498,12 @@ jobs:
         passed: [docker-build]
       - in_parallel:
         - do:
-          - put: gke-21
+          - put: gke-lowest
             inputs: detect
             resource: test-clusters
             params:
-              claim: gke-21
-          - task: run-e2e-test-gke-21
+              claim: gke-lowest
+          - task: run-e2e-test-gke-lowest
             timeout: 30m
             attempts: 1
             config: &gke-e2e-test-config
@@ -517,9 +517,9 @@ jobs:
                   password: ((project-berlin-tests-gcp-instana-qa))
               params:
                 GIT_COMMIT: ((.:git-commit))
-                CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
-                NAME: gke-21
+                NAME: gke-lowest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_ENDPOINT_PORT: 443
@@ -540,31 +540,31 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-21 }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-lowest }
             on_failure:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-21 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ pipeline-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-21 }
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-lowest }
             on_error:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-21 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ pipeline-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-21 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
             ensure:
               do:
               - task: cleanup-resources
@@ -573,9 +573,9 @@ jobs:
                   platform: linux
                   image_resource: *e2e-test-image-resource
                   params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-21", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-21
+                    NAME: gke-lowest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
                     - name: pipeline-source
@@ -584,24 +584,24 @@ jobs:
               - put: test-clusters
                 inputs: detect
                 params:
-                  release: gke-21
+                  release: gke-lowest
 
         - do:
-          - put: gke-27
+          - put: gke-latest
             inputs: detect
             resource: test-clusters
             params:
-              claim: gke-27
-          - task: run-e2e-test-gke-27
+              claim: gke-latest
+          - task: run-e2e-test-gke-latest
             timeout: 30m
             attempts: 1
             config:
               <<: *gke-e2e-test-config
               params:
                 GIT_COMMIT: ((.:git-commit))
-                CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
-                NAME: gke-27
+                NAME: gke-latest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_ENDPOINT_PORT: 443
@@ -625,31 +625,31 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-27 }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-latest }
             on_failure:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-27 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ pipeline-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-27 }
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-latest }
             on_error:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-27 has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ pipeline-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
             on_abort:
               put: gh-status
               inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-27 }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
             ensure:
               do:
               - task: cleanup-resources
@@ -658,9 +658,9 @@ jobs:
                   platform: linux
                   image_resource: *e2e-test-image-resource
                   params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-27", "zone": "us-central1-c", "project": "instana-agent-qa" }'
+                    CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-27
+                    NAME: gke-latest
 
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
@@ -670,7 +670,7 @@ jobs:
               - put: test-clusters
                 inputs: detect
                 params:
-                  release: gke-27
+                  release: gke-latest
         # - do:
         #   - put: openshift-4.11
         #     inputs: detect
@@ -1443,7 +1443,7 @@ jobs:
         get_params:
           skip_download: true
 
-  - name: gke-21-release-unlock-manual
+  - name: gke-lowest-release-unlock-manual
     plan:
     - task: prepare-lock
       config:
@@ -1459,13 +1459,13 @@ jobs:
           args:
           - -cx
           - |
-            echo "gke-21" > tmp-lock/name
+            echo "gke-lowest" > tmp-lock/name
             touch tmp-lock/metadata
     - put: test-clusters
       params:
         release: tmp-lock
 
-  - name: gke-27-release-unlock-manual
+  - name: gke-latest-release-unlock-manual
     plan:
     - task: prepare-lock
       config:
@@ -1481,7 +1481,7 @@ jobs:
           args:
           - -cx
           - |
-            echo "gke-27" > tmp-lock/name
+            echo "gke-latest" > tmp-lock/name
             touch tmp-lock/metadata
     - put: test-clusters
       params:
