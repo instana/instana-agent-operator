@@ -44,11 +44,40 @@ import (
 // The namespace cannot be just deleted in all scenarios, as finalizers on the agent CR might block the namespace termination
 func EnsureAgentNamespaceDeletion() env.Func {
 	return func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
+		log.Info("==== Startup Cleanup, errors are expected if resources are not available ====")
 		log.Infof("Ensure namespace %s is not present", cfg.Namespace())
 		// Create a client to interact with the Kube API
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
 			return ctx, fmt.Errorf("failed to initialize client: %v", err)
+		}
+
+		p := utils.RunCommand("kubectl get pods -n instana-agent")
+		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
+		p = utils.RunCommand("kubectl get agent instana-agent -o yaml -n instana-agent")
+		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
+		// Cleanup a potentially existing Agent CR first
+		if _, err = DeleteAgentCRIfPresent()(ctx, cfg); err != nil {
+			log.Info("Agent CR cleanup err: ", err)
+		}
+
+		log.Info("Agent CR cleanup completed")
+
+		// Just in case a helm chart install was present before from helm chart pipeline
+		p = utils.RunCommand("helm ls -n instana-agent")
+		log.Info("Current helm chart: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
+		p = utils.RunCommand("helm uninstall instana-agent -n instana-agent")
+		if p.Err() != nil {
+			log.Warningf("Could not delete helm chart, might not be present? %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
+		}
+
+		// full purge of resources if anything would be left in the cluster
+		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/manager-role clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/manager-rolebinding")
+		if p.Err() != nil {
+			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
 		}
 
 		// Check if namespace exist, otherwise just skip over it
@@ -58,14 +87,10 @@ func EnsureAgentNamespaceDeletion() env.Func {
 			log.Infof("Namespace %s was not found, skipping deletion", cfg.Namespace())
 			return ctx, nil
 		}
+
 		// Something on the API request failed, this should fail the cleanup
 		if err != nil {
 			return ctx, fmt.Errorf("failed to get namespace: %v", err)
-		}
-
-		// Cleanup a potentially existing Agent CR first
-		if _, err = DeleteAgentCRIfPresent()(ctx, cfg); err != nil {
-			return ctx, err
 		}
 
 		// Delete the Namespace
@@ -86,6 +111,7 @@ func EnsureAgentNamespaceDeletion() env.Func {
 			return ctx, fmt.Errorf("error while waiting for namespace deletion: %v", err)
 		}
 		log.Infof("Namespace %s is gone", cfg.Namespace())
+		log.Info("==== Cleanup compleated ====")
 		return ctx, nil
 	}
 }

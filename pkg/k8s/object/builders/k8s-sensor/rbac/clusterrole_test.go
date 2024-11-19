@@ -77,6 +77,8 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 						"endpoints",
 						"namespaces",
 						"nodes",
+						"nodes/metrics",
+						"nodes/stats",
 						"pods",
 						"pods/log",
 						"replicationcontrollers",

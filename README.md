@@ -157,6 +157,7 @@ Example:
         "OPERATOR_IMAGE_TAG": "xxx"
     },
     "wca.enable": false,
-    "go.testTimeout": "600s"
+    "go.testTimeout": "600s",
+    "go.testFlags": ["-v"]
 }
 ```
