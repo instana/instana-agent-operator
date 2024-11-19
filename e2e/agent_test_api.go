@@ -59,7 +59,10 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
 		// Cleanup a potentially existing Agent CR first
-		DeleteAgentCRIfPresent()(ctx, cfg)
+		if _, err = DeleteAgentCRIfPresent()(ctx, cfg); err != nil {
+			log.Info("Agent CR cleanup err: ", err)
+		}
+
 		log.Info("Agent CR cleanup completed")
 
 		// Just in case a helm chart install was present before from helm chart pipeline
