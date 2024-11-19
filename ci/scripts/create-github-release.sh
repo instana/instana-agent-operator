@@ -57,3 +57,4 @@ upload_github_asset() {
 
 upload_github_asset "${TARGET_DIR}/${OPERATOR_RESOURCE_FILENAME}" "${OPERATOR_RESOURCE_FILENAME}"
 upload_github_asset "${TARGET_DIR}/olm-$VERSION.zip" "olm-$VERSION.zip"
+upload_github_asset "${TARGET_DIR}/images.txt" "images.txt"

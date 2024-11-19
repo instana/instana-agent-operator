@@ -60,6 +60,8 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 						"endpoints",
 						"namespaces",
 						"nodes",
+						"nodes/metrics",
+						"nodes/stats",
 						"pods",
 						"pods/log",
 						"replicationcontrollers",
