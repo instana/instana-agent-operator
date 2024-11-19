@@ -1027,6 +1027,11 @@ jobs:
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
                 make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
 
+                echo "delivery.instana.io/rel-docker-agent-local/instana-agent-operator:${OLM_RELEASE_VERSION}" > target/images.txt
+                echo "icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" >> target/images.txt
+                echo "icr.io/instana/instana-agent-operator:latest" >> target/images.txt
+                cat target/images.txt
+
                 # For public releases, also create the appropriate github release:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
                 if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
