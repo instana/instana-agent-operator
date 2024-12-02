@@ -207,6 +207,14 @@ type AgentPodSpec struct {
 	ResourceRequirements `json:",inline"`
 
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Set additional volumes for the agent pod.
+	// +kubebuilder:validation:Optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// Set additional volume mounts for the agent pod.
+	// +kubebuilder:validation:Optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 type TlsSpec struct {
