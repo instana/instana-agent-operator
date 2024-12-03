@@ -511,6 +511,70 @@ func ValidateAgentMultiBackendConfiguration() e2etypes.StepFunc {
 	}
 }
 
+func ValidateSecretsMountedFromExtraVolume() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		log.Infof("Fetching secret %s", InstanaAgentConfigSecretName)
+		// Create a client to interact with the Kube API
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check if namespace exist, otherwise just skip over it
+		instanaAgentConfigSecret := &corev1.Secret{}
+		err = r.Get(ctx, InstanaAgentConfigSecretName, InstanaNamespace, instanaAgentConfigSecret)
+		if err != nil {
+			t.Fatal("Secret could not be fetched", InstanaAgentConfigSecretName, err)
+		}
+
+		pods := &corev1.PodList{}
+		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
+		err = r.List(ctx, pods, listOps)
+		if err != nil || pods.Items == nil {
+			t.Error("error while getting pods", err)
+		}
+		var stdout, stderr bytes.Buffer
+		podName := pods.Items[0].Name
+		containerName := "instana-agent"
+
+		secretFileMatrix := []struct {
+			path    string
+			content string
+		}{
+			{
+				path:    "/secrets/key",
+				content: "xxx",
+			},
+			{
+				path:    "/secrets/key-1",
+				content: "yyy",
+			},
+		}
+
+		for _, currentFile := range secretFileMatrix {
+			if err := r.ExecInPod(
+				ctx,
+				cfg.Namespace(),
+				podName,
+				containerName,
+				[]string{"cat", currentFile.path},
+				&stdout,
+				&stderr,
+			); err != nil {
+				t.Log(stderr.String())
+				t.Error(err)
+			}
+			if strings.Contains(stdout.String(), "xxx") {
+				t.Logf("ExecInPod returned expected secret value from file %s", currentFile.path)
+			} else {
+				t.Error(fmt.Sprintf("Expected to find %s in file %s", currentFile.content, currentFile.path), stdout.String())
+			}
+		}
+
+		return ctx
+	}
+}
+
 // Helper to produce test structs
 func NewAgentCr(t *testing.T) v1.InstanaAgent {
 	boolTrue := true
