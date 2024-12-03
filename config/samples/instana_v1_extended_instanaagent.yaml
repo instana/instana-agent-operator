@@ -101,6 +101,17 @@ spec:
         memory: 768Mi
         # agent.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
         cpu: "1.5"
+      
+      # agent.pod.volumes and agent.pod.volumeMounts are additional volumes and volumeMounts for user-specific files.
+      # For example, a certificate may need to be mounted for an agent sensor to connect to the monitored target.
+      # https://kubernetes.io/docs/concepts/storage/volumes/
+      volumes:
+        - name: my-secret-volume
+          secret:
+            secretName: instana-agent-key
+      volumeMounts:
+        - name: my-secret-volume
+          mountPath: /secrets
 
     serviceMesh:
       # agent.serviceMesh.enabled sets the Instana agent's communication direction with JVMs.

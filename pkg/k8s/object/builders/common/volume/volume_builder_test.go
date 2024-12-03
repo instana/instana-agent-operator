@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 )
@@ -103,6 +104,51 @@ func TestVolumeBuilderBuild(t *testing.T) {
 
 				assertions.Len(volumes, test.expectedNumVolumes)
 				assertions.Len(volumeMounts, test.expectedNumVolumes)
+			},
+		)
+	}
+}
+
+func TestVolumeBuilderBuildFromUserConfig(t *testing.T) {
+	assertions := require.New(t)
+	volumeName := "testVolume"
+	agent := &instanav1.InstanaAgent{
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Pod: instanav1.AgentPodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: volumeName,
+						},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name: volumeName,
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range []struct {
+		name        string
+		isOpenShift bool
+	}{
+		{
+			name:        "isOpenShift",
+			isOpenShift: true,
+		},
+		{
+			name:        "isNotOpenShift",
+			isOpenShift: false,
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				vb := NewVolumeBuilder(agent, true)
+				volumes, volumeMounts := vb.BuildFromUserConfig()
+				assertions.Equal(volumeName, volumes[0].Name)
+				assertions.Equal(volumeName, volumeMounts[0].Name)
 			},
 		)
 	}
