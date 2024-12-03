@@ -108,7 +108,7 @@ spec:
       volumes:
         - name: my-secret-volume
           secret:
-            secretName: my-secret
+            secretName: instana-agent-key
       volumeMounts:
         - name: my-secret-volume
           mountPath: /secrets
