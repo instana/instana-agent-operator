@@ -140,7 +140,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
 							Command:         []string{"/ko-app/k8sensor"},
-							Args:            []string{"10s"},
+							Args:            []string{"-pollrate", "10s"},
 							Env:             d.getEnvVars(),
 							VolumeMounts:    mounts,
 							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
