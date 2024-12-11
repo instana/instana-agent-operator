@@ -7,7 +7,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"sigs.k8s.io/e2e-framework/klient/decoder"
@@ -45,7 +44,6 @@ func TestExtraVolumeWithSecret(t *testing.T) {
 			return ctx
 		}).
 		Assess("wait for first k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
-		Assess("wait for second k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(fmt.Sprintf("%s-1", K8sensorDeploymentName))).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("validate secret files are created from extra mounted volume", ValidateSecretsMountedFromExtraVolume()).
 		Feature()
