@@ -35,7 +35,7 @@ func NewConfigMergerBuilder(client v1.CoreV1Interface) DefaultConfigMerger {
 	}
 }
 
-func (c *DefaultConfigMerger) MergeConfigurationYaml(agentConfiguration string) []byte {
+func (c DefaultConfigMerger) MergeConfigurationYaml(agentConfiguration string) []byte {
 	agentData := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte([]byte(agentConfiguration)), agentData)
 	config := []byte{}
@@ -57,7 +57,7 @@ func (c *DefaultConfigMerger) MergeConfigurationYaml(agentConfiguration string) 
 	return config
 }
 
-func (c *DefaultConfigMerger) mergeConfig(agentData, configMapData map[string]interface{}) map[string]interface{} {
+func (c DefaultConfigMerger) mergeConfig(agentData, configMapData map[string]interface{}) map[string]interface{} {
 	for key, configMapValue := range configMapData {
 		if agentValue, ok := agentData[key]; ok {
 			agentValueKind := reflect.TypeOf(agentValue).Kind()
@@ -73,7 +73,7 @@ func (c *DefaultConfigMerger) mergeConfig(agentData, configMapData map[string]in
 	return agentData
 }
 
-func (c *DefaultConfigMerger) fetchConfigMaps() []apiV1.ConfigMap {
+func (c DefaultConfigMerger) fetchConfigMaps() []apiV1.ConfigMap {
 	configMaps := []apiV1.ConfigMap{}
 	c.logger.Info(fmt.Sprintf("Fetching agent configmaps with label '%s'", ConfigMapLabel))
 	configMapList, err := c.k8sClient.ConfigMaps("").List(context.TODO(), metav1.ListOptions{LabelSelector: ConfigMapLabel})
