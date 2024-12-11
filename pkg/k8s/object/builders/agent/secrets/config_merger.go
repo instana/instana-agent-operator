@@ -19,65 +19,69 @@ import (
 
 const ConfigMapLabel = "instana.io/agent-config=true"
 
-type ConfigMerger struct {
+type ConfigMerger interface {
+	MergeConfigurationYaml(string) []byte
+}
+
+type DefaultConfigMerger struct {
 	logger    logr.Logger
 	k8sClient v1.CoreV1Interface
 }
 
-func NewConfigMergerBuilder(client v1.CoreV1Interface) *ConfigMerger {
-	return &ConfigMerger{
+func NewConfigMergerBuilder(client v1.CoreV1Interface) DefaultConfigMerger {
+	return DefaultConfigMerger{
 		logger:    logf.Log.WithName("instana-agent-config-merger"),
 		k8sClient: client,
 	}
 }
 
-func (c *ConfigMerger) MergeConfigurationYaml(agentConfiguration string) []byte {
-	operator_data := make(map[string]interface{})
-	err := yaml.Unmarshal([]byte([]byte(agentConfiguration)), operator_data)
+func (c *DefaultConfigMerger) MergeConfigurationYaml(agentConfiguration string) []byte {
+	agentData := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte([]byte(agentConfiguration)), agentData)
 	config := []byte{}
 	if err != nil {
 		c.logger.Error(err, "Failed to load agent configuration")
 	} else {
-		config_maps := c.fetchConfigMaps()
-		for _, config_map := range config_maps {
-			config_map_data := make(map[string]interface{})
-			err := yaml.Unmarshal([]byte(config_map.Data["configuration_yaml"]), &config_map_data)
+		configMaps := c.fetchConfigMaps()
+		for _, configMap := range configMaps {
+			configMapData := make(map[string]interface{})
+			err := yaml.Unmarshal([]byte(configMap.Data["configuration_yaml"]), &configMapData)
 			if err != nil {
 				c.logger.Error(err, "Failed to parse agent configuration YAML")
 			} else {
-				operator_data = c.mergeConfig(operator_data, config_map_data)
+				agentData = c.mergeConfig(agentData, configMapData)
 			}
 		}
-		config, err = yaml.Marshal(operator_data)
+		config, err = yaml.Marshal(agentData)
 	}
 	return config
 }
 
-func (c *ConfigMerger) mergeConfig(operator_data, config_map_data map[string]interface{}) map[string]interface{} {
-	for key, cm_value := range config_map_data {
-		if op_value, ok := operator_data[key]; ok {
-			op_value_kind := reflect.TypeOf(op_value).Kind()
-			if op_value_kind == reflect.Array || op_value_kind == reflect.Slice {
-				operator_data[key] = append(op_value.([]interface{}), cm_value.([]interface{})...)
+func (c *DefaultConfigMerger) mergeConfig(agentData, configMapData map[string]interface{}) map[string]interface{} {
+	for key, configMapValue := range configMapData {
+		if agentValue, ok := agentData[key]; ok {
+			agentValueKind := reflect.TypeOf(agentValue).Kind()
+			if agentValueKind == reflect.Array || agentValueKind == reflect.Slice {
+				agentData[key] = append(agentValue.([]interface{}), configMapValue.([]interface{})...)
 			} else {
-				c.mergeConfig(operator_data[key].(map[string]interface{}), cm_value.(map[string]interface{}))
+				c.mergeConfig(agentData[key].(map[string]interface{}), configMapValue.(map[string]interface{}))
 			}
 		} else {
-			operator_data[key] = cm_value
+			agentData[key] = configMapValue
 		}
 	}
-	return operator_data
+	return agentData
 }
 
-func (c *ConfigMerger) fetchConfigMaps() []apiV1.ConfigMap {
-	config_maps := []apiV1.ConfigMap{}
+func (c *DefaultConfigMerger) fetchConfigMaps() []apiV1.ConfigMap {
+	configMaps := []apiV1.ConfigMap{}
 	c.logger.Info(fmt.Sprintf("Fetching agent configmaps with label '%s'", ConfigMapLabel))
-	config_map_list, err := c.k8sClient.ConfigMaps("").List(context.TODO(), metav1.ListOptions{LabelSelector: ConfigMapLabel})
+	configMapList, err := c.k8sClient.ConfigMaps("").List(context.TODO(), metav1.ListOptions{LabelSelector: ConfigMapLabel})
 	if err != nil {
 		c.logger.Error(err, fmt.Sprintf("Failed to fetch agent configmaps with label '%s'", ConfigMapLabel))
 	} else {
-		config_maps = config_map_list.Items
-		c.logger.Info(fmt.Sprintf("Found %d configmaps with label '%s'", len(config_maps), ConfigMapLabel))
+		configMaps = configMapList.Items
+		c.logger.Info(fmt.Sprintf("Found %d configmaps with label '%s'", len(configMaps), ConfigMapLabel))
 	}
-	return config_maps
+	return configMaps
 }

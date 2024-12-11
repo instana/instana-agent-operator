@@ -30,19 +30,21 @@ type configBuilder struct {
 	keysSecret    *corev1.Secret
 	logger        logr.Logger
 	backends      []backends.K8SensorBackend
+	configMerger  ConfigMerger
 }
 
 func NewConfigBuilder(
 	agent *instanav1.InstanaAgent,
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
-	backends []backends.K8SensorBackend) commonbuilder.ObjectBuilder {
+	backends []backends.K8SensorBackend, configMerger ConfigMerger) commonbuilder.ObjectBuilder {
 	return &configBuilder{
 		InstanaAgent:  agent,
 		statusManager: statusManager,
 		keysSecret:    keysSecret,
 		logger:        logf.Log.WithName("instana-agent-config-secret-builder"),
 		backends:      backends,
+		configMerger:  configMerger,
 	}
 }
 
@@ -85,7 +87,7 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 		data["cluster_name"] = []byte(c.Spec.Cluster.Name)
 	}
 	if c.Spec.Agent.ConfigurationYaml != "" {
-		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
+		data["configuration.yaml"] = c.configMerger.MergeConfigurationYaml(c.Spec.Agent.ConfigurationYaml)
 	}
 	if otlp := c.Spec.OpenTelemetry; otlp.IsEnabled() {
 		mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp})
