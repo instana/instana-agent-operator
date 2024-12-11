@@ -38,6 +38,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 func getDaemonSetBuilders(
@@ -87,14 +88,16 @@ func (r *InstanaAgentReconciler) applyResources(
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
 	k8SensorBackends []backends.K8SensorBackend,
+	apiClient v1.CoreV1Interface,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
+	configMerger := agentsecrets.NewConfigMergerBuilder(apiClient)
 
 	builders := append(
 		getDaemonSetBuilders(agent, isOpenShift, statusManager),
 		headlessservice.NewHeadlessServiceBuilder(agent),
-		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
+		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends, configMerger),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		tlssecret.NewSecretBuilder(agent),
 		service.NewServiceBuilder(agent),
