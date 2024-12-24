@@ -29,6 +29,12 @@ const (
 	MavenRepoURLEnv
 	MavenRepoFeaturesPath
 	MavenRepoSharedPath
+	MirrorFeaturesRepoUrlEnv
+	MirrorFeaturesRepoUsernameEnv
+	MirrorFeaturesRepoPasswordEnv
+	MirrorSharedRepoUrlEnv
+	MirrorSharedRepoUsernameEnv
+	MirrorSharedRepoPasswordEnv
 	ProxyHostEnv
 	ProxyPortEnv
 	ProxyProtocolEnv
@@ -107,6 +113,18 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return stringToEnvVar("INSTANA_MVN_REPOSITORY_FEATURES_PATH", e.agent.Spec.Agent.MvnRepoFeaturesPath)
 	case MavenRepoSharedPath:
 		return stringToEnvVar("INSTANA_MVN_REPOSITORY_SHARED_PATH", e.agent.Spec.Agent.MvnRepoSharedPath)
+	case MirrorFeaturesRepoUrlEnv:
+		return stringToEnvVar("INSTANA_FEATURES_REPOSITORY_MIRROR_URL", e.agent.Spec.Agent.MirrorFeaturesRepoUrl)
+	case MirrorFeaturesRepoUsernameEnv:
+		return stringToEnvVar("INSTANA_FEATURES_REPOSITORY_MIRROR_USERNAME", e.agent.Spec.Agent.MirrorFeaturesRepoUsername)
+	case MirrorSharedRepoUrlEnv:
+		return stringToEnvVar("INSTANA_SHARED_REPOSITORY_MIRROR_URL", e.agent.Spec.Agent.MirrorSharedRepoUrl)
+	case MirrorSharedRepoUsernameEnv:
+		return stringToEnvVar("INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME", e.agent.Spec.Agent.MirrorSharedRepoUsername)
+	case MirrorSharedRepoPasswordEnv:
+		return stringToEnvVar("INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD", e.agent.Spec.Agent.MirrorSharedRepoPassword)
+	case MirrorFeaturesRepoPasswordEnv:
+		return stringToEnvVar("INSTANA_FEATURES_REPOSITORY_MIRROR_PASSWORD", e.agent.Spec.Agent.MirrorFeaturesRepoPassword)
 	case ProxyHostEnv:
 		return stringToEnvVar("INSTANA_AGENT_PROXY_HOST", e.agent.Spec.Agent.ProxyHost)
 	case ProxyPortEnv:
