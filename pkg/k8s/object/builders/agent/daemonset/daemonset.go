@@ -130,6 +130,10 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 	)
 }
 
+func (d *daemonSetBuilder) getUserVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	return d.VolumeBuilder.BuildFromUserConfig()
+}
+
 func (d *daemonSetBuilder) getName() string {
 	switch d.zone {
 	case nil:
@@ -170,6 +174,7 @@ func (d *daemonSetBuilder) getTolerations() []corev1.Toleration {
 
 func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 	volumes, volumeMounts := d.getVolumes()
+	userVolumes, userVolumeMounts := d.getUserVolumes()
 
 	return &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -192,7 +197,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 					Annotations: d.InstanaAgent.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Volumes:            volumes,
+					Volumes:            append(volumes, userVolumes...),
 					ServiceAccountName: d.ServiceAccountName(),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
 					HostNetwork:        true,
@@ -205,7 +210,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							Name:            "instana-agent",
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
-							VolumeMounts:    volumeMounts,
+							VolumeMounts:    append(volumeMounts, userVolumeMounts...),
 							Env:             d.getEnvVars(),
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),

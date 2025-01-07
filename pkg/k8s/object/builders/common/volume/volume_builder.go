@@ -37,6 +37,7 @@ const (
 
 type VolumeBuilder interface {
 	Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount)
+	BuildFromUserConfig() ([]corev1.Volume, []corev1.VolumeMount)
 }
 
 type volumeBuilder struct {
@@ -64,6 +65,15 @@ func (v *volumeBuilder) Build(volumes ...Volume) ([]corev1.Volume, []corev1.Volu
 		if volumeMount != nil {
 			volumeMounts = append(volumeMounts, *volumeMount)
 		}
+	}
+	return volumeSpecs, volumeMounts
+}
+
+func (v *volumeBuilder) BuildFromUserConfig() ([]corev1.Volume, []corev1.VolumeMount) {
+	volumeSpecs := v.instanaAgent.Spec.Agent.Pod.Volumes
+	volumeMounts := v.instanaAgent.Spec.Agent.Pod.VolumeMounts
+	if len(volumeSpecs) != len(volumeMounts) {
+		panic(errors.New("Number of additional volumes and volume mounts do not match"))
 	}
 	return volumeSpecs, volumeMounts
 }

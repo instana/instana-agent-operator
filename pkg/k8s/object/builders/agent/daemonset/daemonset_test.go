@@ -243,6 +243,49 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 	assertions.Equal(expectedVolumeMounts, actualVolumeMounts)
 }
 
+func TestDaemonSetBuilder_getUserVolumes(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	volumeName := "testVolume"
+	expectedVolumes := []corev1.Volume{{Name: volumeName}}
+	expectedVolumeMounts := []corev1.VolumeMount{{Name: volumeName}}
+
+	volumeBuilder := mocks.NewMockVolumeBuilder(ctrl)
+	volumeBuilder.EXPECT().BuildFromUserConfig().Return(expectedVolumes, expectedVolumeMounts)
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "testAgent",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Pod: instanav1.AgentPodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: volumeName,
+						},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name: volumeName,
+						},
+					},
+				},
+			},
+		},
+	}
+	db := &daemonSetBuilder{
+		VolumeBuilder: volumeBuilder,
+		InstanaAgent:  agent,
+	}
+
+	actualVolumes, actualVolumeMounts := db.getUserVolumes()
+
+	assertions.Equal(expectedVolumes, actualVolumes)
+	assertions.Equal(expectedVolumeMounts, actualVolumeMounts)
+}
+
 func TestDaemonSetBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := assert.New(t)
 
