@@ -30,7 +30,7 @@ echo "RESLOCK_LOCK_OWNER=${RESLOCK_LOCK_OWNER}"
 
 curl -s "https://${RESLOCK_GITHUB_TOKEN}@raw.github.ibm.com/instana/reslock/main/run.sh" > run.sh
 if [ "${RESLOCK_COMMAND}" == "claim" ]; then
-    bash run.sh "${RESLOCK_COMMAND}" k8s-clusters "${RESLOCK_RESOURCE_NAME}" -t 30m
+    bash run.sh claim k8s-clusters "${RESLOCK_RESOURCE_NAME}" -t 30m -w
 else
     bash run.sh "${RESLOCK_COMMAND}" k8s-clusters "${RESLOCK_RESOURCE_NAME}"
 fi
