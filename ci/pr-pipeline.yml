@@ -73,6 +73,14 @@ resource_types:
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
+  - name: metadata
+    type: registry-image
+    source:
+      repository: delivery.instana.io/int-docker-private-virtual/olhtbr/metadata-resource
+      tag: 2.0.1
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
 resources:
   - name: pipeline-source
     type: git
@@ -162,23 +170,17 @@ resources:
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
       tag: ((branch))
 
-  - name: test-clusters
-    type: pool
-    source:
-      uri: https://github.ibm.com/instana/k8s-e2e-resources-coordination.git
-      username: ((ibm-ghe-tokens.concourse-other-teams))
-      password: x-oauth-basic
-      branch: main
-      pool: k8s-clusters
-
   - name: e2e-test-base-image
     type: registry-image
     icon: cube
-    source:
+    source: &e2e-test-base-image
       repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
       tag: ((branch))
+
+  - name: metadata
+    type: metadata
 
 jobs:
   - name: self-update
@@ -266,7 +268,6 @@ jobs:
             args:
               - -ceu
               - |
-
                 pushd golangci-lint-release
                   LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
                   rpm -i $LINTER_RPM
@@ -484,7 +485,6 @@ jobs:
             args:
               - -ceu
               - |
-
                 IMAGE_TAG=${GIT_COMMIT}
                 set +x
                 unset HISTFILE
@@ -574,11 +574,23 @@ jobs:
       #      - <<: *gh-status-set-pending-e2e-openshift
       - in_parallel:
           - do:
-              - put: gke-lowest
-                inputs: detect
-                resource: test-clusters
-                params:
-                  claim: gke-lowest
+              - put: metadata
+              - task: reslock-claim-gke-lowest
+                timeout: 60m
+                config:
+                  platform: linux
+                  image_resource:
+                    type: registry-image
+                    source: *e2e-test-base-image
+                  params:
+                    RESLOCK_COMMAND: claim
+                    RESLOCK_RESOURCE_NAME: gke-lowest
+                    RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                  inputs:
+                    - name: pipeline-source
+                    - name: metadata
+                  run:
+                    path: pipeline-source/ci/scripts/reslock.sh
               - task: run-e2e-test-gke-lowest
                 timeout: 30m
                 attempts: 1
@@ -661,17 +673,41 @@ jobs:
                           - name: pipeline-source
                         run:
                           path: pipeline-source/ci/scripts/cleanup-resources.sh
-                    - put: test-clusters
-                      inputs: detect
-                      params:
-                        release: gke-lowest
+                    - task: reslock-release-gke-lowest
+                      timeout: 5m
+                      config:
+                        platform: linux
+                        image_resource:
+                          type: registry-image
+                          source: *e2e-test-base-image
+                        params:
+                          RESLOCK_COMMAND: release
+                          RESLOCK_RESOURCE_NAME: gke-lowest
+                          RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                        inputs:
+                          - name: pipeline-source
+                          - name: metadata
+                        run:
+                          path: pipeline-source/ci/scripts/reslock.sh
 
           - do:
-              - put: gke-latest
-                inputs: detect
-                resource: test-clusters
-                params:
-                  claim: gke-latest
+              - put: metadata
+              - task: reslock-claim-gke-latest
+                timeout: 60m
+                config:
+                  platform: linux
+                  image_resource:
+                    type: registry-image
+                    source: *e2e-test-base-image
+                  params:
+                    RESLOCK_COMMAND: claim
+                    RESLOCK_RESOURCE_NAME: gke-latest
+                    RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                  inputs:
+                    - name: pipeline-source
+                    - name: metadata
+                  run:
+                    path: pipeline-source/ci/scripts/reslock.sh
               - task: run-e2e-test-gke-latest
                 timeout: 30m
                 attempts: 1
@@ -751,10 +787,22 @@ jobs:
                           - name: pipeline-source
                         run:
                           path: pipeline-source/ci/scripts/cleanup-resources.sh
-                    - put: test-clusters
-                      inputs: detect
-                      params:
-                        release: gke-latest
+                    - task: reslock-release-gke-latest
+                      timeout: 5m
+                      config:
+                        platform: linux
+                        image_resource:
+                          type: registry-image
+                          source: *e2e-test-base-image
+                        params:
+                          RESLOCK_COMMAND: release
+                          RESLOCK_RESOURCE_NAME: gke-latest
+                          RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                        inputs:
+                          - name: pipeline-source
+                          - name: metadata
+                        run:
+                          path: pipeline-source/ci/scripts/reslock.sh
         # - do:
         #   - put: openshift-4.11
         #     inputs: detect
