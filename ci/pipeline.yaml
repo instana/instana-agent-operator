@@ -49,6 +49,14 @@ resource_types:
     source:
       repository: cfcommunity/slack-notification-resource
       tag: latest
+  - name: metadata
+    type: registry-image
+    source:
+      repository: delivery.instana.io/int-docker-private-virtual/olhtbr/metadata-resource
+      tag: 2.0.1
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
 
 resources:
   - name: test-clusters
@@ -168,7 +176,7 @@ resources:
   - name: e2e-test-base-image
     type: registry-image
     icon: cube
-    source:
+    source: &e2e-test-base-image
       repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
@@ -208,6 +216,9 @@ resources:
       days: [Tuesday]
       start: 9:00 AM #UTC
       stop: 10:00 AM
+
+  - name: metadata
+    type: metadata
 
 jobs:
   - name: self-update
@@ -498,11 +509,23 @@ jobs:
         passed: [docker-build]
       - in_parallel:
         - do:
-          - put: gke-lowest
-            inputs: detect
-            resource: test-clusters
-            params:
-              claim: gke-lowest
+          - put: metadata
+          - task: reslock-claim-gke-lowest
+            timeout: 60m
+            config:
+              platform: linux
+              image_resource:
+                type: registry-image
+                source: *e2e-test-base-image
+              params:
+                RESLOCK_COMMAND: claim
+                RESLOCK_RESOURCE_NAME: gke-lowest
+                RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+              inputs:
+                - name: pipeline-source
+                - name: metadata
+              run:
+                path: pipeline-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-lowest
             timeout: 30m
             attempts: 1
@@ -581,17 +604,41 @@ jobs:
                     - name: pipeline-source
                   run:
                     path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - put: test-clusters
-                inputs: detect
-                params:
-                  release: gke-lowest
+              - task: reslock-release-gke-lowest
+                timeout: 5m
+                config:
+                  platform: linux
+                  image_resource:
+                    type: registry-image
+                    source: *e2e-test-base-image
+                  params:
+                    RESLOCK_COMMAND: release
+                    RESLOCK_RESOURCE_NAME: gke-lowest
+                    RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                  inputs:
+                    - name: pipeline-source
+                    - name: metadata
+                  run:
+                    path: pipeline-source/ci/scripts/reslock.sh
 
         - do:
-          - put: gke-latest
-            inputs: detect
-            resource: test-clusters
-            params:
-              claim: gke-latest
+          - put: metadata
+          - task: reslock-claim-gke-latest
+            timeout: 60m
+            config:
+              platform: linux
+              image_resource:
+                type: registry-image
+                source: *e2e-test-base-image
+              params:
+                RESLOCK_COMMAND: claim
+                RESLOCK_RESOURCE_NAME: gke-latest
+                RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+              inputs:
+                - name: pipeline-source
+                - name: metadata
+              run:
+                path: pipeline-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-latest
             timeout: 30m
             attempts: 1
@@ -667,10 +714,22 @@ jobs:
                     - name: pipeline-source
                   run:
                     path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - put: test-clusters
-                inputs: detect
-                params:
-                  release: gke-latest
+              - task: reslock-release-gke-latest
+                timeout: 5m
+                config:
+                  platform: linux
+                  image_resource:
+                    type: registry-image
+                    source: *e2e-test-base-image
+                  params:
+                    RESLOCK_COMMAND: release
+                    RESLOCK_RESOURCE_NAME: gke-latest
+                    RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                  inputs:
+                    - name: pipeline-source
+                    - name: metadata
+                  run:
+                    path: pipeline-source/ci/scripts/reslock.sh
         # - do:
         #   - put: openshift-4.11
         #     inputs: detect
