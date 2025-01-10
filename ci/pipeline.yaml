@@ -18,11 +18,6 @@ groups:
   - name: build-test-images
     jobs:
     - build-e2e-operator-base-image
-  - name: manual-unlock
-    jobs:
-    - gke-lowest-release-unlock-manual
-    - gke-latest-release-unlock-manual
-    - openshift-4.11-release-unlock-manual
 
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
@@ -59,15 +54,6 @@ resource_types:
 
 
 resources:
-  - name: test-clusters
-    type: pool
-    source:
-      uri: https://github.ibm.com/instana/k8s-e2e-resources-coordination.git
-      username: ((ibm-ghe-tokens.concourse-other-teams))
-      password: x-oauth-basic
-      branch: main
-      pool: k8s-clusters
-
   - name: slack-alert
     type: slack-notification
     source:
@@ -1506,69 +1492,3 @@ jobs:
           image: image/image.tar
         get_params:
           skip_download: true
-
-  - name: gke-lowest-release-unlock-manual
-    plan:
-    - task: prepare-lock
-      config:
-        platform: linux
-        image_resource:
-          type: registry-image
-          source:
-            repository: busybox
-        outputs:
-        - name: tmp-lock
-        run:
-          path: sh
-          args:
-          - -cx
-          - |
-            echo "gke-lowest" > tmp-lock/name
-            touch tmp-lock/metadata
-    - put: test-clusters
-      params:
-        release: tmp-lock
-
-  - name: gke-latest-release-unlock-manual
-    plan:
-    - task: prepare-lock
-      config:
-        platform: linux
-        image_resource:
-          type: registry-image
-          source:
-            repository: busybox
-        outputs:
-        - name: tmp-lock
-        run:
-          path: sh
-          args:
-          - -cx
-          - |
-            echo "gke-latest" > tmp-lock/name
-            touch tmp-lock/metadata
-    - put: test-clusters
-      params:
-        release: tmp-lock
-
-  - name: openshift-4.11-release-unlock-manual
-    plan:
-    - task: prepare-lock
-      config:
-        platform: linux
-        image_resource:
-          type: registry-image
-          source:
-            repository: busybox
-        outputs:
-        - name: tmp-lock
-        run:
-          path: sh
-          args:
-          - -cx
-          - |
-            echo "openshift-4.11" > tmp-lock/name
-            touch tmp-lock/metadata
-    - put: test-clusters
-      params:
-        release: tmp-lock
