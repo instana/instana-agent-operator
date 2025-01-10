@@ -164,15 +164,15 @@ type BaseAgentSpec struct {
 	// Sets the INSTANA_MVN_REPOSITORY_SHARED_PATH environment variable
 	// +kubebuilder:validation:Optional
 	MvnRepoSharedPath string `json:"instanaMvnRepoSharedPath,omitempty"`
-	// Sets the INSTANA_FEATURES_REPOSITORY_MIRROR_URL environment variable
+	// Sets the AGENT_RELEASE_REPOSITORY_MIRROR_URL environment variable
 	// +kubebuilder:validation:Optional
-	MirrorFeaturesRepoUrl string `json:"instanaFeaturesRepoMirrorUrl,omitempty"`
-	// Sets the INSTANA_FEATURES_REPOSITORY_MIRROR_USERNAME environment variable
+	MirrorReleaseRepoUrl string `json:"agentReleaseRepoMirrorUrl,omitempty"`
+	// Sets the AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME environment variable
 	// +kubebuilder:validation:Optional
-	MirrorFeaturesRepoUsername string `json:"instanaFeaturesRepoMirrorUsername,omitempty"`
-	// Sets the INSTANA_FEATURES_REPOSITORY_MIRROR_PASSWORD environment variable
+	MirrorReleaseRepoUsername string `json:"agentReleaseRepoMirrorUsername,omitempty"`
+	// Sets the AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD environment variable
 	// +kubebuilder:validation:Optional
-	MirrorFeaturesRepoPassword string `json:"instanaFeaturesRepoMirrorPassword,omitempty"`
+	MirrorReleaseRepoPassword string `json:"agentReleaseRepoMirrorPassword,omitempty"`
 	// Sets the INSTANA_SHARED_REPOSITORY_MIRROR_URL environment variable
 	// +kubebuilder:validation:Optional
 	MirrorSharedRepoUrl string `json:"instanaSharedRepoMirrorUrl,omitempty"`
