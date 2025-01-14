@@ -24,6 +24,7 @@ type Helpers interface {
 	TLSSecretName() string
 	HeadlessServiceName() string
 	K8sSensorResourcesName() string
+	AutotraceWebhookResourcesName() string
 	ContainersSecretName() string
 	UseContainersSecret() bool
 	ImagePullSecrets() []corev1.LocalObjectReference
@@ -56,6 +57,10 @@ func (h *helpers) HeadlessServiceName() string {
 
 func (h *helpers) K8sSensorResourcesName() string {
 	return h.Name + "-k8sensor"
+}
+
+func (h *helpers) AutotraceWebhookResourcesName() string {
+	return h.Spec.AutotraceWebhook.Name
 }
 
 func (h *helpers) ContainersSecretName() string {

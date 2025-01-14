@@ -28,6 +28,7 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
+	autotracemutatingwebhook "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/deployment"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
@@ -108,6 +109,11 @@ func (r *InstanaAgentReconciler) applyResources(
 	)
 
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
+
+	if agent.Spec.AutotraceWebhook.Enabled {
+		log.V(1).Info("creating resources for the autotrace webhook")
+		builders = append(builders, autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift))
+	}
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")

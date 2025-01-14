@@ -266,6 +266,25 @@ type ImageSpec struct {
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 
+type Instrumentation struct {
+	// Name is the name of the instrumentation image of the webhook.
+	// +kubebuilder:validation:Required
+	Image string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
+	ImagePullPolicy string `json:"imagePullPolicy,IfNotPresent"`
+	// +kubebuilder:validation:Optional
+	ImagePullCredentials string `json:"imagePullCredentials,omitempty"`
+}
+
+type ImagePullCredentials struct {
+	// +kubebuilder:validation:Optional
+	Registry string `json:"registry,omitempty"`
+	// +kubebuilder:validation:Optional
+	Username string `json:"username,omitempty"`
+	// +kubebuilder:validation:Optional
+	Password string `json:"password,omitempty"`
+}
+
 type ExtendedImageSpec struct {
 	// +kubebuilder:validation:Required
 	ImageSpec `json:",inline"`
@@ -290,6 +309,27 @@ func (i ImageSpec) Image() string {
 type HostSpec struct {
 	// +kubebuilder:validation:Optional
 	Repository string `json:"repository,omitempty"`
+}
+
+// AutotraceWebhookSpec defines the desired state of the AutotraceMutatingWebhook
+type AutotraceWebhookSpec struct {
+	// +kubebuilder:validation:Type=boolean
+	// +kubebuilder:validation:default=false
+	Enabled bool `json:"enabled"`
+	// Name of the AutoTraceWebhook. If not set and `create` is true, the default name is generated.
+	// +kubebuilder:validation:Optional
+	Name string `json:"name"`
+	// Specify the number of replicas for the AutotraceMutatingWebhook.
+	// +kubebuilder:validation:Optional
+	Replicas int `json:"replicas,omitempty"`
+	// +kubebuilder:validation:Optional
+	PullSecret string `json:"pullSecret,omitempty"`
+	// +kubebuilder:validation:Optional
+	ImageSpec ImageSpec `json:"image,omitempty"`
+	// +kubebuilder:validation:Optional
+	Instrumentation Instrumentation `json:"instrumentation,omitempty"`
+	// +kubebuilder:validation:Optional
+	// Autotrace Autotrace `json:"autotrace,omitempty"` //TODO
 }
 
 type ServiceMeshSpec struct {

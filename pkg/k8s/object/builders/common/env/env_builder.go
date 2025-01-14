@@ -60,6 +60,30 @@ const (
 	PodNamespaceEnv
 	K8sServiceDomainEnv
 	EnableAgentSocketEnv
+	//TODO: complete the env var list and make them configurable
+	WebhookPodNamespace
+	WebhookPodName
+	WebhookSeverPort
+	WebhookInstanaIgnore
+	WebhookInstrumentationInitContainerImage
+	WebhookInstrumentationInitContainerPullPolicy
+	WebhookAutotraceNodejs
+	WebhookAutotraceNetcore
+	WebhookAutotraceRuby
+	WebhookAutotracePython
+	WebhookAutotraceAce
+	WebhookAutotraceIbmmq
+	WebhookAutotraceNodejsEsm
+	WebhookAutotraceNodejsAppType
+	WebhookAutotraceIngressNginx
+	WebhookAutotraceIngressNginxStatus
+	WebhookAutotraceIngressNginxStatusAllow
+	WebhookAutotraceLibInstanaInit
+	WebhookAutotraceInitMemoryLimit
+	WebhookAutotraceInitCPULimit
+	WebhookAutotraceInitMemoryRequest
+	WebhookAutotraceInitCPURequest
+	WebhookLogLevel
 )
 
 type EnvBuilder interface {
@@ -178,6 +202,50 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "K8S_SERVICE_DOMAIN", Value: e.helpers.HeadlessServiceName() + "." + e.agent.Namespace + ".svc"}
 	case EnableAgentSocketEnv:
 		return boolToEnvVar("ENABLE_AGENT_SOCKET", e.agent.Spec.Agent.ServiceMesh.Enabled)
+	case WebhookPodNamespace:
+		return e.envWithObjectFieldSelector("WEBHOOK_POD_NAMESPACE", "metadata.namespace")
+	case WebhookPodName:
+		return e.envWithObjectFieldSelector("WEBHOOK_POD_NAME", "metadata.name")
+	case WebhookSeverPort:
+		return &corev1.EnvVar{Name: "SERVER_PORT", Value: "42650"}
+	case WebhookInstanaIgnore:
+		return &corev1.EnvVar{Name: "INSTANA_IGNORE", Value: "true"}
+	case WebhookInstrumentationInitContainerImage:
+		return &corev1.EnvVar{Name: "INSTANA_INSTRUMENTATION_INIT_CONTAINER_IMAGE", Value: e.agent.Spec.AutotraceWebhook.Instrumentation.Image}
+	case WebhookInstrumentationInitContainerPullPolicy:
+		return &corev1.EnvVar{Name: "INSTANA_INSTRUMENTATION_INIT_CONTAINER_IMAGE_PULL_POLICY", Value: e.agent.Spec.AutotraceWebhook.Instrumentation.ImagePullPolicy}
+	case WebhookAutotraceNodejs:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_NODEJS", Value: "true"}
+	case WebhookAutotraceNetcore:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_NETCORE", Value: "true"}
+	case WebhookAutotracePython:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_PYTHON", Value: "true"}
+	case WebhookAutotraceAce:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_ACE", Value: "true"}
+	case WebhookAutotraceIbmmq:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_IBMMQ", Value: "true"}
+	case WebhookAutotraceNodejsEsm:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_NODEJS_ESM", Value: "true"}
+	case WebhookAutotraceNodejsAppType:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_NODEJS_APPLICATION_TYPE", Value: "commonjs"}
+	case WebhookAutotraceIngressNginx:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INGRESS_NGINX", Value: "false"}
+	case WebhookAutotraceIngressNginxStatus:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INGRESS_NGINX_STATUS", Value: "false"}
+	case WebhookAutotraceIngressNginxStatusAllow:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INGRESS_NGINX_STATUS_ALLOW", Value: "all"}
+	case WebhookAutotraceLibInstanaInit:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_USE_LIB_INSTANA_INIT", Value: "true"}
+	case WebhookAutotraceInitMemoryLimit:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INIT_MEMORY_LIMIT", Value: "128Mi"}
+	case WebhookAutotraceInitCPULimit:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INIT_CPU_LIMIT", Value: "250m"}
+	case WebhookAutotraceInitMemoryRequest:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INIT_MEMORY_REQUEST", Value: "16Mi"}
+	case WebhookAutotraceInitCPURequest:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INIT_CPU_REQUEST", Value: "150m"}
+	case WebhookLogLevel:
+		return &corev1.EnvVar{Name: "LOGGING_LEVEL_ROOT", Value: "INFO"}
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
