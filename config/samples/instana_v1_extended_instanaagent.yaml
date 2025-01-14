@@ -227,3 +227,18 @@ spec:
           memory: 3072Mi
           # kubernetes.deployment.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
           cpu: 4
+
+  zones:
+  # Configure use of zones to use tolerations as the basis to associate a specific daemonset per tainted node pool
+  - name: pool-01
+    tolerations:
+    - key: "pool"
+      operator: "Equal"
+      value: "pool-01"
+      effect: "NoExecute"
+  - name: pool-02
+    tolerations:
+    - key: "pool"
+      operator: "Equal"
+      value: "pool-02"
+      effect: "NoExecute"
