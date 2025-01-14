@@ -70,12 +70,7 @@ func (v *volumeBuilder) Build(volumes ...Volume) ([]corev1.Volume, []corev1.Volu
 }
 
 func (v *volumeBuilder) BuildFromUserConfig() ([]corev1.Volume, []corev1.VolumeMount) {
-	volumeSpecs := v.instanaAgent.Spec.Agent.Pod.Volumes
-	volumeMounts := v.instanaAgent.Spec.Agent.Pod.VolumeMounts
-	if len(volumeSpecs) != len(volumeMounts) {
-		panic(errors.New("Number of additional volumes and volume mounts do not match"))
-	}
-	return volumeSpecs, volumeMounts
+	return v.instanaAgent.Spec.Agent.Pod.Volumes, v.instanaAgent.Spec.Agent.Pod.VolumeMounts
 }
 
 func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.VolumeMount) {
