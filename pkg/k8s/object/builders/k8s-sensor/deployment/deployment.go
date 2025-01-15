@@ -139,6 +139,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Name:            "instana-agent",
 							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
+							Command:         []string{"/ko-app/k8sensor"},
+							Args:            []string{"-pollrate", "10s"},
 							Env:             d.getEnvVars(),
 							VolumeMounts:    mounts,
 							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
