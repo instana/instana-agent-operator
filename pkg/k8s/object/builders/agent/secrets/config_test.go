@@ -12,23 +12,41 @@ import (
 	backend "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const ConfigurationYamlValue = "configuration-yaml-value"
+
+type ConfigMergerMock struct {
+	ConfigMerger
+	mock.Mock
+}
+
+func (mock *ConfigMergerMock) MergeConfigurationYaml(agentConfig string) []byte {
+	args := mock.Called()
+	return args.Get(0).([]byte)
+}
+
+func mockConfigMerger() ConfigMerger {
+	configMerger := new(ConfigMergerMock)
+	configMerger.On("MergeConfigurationYaml").Return([]byte(ConfigurationYamlValue))
+	return configMerger
+}
+
 func TestConfigBuilderComponentName(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	statusManager := mocks.NewMockAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
-
+	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0), mockConfigMerger())
 	assert.True(t, s.IsNamespaced())
 }
 
 func TestConfigBuilderIsNamespaced(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	statusManager := mocks.NewMockAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
+	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0), mockConfigMerger())
 
 	assert.Equal(t, "instana-agent", s.ComponentName())
 }
@@ -93,7 +111,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 						EndpointHost:      "main-backend-host",
 						EndpointPort:      "main-backend-port",
 						Key:               "main-backend-key",
-						ConfigurationYaml: "configuration-yaml-value",
+						ConfigurationYaml: ConfigurationYamlValue,
 						ProxyHost:         "proxy-host-value",
 						ProxyPort:         "proxy-port-value",
 						ProxyUser:         "proxy-user-value",
@@ -115,7 +133,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			keysSecret: &corev1.Secret{},
 			expected: map[string][]byte{
 				"cluster_name":                                 []byte(objectMeta.Name),
-				"configuration.yaml":                           []byte("configuration-yaml-value"),
+				"configuration.yaml":                           []byte(ConfigurationYamlValue),
 				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc: {}\n"),
 				"configuration-prometheus-remote-write.yaml":   []byte("com.instana.plugin.prometheus:\n    remote_write:\n        enabled: true\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
@@ -386,7 +404,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				statusManager := mocks.NewMockAgentStatusManager(ctrl)
 				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
 
-				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.k8sBackends)
+				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.k8sBackends, mockConfigMerger())
 
 				actual := builder.Build().Get()
 

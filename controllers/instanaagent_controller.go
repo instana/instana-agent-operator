@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,6 +39,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/recovery"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -132,6 +134,9 @@ func (r *InstanaAgentReconciler) reconcile(
 
 	k8SensorBackends := r.getK8SensorBackends(agent)
 
+	clientConfig, _ := rest.InClusterConfig()
+	clientSet, _ := kubernetes.NewForConfig(clientConfig)
+
 	if applyResourcesRes := r.applyResources(
 		ctx,
 		agent,
@@ -140,6 +145,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		statusManager,
 		keysSecret,
 		k8SensorBackends,
+		clientSet.CoreV1(),
 	); applyResourcesRes.suppliesReconcileResult() {
 		return applyResourcesRes
 	}
