@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 
+	istionetworking "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -37,6 +38,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(agentoperatorv1.AddToScheme(scheme))
+
+	utilruntime.Must(istionetworking.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
