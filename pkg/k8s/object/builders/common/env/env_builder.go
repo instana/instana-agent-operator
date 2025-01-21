@@ -220,6 +220,8 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_NETCORE", Value: "true"}
 	case WebhookAutotracePython:
 		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_PYTHON", Value: "true"}
+	case WebhookAutotraceRuby:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_RUBY", Value: "true"}
 	case WebhookAutotraceAce:
 		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_ACE", Value: "true"}
 	case WebhookAutotraceIbmmq:
