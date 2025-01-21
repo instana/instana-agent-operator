@@ -157,7 +157,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					Containers: []corev1.Container{
 						{
 							Name:            d.helpers.AutotraceWebhookResourcesName(),
-							Image:           d.Spec.AutotraceWebhook.ImageSpec.Image(),
+							Image:           d.Spec.AutotraceWebhook.ImageSpec.Name,
 							ImagePullPolicy: d.Spec.AutotraceWebhook.ImageSpec.PullPolicy,
 							SecurityContext: d.getSecurityContext(),
 							Resources: corev1.ResourceRequirements{
@@ -180,7 +180,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 									ContainerPort: 42650,
 								},
 							},
-							// skipping tolerations and affinity
+							// skipping tolerations and affinity for now
 
 						},
 					},
@@ -208,7 +208,14 @@ func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 			},
 		)
 	}()
-	return optional.Of[client.Object](d.build())
+
+	// TODO: introduce webhook secret
+	switch d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "" {
+	case true:
+		return optional.Empty[client.Object]()
+	default:
+		return optional.Of[client.Object](d.build())
+	}
 }
 
 func NewWebhookBuilder(

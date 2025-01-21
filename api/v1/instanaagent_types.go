@@ -176,7 +176,12 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
-	// TODO
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Instrumentation.Image, "icr.io/instana/instrumentation:latest")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Instrumentation.ImagePullPolicy, "IfNotPresent")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Replicas, 1)
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.Name, "containers.instana.io/instana/release/agent/instana-autotrace-webhook:latest")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.PullPolicy, "Always")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.PullPolicy, "Always")
 }
 
 // +kubebuilder:object:root=true
