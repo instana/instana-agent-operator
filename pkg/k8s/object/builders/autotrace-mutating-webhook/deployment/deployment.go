@@ -6,6 +6,8 @@
 package deployment
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -126,6 +128,31 @@ func int64Ptr(i int64) *int64 {
 }
 
 func (d *deploymentBuilder) build() *appsv1.Deployment {
+
+	fmt.Println("debug starting")
+	if d == nil {
+		fmt.Println("d is nil")
+	}
+	if d.helpers.AutotraceWebhookResourcesName() == "" {
+		fmt.Println("AutotraceWebhookResourcesName is nil")
+	}
+	fmt.Println("d.Spec.AutotraceWebhook.Replicas is ")
+	fmt.Println(d.Spec.AutotraceWebhook.Replicas)
+	if d.GetPodSelectorLabels() == nil {
+		fmt.Println("GetPodSelectorLabels is nil")
+	}
+	if addAppLabel(nil) == nil {
+		fmt.Println("addAppLabel is nil")
+	}
+	if addAppLabel(d.getPodTemplateLabels()) == nil {
+		fmt.Println("addAppLabel(d.getPodTemplateLabels()) is nil")
+	}
+	if d.getWebhookImagePullSecret() == nil {
+		fmt.Println("d.getWebhookImagePullSecret()")
+	}
+	if d.getSecurityContext() == nil {
+		fmt.Println("d.getSecurityContext()")
+	}
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
