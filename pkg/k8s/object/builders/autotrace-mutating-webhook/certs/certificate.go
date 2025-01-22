@@ -44,6 +44,7 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 				APIVersion: "v1",
 				Kind:       "Secret",
 			},
+			Type: corev1.SecretTypeTLS,
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      c.ComponentName(),
 				Namespace: c.Namespace,

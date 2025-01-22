@@ -52,20 +52,12 @@ func (wc *webhookConfigBuilder) getLabels() map[string]string {
 	return labels
 }
 
-func strPtr(s string) *string {
-	return &s
-}
-
 func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 
 	failurePolicy := admissionv1.Fail
 	reinvocationPolicy := admissionv1.IfNeededReinvocationPolicy
 	matchPolicy := admissionv1.Equivalent
 	sideEffect := admissionv1.SideEffectClassNoneOnDryRun
-
-	if !wc.isOpenShift {
-		return optional.Empty[client.Object]()
-	}
 
 	return optional.Of[client.Object](
 		&admissionv1.MutatingWebhookConfiguration{
