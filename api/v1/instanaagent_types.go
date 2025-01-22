@@ -183,6 +183,8 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.Name, "containers.instana.io/instana/release/agent/instana-autotrace-webhook")
 	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.Tag, "latest")
 	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Name, "instana-autotrace-webhook")
+
 }
 
 // +kubebuilder:object:root=true

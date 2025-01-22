@@ -57,6 +57,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 			},
 		},
 		AutotraceWebhook: AutotraceWebhookSpec{
+			Name:    "instana-autotrace-webhook",
 			Enabled: false,
 			Instrumentation: Instrumentation{
 				Image:           "icr.io/instana/instrumentation:latest",
@@ -119,6 +120,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 					},
 				},
 				AutotraceWebhook: AutotraceWebhookSpec{
+					Name:    "instana-autotrace-webhook",
 					Enabled: false,
 					Instrumentation: Instrumentation{
 						Image:           "icr.io/instana/instrumentation:latest",

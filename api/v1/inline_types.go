@@ -317,8 +317,8 @@ type AutotraceWebhookSpec struct {
 	// +kubebuilder:validation:default=false
 	Enabled bool `json:"enabled"`
 	// Name of the AutoTraceWebhook. If not set and `create` is true, the default name is generated.
-	// +kubebuilder:validation:Optional
-	Name string `json:"name"`
+	// +kubebuilder:validation:Required
+	Name string `json:"name,instana-autotrace-webhook"`
 	// Specify the number of replicas for the AutotraceMutatingWebhook.
 	// +kubebuilder:validation:Optional
 	Replicas int `json:"replicas,omitempty"`
