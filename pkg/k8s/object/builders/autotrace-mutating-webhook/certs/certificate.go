@@ -3,7 +3,7 @@
 (c) Copyright Instana Inc. 2025
 */
 
-package serviceaccount
+package certs
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -16,41 +16,59 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
-type serviceAccountBuilder struct {
+type certBuilder struct {
 	*instanav1.InstanaAgent
-	helpers helpers.Helpers
+	helpers     helpers.Helpers
+	isOpenShift bool
+	certPem     []byte
+	keyPem      []byte
 }
 
-func (sa *serviceAccountBuilder) IsNamespaced() bool {
+func (c *certBuilder) IsNamespaced() bool {
 	return true
 }
 
-func (sa *serviceAccountBuilder) ComponentName() string {
-	return sa.helpers.AutotraceWebhookResourcesName()
+func (c *certBuilder) ComponentName() string {
+	return c.helpers.AutotraceWebhookResourcesName() + "-certs"
 }
 
-func (sa *serviceAccountBuilder) Build() (res optional.Optional[client.Object]) {
+func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
+
+	if !c.isOpenShift {
+		return optional.Empty[client.Object]()
+	}
 
 	return optional.Of[client.Object](
-		&corev1.ServiceAccount{
+		&corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
-				Kind:       "ServiceAccount",
+				Kind:       "Secret",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      sa.ComponentName(),
-				Namespace: sa.Namespace,
+				Name:      c.ComponentName(),
+				Namespace: c.Namespace,
 				//todo: add labels
+			},
+			Data: map[string][]byte{
+				"tls.crt": c.certPem,
+				"tls.key": c.keyPem,
+				"ca.crt":  c.certPem,
 			},
 		},
 	)
 }
 
-func NewServiceAccountBuilder(
+func NewCertBuilder(
 	agent *instanav1.InstanaAgent,
+	isOpenShift bool,
+	certPem []byte,
+	keyPem []byte,
 ) builder.ObjectBuilder {
-	return &serviceAccountBuilder{
+	return &certBuilder{
 		InstanaAgent: agent,
 		helpers:      helpers.NewHelpers(agent),
+		isOpenShift:  isOpenShift,
+		certPem:      certPem,
+		keyPem:       keyPem,
 	}
 }

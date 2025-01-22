@@ -12,27 +12,24 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
-
-const componentName = constants.ComponentAutoTraceWebhook
 
 type clusterRoleBuilder struct {
 	*instanav1.InstanaAgent
 	helpers helpers.Helpers
 }
 
-func (d *clusterRoleBuilder) IsNamespaced() bool {
+func (cr *clusterRoleBuilder) IsNamespaced() bool {
 	return false
 }
 
-func (d *clusterRoleBuilder) ComponentName() string {
-	return componentName
+func (cr *clusterRoleBuilder) ComponentName() string {
+	return cr.helpers.AutotraceWebhookResourcesName() + "-clusterrole"
 }
 
-func (d *clusterRoleBuilder) Build() (res optional.Optional[client.Object]) {
+func (cr *clusterRoleBuilder) Build() (res optional.Optional[client.Object]) {
 
 	return optional.Of[client.Object](
 		&rbacv1.ClusterRole{
@@ -41,7 +38,7 @@ func (d *clusterRoleBuilder) Build() (res optional.Optional[client.Object]) {
 				Kind:       "ClusterRole",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: d.helpers.AutotraceWebhookResourcesName() + "-clusterrole",
+				Name: cr.ComponentName(),
 				//todo: add labels
 			},
 			Rules: []rbacv1.PolicyRule{

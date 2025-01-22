@@ -29,8 +29,8 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
+	webhookcerts "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/certs"
 	webhookdeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/deployment"
-	webhookns "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/namespace"
 	webhookrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/rbac"
 	webhookservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/service"
 	webhooksa "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/serviceaccount"
@@ -44,6 +44,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/util/cert"
 )
 
 func getDaemonSetBuilders(
@@ -116,21 +117,33 @@ func (r *InstanaAgentReconciler) applyResources(
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
 	if agent.Spec.AutotraceWebhook.Enabled {
-		fmt.Println("creating resources for the autotrace webhook")
+		certPem, keyPem, err := cert.GenerateSelfSignedCertKey(
+			"instana-autotrace-webhook.instana-agent.svc",
+			nil,
+			nil,
+		)
+		if err != nil {
+			log.Error(err, "failed to generate the self-signed cert")
+		}
+
 		webhookBuilder := webhookdeployment.NewWebhookBuilder(agent, isOpenShift, statusManager)
-		webhookNsBuilder := webhookns.NewNamespaceBuilder(agent)
+		// webhookNsBuilder := webhookns.NewNamespaceBuilder(agent)
 		webhookServiceBuilder := webhookservice.NewServiceBuilder(agent)
 		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
 		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
 		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
+		webhookCertBuilder := webhookcerts.NewCertBuilder(agent, isOpenShift, certPem, keyPem)
+		webhookWebhookConfigBuilder := webhookcerts.NewWebhookConfigBuilder(agent, isOpenShift, certPem)
 		builders = append(
 			builders,
 			webhookBuilder,
-			webhookNsBuilder,
+			// webhookNsBuilder,
 			webhookServiceBuilder,
 			webhookSaBuilder,
 			webhookClusterRoleBuilder,
 			webhookClusterRoleBindingBuilder,
+			webhookCertBuilder,
+			webhookWebhookConfigBuilder,
 		)
 	}
 

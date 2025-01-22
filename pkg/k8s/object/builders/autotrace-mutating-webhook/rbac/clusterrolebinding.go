@@ -21,15 +21,15 @@ type clusterRoleBindingBuilder struct {
 	helpers helpers.Helpers
 }
 
-func (d *clusterRoleBindingBuilder) IsNamespaced() bool {
+func (crb *clusterRoleBindingBuilder) IsNamespaced() bool {
 	return false
 }
 
-func (d *clusterRoleBindingBuilder) ComponentName() string {
-	return componentName
+func (crb *clusterRoleBindingBuilder) ComponentName() string {
+	return crb.helpers.AutotraceWebhookResourcesName() + "-binding"
 }
 
-func (d *clusterRoleBindingBuilder) Build() (res optional.Optional[client.Object]) {
+func (crb *clusterRoleBindingBuilder) Build() (res optional.Optional[client.Object]) {
 
 	return optional.Of[client.Object](
 		&rbacv1.ClusterRoleBinding{
@@ -38,19 +38,19 @@ func (d *clusterRoleBindingBuilder) Build() (res optional.Optional[client.Object
 				Kind:       "ClusterRoleBinding",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: d.helpers.AutotraceWebhookResourcesName() + "-binding",
+				Name: crb.ComponentName(),
 				//todo: add labels
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "ClusterRole",
-				Name:     d.helpers.AutotraceWebhookResourcesName() + "-clusterrole",
+				Name:     crb.helpers.AutotraceWebhookResourcesName() + "-clusterrole",
 			},
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      rbacv1.ServiceAccountKind,
-					Name:      d.helpers.AutotraceWebhookResourcesName(),
-					Namespace: d.Namespace,
+					Name:      crb.helpers.AutotraceWebhookResourcesName(),
+					Namespace: crb.Namespace,
 				},
 			},
 		},

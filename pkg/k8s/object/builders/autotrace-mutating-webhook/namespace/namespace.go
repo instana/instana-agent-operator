@@ -24,15 +24,15 @@ type namespaceBuilder struct {
 	helpers helpers.Helpers
 }
 
-func (d *namespaceBuilder) IsNamespaced() bool {
+func (ns *namespaceBuilder) IsNamespaced() bool {
 	return false
 }
 
-func (d *namespaceBuilder) ComponentName() string {
-	return componentName
+func (ns *namespaceBuilder) ComponentName() string {
+	return ns.helpers.AutotraceWebhookResourcesName()
 }
 
-func (d *namespaceBuilder) Build() (res optional.Optional[client.Object]) {
+func (ns *namespaceBuilder) Build() (res optional.Optional[client.Object]) {
 
 	return optional.Of[client.Object](
 		&corev1.Namespace{
@@ -41,7 +41,7 @@ func (d *namespaceBuilder) Build() (res optional.Optional[client.Object]) {
 				Kind:       "Namespace",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: d.helpers.AutotraceWebhookResourcesName(),
+				Name: ns.ComponentName(),
 			},
 		},
 	)
