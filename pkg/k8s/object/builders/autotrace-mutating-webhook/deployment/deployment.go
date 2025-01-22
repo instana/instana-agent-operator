@@ -18,6 +18,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
+	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -70,11 +71,17 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	return envVars
 }
 
-func (d *deploymentBuilder) getLabels() map[string]string {
-	return map[string]string{
-		"app.kubernetes.io/instance": d.ComponentName(),
-	}
+func (d *deploymentBuilder) addAppLabel(labels map[string]string) map[string]string {
+	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
+	labelsDefaulter.SetIfEmpty("app.kubernetes.io/instance", d.ComponentName())
+	return labels
 }
+
+// func (d *deploymentBuilder) getLabels() map[string]string {
+// 	return map[string]string{
+// 		"app.kubernetes.io/instance": d.ComponentName(),
+// 	}
+// }
 
 func (d *deploymentBuilder) getWebhookImagePullSecret() []corev1.LocalObjectReference {
 	var secretName string
@@ -125,12 +132,12 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.ComponentName(),
 			Namespace: d.Namespace,
-			Labels:    d.getLabels(),
+			Labels:    d.addAppLabel(nil),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.To(int32(d.Spec.AutotraceWebhook.Replicas)),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: d.getLabels(),
+				MatchLabels: d.addAppLabel(nil),
 			},
 			Strategy: appsv1.DeploymentStrategy{
 				Type: appsv1.RecreateDeploymentStrategyType,
@@ -138,7 +145,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        d.ComponentName(),
-					Labels:      d.getLabels(),
+					Labels:      d.addAppLabel(nil),
 					Annotations: d.Spec.Agent.Pod.Annotations, //todo: add different annotations?
 				},
 				Spec: corev1.PodSpec{
