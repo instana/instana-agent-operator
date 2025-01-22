@@ -85,7 +85,6 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 	return d.GetPodLabels(podLabels)
 }
 
-// TODO: allow for multiple pull secrets?
 func (d *deploymentBuilder) getWebhookImagePullSecret() []corev1.LocalObjectReference {
 	var secretName string
 	if d.InstanaAgent.Spec.AutotraceWebhook.PullSecret != "" {

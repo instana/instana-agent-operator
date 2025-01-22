@@ -3,7 +3,7 @@
 (c) Copyright Instana Inc. 2025
 */
 
-package certs
+package secrets
 
 import (
 	corev1 "k8s.io/api/core/v1"

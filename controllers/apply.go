@@ -29,11 +29,12 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
-	webhookcerts "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/certs"
 	webhookdeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/deployment"
 	webhookrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/rbac"
+	webhooksecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/secrets"
 	webhookservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/service"
 	webhooksa "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/serviceaccount"
+	webhookconfig "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/webhookconfig"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
@@ -132,8 +133,9 @@ func (r *InstanaAgentReconciler) applyResources(
 		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
 		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
 		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
-		webhookCertBuilder := webhookcerts.NewCertBuilder(agent, isOpenShift, certPem, keyPem)
-		webhookWebhookConfigBuilder := webhookcerts.NewWebhookConfigBuilder(agent, isOpenShift, certPem)
+		webhookCertBuilder := webhooksecrets.NewCertBuilder(agent, isOpenShift, certPem, keyPem)
+		webhookWebhookConfigBuilder := webhookconfig.NewWebhookConfigBuilder(agent, isOpenShift, certPem)
+		webhookWebhookPullSecret := webhooksecrets.NewDownloadSecretBuilder(agent)
 		builders = append(
 			builders,
 			webhookBuilder,
@@ -144,6 +146,7 @@ func (r *InstanaAgentReconciler) applyResources(
 			webhookClusterRoleBindingBuilder,
 			webhookCertBuilder,
 			webhookWebhookConfigBuilder,
+			webhookWebhookPullSecret,
 		)
 	}
 
