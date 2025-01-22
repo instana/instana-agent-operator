@@ -112,7 +112,7 @@ func (r *InstanaAgentReconciler) applyResources(
 
 	if agent.Spec.AutotraceWebhook.Enabled {
 		log.V(1).Info("creating resources for the autotrace webhook")
-		builders = append(builders, autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift))
+		builders = append(builders, autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift, statusManager))
 	}
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {

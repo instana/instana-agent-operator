@@ -248,6 +248,7 @@ func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 func NewWebhookBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
+	statusManager status.AgentStatusManager,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
@@ -255,5 +256,6 @@ func NewWebhookBuilder(
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
 		isOpenShift:               isOpenShift,
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
+		statusManager:             statusManager,
 	}
 }
