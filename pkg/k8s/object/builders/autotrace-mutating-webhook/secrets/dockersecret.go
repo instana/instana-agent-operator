@@ -32,6 +32,13 @@ func (s *downloadSecretBuilder) IsNamespaced() bool {
 func (s *downloadSecretBuilder) ComponentName() string {
 	return s.helpers.AutotraceWebhookResourcesName()
 }
+func (s *downloadSecretBuilder) getWebhookImagePullSecret() string {
+	if s.InstanaAgent.Spec.AutotraceWebhook.PullSecret != "" {
+		return s.InstanaAgent.Spec.AutotraceWebhook.PullSecret
+	} else {
+		return "containers-instana-io"
+	}
+}
 
 func (s *downloadSecretBuilder) Build() (res optional.Optional[client.Object]) {
 
@@ -64,7 +71,7 @@ func (s *downloadSecretBuilder) Build() (res optional.Optional[client.Object]) {
 			},
 			Type: corev1.SecretTypeDockerConfigJson,
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      s.ComponentName(),
+				Name:      s.getWebhookImagePullSecret(),
 				Namespace: s.Namespace,
 			},
 			Data: map[string][]byte{
