@@ -23,6 +23,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/headless-service"
+	agentrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/rbac"
 	agentsecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets"
 	keyssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/keys-secret"
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
@@ -98,6 +99,8 @@ func (r *InstanaAgentReconciler) applyResources(
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		tlssecret.NewSecretBuilder(agent),
 		service.NewServiceBuilder(agent),
+		agentrbac.NewClusterRoleBuilder(agent),
+		agentrbac.NewClusterRoleBindingBuilder(agent),
 		agentserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorpoddisruptionbudget.NewPodDisruptionBudgetBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
