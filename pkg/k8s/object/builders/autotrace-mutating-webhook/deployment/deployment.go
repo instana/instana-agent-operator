@@ -67,6 +67,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.WebhookAutotraceInitMemoryRequest,
 		env.WebhookAutotraceInitCPURequest,
 		env.WebhookLogLevel,
+		env.WebhookExlcudedNs,
 	)
 	return envVars
 }
@@ -132,7 +133,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.ComponentName(),
 			Namespace: d.Namespace,
-			Labels:    d.addAppLabel(nil),
+			Labels:    d.addAppLabel(d.GetPodSelectorLabels()),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.To(int32(d.Spec.AutotraceWebhook.Replicas)),
@@ -145,7 +146,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        d.ComponentName(),
-					Labels:      d.addAppLabel(nil),
+					Labels:      d.addAppLabel(d.GetPodSelectorLabels()),
 					Annotations: d.Spec.Agent.Pod.Annotations, //todo: add different annotations?
 				},
 				Spec: corev1.PodSpec{

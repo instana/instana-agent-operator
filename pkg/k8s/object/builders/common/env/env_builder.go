@@ -84,6 +84,7 @@ const (
 	WebhookAutotraceInitMemoryRequest
 	WebhookAutotraceInitCPURequest
 	WebhookLogLevel
+	WebhookExlcudedNs
 )
 
 type EnvBuilder interface {
@@ -248,6 +249,8 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_INIT_CPU_REQUEST", Value: "150m"}
 	case WebhookLogLevel:
 		return &corev1.EnvVar{Name: "LOGGING_LEVEL_ROOT", Value: "INFO"}
+	case WebhookExlcudedNs:
+		return &corev1.EnvVar{Name: "INSTANA_AUTOTRACE_IGNORED_NAMESPACES", Value: "kube-*,instana-*,openshift-*,pks-system"} //todo: make it configurable
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
