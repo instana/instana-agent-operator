@@ -1,3 +1,8 @@
+/*
+ * (c) Copyright IBM Corp. 2025
+ * (c) Copyright Instana Inc. 2025
+ */
+
 package v1
 
 import (
@@ -51,6 +56,19 @@ func TestInstanaAgent_Default(t *testing.T) {
 				Replicas: 2,
 			},
 		},
+		AutotraceWebhook: AutotraceWebhookSpec{
+			Enabled: false,
+			Instrumentation: Instrumentation{
+				Image:           "icr.io/instana/instrumentation:latest",
+				ImagePullPolicy: "IfNotPresent",
+			},
+			Replicas: 1,
+			ImageSpec: ImageSpec{
+				Name:       "containers.instana.io/instana/release/agent/instana-autotrace-webhook",
+				Tag:        "latest",
+				PullPolicy: corev1.PullAlways,
+			},
+		},
 	}
 
 	tests := []struct {
@@ -98,6 +116,19 @@ func TestInstanaAgent_Default(t *testing.T) {
 					},
 					DeploymentSpec: KubernetesDeploymentSpec{
 						Replicas: 3,
+					},
+				},
+				AutotraceWebhook: AutotraceWebhookSpec{
+					Enabled: false,
+					Instrumentation: Instrumentation{
+						Image:           "icr.io/instana/instrumentation:latest",
+						ImagePullPolicy: "IfNotPresent",
+					},
+					Replicas: 1,
+					ImageSpec: ImageSpec{
+						Name:       "containers.instana.io/instana/release/agent/instana-autotrace-webhook",
+						Tag:        "latest",
+						PullPolicy: corev1.PullAlways,
 					},
 				},
 			},

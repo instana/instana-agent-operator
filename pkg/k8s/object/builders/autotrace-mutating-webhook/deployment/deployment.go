@@ -184,7 +184,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					Containers: []corev1.Container{
 						{
 							Name:            d.helpers.AutotraceWebhookResourcesName(),
-							Image:           d.Spec.AutotraceWebhook.ImageSpec.Name,
+							Image:           d.Spec.AutotraceWebhook.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.AutotraceWebhook.ImageSpec.PullPolicy,
 							SecurityContext: d.getSecurityContext(),
 							Resources: corev1.ResourceRequirements{
