@@ -34,7 +34,7 @@ func (c *certBuilder) ComponentName() string {
 
 func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 
-	if !c.isOpenShift {
+	if c.isOpenShift {
 		return optional.Empty[client.Object]()
 	}
 
