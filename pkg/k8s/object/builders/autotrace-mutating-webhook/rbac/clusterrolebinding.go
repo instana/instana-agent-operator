@@ -39,7 +39,6 @@ func (crb *clusterRoleBindingBuilder) Build() (res optional.Optional[client.Obje
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: crb.ComponentName(),
-				//todo: add labels
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",

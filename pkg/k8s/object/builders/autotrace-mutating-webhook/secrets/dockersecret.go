@@ -33,28 +33,23 @@ func (s *downloadSecretBuilder) ComponentName() string {
 	return s.helpers.AutotraceWebhookResourcesName()
 }
 
-func (s *downloadSecretBuilder) getWebhookImagePullSecret() string {
-	if s.InstanaAgent.Spec.AutotraceWebhook.PullSecret != "" {
-		return s.InstanaAgent.Spec.AutotraceWebhook.PullSecret
-	} else {
-		return "containers-instana-io"
-	}
-}
-
 func (s *downloadSecretBuilder) Build() (res optional.Optional[client.Object]) {
 
-	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", "_", s.Spec.Agent.Key)))
+	username := "_"
+	password := s.Spec.Agent.Key
+	registry := "containers.instana.io" //todo: custom registries
+
+	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
 
 	dockerConfig := map[string]interface{}{
 		"auths": map[string]interface{}{
-			s.getWebhookImagePullSecret(): map[string]string{
-				"username": "_",
-				"password": s.Spec.Agent.Key,
+			registry: map[string]string{
+				"username": username,
+				"password": password,
 				"auth":     auth,
 			},
 		},
 	}
-
 	dockerConfigJson, err := json.Marshal(dockerConfig)
 	if err != nil {
 		fmt.Println("failed to marchal dockerconfig to JSON for webhook pull secret: %w", err)
@@ -71,7 +66,6 @@ func (s *downloadSecretBuilder) Build() (res optional.Optional[client.Object]) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      s.ComponentName(),
 				Namespace: s.Namespace,
-				//todo: add labels
 			},
 			Data: map[string][]byte{
 				corev1.DockerConfigJsonKey: dockerConfigJson,

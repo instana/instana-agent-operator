@@ -39,7 +39,6 @@ func (cr *clusterRoleBuilder) Build() (res optional.Optional[client.Object]) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: cr.ComponentName(),
-				//todo: add labels
 			},
 			Rules: []rbacv1.PolicyRule{
 				{

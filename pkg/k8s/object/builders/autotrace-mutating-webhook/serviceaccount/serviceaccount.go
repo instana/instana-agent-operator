@@ -40,7 +40,6 @@ func (sa *serviceAccountBuilder) Build() (res optional.Optional[client.Object]) 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      sa.ComponentName(),
 				Namespace: sa.Namespace,
-				//todo: add labels
 			},
 		},
 	)

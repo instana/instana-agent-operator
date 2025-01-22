@@ -48,7 +48,6 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      c.ComponentName(),
 				Namespace: c.Namespace,
-				//todo: add labels
 			},
 			Data: map[string][]byte{
 				"tls.crt": c.certPem,

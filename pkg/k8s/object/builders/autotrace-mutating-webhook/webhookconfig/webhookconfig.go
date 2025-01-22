@@ -69,7 +69,6 @@ func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 				Name:        wc.ComponentName(),
 				Labels:      wc.getLabels(),
 				Annotations: wc.getOCPAnnotions(),
-				//todo: add labels
 			},
 			Webhooks: []admissionv1.MutatingWebhook{
 				{
