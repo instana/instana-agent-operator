@@ -39,7 +39,7 @@ func (d *deploymentBuilder) IsNamespaced() bool {
 }
 
 func (d *deploymentBuilder) ComponentName() string {
-	return componentName
+	return d.helpers.AutotraceWebhookResourcesName()
 }
 
 func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
@@ -71,10 +71,10 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	return envVars
 }
 
-func addAppLabel(labels map[string]string) map[string]string {
+func (d *deploymentBuilder) addAppLabel(labels map[string]string) map[string]string {
 	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
 	labelsDefaulter.SetIfEmpty("instana-autotrace-ignore", "true")
-	labelsDefaulter.SetIfEmpty("app.kubernetes.io/instance", componentName)
+	labelsDefaulter.SetIfEmpty("app.kubernetes.io/instance", d.ComponentName())
 	return labels
 }
 
@@ -133,30 +133,30 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.helpers.AutotraceWebhookResourcesName(),
+			Name:      d.ComponentName(),
 			Namespace: d.Namespace,
-			Labels:    addAppLabel(nil),
+			Labels:    d.addAppLabel(nil),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.To(int32(d.Spec.AutotraceWebhook.Replicas)),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: addAppLabel(d.GetPodSelectorLabels()),
+				MatchLabels: d.addAppLabel(d.GetPodSelectorLabels()),
 			},
 			Strategy: appsv1.DeploymentStrategy{
 				Type: appsv1.RecreateDeploymentStrategyType,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        d.helpers.AutotraceWebhookResourcesName(),
-					Labels:      addAppLabel(d.getPodTemplateLabels()), // TODO: add additional labels
+					Name:        d.ComponentName(),
+					Labels:      d.addAppLabel(d.getPodTemplateLabels()), // TODO: add additional labels
 					Annotations: d.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: d.helpers.AutotraceWebhookResourcesName(),
+					ServiceAccountName: d.ComponentName(),
 					ImagePullSecrets:   d.getWebhookImagePullSecret(),
 					Containers: []corev1.Container{
 						{
-							Name:            d.helpers.AutotraceWebhookResourcesName(),
+							Name:            d.ComponentName(),
 							Image:           d.Spec.AutotraceWebhook.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.AutotraceWebhook.ImageSpec.PullPolicy,
 							SecurityContext: d.getSecurityContext(),

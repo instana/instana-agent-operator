@@ -12,12 +12,9 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
-
-const componentName = constants.ComponentAutoTraceWebhook
 
 type namespaceBuilder struct {
 	*instanav1.InstanaAgent
