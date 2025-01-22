@@ -19,6 +19,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
@@ -111,8 +112,10 @@ func (r *InstanaAgentReconciler) applyResources(
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
 	if agent.Spec.AutotraceWebhook.Enabled {
-		log.V(1).Info("creating resources for the autotrace webhook")
-		builders = append(builders, autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift, statusManager))
+		fmt.Println("creating resources for the autotrace webhook")
+		webhookBuilder := autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift, statusManager)
+		fmt.Println(webhookBuilder)
+		builders = append(builders, webhookBuilder)
 	}
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
