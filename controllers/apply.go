@@ -19,6 +19,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -114,6 +115,13 @@ func (r *InstanaAgentReconciler) applyResources(
 	if agent.Spec.AutotraceWebhook.Enabled {
 		fmt.Println("creating resources for the autotrace webhook")
 		webhookBuilder := autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift, statusManager)
+		//todo: delete
+		jsonData, err := json.MarshalIndent(webhookBuilder, "", " ")
+		if err != nil {
+			fmt.Println("err marshaling the deploy", err)
+		}
+		fmt.Println(string(jsonData))
+		/////
 		fmt.Println(webhookBuilder)
 		builders = append(builders, webhookBuilder)
 	}
@@ -123,6 +131,6 @@ func (r *InstanaAgentReconciler) applyResources(
 		return reconcileFailure(err)
 	}
 
-	log.V(1).Info("successfully applied kubernetes resources for agent")
+	fmt.Println("successfully applied kubernetes resources for agent")
 	return reconcileContinue()
 }
