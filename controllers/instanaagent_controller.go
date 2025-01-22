@@ -160,7 +160,7 @@ func (r *InstanaAgentReconciler) reconcile(
 // adding role property required to manage instana-agent-k8sensor ClusterRole
 // +kubebuilder:rbac:urls=/version;/healthz,verbs=get
 // +kubebuilder:rbac:groups=extensions,resources=deployments;replicasets;ingresses,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=configmaps;events;services;endpoints;namespaces;nodes;pods;pods/log;replicationcontrollers;resourcequotas;persistentvolumes;persistentvolumeclaims;nodes/metrics;nodes/stats,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmaps;events;services;endpoints;nodes;pods;pods/log;replicationcontrollers;resourcequotas;persistentvolumes;persistentvolumeclaims;nodes/metrics;nodes/stats,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments;replicasets;statefulsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
@@ -168,6 +168,9 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=apps.openshift.io,resources=deploymentconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=podsecuritypolicies,verbs=use
+
+//adding role property required to manager instana-autotrace-webhook
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	res ctrl.Result,

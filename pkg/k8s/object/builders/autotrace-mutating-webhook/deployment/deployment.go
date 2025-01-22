@@ -6,8 +6,6 @@
 package deployment
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,6 +74,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 func addAppLabel(labels map[string]string) map[string]string {
 	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
 	labelsDefaulter.SetIfEmpty("instana-autotrace-ignore", "true")
+	labelsDefaulter.SetIfEmpty("app.kubernetes.io/instance", componentName)
 	return labels
 }
 
@@ -127,13 +126,6 @@ func int64Ptr(i int64) *int64 {
 }
 
 func (d *deploymentBuilder) build() *appsv1.Deployment {
-
-	fmt.Println("debug starting")
-	fmt.Println("GetPodSelectorLabels is", d.getPodTemplateLabels())
-	fmt.Println("addAppLabel is ", addAppLabel(nil))
-	fmt.Println("addAppLabel(d.getPodTemplateLabels()) is ", addAppLabel(d.getPodTemplateLabels()))
-	fmt.Println("d.getWebhookImagePullSecret() ", d.getWebhookImagePullSecret())
-	fmt.Println("d.getSecurityContext() ", d.getSecurityContext())
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{

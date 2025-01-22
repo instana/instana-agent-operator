@@ -30,7 +30,11 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
-	autotracemutatingwebhook "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/deployment"
+	webhookdeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/deployment"
+	webhookns "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/namespace"
+	webhookrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/rbac"
+	webhookservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/service"
+	webhooksa "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/serviceaccount"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
@@ -114,7 +118,12 @@ func (r *InstanaAgentReconciler) applyResources(
 
 	if agent.Spec.AutotraceWebhook.Enabled {
 		fmt.Println("creating resources for the autotrace webhook")
-		webhookBuilder := autotracemutatingwebhook.NewWebhookBuilder(agent, isOpenShift, statusManager)
+		webhookBuilder := webhookdeployment.NewWebhookBuilder(agent, isOpenShift, statusManager)
+		webhookNsBuilder := webhookns.NewNamespaceBuilder(agent)
+		webhookServiceBuilder := webhookservice.NewServiceBuilder(agent)
+		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
+		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
+		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
 		//todo: delete
 		jsonData, err := json.MarshalIndent(webhookBuilder, "", " ")
 		if err != nil {
@@ -122,8 +131,15 @@ func (r *InstanaAgentReconciler) applyResources(
 		}
 		fmt.Println(string(jsonData))
 		/////
-		fmt.Println(webhookBuilder)
-		builders = append(builders, webhookBuilder)
+		builders = append(
+			builders,
+			webhookBuilder,
+			webhookNsBuilder,
+			webhookServiceBuilder,
+			webhookSaBuilder,
+			webhookClusterRoleBuilder,
+			webhookClusterRoleBindingBuilder,
+		)
 	}
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
