@@ -42,7 +42,7 @@ func (d *serviceAccountBuilder) Build() (res optional.Optional[client.Object]) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      d.helpers.AutotraceWebhookResourcesName(),
-				Namespace: d.helpers.AutotraceWebhookResourcesName(),
+				Namespace: d.Namespace,
 				//todo: add labels
 			},
 		},

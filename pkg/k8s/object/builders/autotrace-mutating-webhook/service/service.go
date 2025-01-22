@@ -43,7 +43,7 @@ func (d *serviceBuilder) Build() (res optional.Optional[client.Object]) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      d.helpers.AutotraceWebhookResourcesName(),
-				Namespace: d.helpers.AutotraceWebhookResourcesName(),
+				Namespace: d.Namespace,
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: map[string]string{

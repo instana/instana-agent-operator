@@ -134,7 +134,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.helpers.AutotraceWebhookResourcesName(),
-			Namespace: d.helpers.AutotraceWebhookResourcesName(),
+			Namespace: d.Namespace,
 			Labels:    addAppLabel(nil),
 		},
 		Spec: appsv1.DeploymentSpec{

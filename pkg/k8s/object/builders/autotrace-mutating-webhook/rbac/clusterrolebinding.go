@@ -50,7 +50,7 @@ func (d *clusterRoleBindingBuilder) Build() (res optional.Optional[client.Object
 				{
 					Kind:      rbacv1.ServiceAccountKind,
 					Name:      d.helpers.AutotraceWebhookResourcesName(),
-					Namespace: d.helpers.AutotraceWebhookResourcesName(),
+					Namespace: d.Namespace,
 				},
 			},
 		},

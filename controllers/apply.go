@@ -19,7 +19,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -124,13 +123,6 @@ func (r *InstanaAgentReconciler) applyResources(
 		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
 		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
 		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
-		//todo: delete
-		jsonData, err := json.MarshalIndent(webhookBuilder, "", " ")
-		if err != nil {
-			fmt.Println("err marshaling the deploy", err)
-		}
-		fmt.Println(string(jsonData))
-		/////
 		builders = append(
 			builders,
 			webhookBuilder,
