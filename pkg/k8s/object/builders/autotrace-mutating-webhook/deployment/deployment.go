@@ -133,11 +133,6 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 	if d == nil {
 		fmt.Println("d is nil")
 	}
-	if d.helpers.AutotraceWebhookResourcesName() == "" {
-		fmt.Println("AutotraceWebhookResourcesName is nil")
-	}
-	fmt.Println("d.Spec.AutotraceWebhook.Replicas is ")
-	fmt.Println(d.Spec.AutotraceWebhook.Replicas)
 	if d.GetPodSelectorLabels() == nil {
 		fmt.Println("GetPodSelectorLabels is nil")
 	}
@@ -189,10 +184,10 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							SecurityContext: d.getSecurityContext(),
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceLimitsMemory: resource.MustParse("512Mi"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
 								},
 								Limits: corev1.ResourceList{
-									corev1.ResourceLimitsMemory: resource.MustParse("1Gi"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
 								},
 							},
 							Env: d.getEnvVars(),
