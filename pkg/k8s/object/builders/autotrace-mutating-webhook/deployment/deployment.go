@@ -10,7 +10,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -182,15 +181,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Image:           d.Spec.AutotraceWebhook.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.AutotraceWebhook.ImageSpec.PullPolicy,
 							SecurityContext: d.getSecurityContext(),
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
-								},
-							},
-							Env: d.getEnvVars(),
+							Resources:       d.Spec.AutotraceWebhook.GetOrDefaultWebhook(),
+							Env:             d.getEnvVars(),
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "certificates",

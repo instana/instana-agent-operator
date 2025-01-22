@@ -198,6 +198,18 @@ func (r ResourceRequirements) GetOrDefault() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements(r)
 }
 
+func (r ResourceRequirements) GetOrDefaultWebhook() corev1.ResourceRequirements {
+	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Requests))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
+
+	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Limits))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("1Gi"))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.0"))
+
+	return corev1.ResourceRequirements(r)
+}
+
 type AgentPodSpec struct {
 	// agent.pod.annotations are additional annotations to be added to the agent pods.
 	// +kubebuilder:validation:Optional
@@ -330,6 +342,8 @@ type AutotraceWebhookSpec struct {
 	Instrumentation Instrumentation `json:"instrumentation,omitempty"`
 	// +kubebuilder:validation:Optional
 	// Autotrace Autotrace `json:"autotrace,omitempty"` //TODO
+	// Override Agent resource requirements to e.g. give the Agent container more memory.
+	ResourceRequirements `json:",inline"`
 }
 
 type ServiceMeshSpec struct {
