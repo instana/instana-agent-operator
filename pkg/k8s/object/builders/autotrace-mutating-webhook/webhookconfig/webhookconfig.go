@@ -54,7 +54,7 @@ func (wc *webhookConfigBuilder) getLabels() map[string]string {
 
 func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 
-	failurePolicy := admissionv1.Fail
+	failurePolicy := admissionv1.Ignore
 	reinvocationPolicy := admissionv1.IfNeededReinvocationPolicy
 	matchPolicy := admissionv1.Equivalent
 	sideEffect := admissionv1.SideEffectClassNoneOnDryRun

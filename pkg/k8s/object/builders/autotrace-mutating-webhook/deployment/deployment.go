@@ -18,7 +18,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
-	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -71,18 +70,10 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	return envVars
 }
 
-func (d *deploymentBuilder) addAppLabel(labels map[string]string) map[string]string {
-	labelsDefaulter := map_defaulter.NewMapDefaulter(&labels)
-	labelsDefaulter.SetIfEmpty("instana-autotrace-ignore", "true")
-	labelsDefaulter.SetIfEmpty("app.kubernetes.io/instance", d.ComponentName())
-	return labels
-}
-
-func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
-	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
-	podLabels[constants.LabelAgentMode] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
-
-	return d.GetPodLabels(podLabels)
+func (d *deploymentBuilder) getLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/instance": d.ComponentName(),
+	}
 }
 
 func (d *deploymentBuilder) getWebhookImagePullSecret() []corev1.LocalObjectReference {
@@ -108,7 +99,7 @@ func (d *deploymentBuilder) getSecurityContext() *corev1.SecurityContext {
 		},
 	}
 
-	if d.isOpenShift {
+	if !d.isOpenShift {
 		securityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
 		}
@@ -134,12 +125,12 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      d.ComponentName(),
 			Namespace: d.Namespace,
-			Labels:    d.addAppLabel(nil),
+			Labels:    d.getLabels(),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.To(int32(d.Spec.AutotraceWebhook.Replicas)),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: d.addAppLabel(d.GetPodSelectorLabels()),
+				MatchLabels: d.getLabels(),
 			},
 			Strategy: appsv1.DeploymentStrategy{
 				Type: appsv1.RecreateDeploymentStrategyType,
@@ -147,8 +138,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        d.ComponentName(),
-					Labels:      d.addAppLabel(d.getPodTemplateLabels()), // TODO: add additional labels
-					Annotations: d.Spec.Agent.Pod.Annotations,
+					Labels:      d.getLabels(),
+					Annotations: d.Spec.Agent.Pod.Annotations, //todo: add different annotations?
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: d.ComponentName(),
