@@ -118,7 +118,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
 	if agent.Spec.AutotraceWebhook.Enabled {
-		certPem, keyPem, err := cert.GenerateSelfSignedCertKey(
+		chainPem, keyPem, err := cert.GenerateSelfSignedCertKey(
 			"instana-autotrace-webhook.instana-agent.svc",
 			nil,
 			[]string{
@@ -135,8 +135,8 @@ func (r *InstanaAgentReconciler) applyResources(
 		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
 		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
 		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
-		webhookCertBuilder := webhooksecrets.NewCertBuilder(agent, isOpenShift, certPem, keyPem)
-		webhookWebhookConfigBuilder := webhookconfig.NewWebhookConfigBuilder(agent, isOpenShift, certPem)
+		webhookCertBuilder := webhooksecrets.NewCertBuilder(agent, isOpenShift, chainPem, keyPem)
+		webhookWebhookConfigBuilder := webhookconfig.NewWebhookConfigBuilder(agent, isOpenShift, chainPem)
 		webhookWebhookPullSecret := webhooksecrets.NewDownloadSecretBuilder(agent)
 		builders = append(
 			builders,

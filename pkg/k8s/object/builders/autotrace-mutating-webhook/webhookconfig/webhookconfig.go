@@ -6,6 +6,10 @@
 package certs
 
 import (
+	"bytes"
+	"encoding/pem"
+	"fmt"
+
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -21,7 +25,7 @@ type webhookConfigBuilder struct {
 	*instanav1.InstanaAgent
 	helpers     helpers.Helpers
 	isOpenShift bool
-	certPem     []byte
+	chainPem    []byte
 }
 
 func (wc *webhookConfigBuilder) IsNamespaced() bool {
@@ -52,12 +56,52 @@ func (wc *webhookConfigBuilder) getLabels() map[string]string {
 	return labels
 }
 
+func ExtractLeafAndCa(chainPem []byte) (leafPem []byte, caPem []byte, err error) {
+	var leafBuf bytes.Buffer
+	var caBuf bytes.Buffer
+
+	var blockCount int
+	rest := chainPem
+
+	for {
+		block, remaining := pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		blockCount++
+		if blockCount == 1 {
+			// the first cert store in leafBuf
+			// the second cert store in caBuf
+			err := pem.Encode(&leafBuf, block)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to encode the leaf block %w", err)
+			}
+		} else {
+			err := pem.Encode(&caBuf, block)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to encode the ca block %w", err)
+			}
+		}
+		rest = remaining
+	}
+	if blockCount == 0 {
+		return nil, nil, fmt.Errorf("failed to find any PEm certs")
+	}
+	return leafBuf.Bytes(), caBuf.Bytes(), nil
+}
+
 func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 
 	failurePolicy := admissionv1.Fail //TODO: revert to Ignore
 	reinvocationPolicy := admissionv1.IfNeededReinvocationPolicy
 	matchPolicy := admissionv1.Equivalent
 	sideEffect := admissionv1.SideEffectClassNoneOnDryRun
+
+	_, caPem, err := ExtractLeafAndCa(wc.chainPem)
+	if err == nil {
+		fmt.Println("error seperating the leaf and CA PEM")
+		return optional.Empty[client.Object]()
+	}
 
 	return optional.Of[client.Object](
 		&admissionv1.MutatingWebhookConfiguration{
@@ -118,7 +162,7 @@ func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 							Port:      pointer.Int32Ptr(42650),
 							Path:      pointer.String("/mutate"),
 						},
-						CABundle: wc.certPem,
+						CABundle: caPem,
 					},
 					AdmissionReviewVersions: []string{"v1"},
 					SideEffects:             &sideEffect,
@@ -131,12 +175,12 @@ func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 func NewWebhookConfigBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
-	certPem []byte,
+	chainPem []byte,
 ) builder.ObjectBuilder {
 	return &webhookConfigBuilder{
 		InstanaAgent: agent,
 		helpers:      helpers.NewHelpers(agent),
 		isOpenShift:  isOpenShift,
-		certPem:      certPem,
+		chainPem:     chainPem,
 	}
 }

@@ -6,11 +6,14 @@
 package secrets
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	webhookconfig "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/webhookconfig"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -20,7 +23,7 @@ type certBuilder struct {
 	*instanav1.InstanaAgent
 	helpers     helpers.Helpers
 	isOpenShift bool
-	certPem     []byte
+	chainPem    []byte
 	keyPem      []byte
 }
 
@@ -38,6 +41,12 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 		return optional.Empty[client.Object]()
 	}
 
+	leafPem, caPem, err := webhookconfig.ExtractLeafAndCa(c.chainPem)
+	if err == nil {
+		fmt.Println("error seperating the leaf and CA PEM")
+		return optional.Empty[client.Object]()
+	}
+
 	return optional.Of[client.Object](
 		&corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -50,9 +59,9 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 				Namespace: c.Namespace,
 			},
 			Data: map[string][]byte{
-				"tls.crt": c.certPem,
+				"tls.crt": leafPem,
 				"tls.key": c.keyPem,
-				"ca.crt":  c.certPem,
+				"ca.crt":  caPem,
 			},
 		},
 	)
@@ -61,14 +70,14 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 func NewCertBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
-	certPem []byte,
+	chainPem []byte,
 	keyPem []byte,
 ) builder.ObjectBuilder {
 	return &certBuilder{
 		InstanaAgent: agent,
 		helpers:      helpers.NewHelpers(agent),
 		isOpenShift:  isOpenShift,
-		certPem:      certPem,
+		chainPem:     chainPem,
 		keyPem:       keyPem,
 	}
 }
