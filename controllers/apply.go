@@ -45,7 +45,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/util/cert"
 )
 
 func getDaemonSetBuilders(
@@ -118,15 +117,11 @@ func (r *InstanaAgentReconciler) applyResources(
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
 	if agent.Spec.AutotraceWebhook.Enabled {
-		chainPem, keyPem, err := cert.GenerateSelfSignedCertKey(
-			"instana-autotrace-webhook.instana-agent.svc",
-			nil,
-			[]string{
-				"instana-autotrace-webhook.instana-agent.svc.cluster.local",
-			},
-		)
-		if err != nil {
-			log.Error(err, "failed to generate the self-signed cert")
+		var webhookCertBuilder, webhookWebhookConfigBuilder builder.ObjectBuilder
+		caCertPem, serverCertPem, serverKeyPem, err := webhooksecrets.GenerateCerts()
+		if err == nil {
+			webhookCertBuilder = webhooksecrets.NewCertBuilder(agent, isOpenShift, caCertPem, serverCertPem, serverKeyPem)
+			webhookWebhookConfigBuilder = webhookconfig.NewWebhookConfigBuilder(agent, isOpenShift, caCertPem)
 		}
 
 		webhookBuilder := webhookdeployment.NewWebhookBuilder(agent, isOpenShift, statusManager)
@@ -135,8 +130,6 @@ func (r *InstanaAgentReconciler) applyResources(
 		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
 		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
 		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
-		webhookCertBuilder := webhooksecrets.NewCertBuilder(agent, isOpenShift, chainPem, keyPem)
-		webhookWebhookConfigBuilder := webhookconfig.NewWebhookConfigBuilder(agent, isOpenShift, chainPem)
 		webhookWebhookPullSecret := webhooksecrets.NewDownloadSecretBuilder(agent)
 		builders = append(
 			builders,

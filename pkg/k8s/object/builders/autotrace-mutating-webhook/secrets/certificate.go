@@ -6,14 +6,16 @@
 package secrets
 
 import (
-	"fmt"
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/pem"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/cert"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	webhookconfig "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/webhookconfig"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -21,10 +23,11 @@ import (
 
 type certBuilder struct {
 	*instanav1.InstanaAgent
-	helpers     helpers.Helpers
-	isOpenShift bool
-	chainPem    []byte
-	keyPem      []byte
+	helpers       helpers.Helpers
+	isOpenShift   bool
+	caCertPem     []byte
+	serverCertPem []byte
+	serverKeyPem  []byte
 }
 
 func (c *certBuilder) IsNamespaced() bool {
@@ -35,15 +38,34 @@ func (c *certBuilder) ComponentName() string {
 	return c.helpers.AutotraceWebhookResourcesName() + "-certs"
 }
 
+func GenerateCerts() (caCertPem, serverCertPem, serverKeyPem []byte, err error) {
+	// generate CA
+	caKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	caConfig := cert.Config{
+		CommonName: "instana-autotrace-webhook-ca",
+	}
+	caCert, _ := cert.NewSelfSignedCACert(caConfig, caKey)
+	caCertPem = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCert.Raw,
+	})
+
+	//generate server cert
+	serverCertPem, serverKeyPem, err = cert.GenerateSelfSignedCertKey(
+		"instana-autotrace-webhook",
+		nil,
+		[]string{
+			"instana-autotrace-webhook.instana-agent",
+			"instana-autotrace-webhook.instana-agent.svc",
+			"instana-autotrace-webhook.instana-agent.svc.cluster.local",
+		},
+	)
+	return caCertPem, serverCertPem, serverKeyPem, nil
+}
+
 func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 
 	if c.isOpenShift {
-		return optional.Empty[client.Object]()
-	}
-
-	_, caPem, err := webhookconfig.ExtractLeafAndCa(c.chainPem)
-	if err != nil {
-		fmt.Println("error seperating the leaf and CA PEM")
 		return optional.Empty[client.Object]()
 	}
 
@@ -59,9 +81,9 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 				Namespace: c.Namespace,
 			},
 			Data: map[string][]byte{
-				"tls.crt": c.chainPem,
-				"tls.key": c.keyPem,
-				"ca.crt":  caPem,
+				"tls.crt": c.serverCertPem,
+				"tls.key": c.serverKeyPem,
+				"ca.crt":  c.caCertPem,
 			},
 		},
 	)
@@ -70,14 +92,16 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 func NewCertBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
-	chainPem []byte,
-	keyPem []byte,
+	caCertPem []byte,
+	serverCertPem []byte,
+	serverKeyPem []byte,
 ) builder.ObjectBuilder {
 	return &certBuilder{
-		InstanaAgent: agent,
-		helpers:      helpers.NewHelpers(agent),
-		isOpenShift:  isOpenShift,
-		chainPem:     chainPem,
-		keyPem:       keyPem,
+		InstanaAgent:  agent,
+		helpers:       helpers.NewHelpers(agent),
+		isOpenShift:   isOpenShift,
+		serverCertPem: serverCertPem,
+		serverKeyPem:  serverKeyPem,
+		caCertPem:     caCertPem,
 	}
 }
