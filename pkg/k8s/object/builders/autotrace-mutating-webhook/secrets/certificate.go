@@ -41,7 +41,7 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 		return optional.Empty[client.Object]()
 	}
 
-	leafPem, caPem, err := webhookconfig.ExtractLeafAndCa(c.chainPem)
+	_, caPem, err := webhookconfig.ExtractLeafAndCa(c.chainPem)
 	if err != nil {
 		fmt.Println("error seperating the leaf and CA PEM")
 		return optional.Empty[client.Object]()
