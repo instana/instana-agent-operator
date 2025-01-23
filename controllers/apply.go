@@ -121,7 +121,9 @@ func (r *InstanaAgentReconciler) applyResources(
 		certPem, keyPem, err := cert.GenerateSelfSignedCertKey(
 			"instana-autotrace-webhook.instana-agent.svc",
 			nil,
-			nil,
+			[]string{
+				"instana-autotrace-webhook.instana-agent.svc.cluster.local",
+			},
 		)
 		if err != nil {
 			log.Error(err, "failed to generate the self-signed cert")
