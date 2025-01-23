@@ -98,7 +98,7 @@ func (wc *webhookConfigBuilder) Build() (res optional.Optional[client.Object]) {
 	sideEffect := admissionv1.SideEffectClassNoneOnDryRun
 
 	_, caPem, err := ExtractLeafAndCa(wc.chainPem)
-	if err == nil {
+	if err != nil {
 		fmt.Println("error seperating the leaf and CA PEM")
 		return optional.Empty[client.Object]()
 	}
