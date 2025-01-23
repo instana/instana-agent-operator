@@ -59,7 +59,7 @@ func (c *certBuilder) Build() (res optional.Optional[client.Object]) {
 				Namespace: c.Namespace,
 			},
 			Data: map[string][]byte{
-				"tls.crt": leafPem,
+				"tls.crt": c.chainPem,
 				"tls.key": c.keyPem,
 				"ca.crt":  caPem,
 			},
