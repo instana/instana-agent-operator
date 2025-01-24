@@ -13,7 +13,7 @@ This repository contains the Kubernetes Operator to install and manage the Insta
 There are two ways to install the operator:
 
 * [Creating the required resources manually](https://www.ibm.com/docs/en/instana-observability/current?topic=agents-installing-kubernetes#install-the-operator-manually)
-* [Using the Operator Lifecycle Manager (OLM)](https://www.ibm.com/docs/en/instana-observability/current?topic=agents-installing-openshift#installing-the-operator-by-using-olm)
+* [Using the Operator Lifecycle Manager (OLM)](https://www.ibm.com/docs/en/instana-observability/current?topic=openshift-installing-agent-red-hat#installing-the-operator-by-using-olm)
 
 ### Configuration
 
