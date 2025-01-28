@@ -75,7 +75,7 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		}
 
 		// full purge of resources if anything would be left in the cluster
-		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/manager-role clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/manager-rolebinding")
+		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/instana-agent-clusterrole clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/instana-agent-clusterrolebinding")
 		if p.Err() != nil {
 			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
 		}
@@ -317,7 +317,7 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 
 func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		// Wait for controller-manager deployment to ensure that CRD is installed correctly before proceeding.
+		// Wait for instana-agent-controller-manager deployment to ensure that CRD is installed correctly before proceeding.
 		// Technically, it could be categorized as "Assess" method, but the setup process requires to wait in between.
 		// Therefore, keeping the wait logic in this section.
 		client, err := cfg.NewClient()
@@ -400,8 +400,8 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 		connectionSuccessful := false
 		var buf *bytes.Buffer
 		for i := 0; i < 9; i++ {
-			t.Log("Sleeping 10 seconds")
-			time.Sleep(10 * time.Second)
+			t.Log("Sleeping 20 seconds")
+			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
 			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)

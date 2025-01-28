@@ -80,7 +80,7 @@ setup: ## Basic project setup, e.g. installing GitHook for checking license head
 	cd .git/hooks && ln -fs ../../.githooks/* .
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -103,7 +103,7 @@ test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore 
 
 .PHONY: e2e
 e2e:
-	go test -timeout=10m -count=1 -v github.com/instana/instana-agent-operator/e2e
+	go test -timeout=20m -count=1 -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
 

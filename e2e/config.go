@@ -39,7 +39,8 @@ type OperatorImage struct {
 var InstanaTestCfg InstanaTestConfig
 
 const InstanaNamespace string = "instana-agent"
-const InstanaOperatorDeploymentName string = "controller-manager"
+const InstanaOperatorOldDeploymentName string = "controller-manager"
+const InstanaOperatorDeploymentName string = "instana-agent-controller-manager"
 const AgentDaemonSetName string = "instana-agent"
 const AgentCustomResourceName string = "instana-agent"
 const K8sensorDeploymentName string = "instana-agent-k8sensor"
