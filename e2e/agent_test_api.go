@@ -363,21 +363,28 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 	}
 }
 
-func WaitForAgentDaemonSetToBecomeReady() e2etypes.StepFunc {
+// optional argument for the custom daemons set name
+func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
+	var daemonSetName string
+	if (len(args)) > 0 && args[0] != "" {
+		daemonSetName = args[0]
+	} else {
+		daemonSetName = AgentDaemonSetName
+	}
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Logf("Waiting for DaemonSet %s is ready", AgentDaemonSetName)
+		t.Logf("Waiting for DaemonSet %s is ready", daemonSetName)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
 		}
 		ds := appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{Name: AgentDaemonSetName, Namespace: cfg.Namespace()},
+			ObjectMeta: metav1.ObjectMeta{Name: daemonSetName, Namespace: cfg.Namespace()},
 		}
 		err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*5))
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("DaemonSet %s is ready", AgentDaemonSetName)
+		t.Logf("DaemonSet %s is ready", daemonSetName)
 		return ctx
 	}
 }

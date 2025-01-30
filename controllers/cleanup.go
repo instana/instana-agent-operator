@@ -23,6 +23,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/e2e-framework/support/utils"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
@@ -74,6 +75,7 @@ func (r *InstanaAgentReconciler) handleDeletion(
 	operatorUtils operator_utils.OperatorUtils,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
+	r.cleanupNodeLabels(ctx, agent)
 
 	if agent.DeletionTimestamp == nil {
 		log.V(2).Info("agent is not under deletion")
@@ -88,5 +90,16 @@ func (r *InstanaAgentReconciler) handleDeletion(
 		return cleanupDependentsRes
 	} else {
 		return reconcileSuccess(ctrl.Result{})
+	}
+}
+
+func (r *InstanaAgentReconciler) cleanupNodeLabels(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+) {
+	log := r.loggerFor(ctx, agent)
+	p := utils.RunCommand("kubectl label node --all pool-")
+	if p.Err() != nil {
+		log.V(2).Info("Could not remove the labels from the nodes for multizone testing")
 	}
 }
