@@ -21,6 +21,8 @@ import (
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -399,11 +401,49 @@ func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
 		dep := appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldDeploymentName, Namespace: cfg.Namespace()},
 		}
-		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*5))
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*2))
 		if err != nil {
 			t.Fatal(err)
 		}
 		t.Logf("Deployment %s is deleted", AgentDaemonSetName)
+		return ctx
+	}
+}
+
+func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Ensuring the old clusterrole %s is not running", InstanaOperatorClusterRoleName)
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		clusterrole := rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorClusterRoleName},
+		}
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrole), wait.WithTimeout(time.Minute*2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("ClusteRole %s is deleted", InstanaOperatorClusterRoleName)
+		return ctx
+	}
+}
+
+func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Ensuring the old clusterrolebinding %s is not running", InstanaOperatorClusterRoleBindingName)
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		clusterrolebinding := rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorClusterRoleBindingName},
+		}
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding), wait.WithTimeout(time.Minute*2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("ClusteRoleBinding %s is deleted", InstanaOperatorClusterRoleBindingName)
 		return ctx
 	}
 }

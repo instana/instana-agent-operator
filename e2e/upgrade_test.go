@@ -72,6 +72,8 @@ func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
 			return ctx
 		}).
 		Assess("confirm the old deployment is gone", EnsureOldControllerManagerDeploymentIsNotRunning()).
+		Assess("confirm the old clusterrole is gone", EnsureOldClusterRoleIsGone()).
+		Assess("confirm the old clusterrolebinding is gone", EnsureOldClusterRoleBindingIsGone()).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
