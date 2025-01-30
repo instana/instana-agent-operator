@@ -40,8 +40,8 @@ var InstanaTestCfg InstanaTestConfig
 
 const InstanaNamespace string = "instana-agent"
 const InstanaOperatorOldDeploymentName string = "controller-manager"
-const InstanaOperatorClusterRoleName string = "instana-agent-clusterrole"
-const InstanaOperatorClusterRoleBindingName string = "instana-agent-clusterrolebinding"
+const InstanaOperatorOldClusterRoleName string = "manager-role"
+const InstanaOperatorOldClusterRoleBindingName string = "manager-rolebinding"
 const InstanaOperatorDeploymentName string = "instana-agent-controller-manager"
 const AgentDaemonSetName string = "instana-agent"
 const AgentCustomResourceName string = "instana-agent"

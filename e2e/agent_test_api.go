@@ -405,45 +405,45 @@ func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("Deployment %s is deleted", AgentDaemonSetName)
+		t.Logf("Deployment %s is deleted", InstanaOperatorOldDeploymentName)
 		return ctx
 	}
 }
 
 func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Logf("Ensuring the old clusterrole %s is not running", InstanaOperatorClusterRoleName)
+		t.Logf("Ensuring the old clusterrole %s is not running", InstanaOperatorOldClusterRoleName)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
 		}
 		clusterrole := rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorClusterRoleName},
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldClusterRoleName},
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrole), wait.WithTimeout(time.Minute*2))
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("ClusteRole %s is deleted", InstanaOperatorClusterRoleName)
+		t.Logf("ClusteRole %s is deleted", InstanaOperatorOldClusterRoleName)
 		return ctx
 	}
 }
 
 func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Logf("Ensuring the old clusterrolebinding %s is not running", InstanaOperatorClusterRoleBindingName)
+		t.Logf("Ensuring the old clusterrolebinding %s is not running", InstanaOperatorOldClusterRoleBindingName)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
 		}
 		clusterrolebinding := rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorClusterRoleBindingName},
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldClusterRoleBindingName},
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding), wait.WithTimeout(time.Minute*2))
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("ClusteRoleBinding %s is deleted", InstanaOperatorClusterRoleBindingName)
+		t.Logf("ClusteRoleBinding %s is deleted", InstanaOperatorOldClusterRoleBindingName)
 		return ctx
 	}
 }
