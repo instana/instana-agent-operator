@@ -52,6 +52,7 @@ type InstanaAgentClient interface {
 	GetAsResult(ctx context.Context, key k8sClient.ObjectKey, obj k8sClient.Object, opts ...k8sClient.GetOption) result.Result[k8sClient.Object]
 	Status() k8sClient.SubResourceWriter
 	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
+	Delete(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.DeleteOption) error
 }
 
 type instanaAgentClient struct {
@@ -117,6 +118,14 @@ func (c *instanaAgentClient) Apply(
 			append(opts, k8sClient.ForceOwnership, k8sClient.FieldOwner(FieldOwnerName))...,
 		),
 	)
+}
+
+func (c *instanaAgentClient) Delete(
+	ctx context.Context,
+	obj k8sClient.Object,
+	opts ...k8sClient.DeleteOption,
+) error {
+	return c.k8sClient.Delete(ctx, obj, opts...)
 }
 
 func (c *instanaAgentClient) GetAsResult(
