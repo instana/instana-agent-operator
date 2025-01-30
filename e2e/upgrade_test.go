@@ -1,6 +1,6 @@
 /*
- * (c) Copyright IBM Corp. 2024
- * (c) Copyright Instana Inc. 2024
+ * (c) Copyright IBM Corp. 2025
+ * (c) Copyright Instana Inc. 2025
  */
 
 package e2e
@@ -16,35 +16,21 @@ import (
 	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
-func TestInitialInstall(t *testing.T) {
+func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
 	agent := NewAgentCr(t)
-	initialInstallFeature := features.New("initial install dev-operator-build").
-		Setup(SetupOperatorDevBuild()).
-		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
-		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
-		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
-		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
-		Feature()
-
-	// test feature
-	testEnv.Test(t, initialInstallFeature)
-}
-func TestUpdateInstall(t *testing.T) {
-	agent := NewAgentCr(t)
-	installLatestFeature := features.New("deploy latest released instana-agent-operator").
+	installLatestFeature := features.New("deploy instana-agent-operator with the generic resource names (controller-manager, manager-role and manager-rolebinding)").
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			const latestOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml"
-			t.Logf("Installing latest available operator from %s", latestOperatorYamlUrl)
+			const oldResourceNamesOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/download/v2.1.14/instana-agent-operator.yaml"
+			t.Logf("Installing latest operator with the old, generic resource names from %s", oldResourceNamesOperatorYamlUrl)
 			p := utils.RunCommand(
-				fmt.Sprintf("kubectl apply -f %s", latestOperatorYamlUrl),
+				fmt.Sprintf("kubectl apply -f %s", oldResourceNamesOperatorYamlUrl),
 			)
 			if p.Err() != nil {
-				t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
+				t.Fatal("Error while applying the old operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
 			}
 			return ctx
 		}).
-		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorOldDeploymentName)). //TODO: revert after the 2.1.15 release
+		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorOldDeploymentName)).
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
@@ -85,6 +71,9 @@ func TestUpdateInstall(t *testing.T) {
 			t.Log("Assessing reconciliation now")
 			return ctx
 		}).
+		Assess("confirm the old deployment is gone", EnsureOldControllerManagerDeploymentIsNotRunning()).
+		Assess("confirm the old clusterrole is gone", EnsureOldClusterRoleIsGone()).
+		Assess("confirm the old clusterrolebinding is gone", EnsureOldClusterRoleBindingIsGone()).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
