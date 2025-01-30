@@ -389,6 +389,25 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 	}
 }
 
+func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Ensuring the old deployment %s is not running", InstanaOperatorOldDeploymentName)
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dep := appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldDeploymentName, Namespace: cfg.Namespace()},
+		}
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*5))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("Deployment %s is deleted", AgentDaemonSetName)
+		return ctx
+	}
+}
+
 func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Searching for successful backend connection in agent logs")

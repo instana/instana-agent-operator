@@ -71,6 +71,7 @@ func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
 			t.Log("Assessing reconciliation now")
 			return ctx
 		}).
+		Assess("confirm the old deployment is gone", EnsureOldControllerManagerDeploymentIsNotRunning()).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady("instana-agent-k8sensor")).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
