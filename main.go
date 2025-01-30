@@ -149,17 +149,17 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 	}
 
 	if err := k8sClient.List(context.Background(), deploymentsList, deploymentOptions); err != nil {
-		log.Info("Failed to get list the deployment with the label %s:%s and name %s", labelKey, instanaclient.FieldOwnerName, InstanaOperatorOldDeploymentName)
+		log.Info(fmt.Sprintf("Failed to get list the deployment with the label %s:%s and name %s", labelKey, instanaclient.FieldOwnerName, InstanaOperatorOldDeploymentName))
 	} else {
 		// there should be only one deployment but we iterate just in case
-		log.Info("Found %s deployments that match the criteria", len(deploymentsList.Items))
+		log.Info(fmt.Sprintf("Found %v deployments that match the criteria", len(deploymentsList.Items)))
 		for _, deployment := range deploymentsList.Items {
 			ns := deployment.GetNamespace()
-			log.Info("Deleting the old operator deployment %s in namespace %s ", InstanaOperatorOldDeploymentName, ns)
+			log.Info(fmt.Sprintf("Deleting the old operator deployment %s in namespace %s", InstanaOperatorOldDeploymentName, ns))
 			if err := k8sClient.Delete(context.Background(), &deployment); err != nil {
-				log.Info("Failed to delete the old operator deployment %s ", InstanaOperatorOldDeploymentName)
+				log.Info(fmt.Sprintf("Failed to delete the old operator deployment %s", InstanaOperatorOldDeploymentName))
 			} else {
-				log.Info("Successfully deleted the deployment %s ", InstanaOperatorOldDeploymentName)
+				log.Info(fmt.Sprintf("Successfully deleted the deployment %s", InstanaOperatorOldDeploymentName))
 			}
 		}
 	}
@@ -176,15 +176,27 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 			log.Error(err, "Failed to get the old operator clusterrole "+InstanaOperatorOldClusterRoleName)
 		}
 	} else {
-		labels := oldRole.GetLabels()
-		if labels[labelKey] != instanaclient.FieldOwnerName {
-			log.Info("ClusterRole with name %s found, but the label doesn't match; skipping the deletion", InstanaOperatorOldClusterRoleName)
+		// check if it has an API group "instana.io"
+		hasInstanaApiGroup := false
+		for _, rule := range oldRole.Rules {
+			for _, apiGroup := range rule.APIGroups {
+				if apiGroup == "instana.io" {
+					hasInstanaApiGroup = true
+					break
+				}
+			}
+			if hasInstanaApiGroup {
+				break
+			}
+		}
+		if !hasInstanaApiGroup {
+			log.Info(fmt.Sprintf("ClusterRole with name %s found, but it's not coming from instana; skipping the deletion", InstanaOperatorOldClusterRoleName))
 		} else {
-			log.Info("Deleting the old operator clusterrole " + InstanaOperatorOldClusterRoleName)
+			log.Info(fmt.Sprintf("Deleting the old operator clusterrole %s", InstanaOperatorOldClusterRoleName))
 			if err := k8sClient.Delete(context.Background(), oldRole); err != nil {
-				log.Info("Failed to delete the old operator clusterrole " + InstanaOperatorOldClusterRoleName)
+				log.Info(fmt.Sprintf("Failed to delete the old operator clusterrole %s", InstanaOperatorOldClusterRoleName))
 			} else {
-				log.Info("Successfully deleted the clusterrole " + InstanaOperatorOldClusterRoleName)
+				log.Info(fmt.Sprintf("Successfully deleted the clusterrole %s", InstanaOperatorOldClusterRoleName))
 			}
 		}
 	}
@@ -200,15 +212,21 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 			log.Error(err, "Failed to get the old operator clusterrolebinding "+InstanaOperatorOldClusterRoleBindingName)
 		}
 	} else {
-		labels := oldRole.GetLabels()
-		if labels[labelKey] != instanaclient.FieldOwnerName {
-			log.Info("ClusterRoleBinding with name %s found, but the label doesn't match; skipping the deletion", InstanaOperatorOldClusterRoleBindingName)
+		hasInstanaAgentOperatorSA := false
+		for _, subject := range oldRoleBinding.Subjects {
+			if subject.Kind == "ServiceAccount" && subject.Name == instanaclient.FieldOwnerName {
+				hasInstanaAgentOperatorSA = true
+				break
+			}
+		}
+		if !hasInstanaAgentOperatorSA {
+			log.Info(fmt.Sprintf("ClusterRoleBinding with name %s found, but the SA doesn't match; skipping the deletion", InstanaOperatorOldClusterRoleBindingName))
 		} else {
-			log.Info("Deleting the old operator clusterrolebinding " + InstanaOperatorOldClusterRoleBindingName)
+			log.Info(fmt.Sprintf("Deleting the old operator clusterrolebinding %s", InstanaOperatorOldClusterRoleBindingName))
 			if err := k8sClient.Delete(context.Background(), oldRoleBinding); err != nil {
 				log.Info("Failed to delete the old operator clusterrolebinding " + InstanaOperatorOldClusterRoleBindingName)
 			} else {
-				log.Info("Successfully deleted the clusterrolebinding " + InstanaOperatorOldClusterRoleBindingName)
+				log.Info(fmt.Sprintf("Successfully deleted the clusterrolebinding %s", InstanaOperatorOldClusterRoleBindingName))
 			}
 		}
 	}
