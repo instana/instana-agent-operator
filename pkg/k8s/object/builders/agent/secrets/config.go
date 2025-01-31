@@ -87,7 +87,7 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 	if c.Spec.Agent.ConfigurationYaml != "" {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
-	if otlp := c.Spec.OpenTelemetry; otlp.IsEnabled() {
+	if otlp := c.Spec.OpenTelemetry; !otlp.GrpcIsEnabled() || !otlp.HttpIsEnabled() {
 		mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp})
 		data["configuration-opentelemetry.yaml"] = mrshl
 	}
