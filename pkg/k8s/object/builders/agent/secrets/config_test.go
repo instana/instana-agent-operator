@@ -395,3 +395,333 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		)
 	}
 }
+
+func TestAgentSecretConfigBuildForOtel(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		agent    instanav1.InstanaAgent
+		expected map[string][]byte
+	}{
+		{
+			name: "otel undefined -> no config (defaults)",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":       []byte("test-cluster"),
+				"configuration.yaml": []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "http enabled and grpc enabled -> no config (defaults)",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						GRPC: &instanav1.Enabled{
+							Enabled: pointer.To(true),
+						},
+						HTTP: &instanav1.Enabled{
+							Enabled: pointer.To(true),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":       []byte("test-cluster"),
+				"configuration.yaml": []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "http disabled and grpc disabled -> config both explicitly off",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						GRPC: &instanav1.Enabled{
+							Enabled: pointer.To(false),
+						},
+						HTTP: &instanav1.Enabled{
+							Enabled: pointer.To(false),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":                                 []byte("test-cluster"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc:\n        enabled: false\n    http:\n        enabled: false\n"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "http undefined and grpc enabled -> no config (defaults)",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						GRPC: &instanav1.Enabled{
+							Enabled: pointer.To(true),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":       []byte("test-cluster"),
+				"configuration.yaml": []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "http undefined and grpc disabled -> http config omitted (defaults) and grpc disabled",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						GRPC: &instanav1.Enabled{
+							Enabled: pointer.To(false),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":                                 []byte("test-cluster"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    grpc:\n        enabled: false\n"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "http enabled and grpc undefined -> no config (defaults)",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						HTTP: &instanav1.Enabled{
+							Enabled: pointer.To(true),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":       []byte("test-cluster"),
+				"configuration.yaml": []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "http disabled and grpc undefined -> http config disabled and grpc omitted (defaults)",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						HTTP: &instanav1.Enabled{
+							Enabled: pointer.To(false),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":                                 []byte("test-cluster"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    http:\n        enabled: false\n"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "legacy on -> no config (defaults)",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						Enabled: instanav1.Enabled{
+							Enabled: pointer.To(true),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":       []byte("test-cluster"),
+				"configuration.yaml": []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name: "legacy off -> legacy off config",
+			agent: instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "instana-agent",
+					Namespace: "instana-agent",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					Cluster: instanav1.Name{
+						Name: "test-cluster",
+					},
+					Agent: instanav1.BaseAgentSpec{
+						EndpointHost:      "main-backend-host",
+						EndpointPort:      "main-backend-port",
+						Key:               "main-backend-key",
+						ConfigurationYaml: "configuration-yaml-value",
+					},
+					OpenTelemetry: instanav1.OpenTelemetry{
+						Enabled: instanav1.Enabled{
+							Enabled: pointer.To(false),
+						},
+					},
+				},
+			},
+			expected: map[string][]byte{
+				"cluster_name":                                 []byte("test-cluster"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+	} {
+		t.Run(
+			test.name, func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+
+				statusManager := mocks.NewMockAgentStatusManager(ctrl)
+				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
+
+				keysSecret := &corev1.Secret{}
+
+				builder := NewConfigBuilder(&test.agent, statusManager, keysSecret, []backend.K8SensorBackend{
+					{
+						ResourceSuffix: "",
+						EndpointHost:   "main-backend-host",
+						EndpointPort:   "main-backend-port",
+						EndpointKey:    "main-backend-key",
+					},
+				})
+
+				actual := builder.Build().Get()
+
+				expected := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "instana-agent-config",
+						Namespace: "instana-agent",
+					},
+					Type: corev1.SecretTypeOpaque,
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Secret",
+					},
+					Data: test.expected,
+				}
+
+				assert.Equal(t, expected, actual)
+			},
+		)
+	}
+}
