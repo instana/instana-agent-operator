@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2025
 (c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,27 +15,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package constants
+package rbac
 
-// components
 const (
-	ComponentInstanaAgent = "instana-agent"
-	ComponentK8Sensor     = "k8sensor"
+	rbacApiGroup   = "rbac.authorization.k8s.io"
+	rbacApiVersion = rbacApiGroup + "/v1"
+	roleKind       = "ClusterRole"
+	subjectKind    = "ServiceAccount"
 )
-
-// labels
-const (
-	LabelAgentMode = "instana/agent-mode"
-)
-
-// keys
-const (
-	AgentKey    = "key"
-	DownloadKey = "downloadKey"
-	BackendKey  = "backend"
-)
-
-// ReaderVerbs are the list RBAC Verbs used for being able to read resources for a specific api group as specified in a PolicyRule, i.e: "get", "list", "watch"
-func ReaderVerbs() []string {
-	return []string{"get", "list", "watch"}
-}
