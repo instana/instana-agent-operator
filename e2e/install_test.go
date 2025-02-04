@@ -44,7 +44,7 @@ func TestUpdateInstall(t *testing.T) {
 			}
 			return ctx
 		}).
-		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorOldDeploymentName)). //TODO: revert after the 2.1.15 release
+		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
