@@ -64,8 +64,6 @@ resources:
     icon: github
     source:
       <<: *instana-operator-git-repo-config
-      paths:
-        - ci/**
 
   - name: agent-operator-git-source
     type: git
