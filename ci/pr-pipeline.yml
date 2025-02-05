@@ -314,7 +314,7 @@ jobs:
     plan:
       - get: pipeline-source
         trigger: true
-        passed: [self-update, build-e2e-operator-base-image]
+        passed: [self-update]
       - get: agent-operator-version
         trigger: true
       - load_var: agent-operator-version

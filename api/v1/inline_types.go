@@ -198,6 +198,18 @@ func (r ResourceRequirements) GetOrDefault() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements(r)
 }
 
+func (r ResourceRequirements) GetOrDefaultWebhook() corev1.ResourceRequirements {
+	requestsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Requests))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("512Mi"))
+	requestsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("0.5"))
+
+	limitsDefaulter := map_defaulter.NewMapDefaulter((*map[corev1.ResourceName]resource.Quantity)(&r.Limits))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceMemory, resource.MustParse("1Gi"))
+	limitsDefaulter.SetIfEmpty(corev1.ResourceCPU, resource.MustParse("1.0"))
+
+	return corev1.ResourceRequirements(r)
+}
+
 type AgentPodSpec struct {
 	// agent.pod.annotations are additional annotations to be added to the agent pods.
 	// +kubebuilder:validation:Optional
@@ -266,6 +278,25 @@ type ImageSpec struct {
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 
+type Instrumentation struct {
+	// Name is the name of the instrumentation image of the webhook.
+	// +kubebuilder:validation:Required
+	Image string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
+	ImagePullPolicy string `json:"imagePullPolicy,IfNotPresent"`
+	// +kubebuilder:validation:Optional
+	ImagePullCredentials string `json:"imagePullCredentials,omitempty"`
+}
+
+type ImagePullCredentials struct {
+	// +kubebuilder:validation:Optional
+	Registry string `json:"registry,omitempty"`
+	// +kubebuilder:validation:Optional
+	Username string `json:"username,omitempty"`
+	// +kubebuilder:validation:Optional
+	Password string `json:"password,omitempty"`
+}
+
 type ExtendedImageSpec struct {
 	// +kubebuilder:validation:Required
 	ImageSpec `json:",inline"`
@@ -290,6 +321,29 @@ func (i ImageSpec) Image() string {
 type HostSpec struct {
 	// +kubebuilder:validation:Optional
 	Repository string `json:"repository,omitempty"`
+}
+
+// AutotraceWebhookSpec defines the desired state of the AutotraceMutatingWebhook
+type AutotraceWebhookSpec struct {
+	// +kubebuilder:validation:Type=boolean
+	// +kubebuilder:validation:default=false
+	Enabled bool `json:"enabled"`
+	// Name of the AutoTraceWebhook. If not set and `create` is true, the default name is generated.
+	// +kubebuilder:default="instana-autotrace-webhook"
+	Name string `json:"name"`
+	// Specify the number of replicas for the AutotraceMutatingWebhook.
+	// +kubebuilder:validation:Optional
+	Replicas int `json:"replicas,omitempty"`
+	// +kubebuilder:validation:Optional
+	PullSecret string `json:"pullSecret,omitempty"`
+	// +kubebuilder:validation:Optional
+	ImageSpec ImageSpec `json:"image,omitempty"`
+	// +kubebuilder:validation:Optional
+	Instrumentation Instrumentation `json:"instrumentation,omitempty"`
+	// +kubebuilder:validation:Optional
+	// Autotrace Autotrace `json:"autotrace,omitempty"` //TODO
+	// Override Agent resource requirements to e.g. give the Agent container more memory.
+	ResourceRequirements `json:",inline"`
 }
 
 type ServiceMeshSpec struct {

@@ -19,6 +19,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
@@ -29,6 +30,12 @@ import (
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/secrets/tls-secret"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
+	webhookdeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/deployment"
+	webhookrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/rbac"
+	webhooksecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/secrets"
+	webhookservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/service"
+	webhooksa "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/serviceaccount"
+	webhookconfig "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/autotrace-mutating-webhook/webhookconfig"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
@@ -112,11 +119,40 @@ func (r *InstanaAgentReconciler) applyResources(
 
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
 
+	if agent.Spec.AutotraceWebhook.Enabled {
+		var webhookCertBuilder, webhookWebhookConfigBuilder builder.ObjectBuilder
+		caCertPem, serverCertPem, serverKeyPem, err := webhooksecrets.GenerateCerts()
+		if err == nil {
+			webhookCertBuilder = webhooksecrets.NewCertBuilder(agent, isOpenShift, caCertPem, serverCertPem, serverKeyPem)
+			webhookWebhookConfigBuilder = webhookconfig.NewWebhookConfigBuilder(agent, isOpenShift, caCertPem)
+		}
+
+		webhookBuilder := webhookdeployment.NewWebhookBuilder(agent, isOpenShift, statusManager)
+		// webhookNsBuilder := webhookns.NewNamespaceBuilder(agent)
+		webhookServiceBuilder := webhookservice.NewServiceBuilder(agent)
+		webhookSaBuilder := webhooksa.NewServiceAccountBuilder(agent)
+		webhookClusterRoleBuilder := webhookrbac.NewClusterRoleBuilder(agent)
+		webhookClusterRoleBindingBuilder := webhookrbac.NewClusterRoleBindingBuilder(agent)
+		webhookWebhookPullSecret := webhooksecrets.NewDownloadSecretBuilder(agent)
+		builders = append(
+			builders,
+			webhookBuilder,
+			// webhookNsBuilder,
+			webhookServiceBuilder,
+			webhookSaBuilder,
+			webhookClusterRoleBuilder,
+			webhookClusterRoleBindingBuilder,
+			webhookCertBuilder,
+			webhookWebhookConfigBuilder,
+			webhookWebhookPullSecret,
+		)
+	}
+
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
 		return reconcileFailure(err)
 	}
 
-	log.V(1).Info("successfully applied kubernetes resources for agent")
+	fmt.Println("successfully applied kubernetes resources for agent")
 	return reconcileContinue()
 }

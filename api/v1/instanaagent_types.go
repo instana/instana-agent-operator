@@ -82,6 +82,9 @@ type InstanaAgentSpec struct {
 
 	// +kubebuilder:validation:Optional
 	ServiceMesh ServiceMeshSpec `json:"serviceMesh,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	AutotraceWebhook AutotraceWebhookSpec `json:"autotraceWebhook,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -173,6 +176,15 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Enabled, false)
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Instrumentation.Image, "icr.io/instana/instrumentation:latest")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Instrumentation.ImagePullPolicy, "IfNotPresent")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Replicas, 1)
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.Name, "containers.instana.io/instana/release/agent/instana-autotrace-webhook")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.AutotraceWebhook.Name, "instana-autotrace-webhook")
+
 }
 
 // +kubebuilder:object:root=true

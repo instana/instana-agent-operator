@@ -34,6 +34,7 @@ type AgentStatusManager interface {
 	AddAgentDaemonset(agentDaemonset client.ObjectKey)
 	SetAgentOld(agent *instanav1.InstanaAgent)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
+	SetAutoTraceWebhookDeployment(webhookDeployment client.ObjectKey)
 	SetAgentSecretConfig(agentSecretConfig client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
@@ -44,6 +45,7 @@ type agentStatusManager struct {
 	agentOld            *instanav1.InstanaAgent
 	agentDaemonsets     []client.ObjectKey
 	k8sSensorDeployment client.ObjectKey
+	webhookDeployment   client.ObjectKey
 	agentSecretConfig   client.ObjectKey
 }
 
@@ -67,6 +69,10 @@ func (a *agentStatusManager) SetAgentOld(agent *instanav1.InstanaAgent) {
 
 func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey) {
 	a.k8sSensorDeployment = k8sSensorDeployment
+}
+
+func (a *agentStatusManager) SetAutoTraceWebhookDeployment(webhookDeployment client.ObjectKey) {
+	a.webhookDeployment = webhookDeployment
 }
 
 func (a *agentStatusManager) SetAgentSecretConfig(agentSecretConfig types.NamespacedName) {
@@ -250,6 +256,7 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	return result.OfSuccess(condition)
 }
 
+// TODO: handle webhook
 func (a *agentStatusManager) agentWithUpdatedStatus(
 	ctx context.Context,
 	reconcileErr error,
