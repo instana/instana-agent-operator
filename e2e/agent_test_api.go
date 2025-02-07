@@ -21,6 +21,8 @@ import (
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,7 +77,7 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		}
 
 		// full purge of resources if anything would be left in the cluster
-		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/manager-role clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/manager-rolebinding")
+		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/instana-agent-clusterrole clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/instana-agent-clusterrolebinding")
 		if p.Err() != nil {
 			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
 		}
@@ -317,7 +319,7 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 
 func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		// Wait for controller-manager deployment to ensure that CRD is installed correctly before proceeding.
+		// Wait for instana-agent-controller-manager deployment to ensure that CRD is installed correctly before proceeding.
 		// Technically, it could be categorized as "Assess" method, but the setup process requires to wait in between.
 		// Therefore, keeping the wait logic in this section.
 		client, err := cfg.NewClient()
@@ -363,21 +365,85 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 	}
 }
 
-func WaitForAgentDaemonSetToBecomeReady() e2etypes.StepFunc {
+// optional argument for the custom daemons set name
+func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
+	var daemonSetName string
+	if (len(args)) > 0 && args[0] != "" {
+		daemonSetName = args[0]
+	} else {
+		daemonSetName = AgentDaemonSetName
+	}
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Logf("Waiting for DaemonSet %s is ready", AgentDaemonSetName)
+		t.Logf("Waiting for DaemonSet %s is ready", daemonSetName)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
 		}
 		ds := appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{Name: AgentDaemonSetName, Namespace: cfg.Namespace()},
+			ObjectMeta: metav1.ObjectMeta{Name: daemonSetName, Namespace: cfg.Namespace()},
 		}
 		err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*5))
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("DaemonSet %s is ready", AgentDaemonSetName)
+		t.Logf("DaemonSet %s is ready", daemonSetName)
+		return ctx
+	}
+}
+
+func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Ensuring the old deployment %s is not running", InstanaOperatorOldDeploymentName)
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dep := appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldDeploymentName, Namespace: cfg.Namespace()},
+		}
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("Deployment %s is deleted", InstanaOperatorOldDeploymentName)
+		return ctx
+	}
+}
+
+func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Ensuring the old clusterrole %s is not running", InstanaOperatorOldClusterRoleName)
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		clusterrole := rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldClusterRoleName},
+		}
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrole), wait.WithTimeout(time.Minute*2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("ClusteRole %s is deleted", InstanaOperatorOldClusterRoleName)
+		return ctx
+	}
+}
+
+func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Logf("Ensuring the old clusterrolebinding %s is not running", InstanaOperatorOldClusterRoleBindingName)
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		clusterrolebinding := rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldClusterRoleBindingName},
+		}
+		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding), wait.WithTimeout(time.Minute*2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("ClusteRoleBinding %s is deleted", InstanaOperatorOldClusterRoleBindingName)
 		return ctx
 	}
 }
@@ -400,8 +466,8 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 		connectionSuccessful := false
 		var buf *bytes.Buffer
 		for i := 0; i < 9; i++ {
-			t.Log("Sleeping 10 seconds")
-			time.Sleep(10 * time.Second)
+			t.Log("Sleeping 20 seconds")
+			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
 			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
