@@ -111,7 +111,7 @@ build: gen-mocks setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export DEBUG_MODE=true
-run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
+run: gen-mocks generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
 docker-build: test container-build ## Build docker image with the manager.
