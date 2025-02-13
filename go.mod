@@ -3,7 +3,7 @@ module github.com/instana/instana-agent-operator
 // use full version x.y.z
 // see https://github.com/instana/instana-agent-operator/pull/218
 // and https://github.com/golang/go/issues/62278#issuecomment-1693538776
-go 1.23.2
+go 1.24.0
 
 require (
 	github.com/Masterminds/goutils v1.1.1
