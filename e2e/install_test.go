@@ -37,7 +37,7 @@ func TestInitialInstall(t *testing.T) {
 
 			expectedReplicas := new(int32)
 			*expectedReplicas = 1
-			if agent.Spec.Replicas != expectedReplicas {
+			if *agent.Spec.Replicas != *expectedReplicas {
 				t.Fatal("Unexpected number of replicas", *agent.Spec.Replicas, *expectedReplicas)
 			}
 			return ctx
