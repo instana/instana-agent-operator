@@ -294,6 +294,7 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		r.WithNamespace(cfg.Namespace())
 		agent := &appsv1.Deployment{}
 		err = r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), agent)
+		replicas := agent.Spec.Replicas
 		if err != nil {
 			t.Fatal("Failed to get deployment-manager deployment", err)
 		}
@@ -307,7 +308,7 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 
 		err = r.Patch(ctx, agent, k8s.Patch{
 			PatchType: types.MergePatchType,
-			Data:      []byte(`{"spec":{ "replicas": 2 }}`),
+			Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, *replicas)),
 		})
 		if err != nil {
 			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
