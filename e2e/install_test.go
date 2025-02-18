@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/support/utils"
@@ -22,6 +23,25 @@ func TestInitialInstall(t *testing.T) {
 		Setup(SetupOperatorDevBuild()).
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+		Assess("check for single instance of instana-agent-controller-manager", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			r, err := resources.New(cfg.Client().RESTConfig())
+			if err != nil {
+				t.Fatal("Cleanup: Error initializing client", err)
+			}
+			r.WithNamespace(cfg.Namespace())
+			agent := &appsv1.Deployment{}
+			err = r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), agent)
+			if err != nil {
+				t.Fatal("Cleanup: Error fetching the operator deployment", err)
+			}
+
+			expectedReplicas := new(int32)
+			*expectedReplicas = 1
+			if *agent.Spec.Replicas != *expectedReplicas {
+				t.Fatal("Unexpected number of replicas", *agent.Spec.Replicas, *expectedReplicas)
+			}
+			return ctx
+		}).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
