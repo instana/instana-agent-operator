@@ -1,6 +1,5 @@
 /*
- * (c) Copyright IBM Corp. 2021
- * (c) Copyright Instana Inc. 2021
+ * (c) Copyright IBM Corp. 2021,2025
  */
 
 package v1
@@ -173,6 +172,10 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.Tag, "latest")
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
+
+	optional.ValueOrDefault(&in.Spec.OpenTelemetry.Enabled.Enabled, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.OpenTelemetry.GRPC.Enabled, in.Spec.OpenTelemetry.Enabled.Enabled)
+	optional.ValueOrDefault(&in.Spec.OpenTelemetry.HTTP.Enabled, in.Spec.OpenTelemetry.Enabled.Enabled)
 }
 
 // +kubebuilder:object:root=true

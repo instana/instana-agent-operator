@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024,2025
 */
 
 package secrets
@@ -69,7 +69,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 	}
 	otlp := instanav1.OpenTelemetry{
-		GRPC: &instanav1.Enabled{},
+		GRPC: instanav1.OpenTelemetryPortConfig{},
 	}
 	secretType := metav1.TypeMeta{
 		APIVersion: "v1",

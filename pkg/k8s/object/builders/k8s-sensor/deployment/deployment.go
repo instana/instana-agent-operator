@@ -1,6 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc. 2024
+(c) Copyright IBM Corp. 2024,2025
 */
 
 package deployment
@@ -142,7 +141,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Env:             d.getEnvVars(),
 							VolumeMounts:    mounts,
 							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
-							Ports:           d.PortsBuilder.GetContainerPorts(ports.AgentAPIsPort),
+							Ports:           []corev1.ContainerPort{ports.InstanaAgentAPIPortConfig.AsContainerPort()},
 						},
 					},
 					Volumes:     volumes,
@@ -208,7 +207,7 @@ func NewDeploymentBuilder(
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
-		PortsBuilder:              ports.NewPortsBuilder(agent),
+		PortsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
 		backend:                   backend,
 	}
 }

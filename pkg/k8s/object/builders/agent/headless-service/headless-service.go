@@ -1,3 +1,7 @@
+/*
+(c) Copyright IBM Corp. 2024,2025
+*/
+
 package headless_service
 
 import (
@@ -20,10 +24,18 @@ const (
 
 type headlessServiceBuilder struct {
 	*instanav1.InstanaAgent
-
 	helpers.Helpers
 	transformations.PodSelectorLabelGenerator
 	ports.PortsBuilder
+}
+
+func NewHeadlessServiceBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
+	return &headlessServiceBuilder{
+		InstanaAgent:              agent,
+		Helpers:                   helpers.NewHelpers(agent),
+		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
+		PortsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
+	}
 }
 
 func (h *headlessServiceBuilder) Build() builder.OptionalObject {
@@ -40,12 +52,7 @@ func (h *headlessServiceBuilder) Build() builder.OptionalObject {
 			Spec: corev1.ServiceSpec{
 				ClusterIP: corev1.ClusterIPNone,
 				Selector:  h.GetPodSelectorLabels(),
-				Ports: h.GetServicePorts(
-					ports.AgentAPIsPort,
-					ports.OpenTelemetryLegacyPort,
-					ports.OpenTelemetryGRPCPort,
-					ports.OpenTelemetryHTTPPort,
-				),
+				Ports:     h.GetServicePorts(),
 			},
 		},
 	)
@@ -57,14 +64,4 @@ func (h *headlessServiceBuilder) ComponentName() string {
 
 func (h *headlessServiceBuilder) IsNamespaced() bool {
 	return true
-}
-
-func NewHeadlessServiceBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
-	return &headlessServiceBuilder{
-		InstanaAgent: agent,
-
-		Helpers:                   helpers.NewHelpers(agent),
-		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
-		PortsBuilder:              ports.NewPortsBuilder(agent),
-	}
 }

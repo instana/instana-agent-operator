@@ -54,6 +54,10 @@ const (
 	PodNamespaceEnv
 	K8sServiceDomainEnv
 	EnableAgentSocketEnv
+	InstanaOpenTelemetryGRPCEnabled
+	InstanaOpenTelemetryGRPCPort
+	InstanaOpenTelemetryHTTPEnabled
+	InstanaOpenTelemetryHTTPPort
 )
 
 type EnvBuilder interface {
@@ -160,6 +164,14 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "K8S_SERVICE_DOMAIN", Value: e.helpers.HeadlessServiceName() + "." + e.agent.Namespace + ".svc"}
 	case EnableAgentSocketEnv:
 		return boolToEnvVar("ENABLE_AGENT_SOCKET", e.agent.Spec.Agent.ServiceMesh.Enabled)
+	case InstanaOpenTelemetryGRPCEnabled:
+		return boolToEnvVar("INSTANA_AGENT_OTEL_GRPC", *e.agent.Spec.OpenTelemetry.GRPC.Enabled)
+	case InstanaOpenTelemetryGRPCPort:
+		return int32ToEnvVar("INSTANA_AGENT_OTEL_GRPC_PORT", *e.agent.Spec.OpenTelemetry.GRPC.Port)
+	case InstanaOpenTelemetryHTTPEnabled:
+		return boolToEnvVar("INSTANA_AGENT_OTEL_HTTP", *e.agent.Spec.OpenTelemetry.HTTP.Enabled)
+	case InstanaOpenTelemetryHTTPPort:
+		return int32ToEnvVar("INSTANA_AGENT_OTEL_HTTP_PORT", *e.agent.Spec.OpenTelemetry.HTTP.Port)
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
@@ -277,4 +289,14 @@ func boolToEnvVar(name string, val bool) *corev1.EnvVar {
 		return nil
 	}
 	return &corev1.EnvVar{Name: name, Value: strconv.FormatBool(val)}
+}
+
+// int32ToEnvVar is a utility function to convert int32 to k8s corev1.EnvVar
+func int32ToEnvVar(name string, val int32) *corev1.EnvVar {
+	return intToEnvVar(name, int(val))
+}
+
+// intToEnvVar is a utility function to convert int to k8s corev1.EnvVar
+func intToEnvVar(name string, val int) *corev1.EnvVar {
+	return &corev1.EnvVar{Name: name, Value: strconv.Itoa(val)}
 }

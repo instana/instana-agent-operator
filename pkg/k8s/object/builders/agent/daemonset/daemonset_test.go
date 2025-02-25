@@ -1,18 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+(c) Copyright IBM Corp. 2024,2025
 */
 
 package daemonset
@@ -31,7 +18,6 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 )
@@ -176,34 +162,6 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	}
 
 	actual := db.getEnvVars()
-
-	assertions.Equal(expected, actual)
-}
-
-func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
-	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
-
-	expected := []corev1.ContainerPort{
-		{
-			Name:          "something",
-			ContainerPort: 12345,
-		},
-	}
-
-	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
-	portsBuilder.EXPECT().GetContainerPorts(
-		ports.AgentAPIsPort,
-		ports.OpenTelemetryLegacyPort,
-		ports.OpenTelemetryGRPCPort,
-		ports.OpenTelemetryHTTPPort,
-	).Return(expected)
-
-	db := &daemonSetBuilder{
-		PortsBuilder: portsBuilder,
-	}
-
-	actual := db.getContainerPorts()
 
 	assertions.Equal(expected, actual)
 }
