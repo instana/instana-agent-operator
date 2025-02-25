@@ -12,7 +12,7 @@ import (
 )
 
 func TestInstanaAgent_Default(t *testing.T) {
-	withOverrides := InstanaAgentSpec{
+	fullyCustomizedInstanaAgentSpec := InstanaAgentSpec{
 		Agent: BaseAgentSpec{
 			EndpointHost: "abc",
 			EndpointPort: "123",
@@ -51,6 +51,11 @@ func TestInstanaAgent_Default(t *testing.T) {
 				Replicas: 2,
 			},
 		},
+		OpenTelemetry: OpenTelemetry{ // Don't interfere if user explicitly has set these values
+			Enabled: Enabled{Enabled: pointer.To(false)},
+			GRPC:    OpenTelemetryPortConfig{Enabled: pointer.To(false)},
+			HTTP:    OpenTelemetryPortConfig{Enabled: pointer.To(false)},
+		},
 	}
 
 	tests := []struct {
@@ -59,7 +64,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 		expected *InstanaAgentSpec
 	}{
 		{
-			name: "no_user_overrides",
+			name: "Expect InstanaAgent.Default() to set defaults appropriately when values havent been set",
 			spec: &InstanaAgentSpec{},
 			expected: &InstanaAgentSpec{
 				Agent: BaseAgentSpec{
@@ -100,12 +105,17 @@ func TestInstanaAgent_Default(t *testing.T) {
 						Replicas: 3,
 					},
 				},
+				OpenTelemetry: OpenTelemetry{ // Expect OpenTelemetry to be enabled when no value has been set
+					Enabled: Enabled{Enabled: pointer.To(true)},
+					GRPC:    OpenTelemetryPortConfig{Enabled: pointer.To(true)},
+					HTTP:    OpenTelemetryPortConfig{Enabled: pointer.To(true)},
+				},
 			},
 		},
 		{
-			name:     "all_overrides",
-			spec:     withOverrides.DeepCopy(),
-			expected: withOverrides.DeepCopy(),
+			name:     "InstanaAgent.Default() wont override values when they've been specified",
+			spec:     fullyCustomizedInstanaAgentSpec.DeepCopy(),
+			expected: fullyCustomizedInstanaAgentSpec.DeepCopy(),
 		},
 	}
 	for _, tt := range tests {
@@ -113,10 +123,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 			tt.name, func(t *testing.T) {
 				assertions := require.New(t)
 
-				agent := &InstanaAgent{
-					Spec: *tt.spec,
-				}
-
+				agent := &InstanaAgent{Spec: *tt.spec}
 				agent.Default()
 
 				assertions.Equal(&InstanaAgent{Spec: *tt.expected}, agent)

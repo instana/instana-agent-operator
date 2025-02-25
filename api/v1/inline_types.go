@@ -1,7 +1,7 @@
 /*
- * (c) Copyright IBM Corp. 2021
- * (c) Copyright Instana Inc. 2021
- */
+ (c) Copyright IBM Corp. 2021,2025
+*/
+
 package v1
 
 import (
@@ -382,44 +382,26 @@ type KubernetesDeploymentSpec struct {
 }
 
 type OpenTelemetry struct {
-	// Deprecated setting for backwards compatibility
+	// Deprecated setting for backwards compatibility. Specify whether Open telemetry is enabled (default is true).
+	// +kubebuilder:validation:Optional
 	Enabled `json:",inline" yaml:",inline"`
 
+	// Specify whether GRPC is enabled (default is true).
 	// +kubebuilder:validation:Optional
-	GRPC *Enabled `json:"grpc,omitempty" yaml:"grpc,omitempty"`
+	GRPC OpenTelemetryPortConfig `json:"grpc,omitempty" yaml:"grpc,omitempty"`
 
+	// Specify whether HTTP is enabled (default is true).
 	// +kubebuilder:validation:Optional
-	HTTP *Enabled `json:"http,omitempty" yaml:"http,omitempty"`
+	HTTP OpenTelemetryPortConfig `json:"http,omitempty" yaml:"http,omitempty"`
 }
 
-func (otlp OpenTelemetry) GrpcIsEnabled() bool {
-	// explicit opt-out or opt-in via new setting
-	if otlp.GRPC != nil && otlp.GRPC.Enabled != nil {
-		return *otlp.GRPC.Enabled
-	}
-	// explicit opt-out via legacy setting
-	if otlp.Enabled.Enabled != nil && !*otlp.Enabled.Enabled {
-		return false
-	}
-	// enabled by default
-	return true
-}
-
-func (otlp OpenTelemetry) HttpIsEnabled() bool {
-	// explicit opt-out or opt-in via new setting
-	if otlp.HTTP != nil && otlp.HTTP.Enabled != nil {
-		return *otlp.HTTP.Enabled
-	}
-	// explicit opt-out via legacy setting
-	if otlp.Enabled.Enabled != nil && !*otlp.Enabled.Enabled {
-		return false
-	}
-	// enabled by default
-	return true
-}
-
-func (otlp OpenTelemetry) IsEnabled() bool {
-	return otlp.GrpcIsEnabled() || otlp.HttpIsEnabled()
+type OpenTelemetryPortConfig struct {
+	// Explicitly enable
+	// +kubebuilder:validation:Optional
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// Specify the port
+	// +kubebuilder:validation:Optional
+	Port *int32 `json:"port,omitempty" yaml:"port,omitempty"`
 }
 
 type Zone struct {
