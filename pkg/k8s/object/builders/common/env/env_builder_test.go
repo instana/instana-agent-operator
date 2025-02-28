@@ -133,7 +133,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 				{Name: "INSTANA_AGENT_HTTP_LISTEN", Value: "INSTANA_AGENT_HTTP_LISTEN"},
 				{Name: "INSTANA_KUBERNETES_REDACT_SECRETS", Value: "INSTANA_KUBERNETES_REDACT_SECRETS"},
 				{Name: "AGENT_ZONE", Value: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
-				{Name: "HTTPS_PROXY", Value: "http://INSTANA_AGENT_PROXY_USER:INSTANA_AGENT_PROXY_PASSWORD@INSTANA_AGENT_PROXY_HOST:80"},
+				{Name: "HTTPS_PROXY", Value: "INSTANA_AGENT_PROXY_PROTOCOL://INSTANA_AGENT_PROXY_USER:INSTANA_AGENT_PROXY_PASSWORD@INSTANA_AGENT_PROXY_HOST:80"},
 				{Name: "BACKEND_URL", Value: "https://$(BACKEND)"},
 				{Name: "NO_PROXY", Value: "kubernetes.default.svc"},
 				{Name: "CONFIG_PATH", Value: "/opt/instana/agent/etc/instana-config-yml"},
