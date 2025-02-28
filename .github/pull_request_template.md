@@ -27,8 +27,8 @@ For any larger changes this should include design choices.
 <!-- Please tick of these checklist items if applicable (or remove if not applicable). -->
 
 - [ ] Backwards compatible?
-- [ ] [Release notes](https://github.ibm.com/instana/docs/pull/13181/files) in public docs updated?
-- [ ] e2e test coverage added or updated?
+- [ ] [Release notes](https://github.ibm.com/instana/docs/blob/main/src/pages/releases/agent_operator_notes/index.md) in public docs updated?
+- [ ] unit/e2e test coverage added or updated?
 
 
 Note: Remember to run a [helm chart](https://github.ibm.com/instana/instana-agent-charts) release after the the operator release to make the changes available thru helm.
