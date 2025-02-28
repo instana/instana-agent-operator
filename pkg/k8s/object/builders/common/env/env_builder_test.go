@@ -181,6 +181,45 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 			expected: []corev1.EnvVar{},
 		},
+		{
+			name: "Should allow http proxy without credentials, but different port",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						ProxyHost: "INSTANA_AGENT_PROXY_HOST",
+						ProxyPort: "8080",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				HTTPSProxyEnv,
+			},
+			expected: []corev1.EnvVar{
+				{Name: "HTTPS_PROXY", Value: "http://INSTANA_AGENT_PROXY_HOST:8080"},
+			},
+		},
+		{
+			name: "Should allow http proxy with credentials, and different protocol",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						ProxyHost:     "INSTANA_AGENT_PROXY_HOST",
+						ProxyPort:     "443",
+						ProxyUser:     "testuser",
+						ProxyPassword: "testpassword",
+						ProxyProtocol: "https",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				HTTPSProxyEnv,
+			},
+			expected: []corev1.EnvVar{
+				{Name: "HTTPS_PROXY", Value: "https://testuser:testpassword@INSTANA_AGENT_PROXY_HOST:443"},
+			},
+		},
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
