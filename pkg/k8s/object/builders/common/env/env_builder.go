@@ -207,10 +207,23 @@ func (e *envBuilder) httpsProxyEnv() *corev1.EnvVar {
 		return nil
 	}
 
+	if e.agent.Spec.Agent.ProxyUser == "" || e.agent.Spec.Agent.ProxyPassword == "" {
+		return &corev1.EnvVar{
+			Name: "HTTPS_PROXY",
+			Value: fmt.Sprintf(
+				"%s://%s:%s",
+				optional.Of(e.agent.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+				e.agent.Spec.Agent.ProxyHost,
+				optional.Of(e.agent.Spec.Agent.ProxyPort).GetOrDefault("80"),
+			),
+		}
+	}
+
 	return &corev1.EnvVar{
 		Name: "HTTPS_PROXY",
 		Value: fmt.Sprintf(
-			"http://%s%s:%s",
+			"%s://%s%s:%s",
+			optional.Of(e.agent.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
 			e.agent.Spec.Agent.ProxyUser+":"+e.agent.Spec.Agent.ProxyPassword+"@",
 			e.agent.Spec.Agent.ProxyHost,
 			optional.Of(e.agent.Spec.Agent.ProxyPort).GetOrDefault("80"),

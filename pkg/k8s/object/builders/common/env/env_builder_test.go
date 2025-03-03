@@ -133,7 +133,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 				{Name: "INSTANA_AGENT_HTTP_LISTEN", Value: "INSTANA_AGENT_HTTP_LISTEN"},
 				{Name: "INSTANA_KUBERNETES_REDACT_SECRETS", Value: "INSTANA_KUBERNETES_REDACT_SECRETS"},
 				{Name: "AGENT_ZONE", Value: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
-				{Name: "HTTPS_PROXY", Value: "http://INSTANA_AGENT_PROXY_USER:INSTANA_AGENT_PROXY_PASSWORD@INSTANA_AGENT_PROXY_HOST:80"},
+				{Name: "HTTPS_PROXY", Value: "INSTANA_AGENT_PROXY_PROTOCOL://INSTANA_AGENT_PROXY_USER:INSTANA_AGENT_PROXY_PASSWORD@INSTANA_AGENT_PROXY_HOST:80"},
 				{Name: "BACKEND_URL", Value: "https://$(BACKEND)"},
 				{Name: "NO_PROXY", Value: "kubernetes.default.svc"},
 				{Name: "CONFIG_PATH", Value: "/opt/instana/agent/etc/instana-config-yml"},
@@ -180,6 +180,45 @@ func TestEnvBuilderBuild(t *testing.T) {
 				ProxyUseDNSEnv,
 			},
 			expected: []corev1.EnvVar{},
+		},
+		{
+			name: "Should allow http proxy without credentials, but different port",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						ProxyHost: "INSTANA_AGENT_PROXY_HOST",
+						ProxyPort: "8080",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				HTTPSProxyEnv,
+			},
+			expected: []corev1.EnvVar{
+				{Name: "HTTPS_PROXY", Value: "http://INSTANA_AGENT_PROXY_HOST:8080"},
+			},
+		},
+		{
+			name: "Should allow http proxy with credentials, and different protocol",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						ProxyHost:     "INSTANA_AGENT_PROXY_HOST",
+						ProxyPort:     "443",
+						ProxyUser:     "testuser",
+						ProxyPassword: "testpassword",
+						ProxyProtocol: "https",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				HTTPSProxyEnv,
+			},
+			expected: []corev1.EnvVar{
+				{Name: "HTTPS_PROXY", Value: "https://testuser:testpassword@INSTANA_AGENT_PROXY_HOST:443"},
+			},
 		},
 	} {
 		t.Run(
