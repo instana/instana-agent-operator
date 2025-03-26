@@ -79,6 +79,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 						"nodes",
 						"nodes/metrics",
 						"nodes/stats",
+						"nodes/proxy",
 						"pods",
 						"pods/log",
 						"replicationcontrollers",

@@ -75,6 +75,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 						"nodes",
 						"nodes/metrics",
 						"nodes/stats",
+						"nodes/proxy",
 						"pods",
 						"pods/log",
 						"replicationcontrollers",

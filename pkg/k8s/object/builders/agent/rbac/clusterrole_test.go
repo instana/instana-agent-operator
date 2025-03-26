@@ -75,6 +75,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 						"nodes",
 						"nodes/stats",
 						"nodes/metrics",
+						"nodes/proxy",
 						"pods",
 					},
 					Verbs: constants.ReaderVerbs(),
