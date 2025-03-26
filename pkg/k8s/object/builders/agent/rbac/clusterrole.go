@@ -72,6 +72,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 						"nodes",
 						"nodes/stats",
 						"nodes/metrics",
+						"nodes/proxy",
 						"pods",
 					},
 					Verbs: constants.ReaderVerbs(),
