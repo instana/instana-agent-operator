@@ -117,6 +117,10 @@ spec:
       # agent.serviceMesh.enabled sets the Instana agent's communication direction with JVMs.
       # To allow communication to be directed to the agent, set this variable to true.
       enabled: true
+      # Namespace where istio is installed. Defaults to istio-system. This may have to be changed for OpenShift ServiceMesh
+      namespace: istio-system
+      # ConfigMap for mesh. Defaults to istio. This may have to be changed for OpenShift ServiceMesh
+      configmap: istio
 
     # agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
     #    host:

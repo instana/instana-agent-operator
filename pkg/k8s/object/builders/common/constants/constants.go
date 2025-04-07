@@ -39,3 +39,7 @@ const (
 func ReaderVerbs() []string {
 	return []string{"get", "list", "watch"}
 }
+
+const (
+	AgentPort = 42699
+)
