@@ -91,7 +91,9 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 			},
 		},
 	}
-	return append(backendEnvVars, envVars...)
+	envVars = append(backendEnvVars, envVars...)
+	d.helpers.SortEnvVarsByName(envVars)
+	return envVars
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
