@@ -174,9 +174,9 @@ resources:
     type: registry-image
     icon: cube
     source: &e2e-test-base-image
-      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
       tag: ((branch))
 
   - name: metadata
@@ -213,10 +213,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: ((branch))
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: pipeline-source
           run:
@@ -254,10 +254,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: ((branch))
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: pipeline-source
             - name: golangci-lint-release
@@ -406,10 +406,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: ((branch))
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: pipeline-source
           outputs:
@@ -465,10 +465,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: ((branch))
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: pipeline-source
           outputs:
@@ -599,10 +599,10 @@ jobs:
                   image_resource: &e2e-test-image-resource
                     type: registry-image
                     source:
-                      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                       tag: ((branch))
-                      username: _json_key
-                      password: ((project-berlin-tests-gcp-instana-qa))
+                      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   params:
                     GIT_COMMIT: ((.:git-commit))
                     CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
