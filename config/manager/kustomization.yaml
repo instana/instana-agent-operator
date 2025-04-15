@@ -12,5 +12,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: instana/instana-agent-operator
-  newName: icr.io/instana/instana-agent-operator
-  newTag: snapshot
+  newName: delivery.instana.io/dev-sandbox-docker-all/konrad/instana-agent-operator
+  newTag: latest

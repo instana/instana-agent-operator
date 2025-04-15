@@ -78,6 +78,7 @@ rules:
   - namespaces
   - nodes
   - nodes/metrics
+  - nodes/proxy
   - nodes/stats
   - persistentvolumeclaims
   - persistentvolumes

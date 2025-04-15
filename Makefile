@@ -68,6 +68,15 @@ else
     CONTAINER_CMD = podman
 endif
 
+NAMESPACE ?= instana-agent
+
+INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
+	"crd/agents.instana.io" \
+	"clusterrole/leader-election-role" \
+	"clusterrole/instana-agent-clusterrole" \
+	"clusterrolebinding/leader-election-rolebinding" \
+	"clusterrolebinding/instana-agent-clusterrolebinding"
+
 all: build
 
 
@@ -102,7 +111,7 @@ test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore 
 	 KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 .PHONY: e2e
-e2e:
+e2e: ## Run end-to-end tests
 	go test -timeout=20m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
@@ -129,6 +138,30 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	kubectl delete -k config/crd
+
+purge: ## Full purge of the agent in the cluster
+	@echo "=== Removing finalizers from agent CR, if present ==="
+	@echo "Checking if agent CR is present in namespace $(NAMESPACE)..."
+	@if kubectl get agents.instana.io instana-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Found, removing finalizers..."; \
+		kubectl patch agents.instana.io instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
+	else \
+		echo "CR not present"; \
+	fi
+	@echo "=== Cleaning up cluster wide resources, if present ==="
+	@for resource in $(INSTANA_AGENT_CLUSTER_WIDE_RESOURCES); do \
+		resource_type=$$(echo $$resource | cut -d'/' -f1); \
+		resource_name=$$(echo $$resource | cut -d'/' -f2); \
+		if kubectl get $$resource_type $$resource_name > /dev/null 2>&1; then \
+			echo "Deleting $$resource..."; \
+			kubectl delete $$resource_type $$resource_name; \
+		else \
+			echo "Resource $$resource does not exist, skipping..."; \
+		fi; \
+	done
+	@echo "Cleanup complete!"
+	@echo "=== Removing instana-agent namespace, if present ==="
+	kubectl delete ns $(NAMESPACE) --wait || true
 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
@@ -232,6 +265,42 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+.PHONY: namespace
+namespace: ## Generate namespace instana-agent on OCP for manual testing
+	oc new-project instana-agent
+	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
+
+.PHONY: install-cr
+install-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
+	kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml
+
+.PHONY: create-pull-secret
+create-pull-secret: ## Creates image pull secret for delivery.instana.io from your local docker config
+	@echo "Filtering Docker config for delivery.instana.io settings, ensure to login locally first..."
+	@mkdir -p .tmp
+	@jq '{auths: {"delivery.instana.io": .auths["delivery.instana.io"]}}' ${HOME}/.docker/config.json > .tmp/filtered-docker-config.json
+	@echo "Checking if secret delivery-instana-io-pull-secret exists in namespace $(NAMESPACE)..."
+	@if kubectl get secret delivery-instana-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Updating existing secret delivery-instana-io-pull-secret..."; \
+		kubectl delete secret delivery-instana-io-pull-secret -n $(NAMESPACE); \
+		kubectl create secret generic delivery-instana-io-pull-secret \
+			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+			--type=kubernetes.io/dockerconfigjson \
+			-n $(NAMESPACE); \
+	else \
+		echo "Creating new secret delivery-instana-io-pull-secret..."; \
+		kubectl create secret generic delivery-instana-io-pull-secret \
+			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+			--type=kubernetes.io/dockerconfigjson \
+			-n $(NAMESPACE); \
+	fi
+	@echo "Patching serviceaccount..."
+	@kubectl patch serviceaccount instana-agent-operator \
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n instana-agent
+	@rm -rf .tmp
+	@echo "Restarting operator deployment..."
+	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
 
 ##@ OLM
 

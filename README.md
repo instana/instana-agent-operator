@@ -121,16 +121,18 @@ Kubernetes cluster. Therefore, follow the below steps:
 
 1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
-3. Build the Operator image: `make docker-build`
+3. Overwrite the default image name with a dev build `export IMG=delivery.instana.io/dev-sandbox-docker-all/${USER}/instana-agent-operator:latest` and build the Operator image: `make docker-build`
 4. For deploying on Minikube, there's a convenient target `make deploy-minikube`. For any other environment you would
    need to first push the Docker image to a valid repository using `make docker-push`, then do the deployment
-   using `make deploy` to deploy the Operator to the cluster configured for `kubectl`.
-5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml`
+   using `make deploy` to deploy the Operator to the cluster configured for `kubectl`. Note: For non-public registries you might need to create a pull secret first, see `make create-pull-secret` for Instana's Artifactory usage.
+5. Deploy the custom resource earlier created using `kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml` or via `make create-cr`
 
 Now you should have a successful running Operator.
 To remove the Operator again, run:
 * `kubectl delete -f config/samples/instana_v1_instanaagent_demo.yaml`
 * `make undeploy`.
+
+If you want to wipe all cluster-wide resources or a broken installation, use `make purge`.
 
 ### Running tests
 
