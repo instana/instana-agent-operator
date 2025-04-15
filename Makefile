@@ -267,11 +267,11 @@ endef
 
 .PHONY: namespace
 namespace: ## Generate namespace instana-agent on OCP for manual testing
-	oc new-project instana-agent
+	oc new-project instana-agent || true
 	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
 
-.PHONY: install-cr
-install-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
+.PHONY: create-cr
+create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
 	kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml
 
 .PHONY: create-pull-secret
@@ -301,6 +301,9 @@ create-pull-secret: ## Creates image pull secret for delivery.instana.io from yo
 	@rm -rf .tmp
 	@echo "Restarting operator deployment..."
 	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
+
+.PHONY: dev-run-ocp
+dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
 
 ##@ OLM
 
