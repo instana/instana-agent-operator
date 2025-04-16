@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: instana-agent-image-prepuller
+spec:
+  selector:
+    matchLabels:
+      name: instana-agent-image-prepuller
+  template:
+    metadata:
+      labels:
+        name: instana-agent-image-prepuller
+    spec:
+      imagePullSecrets:
+      - name: containers-instana-io-pull-secret
+      containers:
+      - name: wait-container
+        image: icr.io/instana/instana-agent-operator:latest
+        command: ["/bin/sh", "-c", "echo 'All images pre-pulled successfully'; sleep 600"]
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      initContainers:
+      - name: pull-operator
+        image: icr.io/instana/instana-agent-operator:latest
+        command: ["/bin/sh", "-c", "echo 'Pulled operator image'"]
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      - name: pull-dynamic-agent
+        image: icr.io/instana/agent:latest
+        command: ["/bin/sh", "-c", "echo 'Pulled dynamic agent image'"]
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      - name: pull-k8sensor
+        image: icr.io/instana/k8sensor:latest
+        command: ["/ko-app/k8sensor", "--help"]
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      - name: pull-static-agent
+        image: containers.instana.io/instana/release/agent/static:latest
+        command: ["/bin/sh", "-c", "echo 'Pulled static agent image'"]
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
