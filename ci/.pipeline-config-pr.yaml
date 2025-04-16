@@ -1,0 +1,157 @@
+version: '2'
+tasks:
+  pr-code-checks:
+    displayName: "Build amd64 image"
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: build-image
+        include:
+            - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+                trap env EXIT
+                env
+                set -x
+            fi
+            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64 
+      - name: detect-secrets
+        include:
+            - docker-socket
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
+  pr-code-checks 2:
+    displayName: "Build arm64 image"
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: build-image
+        include:
+            - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+                trap env EXIT
+                env
+                set -x
+            fi
+            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
+      - name: detect-secrets
+        include:
+            - docker-socket
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false  
+  pr-code-checks 3:
+    displayName: "Build s390x image"
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: build-image
+        include:
+            - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+                trap env EXIT
+                env
+                set -x
+            fi
+            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
+      - name: detect-secrets
+        include:
+            - docker-socket
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
+  pr-code-checks 4:
+    displayName: "Build ppc64le image"
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: build-image
+        include:
+            - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+                trap env EXIT
+                env
+                set -x
+            fi
+            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
+      - name: detect-secrets
+        include:
+            - docker-socket
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
+
+  pr-code-checks 5:
+    displayName: e2e-ocp-latest
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+            trap env EXIT
+            env
+            set -x
+          fi
+          if [[ "$(get_env run-ocp-fyre-latest)" == "false" ]]; then
+              echo "skipping tests due to run-ocp-fyre-latest being false"
+              exit 0
+          fi
+          SKIP_INSTALL_GCLOUD=true
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/setup.sh
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/build.sh
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/e2e.sh ocp-fyre-latest pr-code-checks 5
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+
+
+  pr-code-checks-6:
+    from: pr-code-checks
+    displayName: e2e-gke-latest
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+            trap env EXIT
+            env
+            set -x
+          fi
+          if [[ "$(get_env run-gke-latest)" == "false" ]]; then
+              echo "skipping tests due to run-gke-latest being false"
+              exit 0
+          fi
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/setup.sh
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/build.sh
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/e2e.sh gke-latest pr-code-checks-6
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
