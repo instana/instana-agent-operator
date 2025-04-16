@@ -31,6 +31,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
@@ -177,8 +178,10 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	).
 		Return(expected)
 
+	agent := &instanav1.InstanaAgent{ObjectMeta: metav1.ObjectMeta{Name: "some-agent"}}
 	db := &daemonSetBuilder{
 		EnvBuilder: envBuilder,
+		Helpers:    helpers.NewHelpers(agent),
 	}
 
 	actual := db.getEnvVars()
