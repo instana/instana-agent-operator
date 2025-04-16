@@ -456,9 +456,6 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// there is a reconcile restart happening with latest -> dev upgrade
-		// due to the env var ordering. The sleep allows for new pods to start up before fetching the pod list
-		t.Log("Sleep for 20 seconds to allow for old pods to be terminated")
 		time.Sleep(20 * time.Second)
 		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
 		if err != nil {
