@@ -926,6 +926,8 @@ jobs:
           inputs: [ pipeline-source ]
           params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
       - get: preflight
+        version:
+          tag: 1.12.1
         params:
           globs:
             - preflight-linux-amd64
