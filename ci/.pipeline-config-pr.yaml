@@ -1,4 +1,5 @@
-version: '2'
+version: "2"
+
 tasks:
   pr-code-checks:
     displayName: "Build amd64 image"
@@ -8,23 +9,22 @@ tasks:
     steps:
       - name: build-image
         include:
-            - docker-socket
+          - docker-socket
         script: |
-            #!/usr/bin/env bash
-            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-                trap env EXIT
-                env
-                set -x
-            fi
-            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64 
+          #!/usr/bin/env bash
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
+          fi
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64
       - name: detect-secrets
         include:
-            - docker-socket
+          - docker-socket
       - name: compliance-checks
         when: false
-      - name: collect-evidence
-        when: false
-  pr-code-checks 2:
+
+  pr-code-checks-2:
     displayName: "Build arm64 image"
     onError: stopAndFail
     include:
@@ -32,23 +32,22 @@ tasks:
     steps:
       - name: build-image
         include:
-            - docker-socket
+          - docker-socket
         script: |
-            #!/usr/bin/env bash
-            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-                trap env EXIT
-                env
-                set -x
-            fi
-            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
+          #!/usr/bin/env bash
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
+          fi
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
       - name: detect-secrets
         include:
-            - docker-socket
+          - docker-socket
       - name: compliance-checks
         when: false
-      - name: collect-evidence
-        when: false  
-  pr-code-checks 3:
+
+  pr-code-checks-3:
     displayName: "Build s390x image"
     onError: stopAndFail
     include:
@@ -56,23 +55,21 @@ tasks:
     steps:
       - name: build-image
         include:
-            - docker-socket
+          - docker-socket
         script: |
-            #!/usr/bin/env bash
-            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-                trap env EXIT
-                env
-                set -x
-            fi
-            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
+          #!/usr/bin/env bash
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
+          fi
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
       - name: detect-secrets
         include:
-            - docker-socket
+          - docker-socket
       - name: compliance-checks
         when: false
-      - name: collect-evidence
-        when: false
-  pr-code-checks 4:
+  pr-code-checks-4:
     displayName: "Build ppc64le image"
     onError: stopAndFail
     include:
@@ -80,24 +77,22 @@ tasks:
     steps:
       - name: build-image
         include:
-            - docker-socket
+          - docker-socket
         script: |
-            #!/usr/bin/env bash
-            if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-                trap env EXIT
-                env
-                set -x
-            fi
-            source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
+          #!/usr/bin/env bash
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
+          fi
+          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
       - name: detect-secrets
         include:
-            - docker-socket
+          - docker-socket
       - name: compliance-checks
         when: false
-      - name: collect-evidence
-        when: false
 
-  pr-code-checks 5:
+  pr-code-checks-5:
     displayName: e2e-ocp-latest
     include:
       - dind
@@ -125,7 +120,6 @@ tasks:
       - name: compliance-checks
         include:
           - docker-socket
-
 
   pr-code-checks-6:
     from: pr-code-checks
