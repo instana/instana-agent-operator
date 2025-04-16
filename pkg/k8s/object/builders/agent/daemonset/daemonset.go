@@ -74,7 +74,7 @@ func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 }
 
 func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
-	return d.EnvBuilder.Build(
+	envVars := d.EnvBuilder.Build(
 		env.AgentModeEnv,
 		env.ZoneNameEnv,
 		env.ClusterNameEnv,
@@ -106,6 +106,8 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
 	)
+	d.Helpers.SortEnvVarsByName(envVars)
+	return envVars
 }
 
 func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
