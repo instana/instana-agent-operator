@@ -329,11 +329,11 @@ pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow netwo
 	fi
 	@kubectl apply -f ci/scripts/instana-agent-image-prepuller.yaml -n $(NAMESPACE_PREPULLER)
 	@echo "Waiting for the instana-agent-prepuller daemonset"
-	@kubectl rollout status ds/instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER) --timeout=900s
+	@kubectl rollout status ds/instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER) --timeout=1800s
 	@echo "Cleaning up instana-agent-prepuller namespace"
 	kubectl delete ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER)
-	kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0
-	kubectl delete ns -n $(NAMESPACE_PREPULLER)
+	kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0 || true
+	kubectl delete ns $(NAMESPACE_PREPULLER)
 
 .PHONY: dev-run-ocp
 dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
