@@ -19,7 +19,8 @@ package controllers
 
 import (
 	"context"
-	"strconv"
+	"crypto/sha256"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -44,21 +45,29 @@ func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils 
 	return isOpenShiftRes, reconcileContinue()
 }
 
+func calculateBackendSuffix(suffixInput string) string {
+	h := sha256.New()
+	h.Write([]byte(suffixInput))
+	// keep 10 characters of the sha sum and the dash
+	// this should sufficiently be unique (like git short commits) and is working fine within naming length constraints in Kubernetes
+	return fmt.Sprintf("-%x", h.Sum(nil))[:11]
+}
+
 func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAgent) []backends.K8SensorBackend {
 	k8SensorBackends := make([]backends.K8SensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
 	k8SensorBackends = append(
 		k8SensorBackends,
-		*backends.NewK8SensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
+		*backends.NewK8SensorBackend(calculateBackendSuffix(agent.Spec.Agent.EndpointHost+":"+agent.Spec.Agent.EndpointPort), agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
 	)
 
 	if len(agent.Spec.Agent.AdditionalBackends) == 0 {
 		return k8SensorBackends
 	}
 
-	for i, additionalBackend := range agent.Spec.Agent.AdditionalBackends {
+	for _, additionalBackend := range agent.Spec.Agent.AdditionalBackends {
 		k8SensorBackends = append(
 			k8SensorBackends,
-			*backends.NewK8SensorBackend("-"+strconv.Itoa(i+1), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
+			*backends.NewK8SensorBackend(calculateBackendSuffix(additionalBackend.EndpointHost+":"+additionalBackend.EndpointPort), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
 		)
 	}
 	return k8SensorBackends
