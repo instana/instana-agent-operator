@@ -624,6 +624,7 @@ jobs:
                       - |
                         cd pipeline-source
                         bash ./ci/scripts/cluster-authentication.sh
+                        make pre-pull-images
                         make e2e
                 on_success:
                   put: gh-status
@@ -737,6 +738,7 @@ jobs:
                       - |
                         cd pipeline-source
                         bash ./ci/scripts/cluster-authentication.sh
+                        make pre-pull-images
                         make e2e
                 on_success:
                   put: gh-status

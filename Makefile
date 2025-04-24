@@ -69,6 +69,7 @@ else
 endif
 
 NAMESPACE ?= instana-agent
+NAMESPACE_PREPULLER ?= instana-agent-image-prepuller
 
 INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"crd/agents.instana.io" \
@@ -300,6 +301,39 @@ create-pull-secret: ## Creates image pull secret for delivery.instana.io from yo
 	@rm -rf .tmp
 	@echo "Restarting operator deployment..."
 	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
+
+.PHONY: pre-pull-images
+pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow network situations to run tests reliably)
+	@if [ "$(INSTANA_API_KEY)" == "" ]; then \
+		echo "env variable INSTANA_API_KEY is undefined but should contain the agent download key"; \
+		exit 1; \
+	fi
+	kubectl apply -f ci/scripts/instana-agent-image-prepuller-ns.yaml || true
+	@echo "Creating Docker registry secret..."
+	@echo "Checking if secret containers-instana-io-pull-secret exists in namespace $(NAMESPACE_PREPULLER)..."
+	@if kubectl get secret containers-instana-io-pull-secret -n $(NAMESPACE_PREPULLER) >/dev/null 2>&1; then \
+		echo "Updating existing secret containers-instana-io-pull-secret..."; \
+		kubectl delete secret containers-instana-io-pull-secret -n $(NAMESPACE_PREPULLER); \
+	fi
+	@kubectl create secret docker-registry containers-instana-io-pull-secret \
+		--docker-server=containers.instana.io \
+		--docker-username="_" \
+		--docker-password=$${INSTANA_API_KEY} \
+		-n $(NAMESPACE_PREPULLER)
+	@echo "Start instana-agent-image-prepuller daemonset..."
+	@echo "Checking if daemonset instana-agent-image-prepuller exists in namespace $(NAMESPACE_PREPULLER)..."
+	@if kubectl get ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER) >/dev/null 2>&1; then \
+		echo "Updating existing secret containers-instana-io-pull-secret..."; \
+		kubectl delete ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER); \
+		kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0; \
+	fi
+	@kubectl apply -f ci/scripts/instana-agent-image-prepuller.yaml -n $(NAMESPACE_PREPULLER)
+	@echo "Waiting for the instana-agent-prepuller daemonset"
+	@kubectl rollout status ds/instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER) --timeout=1800s
+	@echo "Cleaning up instana-agent-prepuller namespace"
+	kubectl delete ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER)
+	kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0 || true
+	kubectl delete ns $(NAMESPACE_PREPULLER)
 
 .PHONY: dev-run-ocp
 dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge

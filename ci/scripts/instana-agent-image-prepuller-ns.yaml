@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: instana-agent-image-prepuller
+  annotations:
+    openshift.io/sa.scc.uid-range: 1000/1000
+    openshift.io/sa.scc.supplemental-groups: 1000/1000
