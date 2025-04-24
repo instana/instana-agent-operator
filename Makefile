@@ -308,7 +308,7 @@ pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow netwo
 		echo "env variable INSTANA_API_KEY is undefined but should contain the agent download key"; \
 		exit 1; \
 	fi
-	kubectl create namespace $(NAMESPACE_PREPULLER) || true
+	kubectl apply -f ci/scripts/instana-agent-image-prepuller-ns.yaml || true
 	@echo "Creating Docker registry secret..."
 	@echo "Checking if secret containers-instana-io-pull-secret exists in namespace $(NAMESPACE_PREPULLER)..."
 	@if kubectl get secret containers-instana-io-pull-secret -n $(NAMESPACE_PREPULLER) >/dev/null 2>&1; then \
