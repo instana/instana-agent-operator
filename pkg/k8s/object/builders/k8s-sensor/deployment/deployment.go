@@ -40,7 +40,8 @@ type deploymentBuilder struct {
 	env.EnvBuilder
 	volume.VolumeBuilder
 	ports.PortsBuilder
-	backend backends.K8SensorBackend
+	backend    backends.K8SensorBackend
+	keysSecret *corev1.Secret
 }
 
 func (d *deploymentBuilder) IsNamespaced() bool {
@@ -118,7 +119,16 @@ func (d *deploymentBuilder) getPodAnnotationsWithBackendChecksum() map[string]st
 	}
 
 	h := sha256.New()
-	h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort + d.backend.DownloadKey + d.backend.EndpointKey))
+	if d.Spec.Agent.KeysSecret != "" {
+		// keysSecret contains the relevant data, if no key is found ignore it for the checksum
+		endpointKeyFromSecret := d.keysSecret.Data["key"+d.backend.ResourceSuffix]
+		h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort))
+		h.Write(endpointKeyFromSecret)
+	} else {
+		// backend secret was part of the CR
+		h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort + d.backend.EndpointKey))
+	}
+
 	annotations["checksum/backend"] = fmt.Sprintf("%x", h.Sum(nil))
 	return annotations
 }
@@ -220,6 +230,7 @@ func NewDeploymentBuilder(
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
 	backend backends.K8SensorBackend,
+	keysSecret *corev1.Secret,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
@@ -230,5 +241,6 @@ func NewDeploymentBuilder(
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
 		backend:                   backend,
+		keysSecret:                keysSecret,
 	}
 }
