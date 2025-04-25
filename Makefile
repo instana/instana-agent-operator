@@ -111,6 +111,7 @@ KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
 test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
 	 KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
+.PHONY: e2e
 e2e: ## Run end-to-end tests
 	go test -timeout=30m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
 

@@ -6,6 +6,9 @@
 package deployment
 
 import (
+	"crypto/sha256"
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,6 +110,19 @@ func addAppLabel(labels map[string]string) map[string]string {
 	return labels
 }
 
+func (d *deploymentBuilder) getPodAnnotationsWithBackendChecksum() map[string]string {
+	// Deep copy annotations to extend them with a checksum
+	annotations := make(map[string]string, len(d.Spec.Agent.Pod.Annotations)+1)
+	for k, v := range d.Spec.Agent.Pod.Annotations {
+		annotations[k] = v
+	}
+
+	h := sha256.New()
+	h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort + d.backend.DownloadKey + d.backend.EndpointKey))
+	annotations["checksum/backend"] = fmt.Sprintf("%x", h.Sum(nil))
+	return annotations
+}
+
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, mounts := d.getVolumes()
 
@@ -129,7 +145,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      addAppLabel(d.getPodTemplateLabels()),
-					Annotations: d.Spec.Agent.Pod.Annotations,
+					Annotations: d.getPodAnnotationsWithBackendChecksum(),
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: d.helpers.K8sSensorResourcesName(),
