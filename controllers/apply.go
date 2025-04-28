@@ -67,13 +67,14 @@ func getK8sSensorDeployments(
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
 	k8SensorBackends []backends.K8SensorBackend,
+	keysSecret *corev1.Secret,
 ) []builder.ObjectBuilder {
 	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
 
 	for _, backend := range k8SensorBackends {
 		builders = append(
 			builders,
-			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend),
+			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend, keysSecret),
 		)
 	}
 
@@ -110,7 +111,7 @@ func (r *InstanaAgentReconciler) applyResources(
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
 	)
 
-	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
+	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret)...)
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
