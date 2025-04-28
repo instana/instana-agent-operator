@@ -1,11 +1,14 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc. 2024
+(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright Instana Inc. 2024, 2025
 */
 
 package deployment
 
 import (
+	"crypto/sha256"
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +40,8 @@ type deploymentBuilder struct {
 	env.EnvBuilder
 	volume.VolumeBuilder
 	ports.PortsBuilder
-	backend backends.K8SensorBackend
+	backend    backends.K8SensorBackend
+	keysSecret *corev1.Secret
 }
 
 func (d *deploymentBuilder) IsNamespaced() bool {
@@ -107,6 +111,30 @@ func addAppLabel(labels map[string]string) map[string]string {
 	return labels
 }
 
+func (d *deploymentBuilder) getPodAnnotationsWithBackendChecksum() map[string]string {
+	// Deep copy annotations to extend them with a checksum
+	annotations := make(map[string]string, len(d.Spec.Agent.Pod.Annotations)+1)
+	for k, v := range d.Spec.Agent.Pod.Annotations {
+		annotations[k] = v
+	}
+
+	h := sha256.New()
+	if d.Spec.Agent.KeysSecret != "" {
+		h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort))
+		// keysSecret contains the relevant data, if no key is found ignore it for the checksum
+		if d.keysSecret != nil {
+			endpointKeyFromSecret := d.keysSecret.Data["key"+d.backend.ResourceSuffix]
+			h.Write(endpointKeyFromSecret)
+		}
+	} else {
+		// backend secret was part of the CR
+		h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort + d.backend.EndpointKey))
+	}
+
+	annotations["checksum/backend"] = fmt.Sprintf("%x", h.Sum(nil))
+	return annotations
+}
+
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, mounts := d.getVolumes()
 
@@ -129,7 +157,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      addAppLabel(d.getPodTemplateLabels()),
-					Annotations: d.Spec.Agent.Pod.Annotations,
+					Annotations: d.getPodAnnotationsWithBackendChecksum(),
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: d.helpers.K8sSensorResourcesName(),
@@ -204,6 +232,7 @@ func NewDeploymentBuilder(
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
 	backend backends.K8SensorBackend,
+	keysSecret *corev1.Secret,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
@@ -214,5 +243,6 @@ func NewDeploymentBuilder(
 		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
 		PortsBuilder:              ports.NewPortsBuilder(agent),
 		backend:                   backend,
+		keysSecret:                keysSecret,
 	}
 }
