@@ -1,6 +1,6 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc. 2024
+(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright Instana Inc. 2024, 2025
 */
 
 package deployment
@@ -120,10 +120,12 @@ func (d *deploymentBuilder) getPodAnnotationsWithBackendChecksum() map[string]st
 
 	h := sha256.New()
 	if d.Spec.Agent.KeysSecret != "" {
-		// keysSecret contains the relevant data, if no key is found ignore it for the checksum
-		endpointKeyFromSecret := d.keysSecret.Data["key"+d.backend.ResourceSuffix]
 		h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort))
-		h.Write(endpointKeyFromSecret)
+		// keysSecret contains the relevant data, if no key is found ignore it for the checksum
+		if d.keysSecret != nil {
+			endpointKeyFromSecret := d.keysSecret.Data["key"+d.backend.ResourceSuffix]
+			h.Write(endpointKeyFromSecret)
+		}
 	} else {
 		// backend secret was part of the CR
 		h.Write([]byte(d.backend.EndpointHost + d.backend.EndpointPort + d.backend.EndpointKey))
