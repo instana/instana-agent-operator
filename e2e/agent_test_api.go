@@ -320,9 +320,6 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 
 func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		// Wait for instana-agent-controller-manager deployment to ensure that CRD is installed correctly before proceeding.
-		// Technically, it could be categorized as "Assess" method, but the setup process requires to wait in between.
-		// Therefore, keeping the wait logic in this section.
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
@@ -339,6 +336,39 @@ func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 		err = r.Create(ctx, agent)
 		if err != nil {
 			t.Fatal("Could not create Agent CR", err)
+		}
+
+		return ctx
+	}
+}
+
+func UpdateAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("Creating a new Agent CR")
+
+		// Create Agent CR
+		r := client.Resources(cfg.Namespace())
+		err = v1.AddToScheme(r.GetScheme())
+		if err != nil {
+			t.Fatal("Could not add Agent CR to client scheme", err)
+		}
+
+		// First get the current resource
+		existingAgent := &v1.InstanaAgent{}
+		err = r.Get(ctx, agent.Name, cfg.Namespace(), existingAgent)
+		if err != nil {
+			t.Fatal("Could not get existing Agent CR", err)
+		}
+
+		// Update the existing resource
+		existingAgent.Spec = agent.Spec
+		err = r.Update(ctx, existingAgent)
+		if err != nil {
+			t.Fatal("Could not update Agent CR", err)
 		}
 
 		return ctx
