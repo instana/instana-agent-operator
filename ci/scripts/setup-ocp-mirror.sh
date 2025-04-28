@@ -69,8 +69,8 @@ spec:
     - ${HOST}/instana/k8sensor
     source: icr.io/instana/k8sensor
   - mirrors:
-    - $HOST/instana/instana-agent-operator
-    source: delivery.instana.io/dev-sandbox-docker-all/konrad/instana-agent-operator
+    - ${HOST}/instana/instana-agent-operator
+    source: ${OPERATOR_IMAGE_NAME}
 EOF
 
 
