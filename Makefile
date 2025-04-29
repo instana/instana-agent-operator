@@ -336,6 +336,10 @@ pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow netwo
 	kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0 || true
 	kubectl delete ns $(NAMESPACE_PREPULLER)
 
+.PHONY: setup-ocp-mirror
+setup-ocp-mirror: ## Setup ocp internal registry and define ImageContentSourcePolicy to pull from internal registry
+	./ci/scripts/setup-ocp-mirror.sh
+
 .PHONY: dev-run-ocp
 dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
 
