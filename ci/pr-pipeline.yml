@@ -225,6 +225,9 @@ jobs:
               - -ceu
               - |
                 cd pipeline-source
+                pwd
+                go version
+                mockgen --version
                 go install
                 make build
         on_success:
