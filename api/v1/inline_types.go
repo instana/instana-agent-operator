@@ -267,7 +267,7 @@ type ImageSpec struct {
 }
 
 type ExtendedImageSpec struct {
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	ImageSpec `json:",inline"`
 
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with

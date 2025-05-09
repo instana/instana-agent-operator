@@ -13,6 +13,41 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  - events
+  - namespaces
+  - nodes
+  - nodes/metrics
+  - nodes/proxy
+  - nodes/stats
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  - pods/log
+  - replicationcontrollers
+  - resourcequotas
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
@@ -36,8 +71,6 @@ rules:
 - apiGroups:
   - apps
   resources:
-  - daemonsets
-  - deployments
   - replicasets
   - statefulsets
   verbs:
@@ -68,43 +101,6 @@ rules:
   verbs:
   - get
   - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - endpoints
-  - events
-  - namespaces
-  - nodes
-  - nodes/metrics
-  - nodes/proxy
-  - nodes/stats
-  - persistentvolumeclaims
-  - persistentvolumes
-  - pods
-  - pods/log
-  - replicationcontrollers
-  - resourcequotas
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - secrets
-  - serviceaccounts
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - extensions
