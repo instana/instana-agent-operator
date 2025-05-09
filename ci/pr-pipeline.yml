@@ -227,8 +227,8 @@ jobs:
                 cd pipeline-source
                 pwd
                 go version
-                mockgen --version
                 go install
+                mockgen --version
                 make build
         on_success:
           put: gh-status
