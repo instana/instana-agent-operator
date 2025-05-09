@@ -11,6 +11,7 @@ ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
 ARG GO_VERSION=1.24.2
 WORKDIR /workspace
+ENV PATH="/usr/local/go/bin:/root/.local/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 COPY installGolang.sh installGolang.sh
 RUN ./installGolang.sh ${GO_VERSION}
 
