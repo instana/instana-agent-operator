@@ -27,7 +27,7 @@ RUN dnf update -y && dnf install -y \
 
 # Set environment variables for Go
 ENV GOPATH=/go
-ENV GO_VERSION=1.24.2
+ENV GO_VERSION=1.24.3
 ENV PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"
 
 # Install go
