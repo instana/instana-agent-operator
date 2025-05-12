@@ -35,7 +35,7 @@ AGENT_IMG ?= icr.io/instana/agent:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.30
+ENVTEST_K8S_VERSION = 1.32
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -109,7 +109,7 @@ EXCLUDE_PATTERN = $(shell echo $(EXCLUDED_TEST_DIRS) | sed 's/ /|/g')
 PACKAGES = $(shell go list ./... | grep -vE "$(EXCLUDE_PATTERN)" | tr '\n' ' ')
 KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
 test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
-	 KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
+	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 .PHONY: e2e
 e2e: ## Run end-to-end tests
@@ -185,7 +185,7 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
@@ -372,7 +372,7 @@ get-mockgen:
 	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
 
 gen-mocks: get-mockgen
-	${GOBIN}/mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.18.5/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
+	${GOBIN}/mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.20.4/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
 	${GOBIN}/mockgen --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
 	${GOBIN}/mockgen --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
 	${GOBIN}/mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 

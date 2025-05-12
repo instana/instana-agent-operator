@@ -225,6 +225,8 @@ jobs:
               - -ceu
               - |
                 cd pipeline-source
+                pwd
+                go version
                 go install
                 make build
         on_success:

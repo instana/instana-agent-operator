@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2025
+ */
+
 package transformations
 
 import (
@@ -87,7 +91,7 @@ func Test_podSelectorLabelGenerator_GetPodLabels(t *testing.T) {
 						"app.kubernetes.io/managed-by": "instana-agent-operator",
 					},
 				)
-				asssertions.NotSame(test.userLabels, actual)
+				asssertions.NotSame(&test.userLabels, &actual)
 
 				test.otherAssertions(asssertions, test.userLabels, actual)
 			},
