@@ -1,16 +1,19 @@
 #
-# (c) Copyright IBM Corp. 2021, 2024
+# (c) Copyright IBM Corp. 2021, 2025
 # (c) Copyright Instana Inc.
 #
 
 # Build the manager binary, always build on amd64 platform
-FROM --platform=linux/amd64 golang:1.24 AS builder
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/ubi-minimal:latest AS builder
 
 ARG TARGETPLATFORM='linux/amd64'
 ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
-
+ARG GO_VERSION=1.24.3
 WORKDIR /workspace
+ENV PATH="/usr/local/go/bin:/root/.local/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+COPY installGolang.sh installGolang.sh
+RUN ./installGolang.sh ${GO_VERSION}
 
 # Copy the Go Modules manifests
 COPY go.mod go.mod

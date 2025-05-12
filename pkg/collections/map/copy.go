@@ -1,3 +1,6 @@
+/*
+ * (c) Copyright IBM Corp. 2025
+ */
 package _map
 
 type Copier[K comparable, V any] interface {
