@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2025
+ */
+
 package result
 
 import (
@@ -298,7 +302,7 @@ func TestResult_Recover(t *testing.T) {
 				if tc.expectedSame {
 					assertions.Same(rslt, rsltCopy)
 				} else {
-					assertions.NotSame(rslt, rsltCopy)
+					assertions.NotSame(&rslt, &rsltCopy)
 				}
 
 				actualVal, actualErr := rsltCopy.Get()
@@ -381,7 +385,7 @@ func TestResult_RecoverCatching(t *testing.T) {
 				if tc.expectedSame {
 					assertions.Same(rslt, rsltCopy)
 				} else {
-					assertions.NotSame(rslt, rsltCopy)
+					assertions.NotSame(&rslt, &rsltCopy)
 				}
 
 				actualVal, actualErr := rsltCopy.Get()
