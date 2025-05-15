@@ -25,9 +25,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -49,6 +52,31 @@ const (
 func Add(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&instanav1.InstanaAgent{}).
+		Watches(
+			&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, a client.Object) []ctrl.Request {
+				// Get all InstanaAgent custom resources and trigger reconciliation for each one
+				var agentList instanav1.InstanaAgentList
+				if err := mgr.GetClient().List(ctx, &agentList); err != nil {
+					// Log error but don't block execution
+					log.Log.Error(err, "Failed to list InstanaAgent resources")
+					return []ctrl.Request{}
+				}
+
+				// Create reconciliation requests for each InstanaAgent CR
+				var requests []ctrl.Request
+				for _, agent := range agentList.Items {
+					requests = append(requests, ctrl.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      agent.GetName(),
+							Namespace: agent.GetNamespace(),
+						},
+					})
+				}
+
+				return requests
+			}),
+		).
 		Owns(&appsv1.DaemonSet{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ConfigMap{}).
@@ -131,6 +159,8 @@ func (r *InstanaAgentReconciler) reconcile(
 	}
 
 	k8SensorBackends := r.getK8SensorBackends(agent)
+
+	r.client.GetNamespacesWithLabels(ctx)
 
 	if applyResourcesRes := r.applyResources(
 		ctx,

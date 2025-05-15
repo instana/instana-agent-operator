@@ -19,8 +19,12 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,6 +57,7 @@ type InstanaAgentClient interface {
 	Status() k8sClient.SubResourceWriter
 	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
 	Delete(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.DeleteOption) error
+	GetNamespacesWithLabels(ctx context.Context) (map[string]map[string]string, error)
 }
 
 type instanaAgentClient struct {
@@ -224,4 +229,29 @@ func (c *instanaAgentClient) deleteAllInTimeLimit(
 	default:
 		return err
 	}
+}
+
+func (c *instanaAgentClient) GetNamespacesWithLabels(
+	ctx context.Context,
+) (map[string]map[string]string, error) {
+	namespaceLabelMap := make(map[string]map[string]string)
+	namespaceList := &corev1.NamespaceList{}
+
+	err := c.k8sClient.List(ctx, namespaceList)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list namespaces: %w", err)
+	}
+
+	result := make(map[string]map[string]string)
+	for _, ns := range namespaceList.Items {
+		labelsCopy := make(map[string]string)
+		for k, v := range ns.Labels {
+			labelsCopy[k] = v
+		}
+		result[ns.Name] = labelsCopy
+	}
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Printf("%s", string(resultJSON))
+
+	return namespaceLabelMap, nil
 }
