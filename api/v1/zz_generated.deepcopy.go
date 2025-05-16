@@ -352,6 +352,7 @@ func (in *InstanaAgentSpec) DeepCopy() *InstanaAgentSpec {
 func (in *InstanaAgentStatus) DeepCopyInto(out *InstanaAgentStatus) {
 	*out = *in
 	out.ConfigSecret = in.ConfigSecret
+	out.NamespacesConfigMap = in.NamespacesConfigMap
 	in.DeprecatedInstanaAgentStatus.DeepCopyInto(&out.DeprecatedInstanaAgentStatus)
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions

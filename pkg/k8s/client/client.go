@@ -1,6 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
+(c) Copyright IBM Corp. 2024, 2025
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +18,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -32,6 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
@@ -57,7 +56,7 @@ type InstanaAgentClient interface {
 	Status() k8sClient.SubResourceWriter
 	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
 	Delete(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.DeleteOption) error
-	GetNamespacesWithLabels(ctx context.Context) (map[string]map[string]string, error)
+	GetNamespacesWithLabels(ctx context.Context) (namespaces.NamespacesDetails, error)
 }
 
 type instanaAgentClient struct {
@@ -233,25 +232,31 @@ func (c *instanaAgentClient) deleteAllInTimeLimit(
 
 func (c *instanaAgentClient) GetNamespacesWithLabels(
 	ctx context.Context,
-) (map[string]map[string]string, error) {
-	namespaceLabelMap := make(map[string]map[string]string)
+) (namespaces.NamespacesDetails, error) {
+	log := logf.FromContext(ctx)
 	namespaceList := &corev1.NamespaceList{}
+	namespacesMap := make(map[string]namespaces.NamespaceMetadata)
 
+	log.Info("Requesting list of namespaces")
 	err := c.k8sClient.List(ctx, namespaceList)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list namespaces: %w", err)
+		return namespaces.NamespacesDetails{}, fmt.Errorf("failed to list namespaces: %w", err)
 	}
-
-	result := make(map[string]map[string]string)
+	var namespacesReceived []string
 	for _, ns := range namespaceList.Items {
+		namespacesReceived = append(namespacesReceived, ns.Name)
 		labelsCopy := make(map[string]string)
 		for k, v := range ns.Labels {
 			labelsCopy[k] = v
 		}
-		result[ns.Name] = labelsCopy
+		namespacesMap[ns.Name] = namespaces.NamespaceMetadata{
+			Labels: labelsCopy,
+		}
 	}
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
-	fmt.Printf("%s", string(resultJSON))
 
-	return namespaceLabelMap, nil
+	log.Info("Received details of namespaces", "namespaceNames", namespacesReceived)
+	return namespaces.NamespacesDetails{
+		Version:    1,
+		Namespaces: namespacesMap,
+	}, nil
 }
