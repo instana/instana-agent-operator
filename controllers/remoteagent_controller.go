@@ -58,7 +58,7 @@ func AddRemote(mgr manager.Manager) error {
 			NewRemoteAgentReconciler(
 				mgr.GetClient(),
 				mgr.GetScheme(),
-				mgr.GetEventRecorderFor("remote-agent-controller"),
+				mgr.GetEventRecorderFor("remote-instana-agent-controller"),
 			),
 		)
 }
@@ -177,7 +177,7 @@ func (r *RemoteAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 ) {
 	defer recovery.Catch(&reconcileErr)
 
-	logger := logf.FromContext(ctx).WithName("remote-agent-controller")
+	logger := logf.FromContext(ctx).WithName("remote-instana-agent-controller")
 	ctx = logf.IntoContext(ctx, logger)
 
 	statusManager := status.NewRemoteAgentStatusManager(r.client, r.recorder)
