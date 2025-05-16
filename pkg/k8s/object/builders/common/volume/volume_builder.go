@@ -15,6 +15,7 @@ import (
 )
 
 const InstanaConfigDirectory = "/opt/instana/agent/etc/instana-config-yml"
+const InstanaNamespacesDetailsFile = "/opt/instana/agent/etc/namespaces/namespaces.yaml"
 
 type Volume int
 
@@ -33,6 +34,7 @@ const (
 	ConfigVolume
 	TlsVolume
 	RepoVolume
+	NamespacesDetailsVolume
 )
 
 type VolumeBuilder interface {
@@ -125,6 +127,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.hostVolumeWithMount("machine-id", "/etc/machine-id", nil, nil)
 	case ConfigVolume:
 		return v.configVolume()
+	case NamespacesDetailsVolume:
+		return v.namespacesDetailsVolume()
 	case TlsVolume:
 		return v.tlsVolume()
 	case RepoVolume:
@@ -186,6 +190,26 @@ func (v *volumeBuilder) configVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: InstanaConfigDirectory,
+	}
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) namespacesDetailsVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	volumeName := "namespaces-details"
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: v.instanaAgent.Name + "-namespaces",
+				},
+				DefaultMode: pointer.To[int32](0440),
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: InstanaNamespacesDetailsFile,
 	}
 	return &volume, &volumeMount
 }
