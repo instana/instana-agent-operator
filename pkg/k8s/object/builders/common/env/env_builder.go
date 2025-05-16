@@ -60,6 +60,7 @@ const (
 	PodNamespaceEnv
 	K8sServiceDomainEnv
 	EnableAgentSocketEnv
+	NamespacesDetailsPathEnv
 )
 
 type EnvBuilder interface {
@@ -154,6 +155,8 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnv:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.InstanaConfigDirectory}
+	case NamespacesDetailsPathEnv:
+		return &corev1.EnvVar{Name: "NAMESPACES_DETAILS_PATH", Value: volume.InstanaNamespacesDetailsFile}
 	case EntrypointSkipBackendTemplateGeneration:
 		return &corev1.EnvVar{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"}
 	case BackendEnv:
