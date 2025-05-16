@@ -120,3 +120,17 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 		generation: strconv.Itoa(int(agent.Generation)),
 	}
 }
+
+func NewTransformationsRemote(agent *instanav1.RemoteAgent) Transformations {
+	return &transformations{
+		OwnerReference: metav1.OwnerReference{
+			APIVersion:         agent.APIVersion,
+			Kind:               agent.Kind,
+			Name:               agent.Name,
+			UID:                agent.UID,
+			Controller:         pointer.To(true),
+			BlockOwnerDeletion: pointer.To(true),
+		},
+		generation: strconv.Itoa(int(agent.Generation)),
+	}
+}
