@@ -24,7 +24,10 @@ fi
 # Run linter if there was files to lint
 echo "🔎 Linting/Formatting staged files..."
 if [ -n "$FILES" ]; then
-  if ! $LINTER run --fix --new-from-rev=HEAD --timeout 5m; then
+  echo "Running linter to fix any issues:"
+  $LINTER run --fix --new-from-rev=HEAD --timeout 5m
+  echo "Running linter to spot any unsolvable issues:"
+  if ! $LINTER run --new-from-rev=HEAD --timeout 5m; then
     echo "❌ Abortred: Lint errors found"
     exit 1
   fi
