@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# (c) Copyright IBM Corp. 2024
+# (c) Copyright IBM Corp. 2024, 2025
 # (c) Copyright Instana Inc.
 #
 
@@ -47,19 +47,5 @@ esac
 
 cd pipeline-source
 echo "Uninstalling previous 'instana-agent' release"
-make undeploy &> /dev/null || true
-make uninstall &> /dev/null || true
-
-
-echo "Deleting instana-agent namespace"
-if kubectl get namespace/instana-agent ; then
-    # if the agent CR has a finalizer but no operator is running, it will block the namespace from terminating correctly
-    kubectl patch agent -n instana-agent instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge || true
-    kubectl delete namespace/instana-agent
-    kubectl wait --for=delete namespace/instana-agent --timeout=30s
-    echo "Deleted namespace instana-agent"
-else
-    echo "Namespace instana-agent does not exist; skipping delete"
-fi
-
+make kubectl-delete &> /dev/null || true
 echo "Done"

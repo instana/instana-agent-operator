@@ -1,19 +1,57 @@
 #!/bin/sh
 
-STATUS=0
+#
+# (c) Copyright IBM Corp. 2024, 2025
+#
 
-if git rev-parse --verify HEAD >/dev/null 2>&1; then
-    against=HEAD
-else
-    against=$(git hash-object -t tree /dev/null)
+set -e
+
+echo "Running pre-commit hook...\n"
+
+# Get list of staged .go files
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+# Path to golangci-lint binary
+LINTER="./bin/golangci-lint"
+
+# Check if the binary exists
+if [ ! -x "$LINTER" ]; then
+  echo "❌ Aborted: golangci-lint not found at $LINTER"
+  echo "Run: `make install` install the linter before committing."
+  exit 1
 fi
 
-# Select all changed files, by name only, filter deleted files
-for f in $(git diff --relative --cached --name-only --diff-filter=d "$against" | grep '\.\(go\|sh\)$'); do
-  if ! head -n5 "${f}" | grep -q '(c) Copyright IBM Corp.'; then
-	echo "Missing copyright header in \"$f\""
-	STATUS=1
+# Run linter if there was files to lint
+echo "🔎 Linting/Formatting staged files..."
+if [ -n "$FILES" ]; then
+  echo "Running linter to fix any issues:"
+  $LINTER run --fix --new-from-rev=HEAD --timeout 5m
+  echo "Running linter to spot any unsolvable issues:"
+  if ! $LINTER run --new-from-rev=HEAD --timeout 5m; then
+    echo "❌ Abortred: Lint errors found"
+    exit 1
   fi
+fi
+
+# In case formatting has been enabled, add files back
+for FILE in $FILES; do
+  git add "$FILE"
 done
 
-exit $STATUS
+echo "✅ Linted successfully.\n"
+
+# Run copyright check on all staged files (not only .go files)
+ALL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(go|sh|yml|yaml)$' || true)
+echo "🔎 Checking for copyright headers in staged files..."
+for FILE in $ALL_FILES; do
+  if ! head -n5 "$FILE" | grep -q '(c) Copyright IBM Corp.'; then
+	echo "❌ Aborted: Missing copyright in file: $FILE"
+	exit 1
+  fi
+done
+echo "✅ No missing copyrights.\n"
+
+
+
+echo "🎉 Pre-commit hook run successfully."
+exit 0
