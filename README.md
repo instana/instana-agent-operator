@@ -43,7 +43,7 @@ After cloning the repository and completing gathering the prerequisites, run:
 
 ```shell
 # Same as make install-githooks install-tools generate-mocks generate-manifests generate-deepcopies
-make all
+make install
 ```
 
 ### **Option 1:** Running the operator locally against a **Minikube** cluster
