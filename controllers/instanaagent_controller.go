@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -207,10 +208,23 @@ func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	res ctrl.Result,
 	reconcileErr error,
 ) {
-	defer recovery.Catch(&reconcileErr)
-
 	logger := logf.FromContext(ctx).WithName("agent-controller")
 	ctx = logf.IntoContext(ctx, logger)
+
+	agent := &instanav1.InstanaAgent{}
+	err := r.client.Get(ctx, req.NamespacedName, agent)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected.
+			// Return and don't requeue
+			logger.Info("InstanaAgent resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		logger.Error(err, "Failed to get InstanaAgent")
+	}
+	defer recovery.Catch(&reconcileErr)
 
 	statusManager := status.NewAgentStatusManager(r.client, r.recorder)
 	defer func() {
