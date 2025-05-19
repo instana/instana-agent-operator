@@ -129,11 +129,11 @@ lint: ## Run linter
 
 ##@ Build/Run targets
 
-build: generate-all ## Build manager binary.
+build: ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export DEBUG_MODE=true
-run: generate-all ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
+run: ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
 ##@ Generation targets
