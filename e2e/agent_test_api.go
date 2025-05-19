@@ -1,6 +1,5 @@
 /*
- * (c) Copyright IBM Corp. 2024
- * (c) Copyright Instana Inc. 2024
+ * (c) Copyright IBM Corp. 2024, 2025
  */
 
 package e2e
@@ -68,10 +67,33 @@ func EnsureAgentNamespaceDeletion() env.Func {
 
 		log.Info("Agent CR cleanup completed")
 
-		// full purge of resources if anything would be left in the cluster
-		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/instana-agent-clusterrole clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/instana-agent-clusterrolebinding")
+		// Just in case a helm chart install was present before from helm chart pipeline
+		p = utils.RunCommand("helm ls -n instana-agent")
+		log.Info("Current helm chart: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
+		p = utils.RunCommand("helm uninstall instana-agent -n instana-agent")
 		if p.Err() != nil {
-			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
+			log.Warningf(
+				"Could not delete helm chart, might not be present? %s - %s - %s - %d",
+				p.Command(),
+				p.Err(),
+				p.Out(),
+				p.ExitCode(),
+			)
+		}
+
+		// full purge of resources if anything would be left in the cluster
+		p = utils.RunCommand(
+			"kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/instana-agent-clusterrole clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/instana-agent-clusterrolebinding",
+		)
+		if p.Err() != nil {
+			log.Warningf(
+				"Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d",
+				p.Command(),
+				p.Err(),
+				p.Out(),
+				p.ExitCode(),
+			)
 		}
 
 		// Check if namespace exist, otherwise just skip over it
@@ -124,7 +146,10 @@ func DeleteAgentCRIfPresent() env.Func {
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
 			// If this fails, the cleanup will not work properly -> failing
-			return ctx, fmt.Errorf("cleanup: Error could not add agent types to current scheme: %v", err)
+			return ctx, fmt.Errorf(
+				"cleanup: Error could not add agent types to current scheme: %v",
+				err,
+			)
 		}
 
 		// If the agent cr is available, but the operator is already gone, the finalizer will never be removed
@@ -203,7 +228,10 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 
 		if isOpenShift {
 			command := "oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent"
-			log.Infof("OpenShift detected, adding instana-agent service account to SecurityContextConstraints via api, command would be: %s\n", command)
+			log.Infof(
+				"OpenShift detected, adding instana-agent service account to SecurityContextConstraints via api, command would be: %s\n",
+				command,
+			)
 
 			// replaced command execution with SDK call to not require `oc` cli
 			securityClient, err := securityv1.NewForConfig(cfg.Client().RESTConfig())
@@ -212,13 +240,18 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 			}
 
 			// get security context constraints
-			scc, err := securityClient.SecurityContextConstraints().Get(ctx, "privileged", metav1.GetOptions{})
+			scc, err := securityClient.SecurityContextConstraints().
+				Get(ctx, "privileged", metav1.GetOptions{})
 			if err != nil {
 				return ctx, fmt.Errorf("failed to get SecurityContextContraints: %v", err)
 			}
 
 			// check if service account user is already listed in the scc
-			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", InstanaNamespace, "instana-agent")
+			serviceAccountId := fmt.Sprintf(
+				"system:serviceaccount:%s:%s",
+				InstanaNamespace,
+				"instana-agent",
+			)
 			userFound := false
 
 			for _, user := range scc.Users {
@@ -229,16 +262,23 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 			}
 
 			if userFound {
-				log.Infof("Security Context Constraint \"privileged\" already lists service account user: %v\n", serviceAccountId)
+				log.Infof(
+					"Security Context Constraint \"privileged\" already lists service account user: %v\n",
+					serviceAccountId,
+				)
 				return ctx, nil
 			}
 
 			// updating Security Context Constraints to list instana service account
 			scc.Users = append(scc.Users, serviceAccountId)
 
-			_, err = securityClient.SecurityContextConstraints().Update(ctx, scc, metav1.UpdateOptions{})
+			_, err = securityClient.SecurityContextConstraints().
+				Update(ctx, scc, metav1.UpdateOptions{})
 			if err != nil {
-				return ctx, fmt.Errorf("could not update Security Context Constraints on OCP cluster: %v", err)
+				return ctx, fmt.Errorf(
+					"could not update Security Context Constraints on OCP cluster: %v",
+					err,
+				)
 			}
 
 			return ctx, nil
@@ -256,12 +296,14 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		// Create pull secret for custom registry
 		t.Logf("Creating custom pull secret for %s", InstanaTestCfg.ContainerRegistry.Host)
 		p := utils.RunCommand(
-			fmt.Sprintf("kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
+			fmt.Sprintf(
+				"kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
 				cfg.Namespace(),
 				InstanaTestCfg.ContainerRegistry.Name,
 				InstanaTestCfg.ContainerRegistry.Host,
 				InstanaTestCfg.ContainerRegistry.User,
-				InstanaTestCfg.ContainerRegistry.Password),
+				InstanaTestCfg.ContainerRegistry.Password,
+			),
 		)
 		if p.Err() != nil {
 			t.Fatal("Error while creating pull secret", p.Err(), p.Out(), p.ExitCode())
@@ -269,11 +311,21 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		t.Log("Pull secret created")
 
 		// Use make logic to ensure that local dev commands and test commands are in sync
-		cmd := fmt.Sprintf("bash -c 'cd .. && IMG=%s:%s make install deploy'", InstanaTestCfg.OperatorImage.Name, InstanaTestCfg.OperatorImage.Tag)
+		cmd := fmt.Sprintf(
+			"bash -c 'cd .. && IMG=%s:%s INSTANA_AGENT_YAML=null make kubectl-apply'",
+			InstanaTestCfg.OperatorImage.Name,
+			InstanaTestCfg.OperatorImage.Tag,
+		)
 		t.Logf("Deploy new dev build by running: %s", cmd)
 		p = utils.RunCommand(cmd)
 		if p.Err() != nil {
-			t.Fatal("Error while deploying custom operator build during update installation", p.Command(), p.Err(), p.Out(), p.ExitCode())
+			t.Fatal(
+				"Error while deploying custom operator build during update installation",
+				p.Command(),
+				p.Err(),
+				p.Out(),
+				p.ExitCode(),
+			)
 		}
 		t.Log("Deployment submitted")
 
@@ -292,7 +344,12 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		}
 		err = r.Patch(ctx, agent, k8s.Patch{
 			PatchType: types.MergePatchType,
-			Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`, InstanaTestCfg.ContainerRegistry.Name)),
+			Data: []byte(
+				fmt.Sprintf(
+					`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
+					InstanaTestCfg.ContainerRegistry.Name,
+				),
+			),
 		})
 		if err != nil {
 			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
@@ -392,7 +449,11 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		}
 
 		// wait for operator pods of the deployment to become ready
-		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
+		err = wait.For(
+			conditions.New(client.Resources()).
+				DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue),
+			wait.WithTimeout(time.Minute*2),
+		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
@@ -419,7 +480,10 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 		ds := appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{Name: daemonSetName, Namespace: cfg.Namespace()},
 		}
-		err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*5))
+		err = wait.For(
+			conditions.New(client.Resources()).DaemonSetReady(&ds),
+			wait.WithTimeout(time.Minute*5),
+		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
@@ -437,9 +501,15 @@ func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		dep := appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldDeploymentName, Namespace: cfg.Namespace()},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      InstanaOperatorOldDeploymentName,
+				Namespace: cfg.Namespace(),
+			},
 		}
-		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*2))
+		err = wait.For(
+			conditions.New(client.Resources()).ResourceDeleted(&dep),
+			wait.WithTimeout(time.Minute*2),
+		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
@@ -459,7 +529,10 @@ func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
 		clusterrole := rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldClusterRoleName},
 		}
-		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrole), wait.WithTimeout(time.Minute*2))
+		err = wait.For(
+			conditions.New(client.Resources()).ResourceDeleted(&clusterrole),
+			wait.WithTimeout(time.Minute*2),
+		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
@@ -471,7 +544,10 @@ func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
 
 func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Logf("Ensuring the old clusterrolebinding %s is not running", InstanaOperatorOldClusterRoleBindingName)
+		t.Logf(
+			"Ensuring the old clusterrolebinding %s is not running",
+			InstanaOperatorOldClusterRoleBindingName,
+		)
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
@@ -479,7 +555,10 @@ func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
 		clusterrolebinding := rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{Name: InstanaOperatorOldClusterRoleBindingName},
 		}
-		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding), wait.WithTimeout(time.Minute*2))
+		err = wait.For(
+			conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding),
+			wait.WithTimeout(time.Minute*2),
+		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
@@ -497,7 +576,9 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		time.Sleep(20 * time.Second)
-		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
+		podList, err := clientSet.CoreV1().
+			Pods(cfg.Namespace()).
+			List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -511,7 +592,9 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Log("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
-			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
+			logReq := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
 				t.Fatal("Could not stream logs", err)
@@ -555,18 +638,30 @@ func ValidateAgentMultiBackendConfiguration() e2etypes.StepFunc {
 			t.Fatal("Secret could not be fetched", InstanaAgentConfigSecretName, err)
 		}
 
-		firstBackendConfigString := string(instanaAgentConfigSecret.Data["com.instana.agent.main.sender.Backend-1.cfg"])
+		firstBackendConfigString := string(
+			instanaAgentConfigSecret.Data["com.instana.agent.main.sender.Backend-1.cfg"],
+		)
 		expectedFirstBackendConfigString := "host=first-backend.instana.io\nport=443\nprotocol=HTTP/2\nkey=xxx\n"
-		secondBackendConfigString := string(instanaAgentConfigSecret.Data["com.instana.agent.main.sender.Backend-2.cfg"])
+		secondBackendConfigString := string(
+			instanaAgentConfigSecret.Data["com.instana.agent.main.sender.Backend-2.cfg"],
+		)
 		expectedSecondBackendConfigString := "host=second-backend.instana.io\nport=443\nprotocol=HTTP/2\nkey=yyy\n"
 
 		if firstBackendConfigString != expectedFirstBackendConfigString {
-			t.Error("First backend does not match the expected string", firstBackendConfigString, expectedFirstBackendConfigString)
+			t.Error(
+				"First backend does not match the expected string",
+				firstBackendConfigString,
+				expectedFirstBackendConfigString,
+			)
 		} else {
 			t.Log("First backend config confirmed")
 		}
 		if secondBackendConfigString != expectedSecondBackendConfigString {
-			t.Error("Second backend does not match the expected string", secondBackendConfigString, expectedSecondBackendConfigString)
+			t.Error(
+				"Second backend does not match the expected string",
+				secondBackendConfigString,
+				expectedSecondBackendConfigString,
+			)
 		} else {
 			t.Log("Second backend config confirmed")
 		}
@@ -609,7 +704,10 @@ func ValidateAgentMultiBackendConfiguration() e2etypes.StepFunc {
 				t.Error(err)
 			}
 			if strings.Contains(stdout.String(), currentBackend.expectedBackendString) {
-				t.Logf("ExecInPod returned expected backend config for file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.fileSuffix)
+				t.Logf(
+					"ExecInPod returned expected backend config for file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg",
+					currentBackend.fileSuffix,
+				)
 			} else {
 				t.Error(fmt.Sprintf("Expected to find %s in file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.expectedBackendString, currentBackend.fileSuffix), stdout.String())
 			}
