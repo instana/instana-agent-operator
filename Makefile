@@ -88,6 +88,7 @@ help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 install: install-githooks install-tools generate-all ## Prepare the whole project with all dependencies and requirements to be run
+	go install
 
 install-githooks: ## Sets/Enables .githooks as the hooks path
 	git config core.hooksPath .githooks
@@ -99,12 +100,6 @@ install-tools: ## Installs tools all tools needed by the project in the ./bin-fo
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 	go install github.com/moby/buildkit/cmd/buildctl@v0.16
 	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
-	@if [ -f $(OPERATOR_SDK) ]; then \
-		echo "operator-sdk already installed at: $(OPERATOR_SDK)"; \
-	else \
-		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.39.2/operator-sdk_${OS}_${ARCH}; \
-		chmod +x $(OPERATOR_SDK); \
-	fi
 
 uninstall-tools: ## Uninstalls tools in the ./bin-folder.
 	rm -rf ./bin/*
@@ -125,7 +120,7 @@ test: ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 lint: ## Run linter
-	$(GOLANGCI_LINT) run --timeout 5m
+	$(GOLANGCI_LINT) run --new-from-rev=HEAD --timeout 5m
 
 ##@ Build/Run targets
 
@@ -318,6 +313,12 @@ dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
 bundle: ## Create the OLM bundle
+	@if [ -f $(OPERATOR_SDK) ]; then \
+		echo "operator-sdk already installed at: $(OPERATOR_SDK)"; \
+	else \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.39.2/operator-sdk_${OS}_${ARCH}; \
+		chmod +x $(OPERATOR_SDK); \
+	fi
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/manifests \

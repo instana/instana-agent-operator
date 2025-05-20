@@ -193,7 +193,7 @@ jobs:
       - <<: *gh-status-set-pending-unit-test
       - <<: *gh-status-set-pending-docker-build
       - set_pipeline: self
-        file: pipeline-source/ci/pr-pipeline.yml
+        file: pipeline-source/ci/pr-pipeline.yaml
         vars:
           branch: *build-branch
           project-berlin-gh-token: ((project-berlin-gh-token))
@@ -225,9 +225,9 @@ jobs:
               - |
                 cd pipeline-source
                 pwd
+                make install
                 go version
-                go install
-                make install build
+                make build
         on_success:
           put: gh-status
           inputs: [pipeline-source]
@@ -273,10 +273,8 @@ jobs:
                   LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
                   rpm -i $LINTER_RPM
                 popd
-
                 cd pipeline-source
-                go install
-                make lint test
+                make install lint test
         on_success:
           put: gh-status
           inputs: [pipeline-source]
@@ -329,55 +327,59 @@ jobs:
           steps:
             - task: build-amd64
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
                 image: image-amd64
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/amd64
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-arm64
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
                 image: image-arm64
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/arm64
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-s390x
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
                 image: image-s390x
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/s390x
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
                 image: image-ppc64le
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/ppc64le
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: pipeline-source/ci/create-tag-file.yml
+        file: pipeline-source/ci/create-tag-file.yaml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
@@ -540,7 +542,7 @@ jobs:
                 cat ../target/instana-agent-operator.yaml
       - task: build-bundle-docker
         privileged: true
-        file: pipeline-source/ci/container-image-build-task.yml
+        file: pipeline-source/ci/container-image-build-task.yaml
         input_mapping:
           source: docker-input
         output_mapping:
@@ -552,7 +554,7 @@ jobs:
           git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: pipeline-source/ci/create-tag-file.yml
+        file: pipeline-source/ci/create-tag-file.yaml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))

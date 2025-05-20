@@ -37,6 +37,20 @@ Majority of actions one might do in this repository in regards to local developm
 
 Developing (and running) the Operator is easiest in two ways:
 
+### Docker and Podman usage
+
+To be able to run [./Containerfile](./Containerfile) with Docker or Podman, it's necessary to include what platforms are used:
+- Specify `--build-arg=TARGETPLATFORM` with the compilation target
+- Specify `--build-arg=BUILDPLATFORM` with the builder architecture
+
+Examples:
+```shell
+❯ docker build --build-arg=TARGETPLATFORM=linux/TARGET_ARCHITECTURE --build-arg=BUILDERPLATFORM=linux/YOUR_ARCHITECTURE -t instana-agent-operator:latest .
+...
+❯ podman build --build-arg=TARGETPLATFORM=linux/TARGET_ARCHITECTURE --build-arg=BUILDERPLATFORM=linux/YOUR_ARCHITECTURE -t instana-agent-operator:latest .
+```
+
+
 ### Preparing the development environment
 
 After cloning the repository and completing gathering the prerequisites, run:

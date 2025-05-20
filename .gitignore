@@ -20,7 +20,8 @@ instana-agent.yaml
 build/_output
 build/_test
 testbin/
-bin/
+bin/**
+!bin/.gitkeep
 
 # Binaries for programs and plugins
 *.exe
