@@ -12,7 +12,6 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
@@ -154,9 +153,9 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		}
 		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnv:
-		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.InstanaConfigDirectory}
+		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: constants.InstanaConfigDirectory}
 	case NamespacesDetailsPathEnv:
-		return &corev1.EnvVar{Name: "NAMESPACES_DETAILS_PATH", Value: volume.InstanaNamespacesDetailsFile}
+		return &corev1.EnvVar{Name: "NAMESPACES_DETAILS_PATH", Value: fmt.Sprintf("%s/%s", constants.InstanaNamespacesDetailsDirectory, constants.InstanaNamespacesDetailsFileName)}
 	case EntrypointSkipBackendTemplateGeneration:
 		return &corev1.EnvVar{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"}
 	case BackendEnv:

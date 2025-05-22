@@ -10,12 +10,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
-
-const InstanaConfigDirectory = "/opt/instana/agent/etc/instana-config-yml"
-const InstanaNamespacesDetailsFile = "/opt/instana/agent/etc/namespaces/namespaces.yaml"
 
 type Volume int
 
@@ -189,7 +187,7 @@ func (v *volumeBuilder) configVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	}
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
-		MountPath: InstanaConfigDirectory,
+		MountPath: constants.InstanaConfigDirectory,
 	}
 	return &volume, &volumeMount
 }
@@ -209,7 +207,7 @@ func (v *volumeBuilder) namespacesDetailsVolume() (*corev1.Volume, *corev1.Volum
 	}
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
-		MountPath: InstanaNamespacesDetailsFile,
+		MountPath: constants.InstanaNamespacesDetailsDirectory,
 	}
 	return &volume, &volumeMount
 }

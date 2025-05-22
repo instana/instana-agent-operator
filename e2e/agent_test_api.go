@@ -700,3 +700,44 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 		},
 	}
 }
+
+func ValidateAgentNamespacesLabelConfigmapConfiguration(stringToMatch string) e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		log.Infof("Validating namespace labels")
+		// Create a client to interact with the Kube API
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		pods := &corev1.PodList{}
+		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
+		err = r.List(ctx, pods, listOps)
+		if err != nil || pods.Items == nil {
+			t.Error("error while getting pods", err)
+		}
+		var stdout, stderr bytes.Buffer
+		podName := pods.Items[0].Name
+		containerName := "instana-agent"
+
+		if err := r.ExecInPod(
+			ctx,
+			cfg.Namespace(),
+			podName,
+			containerName,
+			[]string{"cat", "${NAMESPACES_DETAILS_PATH}"},
+			&stdout,
+			&stderr,
+		); err != nil {
+			t.Log(stderr.String())
+			t.Error(err)
+		}
+		if strings.Contains(stdout.String(), stringToMatch) {
+			t.Logf("ExecInPod returned expected namespace file")
+		} else {
+			t.Error(fmt.Sprintf("Expected to find %s in namespace file", stringToMatch), stdout.String())
+		}
+
+		return ctx
+	}
+}

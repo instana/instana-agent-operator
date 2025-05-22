@@ -59,7 +59,7 @@ func yamlOrDie(obj any) string {
 func (c *namespacesConfigMapBuilder) getData() map[string]string {
 	res := make(map[string]string)
 
-	res["namespaces.yaml"] = yamlOrDie(&c.namespacesDetails)
+	res[constants.InstanaNamespacesDetailsFileName] = yamlOrDie(&c.namespacesDetails)
 
 	return res
 
