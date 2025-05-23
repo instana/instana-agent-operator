@@ -58,7 +58,6 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
 		p = utils.RunCommand("kubectl get agent instana-agent -o yaml -n instana-agent")
-		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", p.Result())
 		// redact agent key if present
 		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
 
@@ -704,46 +703,5 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 				HTTP: &v1.Enabled{Enabled: &boolTrue},
 			},
 		},
-	}
-}
-
-func ValidateAgentNamespacesLabelConfigmapConfiguration(stringToMatch string) e2etypes.StepFunc {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		log.Infof("Validating namespace labels")
-		// Create a client to interact with the Kube API
-		r, err := resources.New(cfg.Client().RESTConfig())
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		pods := &corev1.PodList{}
-		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
-		err = r.List(ctx, pods, listOps)
-		if err != nil || pods.Items == nil {
-			t.Error("error while getting pods", err)
-		}
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := "instana-agent"
-
-		if err := r.ExecInPod(
-			ctx,
-			cfg.Namespace(),
-			podName,
-			containerName,
-			[]string{"bash", "-c", "cat ${NAMESPACES_DETAILS_PATH} | grep -A 5 'instana-agent:'"},
-			&stdout,
-			&stderr,
-		); err != nil {
-			t.Log(stderr.String())
-			t.Error(err)
-		}
-		if strings.Contains(stdout.String(), stringToMatch) {
-			t.Logf("ExecInPod returned expected namespace file")
-		} else {
-			t.Error(fmt.Sprintf("Expected to find %s in namespace file", stringToMatch), stdout.String())
-		}
-
-		return ctx
 	}
 }
