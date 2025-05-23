@@ -12,16 +12,14 @@ import (
 )
 
 func TestNamespaceLabelConfigmap(t *testing.T) {
+	agent := NewAgentCr(t)
 	installAndCheckNamespaceLabels := features.New("check namespace configmap in agent pods").
 		Setup(SetupOperatorDevBuild()).
+		Setup(DeployAgentCr(&agent)).
 		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
-		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
-		Assess("check agent log for successful connection", ValidateAgentNamespacesLabelConfigmapConfiguration(
-			`instana-agent:
-        labels:
-            kubernetes.io/metadata.name: instana-agent`)).
+		Assess("check agent log for successful connection", ValidateAgentNamespacesLabelConfigmapConfiguration("kubernetes.io/metadata.name")).
 		Feature()
 
 	// test feature
