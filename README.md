@@ -151,7 +151,7 @@ Example:
 {
     "wcaForGP.enable": true,
     "go.testEnvVars": {
-        "KUBEBUILDER_ASSETS": "~/.local/share/kubebuilder-envtest/k8s/1.30.0-linux-amd64",
+        "KUBEBUILDER_ASSETS": "~/.local/share/kubebuilder-envtest/k8s/1.32.0-linux-amd64",
         "INSTANA_API_KEY": "xxx",
         "ARTIFACTORY_USERNAME": "xxx",
         "ARTIFACTORY_PASSWORD": "xxx",
