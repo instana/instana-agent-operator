@@ -25,8 +25,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
@@ -237,8 +239,13 @@ func (c *instanaAgentClient) GetNamespacesWithLabels(
 	namespaceList := &corev1.NamespaceList{}
 	namespacesMap := make(map[string]namespaces.NamespaceMetadata)
 
-	log.Info("Requesting list of namespaces")
-	err := c.k8sClient.List(ctx, namespaceList)
+	instanaWorkloadMonitoringLabel := "instana-workload-monitoring"
+	log.Info("Requesting list of namespaces with label " + instanaWorkloadMonitoringLabel)
+	labelSelector, _ := labels.Parse("instana-workload-monitoring")
+	err := c.k8sClient.List(ctx, namespaceList, &client.ListOptions{
+		LabelSelector: labelSelector,
+	})
+
 	if err != nil {
 		return namespaces.NamespacesDetails{}, fmt.Errorf("failed to list namespaces: %w", err)
 	}
@@ -246,9 +253,7 @@ func (c *instanaAgentClient) GetNamespacesWithLabels(
 	for _, ns := range namespaceList.Items {
 		namespacesReceived = append(namespacesReceived, ns.Name)
 		labelsCopy := make(map[string]string)
-		for k, v := range ns.Labels {
-			labelsCopy[k] = v
-		}
+		labelsCopy[instanaWorkloadMonitoringLabel] = ns.Labels[instanaWorkloadMonitoringLabel]
 		namespacesMap[ns.Name] = namespaces.NamespaceMetadata{
 			Labels: labelsCopy,
 		}

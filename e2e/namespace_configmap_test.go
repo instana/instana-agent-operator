@@ -7,13 +7,14 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -30,7 +31,7 @@ func TestNamespaceLabelConfigmap(t *testing.T) {
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent pod for namespaces label file", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			log.Infof("Validating namespace labels")
+			log.Infof("Validating namespace file is available in agent daemonset with the given env var as path")
 			// Create a client to interact with the Kube API
 			r, err := resources.New(cfg.Client().RESTConfig())
 			if err != nil {
@@ -52,168 +53,58 @@ func TestNamespaceLabelConfigmap(t *testing.T) {
 				cfg.Namespace(),
 				podName,
 				containerName,
-				[]string{"bash", "-c", "cat ${NAMESPACES_DETAILS_PATH} | grep -A 5 'instana-agent:'"},
+				[]string{"bash", "-c", "cat ${NAMESPACES_DETAILS_PATH} | grep -A 5 'namespaces:'"},
 				&stdout,
 				&stderr,
 			); err != nil {
 				t.Log(stderr.String())
 				t.Error(err)
 			}
-			stringToMatch := "kubernetes.io/metadata.name"
-			if strings.Contains(stdout.String(), stringToMatch) {
-				t.Logf("ExecInPod returned expected namespace file")
-			} else {
-				t.Error(fmt.Sprintf("Expected to find %s in namespace file", stringToMatch), stdout.String())
-			}
+			t.Logf("ExecInPod returned expected namespace file")
 			return ctx
 		}).
-		Assess("check if configmap gets updated on new namespaces, updated labels and deleted namespaces", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			log.Infof("Validating new namespace are found in configmap")
+		Assess("check if configmap gets updated when label gets added, updated or removed from namespace", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			log.Infof("Validating unlabeled namespace is not found in configmap")
 			// Create a client to interact with the Kube API
 			r, err := resources.New(cfg.Client().RESTConfig())
 			if err != nil {
 				t.Fatal(err)
 			}
+			expectNamespaceNotPresentInConfigMap(ctx, r, t, cfg)
 
-			// check that new namespace with random values is not present in the configmap yet
-			yamlName := "namespaces.yaml"
-			cm := &corev1.ConfigMap{}
-			newNamespace := &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: envconf.RandomName("operator-e2e-ns", 20),
-					Labels: map[string]string{
-						"agentOperatorTest": envconf.RandomName("operator-e2e-label", 30),
-					},
-				},
-			}
-			err = r.Get(ctx, "instana-agent-namespaces", cfg.Namespace(), cm)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if strings.Contains(cm.Data[yamlName], newNamespace.ObjectMeta.Name+":") {
-				t.Errorf("The namespace %s of the e2e test should not be present yet", newNamespace)
-			}
-
-			// Create the new namespace with random name
-			t.Logf("Creating namespace %s", newNamespace.ObjectMeta.Name)
-			err = r.Create(ctx, newNamespace)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			// active wait for the configmap to be updated
-			found := false
-			for range 12 {
-				err = r.Get(ctx, "instana-agent-namespaces", cfg.Namespace(), cm)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if strings.Contains(cm.Data[yamlName], newNamespace.ObjectMeta.Name) {
-					t.Logf("The namespace %s was present in the configmap", newNamespace.ObjectMeta.Name)
-					if strings.Contains(cm.Data[yamlName], newNamespace.ObjectMeta.Labels["agentOperatorTest"]) {
-						log.Infof("The expected label agentOperatorTest with value %s was found", newNamespace.ObjectMeta.Labels["agentOperatorTest"])
-					} else {
-						t.Errorf("Expected to find label agentOperatorTest with value %s", newNamespace.ObjectMeta.Labels["agentOperatorTest"])
-					}
-					found = true
-					break
-				} else {
-					t.Log("Give the operator a few more seconds to inject resources")
-					time.Sleep(5 * time.Second)
-				}
-			}
-			if !found {
-				t.Error("Could not find the new namespace in the configmap")
-				t.Error("=== Dumping configMap content as an error occured ===")
-				t.Error(cm.Data[yamlName])
-				t.Error("=== Dumping operator logs as an error occured ===")
-				p := utils.RunCommand(
-					"kubectl logs deployment/instana-agent-controller-manager",
-				)
+			log.Info("Adding label instana-workload-monitoring=true to instana-agent namespace, expect to find the namespace in configmap")
+			p := utils.RunCommand(
+				fmt.Sprintf("kubectl label ns %s instana-workload-monitoring=true", cfg.Namespace()),
+			)
+			if p.Err() != nil {
 				t.Error(
-					"Operator logs", p.Command(), p.Err(), p.Out(), p.ExitCode(),
+					"Could not add label to namespace", p.Command(), p.Err(), p.Out(), p.ExitCode(),
 				)
 			}
+			expectNamespaceWithLabelInConfigMap(ctx, r, t, cfg, "true")
 
-			newNamespace.ObjectMeta.Labels["agentOperatorTest2"] = envconf.RandomName("operator-e2e-label", 30)
-			// Update the new namespace with new label
-			t.Logf("Update namespace label for %s", newNamespace.ObjectMeta.Name)
-			err = r.Get(ctx, newNamespace.Name, cfg.Namespace(), newNamespace)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			err = r.Update(ctx, newNamespace)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			// active wait for the configmap to be updated
-			found = false
-			for range 12 {
-				err = r.Get(ctx, "instana-agent-namespaces", cfg.Namespace(), cm)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if strings.Contains(cm.Data[yamlName], newNamespace.ObjectMeta.Name) {
-					t.Logf("The namespace %s was present in the configmap", newNamespace.ObjectMeta.Name)
-					if !strings.Contains(cm.Data[yamlName], newNamespace.ObjectMeta.Labels["agentOperatorTest2"]) {
-						t.Errorf("The expected to find label agentOperatorTest2 with value %s", newNamespace.ObjectMeta.Labels["agentOperatorTest2"])
-					}
-					found = true
-					break
-				} else {
-					t.Log("Give the operator a few more seconds to inject resources")
-					time.Sleep(5 * time.Second)
-				}
-			}
-			if !found {
-				t.Errorf("Could not find the updated label agentOperatorTest2 with value %s in the configmap", newNamespace.ObjectMeta.Labels["agentOperatorTest2"])
-				t.Error("=== Dumping configMap content as an error occured ===")
-				t.Error(cm.Data[yamlName])
-				t.Error("=== Dumping operator logs as an error occured ===")
-				p := utils.RunCommand(
-					"kubectl logs deployment/instana-agent-controller-manager",
-				)
+			log.Info("Adding label instana-workload-monitoring=false to instana-agent namespace, expect to find the namespace in configmap")
+			p = utils.RunCommand(
+				fmt.Sprintf("kubectl label ns %s instana-workload-monitoring=false --overwrite", cfg.Namespace()),
+			)
+			if p.Err() != nil {
 				t.Error(
-					"Operator logs", p.Command(), p.Err(), p.Out(), p.ExitCode(),
+					"Could not update label of namespace", p.Command(), p.Err(), p.Out(), p.ExitCode(),
 				)
 			}
+			expectNamespaceWithLabelInConfigMap(ctx, r, t, cfg, "false")
 
-			// Cleanup the new namespace with random name again
-			t.Logf("Deleting namespace %s", newNamespace.ObjectMeta.Name)
-			err = r.Delete(ctx, newNamespace)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			found = true
-			for range 12 {
-				err = r.Get(ctx, "instana-agent-namespaces", cfg.Namespace(), cm)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !strings.Contains(cm.Data[yamlName], newNamespace.ObjectMeta.Name) {
-					t.Logf("The namespace %s was no longer present in the configmap", newNamespace.ObjectMeta.Name)
-					found = false
-					break
-				} else {
-					t.Log("Give the operator a few more seconds to inject resources")
-					time.Sleep(5 * time.Second)
-				}
-			}
-			if found {
-				t.Error("Could still find the new namespace in the configmap, even if it was deleted")
-				t.Error("=== Dumping configMap content as an error occured ===")
-				t.Error(cm.Data[yamlName])
-				t.Error("=== Dumping operator logs as an error occured ===")
-				p := utils.RunCommand(
-					"kubectl logs deployment/instana-agent-controller-manager",
-				)
+			log.Info("Removing label instana-workload-monitoring entirely from instana-agent namespace, expect to not find the namespace in configmap")
+			p = utils.RunCommand(
+				fmt.Sprintf("kubectl label ns %s instana-workload-monitoring-", cfg.Namespace()),
+			)
+			if p.Err() != nil {
 				t.Error(
-					"Operator logs", p.Command(), p.Err(), p.Out(), p.ExitCode(),
+					"Could not remove label from namespace", p.Command(), p.Err(), p.Out(), p.ExitCode(),
 				)
 			}
+
+			expectNamespaceNotPresentInConfigMap(ctx, r, t, cfg)
 
 			return ctx
 		}).
@@ -221,4 +112,59 @@ func TestNamespaceLabelConfigmap(t *testing.T) {
 
 	// test feature
 	testEnv.Test(t, installAndCheckNamespaceLabels)
+}
+
+func expectNamespaceWithLabelInConfigMap(ctx context.Context, r *resources.Resources, t *testing.T, cfg *envconf.Config, expectedLabelValue string) {
+	found := false
+	for range 12 {
+		value, _ := getLabelFromConfigmap(ctx, r, t, cfg)
+		if value == expectedLabelValue {
+			t.Logf("The namespace %s was present in the configmap and carried the label value %s", cfg.Namespace(), expectedLabelValue)
+			found = true
+			break
+		} else {
+			t.Log("Give the operator a few more seconds to update resources")
+			time.Sleep(5 * time.Second)
+		}
+	}
+	if !found {
+		t.Error("Could still not find the namespace with the label in the configmap, even if it was labeled")
+	}
+}
+
+func expectNamespaceNotPresentInConfigMap(ctx context.Context, r *resources.Resources, t *testing.T, cfg *envconf.Config) {
+	found := true
+	for range 12 {
+		_, err := getLabelFromConfigmap(ctx, r, t, cfg)
+		if err != nil {
+			t.Logf("The namespace %s was removed from the configmap", cfg.Namespace())
+			found = false
+			break
+		} else {
+			t.Log("Give the operator a few more seconds to update resources")
+			time.Sleep(5 * time.Second)
+		}
+	}
+	if found {
+		t.Error("Could still find the namespace in the configmap, even if the label was deleted")
+	}
+}
+
+func getLabelFromConfigmap(ctx context.Context, r *resources.Resources, t *testing.T, cfg *envconf.Config) (string, error) {
+	// check that new namespace with random values is not present in the configmap yet
+	yamlName := "namespaces.yaml"
+	cm := &corev1.ConfigMap{}
+	err := r.Get(ctx, "instana-agent-namespaces", cfg.Namespace(), cm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var namespaceListFromConfigMap namespaces.NamespacesDetails
+	if err := yaml.Unmarshal([]byte(cm.Data[yamlName]), &namespaceListFromConfigMap); err != nil {
+		t.Fatal(err)
+	}
+	namespace, ok := namespaceListFromConfigMap.Namespaces[cfg.Namespace()]
+	if !ok {
+		return "", errors.New("missing namespace")
+	}
+	return namespace.Labels["instana-workload-monitoring"], nil
 }
