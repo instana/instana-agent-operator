@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+type RemoteAgentPort string
 type PortsBuilderRemote interface {
 	GetServicePorts(ports ...InstanaAgentPort) []corev1.ServicePort
 	GetContainerPorts(ports ...InstanaAgentPort) []corev1.ContainerPort
@@ -39,20 +40,9 @@ func NewPortsBuilderRemote(agent *instanav1.RemoteAgent) PortsBuilderRemote {
 }
 
 func (p *portsBuilderRemote) GetServicePorts(ports ...InstanaAgentPort) []corev1.ServicePort {
-	enabledPorts := list.NewListFilter[InstanaAgentPort]().Filter(
-		ports, func(port InstanaAgentPort) bool {
-			return bool(false)
-		},
-	)
-
-	return list.NewListMapTo[InstanaAgentPort, corev1.ServicePort]().MapTo(enabledPorts, toServicePort)
+	return list.NewListMapTo[InstanaAgentPort, corev1.ServicePort]().MapTo(ports, toServicePort)
 }
 
 func (p *portsBuilderRemote) GetContainerPorts(ports ...InstanaAgentPort) []corev1.ContainerPort {
-	enabledPorts := list.NewListFilter[InstanaAgentPort]().Filter(
-		ports, func(port InstanaAgentPort) bool {
-			return bool(false)
-		},
-	)
-	return list.NewListMapTo[InstanaAgentPort, corev1.ContainerPort]().MapTo(enabledPorts, toContainerPort)
+	return list.NewListMapTo[InstanaAgentPort, corev1.ContainerPort]().MapTo(ports, toContainerPort)
 }
