@@ -152,7 +152,7 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		}
 		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnvRemote:
-		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.InstanaConfigDirectory}
+		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.RemoteConfigDirectory}
 	case EntrypointSkipBackendTemplateGenerationRemote:
 		return &corev1.EnvVar{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"}
 	case BackendEnvRemote:
@@ -173,6 +173,8 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		return e.envWithObjectFieldSelector("POD_UID", "metadata.uid")
 	case PodNamespaceEnvRemote:
 		return e.envWithObjectFieldSelector("POD_NAMESPACE", "metadata.namespace")
+	case K8sServiceDomainEnvRemote:
+		return &corev1.EnvVar{Name: "K8S_SERVICE_DOMAIN", Value: e.helpers.HeadlessServiceName() + "." + e.agent.Namespace + ".svc"}
 	case EnableAgentSocketEnvRemote:
 		return boolToEnvVar("ENABLE_AGENT_SOCKET", e.agent.Spec.Agent.ServiceMesh.Enabled)
 	default:
