@@ -7,6 +7,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +33,6 @@ import (
 type RemoteAgentStatusManager interface {
 	AddAgentDeployment(agentDeployment client.ObjectKey) // Added method for Deployment
 	SetAgentOld(agent *instanav1.RemoteAgent)
-	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
 	SetAgentSecretConfig(agentSecretConfig client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
@@ -63,10 +63,6 @@ func (a *remoteAgentStatusManager) AddAgentDeployment(agentDeployment client.Obj
 
 func (a *remoteAgentStatusManager) SetAgentOld(agent *instanav1.RemoteAgent) {
 	a.agentOld = agent.DeepCopy()
-}
-
-func (a *remoteAgentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey) {
-	a.k8sSensorDeployment = k8sSensorDeployment
 }
 
 func (a *remoteAgentStatusManager) SetAgentSecretConfig(agentSecretConfig types.NamespacedName) {
@@ -133,7 +129,7 @@ func (a *remoteAgentStatusManager) getReconcileSucceededCondition(reconcileErr e
 	case nil:
 		res.Status = metav1.ConditionTrue
 		res.Reason = "ReconcileSucceeded"
-		res.Message = "most recent reconcile of agent CR completed without issue"
+		res.Message = "most recent reconcile of remote agent CR completed without issue"
 	default:
 		res.Status = metav1.ConditionFalse
 		res.Reason = "ReconcileFailed"
@@ -166,7 +162,7 @@ func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Co
 			condition.Status = metav1.ConditionUnknown
 			condition.Reason = "AgentDeploymentInfoUnavailable"
 			msg := fmt.Sprintf(
-				"failed to retrieve status of Agent Deployment: %s due to error: %s",
+				"failed to retrieve status of Remote Agent Deployment: %s due to error: %s",
 				key.Name,
 				err.Error(),
 			)
@@ -181,11 +177,11 @@ func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Co
 	if list.NewConditions(deployments).All(deploymentIsAvailableAndComplete) {
 		condition.Status = metav1.ConditionTrue
 		condition.Reason = "AllDesiredAgentsAvailable"
-		condition.Message = "All desired Instana Agents are available and using up-to-date configuration"
+		condition.Message = "All desired Remote Agents are available and using up-to-date configuration"
 	} else {
 		condition.Status = metav1.ConditionFalse
 		condition.Reason = "NotAllDesiredAgentsAvailable"
-		condition.Message = "Not all desired Instana agents are available or some Agents are not using up-to-date configuration"
+		condition.Message = "Not all desired Remote agents are available or some Agents are not using up-to-date configuration"
 	}
 
 	return result.OfSuccess(condition)
@@ -217,6 +213,12 @@ func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
 	agentNew := a.agentOld.DeepCopy()
 	logger := log.FromContext(ctx).WithName("remote-instana-agent-status-manager")
 
+	// Handle Deprecated Status Fields
+
+	agentNew.Status.Status = getAgentPhase(reconcileErr)
+	agentNew.Status.Reason = getReason(reconcileErr)
+	agentNew.Status.LastUpdate = metav1.Time{Time: time.Now()}
+
 	a.getConfigSecret(ctx).
 		OnSuccess(setStatusDotConfigSecretRemote(agentNew)).
 		OnFailure(errBuilder.AddSingle)
@@ -225,6 +227,9 @@ func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
 		OnSuccess(setStatusDotDeployment(agentNew)). // New handler for Deployment status
 		OnFailure(errBuilder.AddSingle)
 
+	if a.updateWasPerformed() {
+		agentNew.Status.OldVersionsUpdated = true
+	}
 	// Handle Conditions
 
 	agentNew.Status.ObservedGeneration = pointer.To(a.agentOld.GetGeneration())
@@ -232,8 +237,6 @@ func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
 	result.Of(semver.NewVersion(env.GetOperatorVersion())).
 		OnSuccess(setStatusDotOperatorVersionRemote(agentNew)).
 		OnFailure(logOperatorVersionParseFailure(logger))
-
-	// Handle Conditions
 
 	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
 
