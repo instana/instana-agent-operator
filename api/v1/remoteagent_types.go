@@ -6,54 +6,64 @@
 package v1
 
 import (
+	"reflect"
+
+	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +k8s:openapi-gen=true
 
-// InstanaAgentSpec defines the desired state of the Instana Agent
+// RemoteAgentSpec defines the desired state of the Remote Agent
 type RemoteAgentSpec struct {
 	// Agent deployment specific fields.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	Agent BaseAgentSpec `json:"agent"`
 
-	Hostname Name `json:"hostname,omitempty"`
+	//Hostname Name `json:"hostname,omitempty"`
 
-	Cluster Name `json:"cluster,omitempty"`
+	Cluster Name `json:"cluster,omitempty"` //inherit from main agent
 
 	// Name of the zone in which the host(s) will be displayed on the map. Optional, but then 'cluster.name' must be specified.
 	Zone Name `json:"zone,omitempty"`
+
+	// Specifies whether RBAC resources should be created.
+	// +kubebuilder:validation:Optional
+	Rbac Create `json:"rbac,omitempty"`
 
 	// Specifies whether a ServiceAccount should be created (default `true`), and possibly the name to use.
 	// +kubebuilder:validation:Optional
 	ServiceAccountSpec `json:"serviceAccount,omitempty"`
 
-	// Specifies whether to create the instana-agent `Service` to expose within the cluster. The Service can then be used e.g.
-	// for the Prometheus remote-write, OpenTelemetry GRCP endpoint and other APIs.
-	// Note: Requires Kubernetes 1.17+, as it uses topologyKeys.
 	// +kubebuilder:validation:Optional
-	Service Create `json:"service,omitempty"`
+	ResourceRequirements `json:",omitempty"`
+
+	// Supply Agent configuration e.g. for configuring certain Sensors.
+	// +kubebuilder:validation:Optional
+	ConfigurationYaml string `json:"remote_configuration_yaml,omitempty"`
 }
 
 // +k8s:openapi-gen=true
 
-// AgentOperatorState type representing the running state of the Agent Operator itself.
+// RemoteAgentOperatorState type representing the running state of the Agent Operator itself.
 type RemoteAgentOperatorState string
 
 const (
-	// OperatorStateRunning the operator is running properly and all changes applied successfully.
+	// RemoteOperatorStateRunning the operator is running properly and all changes applied successfully.
 	RemoteOperatorStateRunning RemoteAgentOperatorState = "Running"
-	// OperatorStateUpdating the operator is running properly but is currently applying CR changes and getting the Agent in the correct state.
+	// RemoteOperatorStateUpdating the operator is running properly but is currently applying CR changes and getting the Agent in the correct state.
 	RemoteOperatorStateUpdating RemoteAgentOperatorState = "Updating"
-	// OperatorStateFailed the operator is not running properly and likely there were issues applying the CustomResource correctly.
+	// RemoteOperatorStateFailed the operator is not running properly and likely there were issues applying the CustomResource correctly.
 	RemoteOperatorStateFailed RemoteAgentOperatorState = "Failed"
 )
 
 // +k8s:openapi-gen=true
 
-// InstanaAgentStatus defines the observed state of InstanaAgent
+// RemoteAgentStatus defines the observed state of RemoteAgent
 
-// Deprecated: DeprecatedInstanaAgentStatus are the previous status fields that will be used to ensure backwards compatibility with any automation that may exist
+// Deprecated: DeprecatedRemoteAgentStatus are the previous status fields that will be used to ensure backwards compatibility with any automation that may exist
 type DeprecatedRemoteAgentStatus struct {
 	Status     AgentOperatorState `json:"status,omitempty"`
 	Reason     string             `json:"reason,omitempty"`
@@ -61,9 +71,7 @@ type DeprecatedRemoteAgentStatus struct {
 
 	OldVersionsUpdated bool `json:"oldVersionsUpdated,omitempty"`
 
-	ConfigMap       ResourceInfo            `json:"configmap,omitempty"` // no longer present, but keep it in the struct for backwards-compatibility
-	Deployment      ResourceInfo            `json:"deployment,omitempty"`
-	LeadingAgentPod map[string]ResourceInfo `json:"leadingAgentPod,omitempty"`
+	Deployment ResourceInfo `json:"deployment,omitempty"`
 }
 
 type RemoteAgentStatus struct {
@@ -82,11 +90,11 @@ type RemoteAgentStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
+// +kubebuilder:resource:path=remoteagents,singular=remoteagent,shortName=ra,scope=Namespaced,categories=monitoring;
 // +kubebuilder:storageversion
-// +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
+// +operator-sdk:csv:customresourcedefinitions:displayName="Remote Instana Agent",resources={{Deployment,apps/v1,RemoteAgent},{Pod,v1,RemoteAgent},{Secret,v1,RemoteAgent}}
 
-// InstanaAgent is the Schema for the agents API
+// RemoteAgent is the Schema for the agents API
 type RemoteAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -95,42 +103,157 @@ type RemoteAgent struct {
 	Status RemoteAgentStatus `json:"status,omitempty"`
 }
 
-func (in *RemoteAgent) Default(hostAgent InstanaAgent) {
-	in.Spec.Agent.EndpointHost = hostAgent.Spec.Agent.EndpointHost
-	in.Spec.Agent.EndpointPort = hostAgent.Spec.Agent.EndpointPort
-	in.Spec.Agent.ImageSpec.Name = hostAgent.Spec.Agent.ImageSpec.Name
-	in.Spec.Agent.ImageSpec.Tag = hostAgent.Spec.Agent.ImageSpec.Tag
-	in.Spec.Agent.ImageSpec.PullPolicy = hostAgent.Spec.Agent.PullPolicy
-	in.Spec.Agent.Key = hostAgent.Spec.Agent.Key
-	in.Spec.Agent.DownloadKey = hostAgent.Spec.Agent.DownloadKey
-	in.Spec.Agent.KeysSecret = hostAgent.Spec.Agent.KeysSecret
-	in.Spec.Agent.ListenAddress = hostAgent.Spec.Agent.ListenAddress
-	in.Spec.Agent.MinReadySeconds = hostAgent.Spec.Agent.MinReadySeconds
-	in.Spec.Agent.AdditionalBackends = hostAgent.Spec.Agent.AdditionalBackends
-	in.Spec.Agent.TlsSpec = hostAgent.Spec.Agent.TlsSpec
-	in.Spec.Agent.ExtendedImageSpec = hostAgent.Spec.Agent.ExtendedImageSpec
-	in.Spec.Agent.ProxyHost = hostAgent.Spec.Agent.ProxyHost
-	in.Spec.Agent.ProxyPassword = hostAgent.Spec.Agent.ProxyPassword
-	in.Spec.Agent.ProxyPort = hostAgent.Spec.Agent.ProxyPort
-	in.Spec.Agent.ProxyProtocol = hostAgent.Spec.Agent.ProxyProtocol
-	in.Spec.Agent.ProxyUseDNS = hostAgent.Spec.Agent.ProxyUseDNS
-	in.Spec.Agent.ProxyUser = hostAgent.Spec.Agent.ProxyUser
-	in.Spec.Agent.Env = hostAgent.Spec.Agent.Env
-	in.Spec.Agent.RedactKubernetesSecrets = hostAgent.Spec.Agent.RedactKubernetesSecrets
-	in.Spec.Agent.MvnRepoFeaturesPath = hostAgent.Spec.Agent.MvnRepoFeaturesPath
-	in.Spec.Agent.MvnRepoSharedPath = hostAgent.Spec.Agent.MvnRepoSharedPath
-	in.Spec.Agent.MvnRepoUrl = hostAgent.Spec.Agent.MvnRepoUrl
-	in.Spec.Agent.MirrorReleaseRepoPassword = hostAgent.Spec.Agent.MirrorReleaseRepoPassword
-	in.Spec.Agent.MirrorReleaseRepoUrl = hostAgent.Spec.Agent.MirrorReleaseRepoUrl
-	in.Spec.Agent.MirrorReleaseRepoUsername = hostAgent.Spec.Agent.MirrorReleaseRepoUsername
-	in.Spec.Agent.MirrorSharedRepoPassword = hostAgent.Spec.Agent.MirrorSharedRepoPassword
-	in.Spec.Agent.MirrorSharedRepoUrl = hostAgent.Spec.Agent.MirrorSharedRepoUrl
-	in.Spec.Agent.MirrorSharedRepoUsername = hostAgent.Spec.Agent.MirrorSharedRepoUsername
+func (in *RemoteAgent) Default(agent InstanaAgent) {
+	// Compute desired values from the upstream agent spec with defaults.
+	desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
+	if in.Spec.Agent.EndpointHost != desiredEndpointHost {
+		in.Spec.Agent.EndpointHost = desiredEndpointHost
+	}
+
+	desiredEndpointPort := optional.Of(agent.Spec.Agent.EndpointPort).GetOrDefault("443")
+	if in.Spec.Agent.EndpointPort != desiredEndpointPort {
+		in.Spec.Agent.EndpointPort = desiredEndpointPort
+	}
+
+	desiredImageName := optional.Of(agent.Spec.Agent.ImageSpec.Name).GetOrDefault("icr.io/instana/agent")
+	if in.Spec.Agent.ImageSpec.Name != desiredImageName {
+		in.Spec.Agent.ImageSpec.Name = desiredImageName
+	}
+
+	desiredImageTag := optional.Of(agent.Spec.Agent.ImageSpec.Tag).GetOrDefault("latest")
+	if in.Spec.Agent.ImageSpec.Tag != desiredImageTag {
+		in.Spec.Agent.ImageSpec.Tag = desiredImageTag
+	}
+
+	desiredPullPolicy := optional.Of(agent.Spec.Agent.ImageSpec.PullPolicy).GetOrDefault(corev1.PullAlways)
+	if in.Spec.Agent.ImageSpec.PullPolicy != desiredPullPolicy {
+		in.Spec.Agent.ImageSpec.PullPolicy = desiredPullPolicy
+	}
+
+	desiredRbac := optional.Of(agent.Spec.Rbac.Create).GetOrDefault(pointer.To(true))
+	if !boolPointerEqual(in.Spec.Rbac.Create, desiredRbac) {
+		in.Spec.Rbac.Create = desiredRbac
+	}
+
+	desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
+	if !boolPointerEqual(in.Spec.ServiceAccountSpec.Create.Create, desiredSA) {
+		in.Spec.ServiceAccountSpec.Create.Create = desiredSA
+	}
+
+	if in.Spec.Agent.ConfigurationYaml != in.Spec.ConfigurationYaml {
+		in.Spec.Agent.ConfigurationYaml = in.Spec.ConfigurationYaml
+	}
+
+	if in.Spec.Cluster.Name != agent.Spec.Cluster.Name {
+		in.Spec.Cluster.Name = agent.Spec.Cluster.Name
+	}
+
+	if in.Spec.Agent.Key != agent.Spec.Agent.Key {
+		in.Spec.Agent.Key = agent.Spec.Agent.Key
+	}
+
+	if in.Spec.Agent.DownloadKey != agent.Spec.Agent.DownloadKey {
+		in.Spec.Agent.DownloadKey = agent.Spec.Agent.DownloadKey
+	}
+
+	if in.Spec.Agent.KeysSecret != agent.Spec.Agent.KeysSecret {
+		in.Spec.Agent.KeysSecret = agent.Spec.Agent.KeysSecret
+	}
+
+	if in.Spec.Agent.ListenAddress != agent.Spec.Agent.ListenAddress {
+		in.Spec.Agent.ListenAddress = agent.Spec.Agent.ListenAddress
+	}
+
+	if in.Spec.Agent.MinReadySeconds != agent.Spec.Agent.MinReadySeconds {
+		in.Spec.Agent.MinReadySeconds = agent.Spec.Agent.MinReadySeconds
+	}
+
+	if !reflect.DeepEqual(in.Spec.Agent.AdditionalBackends, agent.Spec.Agent.AdditionalBackends) {
+		in.Spec.Agent.AdditionalBackends = agent.Spec.Agent.AdditionalBackends
+	}
+
+	if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
+		in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
+	}
+
+	if (agent.Spec.Agent.ExtendedImageSpec.ImageSpec.Name != "" || len(agent.Spec.Agent.ExtendedImageSpec.PullSecrets) > 0) &&
+		(in.Spec.Agent.ExtendedImageSpec.ImageSpec.Name != agent.Spec.Agent.ExtendedImageSpec.ImageSpec.Name ||
+			!reflect.DeepEqual(in.Spec.Agent.ExtendedImageSpec.PullSecrets, agent.Spec.Agent.ExtendedImageSpec.PullSecrets)) {
+		in.Spec.Agent.ExtendedImageSpec = agent.Spec.Agent.ExtendedImageSpec
+	}
+
+	if in.Spec.Agent.ProxyHost != agent.Spec.Agent.ProxyHost {
+		in.Spec.Agent.ProxyHost = agent.Spec.Agent.ProxyHost
+	}
+
+	if in.Spec.Agent.ProxyPassword != agent.Spec.Agent.ProxyPassword {
+		in.Spec.Agent.ProxyPassword = agent.Spec.Agent.ProxyPassword
+	}
+
+	if in.Spec.Agent.ProxyPort != agent.Spec.Agent.ProxyPort {
+		in.Spec.Agent.ProxyPort = agent.Spec.Agent.ProxyPort
+	}
+
+	if in.Spec.Agent.ProxyProtocol != agent.Spec.Agent.ProxyProtocol {
+		in.Spec.Agent.ProxyProtocol = agent.Spec.Agent.ProxyProtocol
+	}
+
+	if in.Spec.Agent.ProxyUseDNS != agent.Spec.Agent.ProxyUseDNS {
+		in.Spec.Agent.ProxyUseDNS = agent.Spec.Agent.ProxyUseDNS
+	}
+
+	if in.Spec.Agent.ProxyUser != agent.Spec.Agent.ProxyUser {
+		in.Spec.Agent.ProxyUser = agent.Spec.Agent.ProxyUser
+	}
+
+	if !reflect.DeepEqual(in.Spec.Agent.Env, agent.Spec.Agent.Env) {
+		in.Spec.Agent.Env = agent.Spec.Agent.Env
+	}
+
+	if in.Spec.Agent.RedactKubernetesSecrets != agent.Spec.Agent.RedactKubernetesSecrets {
+		in.Spec.Agent.RedactKubernetesSecrets = agent.Spec.Agent.RedactKubernetesSecrets
+	}
+
+	if in.Spec.Agent.MvnRepoFeaturesPath != agent.Spec.Agent.MvnRepoFeaturesPath {
+		in.Spec.Agent.MvnRepoFeaturesPath = agent.Spec.Agent.MvnRepoFeaturesPath
+	}
+
+	if in.Spec.Agent.MvnRepoSharedPath != agent.Spec.Agent.MvnRepoSharedPath {
+		in.Spec.Agent.MvnRepoSharedPath = agent.Spec.Agent.MvnRepoSharedPath
+	}
+
+	if in.Spec.Agent.MvnRepoUrl != agent.Spec.Agent.MvnRepoUrl {
+		in.Spec.Agent.MvnRepoUrl = agent.Spec.Agent.MvnRepoUrl
+	}
+
+	if in.Spec.Agent.MirrorReleaseRepoPassword != agent.Spec.Agent.MirrorReleaseRepoPassword {
+		in.Spec.Agent.MirrorReleaseRepoPassword = agent.Spec.Agent.MirrorReleaseRepoPassword
+	}
+
+	if in.Spec.Agent.MirrorReleaseRepoUrl != agent.Spec.Agent.MirrorReleaseRepoUrl {
+		in.Spec.Agent.MirrorReleaseRepoUrl = agent.Spec.Agent.MirrorReleaseRepoUrl
+	}
+
+	if in.Spec.Agent.MirrorReleaseRepoUsername != agent.Spec.Agent.MirrorReleaseRepoUsername {
+		in.Spec.Agent.MirrorReleaseRepoUsername = agent.Spec.Agent.MirrorReleaseRepoUsername
+	}
+
+	if in.Spec.Agent.MirrorSharedRepoPassword != agent.Spec.Agent.MirrorSharedRepoPassword {
+		in.Spec.Agent.MirrorSharedRepoPassword = agent.Spec.Agent.MirrorSharedRepoPassword
+	}
+
+	if in.Spec.Agent.MirrorSharedRepoUrl != agent.Spec.Agent.MirrorSharedRepoUrl {
+		in.Spec.Agent.MirrorSharedRepoUrl = agent.Spec.Agent.MirrorSharedRepoUrl
+	}
+
+	if in.Spec.Agent.MirrorSharedRepoUsername != agent.Spec.Agent.MirrorSharedRepoUsername {
+		in.Spec.Agent.MirrorSharedRepoUsername = agent.Spec.Agent.MirrorSharedRepoUsername
+	}
 }
 
 // +kubebuilder:object:root=true
 
-// InstanaAgentList contains a list of InstanaAgent
+// RemoteAgentList contains a list of RemoteAgent
 type RemoteAgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -139,4 +262,14 @@ type RemoteAgentList struct {
 
 func init() {
 	SchemeBuilder.Register(&RemoteAgent{}, &RemoteAgentList{})
+}
+
+func boolPointerEqual(a, b *bool) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
