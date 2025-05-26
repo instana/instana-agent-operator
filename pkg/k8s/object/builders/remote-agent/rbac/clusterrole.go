@@ -51,27 +51,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				Kind:       roleKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.ServiceAccountName(),
-			},
-			Rules: []rbacv1.PolicyRule{
-				{
-					// Needed for Prometheus / Kubelet metrics access
-					NonResourceURLs: []string{
-						"/metrics",
-						"/stats/summary",
-						"/metrics/cadvisor",
-					},
-					Verbs: []string{"get"},
-				},
-				{
-					// Allow read-only access to pods and nodes (metrics)
-					APIGroups: []string{""},
-					Resources: []string{
-						"pods",
-						"nodes",
-					},
-					Verbs: constants.ReaderVerbs(), // typically ["get", "list", "watch"]
-				},
+				Name: "remote-agent",
 			},
 		},
 	)
