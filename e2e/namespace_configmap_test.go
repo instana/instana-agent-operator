@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
 func TestNamespaceLabelConfigmap(t *testing.T) {
@@ -123,6 +124,15 @@ func TestNamespaceLabelConfigmap(t *testing.T) {
 			}
 			if !found {
 				t.Error("Could not find the new namespace in the configmap")
+				t.Error("=== Dumping configMap content as an error occured ===")
+				t.Error(cm.Data[yamlName])
+				t.Error("=== Dumping operator logs as an error occured ===")
+				p := utils.RunCommand(
+					"kubectl logs deployment/instana-agent-controller-manager",
+				)
+				t.Error(
+					"Operator logs", p.Command(), p.Err(), p.Out(), p.ExitCode(),
+				)
 			}
 
 			newNamespace.ObjectMeta.Labels["agentOperatorTest2"] = envconf.RandomName("operator-e2e-label", 30)
@@ -159,6 +169,15 @@ func TestNamespaceLabelConfigmap(t *testing.T) {
 			}
 			if !found {
 				t.Errorf("Could not find the updated label agentOperatorTest2 with value %s in the configmap", newNamespace.ObjectMeta.Labels["agentOperatorTest2"])
+				t.Error("=== Dumping configMap content as an error occured ===")
+				t.Error(cm.Data[yamlName])
+				t.Error("=== Dumping operator logs as an error occured ===")
+				p := utils.RunCommand(
+					"kubectl logs deployment/instana-agent-controller-manager",
+				)
+				t.Error(
+					"Operator logs", p.Command(), p.Err(), p.Out(), p.ExitCode(),
+				)
 			}
 
 			// Cleanup the new namespace with random name again
@@ -185,6 +204,15 @@ func TestNamespaceLabelConfigmap(t *testing.T) {
 			}
 			if found {
 				t.Error("Could still find the new namespace in the configmap, even if it was deleted")
+				t.Error("=== Dumping configMap content as an error occured ===")
+				t.Error(cm.Data[yamlName])
+				t.Error("=== Dumping operator logs as an error occured ===")
+				p := utils.RunCommand(
+					"kubectl logs deployment/instana-agent-controller-manager",
+				)
+				t.Error(
+					"Operator logs", p.Command(), p.Err(), p.Out(), p.ExitCode(),
+				)
 			}
 
 			return ctx
