@@ -29,7 +29,6 @@ import (
 	agentsecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets"
 	keyssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets/keys-secret"
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets/tls-secret"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/service"
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/serviceaccount"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
@@ -71,18 +70,16 @@ func (r *RemoteAgentReconciler) applyResources(
 		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		tlssecret.NewSecretBuilder(agent),
-		service.NewServiceBuilder(agent),
 		agentrbac.NewClusterRoleBuilder(agent),
 		agentrbac.NewClusterRoleBindingBuilder(agent),
 		agentserviceaccount.NewServiceAccountBuilder(agent),
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
 	)
-
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
-		log.Error(err, "failed to apply kubernetes resources for agent")
+		log.Error(err, "failed to apply kubernetes resources for remote agent")
 		return reconcileFailure(err)
 	}
 
-	log.V(1).Info("successfully applied kubernetes resources for agent")
+	log.V(1).Info("successfully applied kubernetes resources for remote agent")
 	return reconcileContinue()
 }
