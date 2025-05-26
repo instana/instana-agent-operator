@@ -14,23 +14,12 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-const RemoteConfigDirectory = "/opt/instana/agent/etc/remote-instana-config-yml"
+const RemoteConfigDirectory = "/opt/instana/agent/etc/remote-config-yml"
 
 type RemoteVolume int
 
 const (
-	DevVolumeRemote RemoteVolume = iota
-	RunVolumeRemote
-	VarRunVolumeRemote
-	VarRunKuboVolumeRemote
-	VarRunContainerdVolumeRemote
-	VarContainerdConfigVolumeRemote
-	SysVolumeRemote
-	VarLogVolumeRemote
-	VarLibVolumeRemote
-	VarDataVolumeRemote
-	MachineIdVolumeRemote
-	ConfigVolumeRemote
+	ConfigVolumeRemote RemoteVolume = iota
 	TlsVolumeRemote
 	RepoVolumeRemote
 )
@@ -41,9 +30,8 @@ type VolumeBuilderRemote interface {
 }
 
 type volumeBuilderRemote struct {
-	remoteAgent    *instanav1.RemoteAgent
-	helpers        helpers.RemoteHelpers
-	isNotOpenShift bool
+	remoteAgent *instanav1.RemoteAgent
+	helpers     helpers.RemoteHelpers
 }
 
 func NewVolumeBuilderRemote(agent *instanav1.RemoteAgent) VolumeBuilderRemote {
@@ -73,55 +61,7 @@ func (v *volumeBuilderRemote) BuildFromUserConfig() ([]corev1.Volume, []corev1.V
 }
 
 func (v *volumeBuilderRemote) getBuilder(volume Volume) (*corev1.Volume, *corev1.VolumeMount) {
-	mountPropagationHostToContainer := corev1.MountPropagationHostToContainer
-	mkdir := corev1.HostPathDirectoryOrCreate
-
 	switch volume {
-	case DevVolume:
-		return v.hostVolumeWithMount("dev", "/dev", &mountPropagationHostToContainer, nil)
-	case RunVolume:
-		return v.hostVolumeWithMount("run", "/run", &mountPropagationHostToContainer, nil)
-	case VarRunVolume:
-		return v.hostVolumeWithMount("var-run", "/var/run", &mountPropagationHostToContainer, nil)
-	case VarRunKuboVolume:
-		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
-			"var-run-kubo",
-			"/var/vcap/sys/run/docker",
-			&mountPropagationHostToContainer,
-			&mkdir,
-		)
-	case VarRunContainerdVolume:
-		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
-			"var-run-containerd",
-			"/var/vcap/sys/run/containerd",
-			&mountPropagationHostToContainer,
-			&mkdir,
-		)
-	case VarContainerdConfigVolume:
-		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
-			"var-containerd-config",
-			"/var/vcap/jobs/containerd/config",
-			&mountPropagationHostToContainer,
-			&mkdir,
-		)
-	case SysVolume:
-		return v.hostVolumeWithMount("sys", "/sys", &mountPropagationHostToContainer, nil)
-	case VarLogVolume:
-		return v.hostVolumeWithMount("var-log", "/var/log", &mountPropagationHostToContainer, nil)
-	case VarLibVolume:
-		return v.hostVolumeWithMount("var-lib", "/var/lib", &mountPropagationHostToContainer, nil)
-	case VarDataVolume:
-		return v.hostVolumeWithMount(
-			"var-data",
-			"/var/data",
-			&mountPropagationHostToContainer,
-			&mkdir,
-		)
-	case MachineIdVolume:
-		return v.hostVolumeWithMount("machine-id", "/etc/machine-id", nil, nil)
 	case ConfigVolume:
 		return v.configVolume()
 	case TlsVolume:
@@ -131,44 +71,6 @@ func (v *volumeBuilderRemote) getBuilder(volume Volume) (*corev1.Volume, *corev1
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
-}
-
-func (v *volumeBuilderRemote) hostVolumeWithMount(
-	name string,
-	path string,
-	mountPropagationMode *corev1.MountPropagationMode,
-	hostPathType *corev1.HostPathType,
-) (*corev1.Volume, *corev1.VolumeMount) {
-	volume := corev1.Volume{
-		Name: name,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: path,
-				Type: hostPathType,
-			},
-		},
-	}
-	volumeMount := corev1.VolumeMount{
-		Name:             name,
-		MountPath:        path,
-		MountPropagation: mountPropagationMode,
-	}
-
-	return &volume, &volumeMount
-}
-
-func (v *volumeBuilderRemote) hostVolumeWithMountLiteralWhenCondition(
-	condition bool,
-	name string,
-	path string,
-	mountPropagationMode *corev1.MountPropagationMode,
-	hostPathType *corev1.HostPathType,
-) (*corev1.Volume, *corev1.VolumeMount) {
-	if condition {
-		return v.hostVolumeWithMount(name, path, mountPropagationMode, hostPathType)
-	}
-
-	return nil, nil
 }
 
 func (v *volumeBuilderRemote) configVolume() (*corev1.Volume, *corev1.VolumeMount) {
@@ -184,7 +86,7 @@ func (v *volumeBuilderRemote) configVolume() (*corev1.Volume, *corev1.VolumeMoun
 	}
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
-		MountPath: InstanaConfigDirectory,
+		MountPath: RemoteConfigDirectory,
 	}
 	return &volume, &volumeMount
 }
@@ -212,10 +114,10 @@ func (v *volumeBuilderRemote) tlsVolume() (*corev1.Volume, *corev1.VolumeMount) 
 		ReadOnly:  true,
 	}
 	return &volume, &volumeMount
-
 }
 
 func (v *volumeBuilderRemote) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	// If the repository field is not provided (or empty), do not mount any volume.
 	if v.remoteAgent.Spec.Agent.Host.Repository == "" {
 		return nil, nil
 	}
@@ -223,8 +125,8 @@ func (v *volumeBuilderRemote) repoVolume() (*corev1.Volume, *corev1.VolumeMount)
 	volume := corev1.Volume{
 		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: v.remoteAgent.Spec.Agent.Host.Repository,
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: v.remoteAgent.Spec.Agent.Host.Repository,
 			},
 		},
 	}
@@ -232,6 +134,5 @@ func (v *volumeBuilderRemote) repoVolume() (*corev1.Volume, *corev1.VolumeMount)
 		Name:      volumeName,
 		MountPath: "/opt/instana/agent/data/repo",
 	}
-
 	return &volume, &volumeMount
 }
