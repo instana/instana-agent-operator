@@ -82,25 +82,6 @@ func (o *remoteOperatorUtils) DeleteAll() error {
 	return o.dependentLifecycleManager.CleanupDependents()
 }
 
-// ClusterIsOpenShift returns a boolean if the cluster has been defined as OpenShift
-// func (o *remoteOperatorUtils) ClusterIsOpenShift() (bool, error) {
-// 	if o.instanaAgent.Spec.OpenShift == nil {
-// 		return o.instanaAgentClient.Exists(
-// 			o.ctx,
-// 			schema.GroupVersionKind{
-// 				Group:   "apiextensions.k8s.io",
-// 				Version: "v1",
-// 				Kind:    "CustomResourceDefinition",
-// 			},
-// 			types.NamespacedName{
-// 				Name: "clusteroperators.config.openshift.io",
-// 			},
-// 		).Get()
-// 	}
-
-// 	return *o.instanaAgent.Spec.OpenShift, nil
-// }
-
 func (o *remoteOperatorUtils) applyAll(objects []k8sclient.Object, opts ...k8sclient.PatchOption) error {
 	errBuilder := multierror.NewMultiErrorBuilder()
 
