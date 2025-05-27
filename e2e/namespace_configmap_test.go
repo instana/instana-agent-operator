@@ -23,7 +23,7 @@ import (
 )
 
 func TestNamespaceLabelConfigmap(t *testing.T) {
-	agent := NewAgentCr()
+	agent := NewAgentCr(t)
 	installAndCheckNamespaceLabels := features.New("check namespace configmap in agent pods").
 		Setup(SetupOperatorDevBuild()).
 		Setup(DeployAgentCr(&agent)).
