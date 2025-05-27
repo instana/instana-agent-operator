@@ -1,6 +1,5 @@
 /*
- * (c) Copyright IBM Corp. 2021
- * (c) Copyright Instana Inc. 2021
+ * (c) Copyright IBM Corp. 2021, 2025
  */
 
 package v1
@@ -130,6 +129,7 @@ type SemanticVersion struct {
 
 type InstanaAgentStatus struct {
 	ConfigSecret                 ResourceInfo `json:"configsecret,omitempty"`
+	NamespacesConfigMap          ResourceInfo `json:"namespacesconfigmap,omitempty"`
 	DeprecatedInstanaAgentStatus `json:",inline"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge
