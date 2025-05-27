@@ -5,25 +5,19 @@
 
 package namespaces
 
-// File content to mount into the agent daemonset
+// File content to mount into the agent daemonset at /opt/instana/agent/etc/namespaces/namespaces.yaml (provided as env var)
+// An empty file will look like below
 /*
-	{
-	  "version": 1,
-	  "namespaces": {
-	    "namespaceName1": {
-	      "labels": {
-	        "key1": "value1",
-	        "key2": "value2"
-	      }
-	    },
-	    "namespaceName2": {
-	      "labels": {
-	        "key3": "value3",
-	        "key4": "value4"
-	      }
-	    }
-	  }
-	}
+version: 1
+namespaces: {}
+*/
+// If a namespace carried the label, the file will provide this yaml. Only the label instana-workload-monitoring is stored, not every label
+/*
+version: 1
+namespaces:
+    instana-agent:
+        labels:
+            instana-workload-monitoring: "true"
 */
 type NamespacesDetails struct {
 	Version    int                          `json:"version"`
