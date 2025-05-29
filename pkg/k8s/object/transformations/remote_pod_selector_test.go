@@ -59,7 +59,7 @@ func Test_podSelectorLabelGeneratorRemote_GetPodLabels(t *testing.T) {
 				userLabels map[string]string,
 				actual map[string]string,
 			) {
-				assertSubset(assertions, actual, userLabels)
+				assertRemoteSubset(assertions, actual, userLabels)
 				assertions.Len(actual, len(userLabels)+5)
 			},
 		},
@@ -94,7 +94,7 @@ func Test_podSelectorLabelGeneratorRemote_GetPodLabels(t *testing.T) {
 
 				actual := p.GetPodLabels(test.userLabels)
 
-				assertSubset(
+				assertRemoteSubset(
 					asssertions, actual, map[string]string{
 						"app.kubernetes.io/name":       "instana-agent",
 						"app.kubernetes.io/instance":   agentName,
