@@ -1,5 +1,17 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package volume
@@ -25,7 +37,7 @@ const (
 )
 
 type VolumeBuilderRemote interface {
-	Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount)
+	Build(volumes ...RemoteVolume) ([]corev1.Volume, []corev1.VolumeMount)
 	BuildFromUserConfig() ([]corev1.Volume, []corev1.VolumeMount)
 }
 
@@ -41,7 +53,7 @@ func NewVolumeBuilderRemote(agent *instanav1.RemoteAgent) VolumeBuilderRemote {
 	}
 }
 
-func (v *volumeBuilderRemote) Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount) {
+func (v *volumeBuilderRemote) Build(volumes ...RemoteVolume) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumeSpecs := []corev1.Volume{}
 	volumeMounts := []corev1.VolumeMount{}
 	for _, volumeNumber := range volumes {
@@ -60,13 +72,13 @@ func (v *volumeBuilderRemote) BuildFromUserConfig() ([]corev1.Volume, []corev1.V
 	return v.remoteAgent.Spec.Agent.Pod.Volumes, v.remoteAgent.Spec.Agent.Pod.VolumeMounts
 }
 
-func (v *volumeBuilderRemote) getBuilder(volume Volume) (*corev1.Volume, *corev1.VolumeMount) {
+func (v *volumeBuilderRemote) getBuilder(volume RemoteVolume) (*corev1.Volume, *corev1.VolumeMount) {
 	switch volume {
-	case ConfigVolume:
+	case ConfigVolumeRemote:
 		return v.configVolume()
-	case TlsVolume:
+	case TlsVolumeRemote:
 		return v.tlsVolume()
-	case RepoVolume:
+	case RepoVolumeRemote:
 		return v.repoVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
@@ -96,7 +108,7 @@ func (v *volumeBuilderRemote) tlsVolume() (*corev1.Volume, *corev1.VolumeMount) 
 		return nil, nil
 	}
 
-	volumeName := "instana-agent-tls"
+	volumeName := "remote-agent-tls"
 	defaultMode := int32(0440)
 
 	volume := corev1.Volume{
