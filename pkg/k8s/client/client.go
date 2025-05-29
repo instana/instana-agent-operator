@@ -1,5 +1,6 @@
 /*
-(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright IBM Corp. 2024
+(c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,20 +20,14 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 
@@ -58,7 +53,6 @@ type InstanaAgentClient interface {
 	Status() k8sClient.SubResourceWriter
 	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
 	Delete(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.DeleteOption) error
-	GetNamespacesWithLabels(ctx context.Context) (namespaces.NamespacesDetails, error)
 }
 
 type instanaAgentClient struct {
@@ -230,38 +224,4 @@ func (c *instanaAgentClient) deleteAllInTimeLimit(
 	default:
 		return err
 	}
-}
-
-func (c *instanaAgentClient) GetNamespacesWithLabels(
-	ctx context.Context,
-) (namespaces.NamespacesDetails, error) {
-	log := logf.FromContext(ctx)
-	namespaceList := &corev1.NamespaceList{}
-	namespacesMap := make(map[string]namespaces.NamespaceMetadata)
-
-	instanaWorkloadMonitoringLabel := "instana-workload-monitoring"
-	log.Info("Requesting list of namespaces with label " + instanaWorkloadMonitoringLabel)
-	labelSelector, _ := labels.Parse("instana-workload-monitoring")
-	err := c.k8sClient.List(ctx, namespaceList, &client.ListOptions{
-		LabelSelector: labelSelector,
-	})
-
-	if err != nil {
-		return namespaces.NamespacesDetails{}, fmt.Errorf("failed to list namespaces: %w", err)
-	}
-	var namespacesReceived []string
-	for _, ns := range namespaceList.Items {
-		namespacesReceived = append(namespacesReceived, ns.Name)
-		labelsCopy := make(map[string]string)
-		labelsCopy[instanaWorkloadMonitoringLabel] = ns.Labels[instanaWorkloadMonitoringLabel]
-		namespacesMap[ns.Name] = namespaces.NamespaceMetadata{
-			Labels: labelsCopy,
-		}
-	}
-
-	log.Info("Received details of namespaces", "namespaceNames", namespacesReceived)
-	return namespaces.NamespacesDetails{
-		Version:    1,
-		Namespaces: namespacesMap,
-	}, nil
 }

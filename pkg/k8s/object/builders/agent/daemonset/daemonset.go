@@ -105,7 +105,6 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodIPEnv,
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
-		env.NamespacesDetailsPathEnv,
 	)
 	d.Helpers.SortEnvVarsByName(envVars)
 	return envVars
@@ -136,7 +135,6 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.ConfigVolume,
 		volume.TlsVolume,
 		volume.RepoVolume,
-		volume.NamespacesDetailsVolume,
 	)
 }
 

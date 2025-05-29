@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: instana/instana-agent-operator
   newName: icr.io/instana/instana-agent-operator
-  newTag: latest
+  newTag: snapshot

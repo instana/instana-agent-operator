@@ -40,7 +40,3 @@ const (
 func ReaderVerbs() []string {
 	return []string{"get", "list", "watch"}
 }
-
-const InstanaNamespacesDetailsFileName = "namespaces.yaml"
-const InstanaConfigDirectory = "/opt/instana/agent/etc/instana-config-yml"
-const InstanaNamespacesDetailsDirectory = "/opt/instana/agent/etc/namespaces"

@@ -58,8 +58,7 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
 		p = utils.RunCommand("kubectl get agent instana-agent -o yaml -n instana-agent")
-		// redact agent key if present
-		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
+		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
 		// Cleanup a potentially existing Agent CR first
 		if _, err = DeleteAgentCRIfPresent()(ctx, cfg); err != nil {
@@ -67,6 +66,15 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		}
 
 		log.Info("Agent CR cleanup completed")
+
+		// Just in case a helm chart install was present before from helm chart pipeline
+		p = utils.RunCommand("helm ls -n instana-agent")
+		log.Info("Current helm chart: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
+		p = utils.RunCommand("helm uninstall instana-agent -n instana-agent")
+		if p.Err() != nil {
+			log.Warningf("Could not delete helm chart, might not be present? %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
+		}
 
 		// full purge of resources if anything would be left in the cluster
 		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/instana-agent-clusterrole clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/instana-agent-clusterrolebinding")
@@ -378,19 +386,6 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		dep := appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
 		}
-
-		// active wait for deployment to be created by the operator, if it is not coming up within 1 minute, something is really off
-		for range 12 {
-			err = client.Resources().Get(ctx, name, cfg.Namespace(), &dep)
-			if err != nil {
-				t.Log("Give the operator a few more seconds to inject resources")
-				time.Sleep(5 * time.Second)
-			} else {
-				t.Logf("Deployment %s was present", name)
-				break
-			}
-		}
-
 		// wait for operator pods of the deployment to become ready
 		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
 		if err != nil {
@@ -692,7 +687,7 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 				Name: "e2e",
 			},
 			// ensure to not overlap between concurrent test runs on different clusters, randomize cluster name, but have consistent zone
-			Cluster: v1.Name{Name: envconf.RandomName("e2e", 9)},
+			Cluster: v1.Name{Name: envconf.RandomName("e2e", 4)},
 			Agent: v1.BaseAgentSpec{
 				Key:          InstanaTestCfg.InstanaBackend.AgentKey,
 				EndpointHost: InstanaTestCfg.InstanaBackend.EndpointHost,
