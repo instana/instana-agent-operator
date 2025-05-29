@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package status
@@ -159,10 +159,16 @@ func setStatusDotConfigSecret(agentNew *instanav1.InstanaAgent) func(cm instanav
 	}
 }
 
+func setStatusDotNamespacesConfigmap(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
+	return func(cm instanav1.ResourceInfo) {
+		agentNew.Status.NamespacesConfigMap = cm
+	}
+}
+
 func setStatusDotConfigSecretRemote(agentNew *instanav1.RemoteAgent) func(cm instanav1.ResourceInfo) {
 	return func(cm instanav1.ResourceInfo) {
 		agentNew.Status.ConfigSecret = cm
-	}
+  }
 }
 
 func setStatusDotOperatorVersion(agentNew *instanav1.InstanaAgent) func(version *semver.Version) {
