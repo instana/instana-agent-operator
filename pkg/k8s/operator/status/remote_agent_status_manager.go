@@ -50,12 +50,11 @@ type RemoteAgentStatusManager interface {
 }
 
 type remoteAgentStatusManager struct {
-	instAgentClient     instanaclient.InstanaAgentClient
-	eventRecorder       record.EventRecorder
-	agentOld            *instanav1.RemoteAgent
-	agentDeployments    []client.ObjectKey // New field to store deployments
-	k8sSensorDeployment client.ObjectKey
-	agentSecretConfig   client.ObjectKey
+	instAgentClient   instanaclient.InstanaAgentClient
+	eventRecorder     record.EventRecorder
+	agentOld          *instanav1.RemoteAgent
+	agentDeployments  []client.ObjectKey // New field to store deployments
+	agentSecretConfig client.ObjectKey
 }
 
 func NewRemoteAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) RemoteAgentStatusManager {
