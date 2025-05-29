@@ -1,6 +1,5 @@
 /*
 (c) Copyright IBM Corp. 2025
-(c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +17,8 @@ limitations under the License.
 package rbac
 
 import (
+	"fmt"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -44,6 +45,7 @@ func (c *clusterRoleBindingBuilder) ComponentName() string {
 }
 
 func (c *clusterRoleBindingBuilder) Build() optional.Optional[client.Object] {
+	name := fmt.Sprintf("remote-agent-%s", c.ServiceAccountName())
 	return optional.Of[client.Object](
 		&rbacv1.ClusterRoleBinding{
 			TypeMeta: metav1.TypeMeta{
@@ -51,17 +53,17 @@ func (c *clusterRoleBindingBuilder) Build() optional.Optional[client.Object] {
 				Kind:       "ClusterRoleBinding",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.ServiceAccountName(),
+				Name: name,
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: rbacApiGroup,
 				Kind:     roleKind,
-				Name:     c.ServiceAccountName(),
+				Name:     name,
 			},
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      subjectKind,
-					Name:      c.ServiceAccountName(),
+					Name:      name,
 					Namespace: c.Namespace,
 				},
 			},
