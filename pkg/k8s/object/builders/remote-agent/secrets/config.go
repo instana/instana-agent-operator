@@ -1,5 +1,17 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package secrets
@@ -86,22 +98,6 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 	if c.Spec.Agent.ConfigurationYaml != "" {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
-	// if otlp := c.Spec.OpenTelemetry; !otlp.GrpcIsEnabled() || !otlp.HttpIsEnabled() {
-	// 	mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp})
-	// 	data["configuration-opentelemetry.yaml"] = mrshl
-	// }
-	// if pointer.DerefOrEmpty(c.Spec.Prometheus.RemoteWrite.Enabled) {
-	// 	mrshl, _ := yaml.Marshal(
-	// 		map[string]any{
-	// 			"com.instana.plugin.prometheus": map[string]any{
-	// 				"remote_write": map[string]any{
-	// 					"enabled": true,
-	// 				},
-	// 			},
-	// 		},
-	// 	)
-	// 	data["configuration-prometheus-remote-write.yaml"] = mrshl
-	// }
 
 	// Deprecated since k8s sensor deployment will always be enabled now,
 	// can remove once deprecated sensor is removed from agent
