@@ -67,8 +67,8 @@ func TestCleanupDependentsDeletesUnmatchedDataRemote(t *testing.T) {
 	instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
 
 	// Create two client.Object arrays which have some overlap for comparisons and deletion calls
-	oldDependentsJson := genMockObjs(10)
-	currentDependentsJson := genMockObjs(5)
+	oldDependentsJson := genMockObjsRemote(10)
+	currentDependentsJson := genMockObjsRemote(5)
 	currentDependentsJson = append(currentDependentsJson, oldDependentsJson[:5]...)
 
 	instanaAgentClient.EXPECT().
@@ -98,7 +98,7 @@ func TestCleanupDependentsDeletesUnmatchedDataRemote(t *testing.T) {
 
 	instanaAgentClient.EXPECT().
 		DeleteAllInTimeLimit(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(result.Of(genMockObjs(1), nil)).
+		Return(result.Of(genMockObjsRemote(1), nil)).
 		Times(2)
 
 	var obj client.Object = &unstructured.Unstructured{}
@@ -145,7 +145,7 @@ func TestCleanupDependentsDeleteAllReturnsErrorRemote(t *testing.T) {
 			}
 
 			config.Data = make(map[string]string, 1)
-			currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjs(12)...))
+			currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjsRemote(12)...))
 			config.Data["v0.0.1-dev_1234"] = string(currentDependentsJson)
 
 			return nil
@@ -158,7 +158,7 @@ func TestCleanupDependentsDeleteAllReturnsErrorRemote(t *testing.T) {
 
 	instanaAgentClient.EXPECT().
 		DeleteAllInTimeLimit(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(result.Of(genMockObjs(1), expected)).
+		Return(result.Of(genMockObjsRemote(1), expected)).
 		Times(1)
 
 	var obj client.Object = &unstructured.Unstructured{}
@@ -173,7 +173,7 @@ func TestCleanupDependentsDeleteAllReturnsErrorRemote(t *testing.T) {
 		instanaAgentClient,
 	)
 
-	err := dependentLifecycleManager.CleanupDependents(genMockObjs(10)...)
+	err := dependentLifecycleManager.CleanupDependents(genMockObjsRemote(10)...)
 
 	assert.True(t, errors.Is(errBuilder.Build(), err))
 }
@@ -211,7 +211,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 				}
 
 				config.Data = make(map[string]string, 1)
-				currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjs(0)...))
+				currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjsRemote(0)...))
 				config.Data["v0.0.1-dev_1234"] = string(currentDependentsJson)
 
 				return nil
@@ -238,7 +238,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 				}
 
 				config.Data = make(map[string]string, 1)
-				currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjs(12)...))
+				currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjsRemote(12)...))
 				config.Data["v0.0.1-dev_1234"] = string(currentDependentsJson)
 
 				return nil
@@ -261,7 +261,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 					Times(1)
 				instanaAgentClient.EXPECT().
 					DeleteAllInTimeLimit(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(result.Of(genMockObjs(test.generatedObjects), nil)).
+					Return(result.Of(genMockObjsRemote(test.generatedObjects), nil)).
 					Times(1)
 				var obj client.Object = &unstructured.Unstructured{}
 				instanaAgentClient.EXPECT().
@@ -275,7 +275,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 					instanaAgentClient,
 				)
 
-				err := dependentLifecycleManager.CleanupDependents(genMockObjs(test.generatedObjects)...)
+				err := dependentLifecycleManager.CleanupDependents(genMockObjsRemote(test.generatedObjects)...)
 				assertions.Nil(err)
 			},
 		)

@@ -159,15 +159,15 @@ func setStatusDotConfigSecret(agentNew *instanav1.InstanaAgent) func(cm instanav
 	}
 }
 
-func setStatusDotConfigSecretRemote(agentNew *instanav1.RemoteAgent) func(cm instanav1.ResourceInfo) {
-	return func(cm instanav1.ResourceInfo) {
-		agentNew.Status.ConfigSecret = cm
-	}
-}
-
 func setStatusDotNamespacesConfigmap(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
 	return func(cm instanav1.ResourceInfo) {
 		agentNew.Status.NamespacesConfigMap = cm
+	}
+}
+
+func setStatusDotConfigSecretRemote(agentNew *instanav1.RemoteAgent) func(cm instanav1.ResourceInfo) {
+	return func(cm instanav1.ResourceInfo) {
+		agentNew.Status.ConfigSecret = cm
 	}
 }
 
