@@ -1,3 +1,18 @@
+/*
+(c) Copyright IBM Corp. 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package deployment
 
 import (
@@ -31,7 +46,7 @@ const (
 type deploymentBuilder struct {
 	*instanav1.RemoteAgent
 	statusManager status.RemoteAgentStatusManager
-	remoteHelpers helpers.RemoteHelpers
+	helpers.RemoteHelpers
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
 	ports.PortsBuilderRemote
@@ -90,35 +105,21 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.K8sServiceDomainEnvRemote,
 		env.EnableAgentSocketEnvRemote,
 	)
-	d.remoteHelpers.SortEnvVarsByName(envVars)
+	d.SortEnvVarsByName(envVars)
 	return envVars
 }
 
 func (d *deploymentBuilder) getContainerPorts() []corev1.ContainerPort {
 	return d.GetContainerPorts(
 		ports.AgentAPIsPort,
-		ports.OpenTelemetryLegacyPort,
-		ports.OpenTelemetryGRPCPort,
-		ports.OpenTelemetryHTTPPort,
 	)
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	return d.VolumeBuilderRemote.Build(
-		volume.DevVolume,
-		volume.RunVolume,
-		volume.VarRunVolume,
-		volume.VarRunKuboVolume,
-		volume.VarRunContainerdVolume,
-		volume.VarContainerdConfigVolume,
-		volume.SysVolume,
-		volume.VarLogVolume,
-		volume.VarLibVolume,
-		volume.VarDataVolume,
-		volume.MachineIdVolume,
-		volume.ConfigVolume,
-		volume.TlsVolume,
-		volume.RepoVolume,
+		volume.ConfigVolumeRemote,
+		volume.TlsVolumeRemote,
+		volume.RepoVolumeRemote,
 	)
 }
 
@@ -167,6 +168,7 @@ func (d *deploymentBuilder) getTolerations() []corev1.Toleration {
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
+	name := fmt.Sprintf("remote-agent-%s", d.getName())
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -174,7 +176,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.getName(),
+			Name:      name,
 			Namespace: d.Namespace,
 			Labels:    d.getNonStandardLabels(),
 		},
@@ -189,23 +191,19 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					Annotations: d.RemoteAgent.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Volumes:           append(volumes, userVolumes...),
-					NodeSelector:      d.Spec.Agent.Pod.NodeSelector,
-					HostNetwork:       true,
-					HostPID:           true,
-					PriorityClassName: d.Spec.Agent.Pod.PriorityClassName,
-					DNSPolicy:         corev1.DNSClusterFirstWithHostNet,
-					ImagePullSecrets:  d.remoteHelpers.ImagePullSecrets(),
+					ServiceAccountName: "remote-agent",
+					Volumes:            append(volumes, userVolumes...),
+					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
+					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
+					DNSPolicy:          corev1.DNSClusterFirst,
+					ImagePullSecrets:   d.ImagePullSecrets(),
 					Containers: []corev1.Container{
 						{
-							Name:            "remote-instana-agent",
+							Name:            d.getName(),
 							Image:           d.Spec.Agent.Image(),
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
 							VolumeMounts:    append(volumeMounts, userVolumeMounts...),
 							Env:             d.getEnvVars(),
-							SecurityContext: &corev1.SecurityContext{
-								Privileged: pointer.To(true),
-							},
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
@@ -219,7 +217,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 								PeriodSeconds:       10,
 								FailureThreshold:    3,
 							},
-							Resources: d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
+							Resources: d.Spec.ResourceRequirements.GetOrDefault(),
 							Ports:     d.getContainerPorts(),
 						},
 					},
@@ -237,8 +235,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 	defer func() {
 		res.IfPresent(
-			func(dpl client.Object) {
-				d.statusManager.SetK8sSensorDeployment(client.ObjectKeyFromObject(dpl))
+			func(dp client.Object) {
+				d.statusManager.AddAgentDeployment(client.ObjectKeyFromObject(dp))
 			},
 		)
 	}()
@@ -264,7 +262,7 @@ func NewDeploymentBuilder(
 	return &deploymentBuilder{
 		RemoteAgent:               agent,
 		statusManager:             statusManager,
-		remoteHelpers:             helpers.NewRemoteHelpers(agent),
+		RemoteHelpers:             helpers.NewRemoteHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabelsRemote(agent, componentName),
 		EnvBuilderRemote:          env.NewEnvBuilderRemote(agent, nil),
 		VolumeBuilderRemote:       volume.NewVolumeBuilderRemote(agent),
