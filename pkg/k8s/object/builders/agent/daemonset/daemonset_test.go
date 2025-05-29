@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright IBM Corp. 2024
 (c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -175,7 +175,6 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.PodIPEnv,
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
-		env.NamespacesDetailsPathEnv,
 	).
 		Return(expected)
 
@@ -241,7 +240,6 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 		gomock.Eq(volume.ConfigVolume),
 		gomock.Eq(volume.TlsVolume),
 		gomock.Eq(volume.RepoVolume),
-		gomock.Eq(volume.NamespacesDetailsVolume),
 	).Return(expectedVolumes, expectedVolumeMounts)
 
 	db := &daemonSetBuilder{

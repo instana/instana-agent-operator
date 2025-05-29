@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright IBM Corp. 2024
 */
 
 package status
@@ -35,18 +35,16 @@ type AgentStatusManager interface {
 	SetAgentOld(agent *instanav1.InstanaAgent)
 	SetK8sSensorDeployment(k8sSensorDeployment client.ObjectKey)
 	SetAgentSecretConfig(agentSecretConfig client.ObjectKey)
-	SetAgentNamespacesConfigMap(agentNamespacesConfigmap client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
 
 type agentStatusManager struct {
-	instAgentClient          instanaclient.InstanaAgentClient
-	eventRecorder            record.EventRecorder
-	agentOld                 *instanav1.InstanaAgent
-	agentDaemonsets          []client.ObjectKey
-	k8sSensorDeployment      client.ObjectKey
-	agentSecretConfig        client.ObjectKey
-	agentNamespacesConfigmap client.ObjectKey
+	instAgentClient     instanaclient.InstanaAgentClient
+	eventRecorder       record.EventRecorder
+	agentOld            *instanav1.InstanaAgent
+	agentDaemonsets     []client.ObjectKey
+	k8sSensorDeployment client.ObjectKey
+	agentSecretConfig   client.ObjectKey
 }
 
 func NewAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) AgentStatusManager {
@@ -73,10 +71,6 @@ func (a *agentStatusManager) SetK8sSensorDeployment(k8sSensorDeployment client.O
 
 func (a *agentStatusManager) SetAgentSecretConfig(agentSecretConfig types.NamespacedName) {
 	a.agentSecretConfig = agentSecretConfig
-}
-
-func (a *agentStatusManager) SetAgentNamespacesConfigMap(agentNamespacesConfigmap types.NamespacedName) {
-	a.agentNamespacesConfigmap = agentNamespacesConfigmap
 }
 
 func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
@@ -117,12 +111,6 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 
 func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
 	cm := a.instAgentClient.GetAsResult(ctx, a.agentSecretConfig, &corev1.Secret{})
-
-	return result.Map(cm, toResourceInfo)
-}
-
-func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
-	cm := a.instAgentClient.GetAsResult(ctx, a.agentNamespacesConfigmap, &corev1.ConfigMap{})
 
 	return result.Map(cm, toResourceInfo)
 }
@@ -283,10 +271,6 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	a.getConfigSecret(ctx).
 		OnSuccess(setStatusDotConfigSecret(agentNew)).
-		OnFailure(errBuilder.AddSingle)
-
-	a.getNamespacesConfigMap(ctx).
-		OnSuccess(setStatusDotNamespacesConfigmap(agentNew)).
 		OnFailure(errBuilder.AddSingle)
 
 	if a.updateWasPerformed() {
