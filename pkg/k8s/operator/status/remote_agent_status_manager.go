@@ -185,7 +185,7 @@ func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Co
 	}
 
 	// Evaluate deployment availability (based on status conditions)
-	if list.NewConditions(deployments).All(deploymentIsAvailableAndComplete) {
+	if list.NewConditions(deployments).All(deploymentIsAvailableAndComplete) && len(deployments) > 0 {
 		condition.Status = metav1.ConditionTrue
 		condition.Reason = "AllDesiredAgentsAvailable"
 		condition.Message = "All desired Remote Agents are available and using up-to-date configuration"

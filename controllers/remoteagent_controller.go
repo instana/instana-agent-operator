@@ -137,12 +137,14 @@ func (r *RemoteAgentReconciler) reconcile(
 	ctx = logr.NewContext(ctx, log)
 	log.Info("reconciling remote Agent CR")
 
-	hostAgent, getHostAgentRes := r.getAgent(ctx, agent.Namespace, "instana-agent")
-	if getHostAgentRes.suppliesReconcileResult() {
-		return getHostAgentRes
+	hostAgent, _ := r.getAgent(ctx, agent.Namespace, "instana-agent")
+	//if host agent exists in namespace inherit values otherwise default to minimum values to start an agent
+	if hostAgent != nil {
+		agent.DefaultWithHost(*hostAgent)
+	} else {
+		agent.Default()
 	}
 
-	agent.Default(*hostAgent)
 	operatorUtils := operator_utils.NewRemoteOperatorUtils(
 		ctx,
 		r.client,

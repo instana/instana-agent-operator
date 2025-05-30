@@ -217,7 +217,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 								PeriodSeconds:       10,
 								FailureThreshold:    3,
 							},
-							Resources: d.Spec.ResourceRequirements.GetOrDefault(),
+							Resources: d.Spec.Agent.Pod.GetOrDefault(),
 							Ports:     d.getContainerPorts(),
 						},
 					},
