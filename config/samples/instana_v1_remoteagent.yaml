@@ -1,0 +1,7 @@
+apiVersion: instana.io/v1
+kind: RemoteAgent
+metadata:
+  name: remoteagent-sample
+  namespace: "instana-agent"
+spec:
+  # TODO(user): Add fields here
