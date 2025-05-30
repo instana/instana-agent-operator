@@ -115,69 +115,52 @@ type RemoteAgent struct {
 }
 
 func (in *RemoteAgent) Default(agent InstanaAgent) {
-	// Compute desired values from the upstream agent spec with defaults.
+	// Get desired values from the host agent spec with defaults.
 	desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
-	if in.Spec.Agent.EndpointHost != desiredEndpointHost {
-		in.Spec.Agent.EndpointHost = desiredEndpointHost
-	}
+	inherit(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
 
 	desiredEndpointPort := optional.Of(agent.Spec.Agent.EndpointPort).GetOrDefault("443")
-	if in.Spec.Agent.EndpointPort != desiredEndpointPort {
-		in.Spec.Agent.EndpointPort = desiredEndpointPort
-	}
+	inherit(&in.Spec.Agent.EndpointPort, &desiredEndpointPort)
 
 	desiredImageName := optional.Of(agent.Spec.Agent.ImageSpec.Name).GetOrDefault("icr.io/instana/agent")
-	if in.Spec.Agent.ImageSpec.Name != desiredImageName {
-		in.Spec.Agent.ImageSpec.Name = desiredImageName
-	}
+	inherit(&in.Spec.Agent.ImageSpec.Name, &desiredImageName)
 
 	desiredImageTag := optional.Of(agent.Spec.Agent.ImageSpec.Tag).GetOrDefault("latest")
-	if in.Spec.Agent.ImageSpec.Tag != desiredImageTag {
-		in.Spec.Agent.ImageSpec.Tag = desiredImageTag
-	}
+	inherit(&in.Spec.Agent.ImageSpec.Tag, &desiredImageTag)
 
 	desiredPullPolicy := optional.Of(agent.Spec.Agent.ImageSpec.PullPolicy).GetOrDefault(corev1.PullAlways)
-	if in.Spec.Agent.ImageSpec.PullPolicy != desiredPullPolicy {
-		in.Spec.Agent.ImageSpec.PullPolicy = desiredPullPolicy
-	}
+	inherit(&in.Spec.Agent.ImageSpec.PullPolicy, &desiredPullPolicy)
 
 	desiredRbac := optional.Of(agent.Spec.Rbac.Create).GetOrDefault(pointer.To(true))
-	if !boolPointerEqual(in.Spec.Rbac.Create, desiredRbac) {
-		in.Spec.Rbac.Create = desiredRbac
-	}
+	inherit(&in.Spec.Rbac.Create, &desiredRbac)
 
 	desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
-	if !boolPointerEqual(in.Spec.ServiceAccountSpec.Create.Create, desiredSA) {
-		in.Spec.ServiceAccountSpec.Create.Create = desiredSA
-	}
+	inherit(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
 
-	if in.Spec.Agent.ConfigurationYaml != in.Spec.ConfigurationYaml {
-		in.Spec.Agent.ConfigurationYaml = in.Spec.ConfigurationYaml
-	}
-
-	if in.Spec.Cluster.Name != agent.Spec.Cluster.Name {
-		in.Spec.Cluster.Name = agent.Spec.Cluster.Name
-	}
-
-	if in.Spec.Agent.Key != agent.Spec.Agent.Key {
-		in.Spec.Agent.Key = agent.Spec.Agent.Key
-	}
-
-	if in.Spec.Agent.DownloadKey != agent.Spec.Agent.DownloadKey {
-		in.Spec.Agent.DownloadKey = agent.Spec.Agent.DownloadKey
-	}
-
-	if in.Spec.Agent.KeysSecret != agent.Spec.Agent.KeysSecret {
-		in.Spec.Agent.KeysSecret = agent.Spec.Agent.KeysSecret
-	}
-
-	if in.Spec.Agent.ListenAddress != agent.Spec.Agent.ListenAddress {
-		in.Spec.Agent.ListenAddress = agent.Spec.Agent.ListenAddress
-	}
-
-	if in.Spec.Agent.MinReadySeconds != agent.Spec.Agent.MinReadySeconds {
-		in.Spec.Agent.MinReadySeconds = agent.Spec.Agent.MinReadySeconds
-	}
+	//Get desired values from the host agent spec
+	inherit(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
+	inherit(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)
+	inherit(&in.Spec.Agent.Key, &agent.Spec.Agent.Key)
+	inherit(&in.Spec.Agent.DownloadKey, &agent.Spec.Agent.DownloadKey)
+	inherit(&in.Spec.Agent.KeysSecret, &agent.Spec.Agent.KeysSecret)
+	inherit(&in.Spec.Agent.ListenAddress, &agent.Spec.Agent.ListenAddress)
+	inherit(&in.Spec.Agent.MinReadySeconds, &agent.Spec.Agent.MinReadySeconds)
+	inherit(&in.Spec.Agent.ProxyHost, &agent.Spec.Agent.ProxyHost)
+	inherit(&in.Spec.Agent.ProxyPassword, &agent.Spec.Agent.ProxyPassword)
+	inherit(&in.Spec.Agent.ProxyPort, &agent.Spec.Agent.ProxyPort)
+	inherit(&in.Spec.Agent.ProxyProtocol, &agent.Spec.Agent.ProxyProtocol)
+	inherit(&in.Spec.Agent.ProxyUseDNS, &agent.Spec.Agent.ProxyUseDNS)
+	inherit(&in.Spec.Agent.ProxyUser, &agent.Spec.Agent.ProxyUser)
+	inherit(&in.Spec.Agent.RedactKubernetesSecrets, &agent.Spec.Agent.RedactKubernetesSecrets)
+	inherit(&in.Spec.Agent.MvnRepoFeaturesPath, &agent.Spec.Agent.MvnRepoFeaturesPath)
+	inherit(&in.Spec.Agent.MvnRepoSharedPath, &agent.Spec.Agent.MvnRepoSharedPath)
+	inherit(&in.Spec.Agent.MvnRepoUrl, &agent.Spec.Agent.MvnRepoUrl)
+	inherit(&in.Spec.Agent.MirrorReleaseRepoPassword, &agent.Spec.Agent.MirrorReleaseRepoPassword)
+	inherit(&in.Spec.Agent.MirrorReleaseRepoUrl, &agent.Spec.Agent.MirrorReleaseRepoUrl)
+	inherit(&in.Spec.Agent.MirrorReleaseRepoUsername, &agent.Spec.Agent.MirrorReleaseRepoUsername)
+	inherit(&in.Spec.Agent.MirrorSharedRepoPassword, &agent.Spec.Agent.MirrorSharedRepoPassword)
+	inherit(&in.Spec.Agent.MirrorSharedRepoUrl, &agent.Spec.Agent.MirrorSharedRepoUrl)
+	inherit(&in.Spec.Agent.MirrorSharedRepoUsername, &agent.Spec.Agent.MirrorSharedRepoUsername)
 
 	if !reflect.DeepEqual(in.Spec.Agent.AdditionalBackends, agent.Spec.Agent.AdditionalBackends) {
 		in.Spec.Agent.AdditionalBackends = agent.Spec.Agent.AdditionalBackends
@@ -185,80 +168,6 @@ func (in *RemoteAgent) Default(agent InstanaAgent) {
 
 	if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
 		in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
-	}
-
-	if (agent.Spec.Agent.ExtendedImageSpec.ImageSpec.Name != "" || len(agent.Spec.Agent.ExtendedImageSpec.PullSecrets) > 0) &&
-		(in.Spec.Agent.ExtendedImageSpec.ImageSpec.Name != agent.Spec.Agent.ExtendedImageSpec.ImageSpec.Name ||
-			!reflect.DeepEqual(in.Spec.Agent.ExtendedImageSpec.PullSecrets, agent.Spec.Agent.ExtendedImageSpec.PullSecrets)) {
-		in.Spec.Agent.ExtendedImageSpec = agent.Spec.Agent.ExtendedImageSpec
-	}
-
-	if in.Spec.Agent.ProxyHost != agent.Spec.Agent.ProxyHost {
-		in.Spec.Agent.ProxyHost = agent.Spec.Agent.ProxyHost
-	}
-
-	if in.Spec.Agent.ProxyPassword != agent.Spec.Agent.ProxyPassword {
-		in.Spec.Agent.ProxyPassword = agent.Spec.Agent.ProxyPassword
-	}
-
-	if in.Spec.Agent.ProxyPort != agent.Spec.Agent.ProxyPort {
-		in.Spec.Agent.ProxyPort = agent.Spec.Agent.ProxyPort
-	}
-
-	if in.Spec.Agent.ProxyProtocol != agent.Spec.Agent.ProxyProtocol {
-		in.Spec.Agent.ProxyProtocol = agent.Spec.Agent.ProxyProtocol
-	}
-
-	if in.Spec.Agent.ProxyUseDNS != agent.Spec.Agent.ProxyUseDNS {
-		in.Spec.Agent.ProxyUseDNS = agent.Spec.Agent.ProxyUseDNS
-	}
-
-	if in.Spec.Agent.ProxyUser != agent.Spec.Agent.ProxyUser {
-		in.Spec.Agent.ProxyUser = agent.Spec.Agent.ProxyUser
-	}
-
-	if !reflect.DeepEqual(in.Spec.Agent.Env, agent.Spec.Agent.Env) {
-		in.Spec.Agent.Env = agent.Spec.Agent.Env
-	}
-
-	if in.Spec.Agent.RedactKubernetesSecrets != agent.Spec.Agent.RedactKubernetesSecrets {
-		in.Spec.Agent.RedactKubernetesSecrets = agent.Spec.Agent.RedactKubernetesSecrets
-	}
-
-	if in.Spec.Agent.MvnRepoFeaturesPath != agent.Spec.Agent.MvnRepoFeaturesPath {
-		in.Spec.Agent.MvnRepoFeaturesPath = agent.Spec.Agent.MvnRepoFeaturesPath
-	}
-
-	if in.Spec.Agent.MvnRepoSharedPath != agent.Spec.Agent.MvnRepoSharedPath {
-		in.Spec.Agent.MvnRepoSharedPath = agent.Spec.Agent.MvnRepoSharedPath
-	}
-
-	if in.Spec.Agent.MvnRepoUrl != agent.Spec.Agent.MvnRepoUrl {
-		in.Spec.Agent.MvnRepoUrl = agent.Spec.Agent.MvnRepoUrl
-	}
-
-	if in.Spec.Agent.MirrorReleaseRepoPassword != agent.Spec.Agent.MirrorReleaseRepoPassword {
-		in.Spec.Agent.MirrorReleaseRepoPassword = agent.Spec.Agent.MirrorReleaseRepoPassword
-	}
-
-	if in.Spec.Agent.MirrorReleaseRepoUrl != agent.Spec.Agent.MirrorReleaseRepoUrl {
-		in.Spec.Agent.MirrorReleaseRepoUrl = agent.Spec.Agent.MirrorReleaseRepoUrl
-	}
-
-	if in.Spec.Agent.MirrorReleaseRepoUsername != agent.Spec.Agent.MirrorReleaseRepoUsername {
-		in.Spec.Agent.MirrorReleaseRepoUsername = agent.Spec.Agent.MirrorReleaseRepoUsername
-	}
-
-	if in.Spec.Agent.MirrorSharedRepoPassword != agent.Spec.Agent.MirrorSharedRepoPassword {
-		in.Spec.Agent.MirrorSharedRepoPassword = agent.Spec.Agent.MirrorSharedRepoPassword
-	}
-
-	if in.Spec.Agent.MirrorSharedRepoUrl != agent.Spec.Agent.MirrorSharedRepoUrl {
-		in.Spec.Agent.MirrorSharedRepoUrl = agent.Spec.Agent.MirrorSharedRepoUrl
-	}
-
-	if in.Spec.Agent.MirrorSharedRepoUsername != agent.Spec.Agent.MirrorSharedRepoUsername {
-		in.Spec.Agent.MirrorSharedRepoUsername = agent.Spec.Agent.MirrorSharedRepoUsername
 	}
 }
 
@@ -275,12 +184,8 @@ func init() {
 	SchemeBuilder.Register(&RemoteAgent{}, &RemoteAgentList{})
 }
 
-func boolPointerEqual(a, b *bool) bool {
-	if a == nil && b == nil {
-		return true
+func inherit[T comparable](target *T, source *T) {
+	if source != nil && *target != *source {
+		*target = *source
 	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a == *b
 }

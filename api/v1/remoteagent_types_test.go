@@ -46,11 +46,18 @@ func TestRemoteAgent_Default(t *testing.T) {
 				ListenAddress:     "0.0.0.0",
 				MinReadySeconds:   10,
 				ConfigurationYaml: "config-yaml",
-				AdditionalBackends: []BackendSpec{{
-					EndpointHost: "backend1",
-					EndpointPort: "443",
-					Key:          "test",
-				}},
+				AdditionalBackends: []BackendSpec{
+					{
+						EndpointHost: "backend1",
+						EndpointPort: "443",
+						Key:          "test",
+					},
+					{
+						EndpointHost: "backend2",
+						EndpointPort: "443",
+						Key:          "test",
+					},
+				},
 				TlsSpec:                   TlsSpec{SecretName: "tls-secret"},
 				ProxyHost:                 "proxy-host",
 				ProxyPort:                 "3128",
@@ -106,11 +113,18 @@ func TestRemoteAgent_Default(t *testing.T) {
 					ListenAddress:     "0.0.0.0",
 					MinReadySeconds:   10,
 					ConfigurationYaml: "config-yaml",
-					AdditionalBackends: []BackendSpec{{
-						EndpointHost: "backend1",
-						EndpointPort: "443",
-						Key:          "test",
-					}},
+					AdditionalBackends: []BackendSpec{
+						{
+							EndpointHost: "backend1",
+							EndpointPort: "443",
+							Key:          "test",
+						},
+						{
+							EndpointHost: "backend2",
+							EndpointPort: "443",
+							Key:          "test",
+						},
+					},
 					TlsSpec:                   TlsSpec{SecretName: "tls-secret"},
 					ProxyHost:                 "proxy-host",
 					ProxyPort:                 "3128",
@@ -118,7 +132,6 @@ func TestRemoteAgent_Default(t *testing.T) {
 					ProxyUseDNS:               true,
 					ProxyUser:                 "proxy-user",
 					ProxyPassword:             "proxy-pass",
-					Env:                       map[string]string{"ENV_VAR": "value"},
 					RedactKubernetesSecrets:   "true",
 					MvnRepoFeaturesPath:       "/mvn/features",
 					MvnRepoSharedPath:         "/mvn/shared",
