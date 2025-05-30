@@ -114,7 +114,7 @@ type RemoteAgent struct {
 	Status RemoteAgentStatus `json:"status,omitempty"`
 }
 
-func (in *RemoteAgent) Default(agent InstanaAgent) {
+func (in *RemoteAgent) DefaultWithHost(agent InstanaAgent) {
 	// Get desired values from the host agent spec with defaults.
 	desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
 	inherit(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
@@ -169,6 +169,21 @@ func (in *RemoteAgent) Default(agent InstanaAgent) {
 	if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
 		in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
 	}
+
+	if !reflect.DeepEqual(in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements) {
+		in.Spec.Agent.Pod.ResourceRequirements = in.Spec.ResourceRequirements
+	}
+}
+
+func (in *RemoteAgent) Default() {
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
 }
 
 // +kubebuilder:object:root=true
@@ -185,7 +200,12 @@ func init() {
 }
 
 func inherit[T comparable](target *T, source *T) {
-	if source != nil && *target != *source {
+	if *source != zeroValue[T]() && *target != *source {
 		*target = *source
 	}
+}
+
+func zeroValue[T any]() T {
+	var zero T
+	return zero
 }
