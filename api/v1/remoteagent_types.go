@@ -176,6 +176,7 @@ func (in *RemoteAgent) DefaultWithHost(agent InstanaAgent) {
 }
 
 func (in *RemoteAgent) Default() {
+	optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
 	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
 	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
 	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
