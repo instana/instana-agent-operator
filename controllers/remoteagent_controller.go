@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
@@ -55,22 +56,36 @@ func AddRemote(mgr manager.Manager) error {
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(
 			&instanav1.InstanaAgent{},
-			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
-				var remoteAgentList instanav1.RemoteAgentList
-				err := mgr.GetClient().List(ctx, &remoteAgentList, &client.ListOptions{
-					Namespace: obj.GetNamespace(),
-				})
-				if err != nil {
-					log.FromContext(ctx).Error(err, "Failed to list RemoteAgents on InstanaAgent change")
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+				log := log.FromContext(ctx)
+
+				// Ensure the triggering object is namespaced
+				namespace := obj.GetNamespace()
+				if namespace == "" {
+					//agent needs to be namespaced bound. If not do no reconcile
 					return nil
 				}
 
-				var requests []ctrl.Request
+				var remoteAgentList instanav1.RemoteAgentList
+				if err := mgr.GetClient().List(ctx, &remoteAgentList, &client.ListOptions{
+					Namespace: namespace,
+				}); err != nil {
+					//error retrieving remote agent specs in namespace. do not trigger reconcile
+					return nil
+				}
+
+				//no remote agent specs in namespace. do not trigger reconcile
+				if len(remoteAgentList.Items) == 0 {
+					log.Info("No RemoteAgents in same namespace as InstanaAgent", "namespace", namespace)
+					return nil
+				}
+
+				var requests []reconcile.Request
 				for _, remoteAgent := range remoteAgentList.Items {
-					requests = append(requests, ctrl.Request{
+					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
-							Name:      remoteAgent.GetName(),
-							Namespace: remoteAgent.GetNamespace(),
+							Name:      remoteAgent.Name,
+							Namespace: remoteAgent.Namespace,
 						},
 					})
 				}
