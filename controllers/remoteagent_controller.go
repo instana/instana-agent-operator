@@ -24,9 +24,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -50,6 +53,30 @@ func AddRemote(mgr manager.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
+		Watches(
+			&instanav1.InstanaAgent{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
+				var remoteAgentList instanav1.RemoteAgentList
+				err := mgr.GetClient().List(ctx, &remoteAgentList, &client.ListOptions{
+					Namespace: obj.GetNamespace(),
+				})
+				if err != nil {
+					log.FromContext(ctx).Error(err, "Failed to list RemoteAgents on InstanaAgent change")
+					return nil
+				}
+
+				var requests []ctrl.Request
+				for _, remoteAgent := range remoteAgentList.Items {
+					requests = append(requests, ctrl.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      remoteAgent.GetName(),
+							Namespace: remoteAgent.GetNamespace(),
+						},
+					})
+				}
+				return requests
+			}),
+		).
 		WithEventFilter(filterPredicateRemote()).
 		Complete(
 			NewRemoteAgentReconciler(
