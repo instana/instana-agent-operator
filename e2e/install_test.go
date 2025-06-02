@@ -18,7 +18,7 @@ import (
 )
 
 func TestInitialInstall(t *testing.T) {
-	agent := NewAgentCr(t)
+	agent := NewAgentCr()
 	initialInstallFeature := features.New("initial install dev-operator-build").
 		Setup(SetupOperatorDevBuild()).
 		Setup(DeployAgentCr(&agent)).
@@ -51,7 +51,7 @@ func TestInitialInstall(t *testing.T) {
 	testEnv.Test(t, initialInstallFeature)
 }
 func TestUpdateInstall(t *testing.T) {
-	agent := NewAgentCr(t)
+	agent := NewAgentCr()
 	installLatestFeature := features.New("deploy latest released instana-agent-operator").
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			const latestOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml"

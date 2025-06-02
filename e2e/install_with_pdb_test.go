@@ -16,7 +16,7 @@ import (
 )
 
 func TestInstallWithK8sensorPodDisruptionBudget(t *testing.T) {
-	agent := NewAgentCr(t)
+	agent := NewAgentCr()
 	enabled := true
 	agent.Spec.K8sSensor.PodDisruptionBudget.Enabled = &enabled
 	f := features.New("install dev-operator-build and enable k8sensor podDisruptionBudget").
