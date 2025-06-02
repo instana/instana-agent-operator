@@ -148,6 +148,13 @@ rules:
   - watch
 - apiGroups:
   - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - policy
   resourceNames:
   - instana-agent-k8sensor
   resources:

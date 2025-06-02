@@ -206,6 +206,7 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=podsecuritypolicies,verbs=use
 // +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=poddisruptionbudgets,verbs=create;patch;delete
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=watch;list
 
 func (r *InstanaAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	res ctrl.Result,
