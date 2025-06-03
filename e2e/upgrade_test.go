@@ -17,7 +17,7 @@ import (
 )
 
 func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
-	agent := NewAgentCr(t)
+	agent := NewAgentCr()
 	installLatestFeature := features.New("deploy instana-agent-operator with the generic resource names (controller-manager, manager-role and manager-rolebinding)").
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			const oldResourceNamesOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/download/v2.1.14/instana-agent-operator.yaml"
