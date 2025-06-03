@@ -343,6 +343,10 @@ setup-ocp-mirror: ## Setup ocp internal registry and define ImageContentSourcePo
 .PHONY: dev-run-ocp
 dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
 
+.PHONY: logs
+logs: ## Tail operator logs
+	kubectl logs -f deployment/instana-agent-controller-manager -n $(NAMESPACE)
+
 ##@ OLM
 
 # Generate bundle manifests and metadata, then validate generated files.

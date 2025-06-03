@@ -394,6 +394,7 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		// wait for operator pods of the deployment to become ready
 		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("Deployment %s is ready", name)
@@ -420,6 +421,7 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*5))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("DaemonSet %s is ready", daemonSetName)
@@ -439,6 +441,7 @@ func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("Deployment %s is deleted", InstanaOperatorOldDeploymentName)
@@ -458,6 +461,7 @@ func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrole), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("ClusteRole %s is deleted", InstanaOperatorOldClusterRoleName)
@@ -477,6 +481,7 @@ func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("ClusteRoleBinding %s is deleted", InstanaOperatorOldClusterRoleBindingName)
@@ -679,7 +684,7 @@ func ValidateSecretsMountedFromExtraVolume() e2etypes.StepFunc {
 }
 
 // Helper to produce test structs
-func NewAgentCr(t *testing.T) v1.InstanaAgent {
+func NewAgentCr() v1.InstanaAgent {
 	boolTrue := true
 
 	return v1.InstanaAgent{
@@ -704,4 +709,11 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 			},
 		},
 	}
+}
+
+func PrintOperatorLogs(ctx context.Context, cfg *envconf.Config, t *testing.T) {
+	p := utils.RunCommand(
+		fmt.Sprintf("kubectl logs deployment/instana-agent-controller-manager -n %s", cfg.Namespace()),
+	)
+	t.Log("Error while creating pull secret", p.Out())
 }
