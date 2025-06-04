@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"log"
 	"reflect"
 
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -119,7 +118,6 @@ type RemoteAgent struct {
 
 func (in *RemoteAgent) Default(agent InstanaAgent) {
 	if in.Spec.ManualSetup != nil && *in.Spec.ManualSetup {
-		log.Println("WHY NO WORK")
 		optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
 		optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
 		optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
@@ -131,7 +129,6 @@ func (in *RemoteAgent) Default(agent InstanaAgent) {
 		optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
 
 	} else {
-		log.Println("???")
 		// Get desired values from the host agent spec with defaults.
 		desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
 		inherit(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
