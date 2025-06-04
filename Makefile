@@ -73,6 +73,7 @@ NAMESPACE_PREPULLER ?= instana-agent-image-prepuller
 
 INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"crd/agents.instana.io" \
+	"crd/remoteagents.instana.io" \
 	"clusterrole/leader-election-role" \
 	"clusterrole/instana-agent-clusterrole" \
 	"clusterrolebinding/leader-election-rolebinding" \
@@ -389,3 +390,9 @@ gen-mocks: get-mockgen
 	${GOBIN}/mockgen --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks
+	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/ports/remote_ports_builder.go --destination ./mocks/remote_ports_builder_mock.go --package mocks 
+	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/env/remote_env_builder.go --destination ./mocks/remote_env_builder_mock.go --package mocks 
+	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/volume/remote_volume_builder.go --destination ./mocks/remote_volume_builder_mock.go --package mocks 
+	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/helpers/remote_helpers.go --destination ./mocks/remote_helpers_mock.go --package mocks 
+	${GOBIN}/mockgen --source ./pkg/k8s/operator/status/remote_agent_status_manager.go --destination ./mocks/remote_agent_status_manager_mock.go --package mocks 
+	${GOBIN}/mockgen --source ./pkg/k8s/operator/lifecycle/remote_dependent_lifecycle_manager.go --destination ./mocks/remote_dependent_lifecycle_manager_mock.go --package mocks

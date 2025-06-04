@@ -146,6 +146,13 @@ func setStatusDotDaemonset(agentNew *instanav1.InstanaAgent) func(ds instanav1.R
 	}
 }
 
+func setStatusDotDeployment(agentNew *instanav1.RemoteAgent) func(deployment instanav1.ResourceInfo) {
+	return func(deployment instanav1.ResourceInfo) {
+		// Set the status of the agent based on the Deployment status
+		agentNew.Status.Deployment = deployment
+	}
+}
+
 func setStatusDotConfigSecret(agentNew *instanav1.InstanaAgent) func(cm instanav1.ResourceInfo) {
 	return func(cm instanav1.ResourceInfo) {
 		agentNew.Status.ConfigSecret = cm
@@ -158,7 +165,19 @@ func setStatusDotNamespacesConfigmap(agentNew *instanav1.InstanaAgent) func(cm i
 	}
 }
 
+func setStatusDotConfigSecretRemote(agentNew *instanav1.RemoteAgent) func(cm instanav1.ResourceInfo) {
+	return func(cm instanav1.ResourceInfo) {
+		agentNew.Status.ConfigSecret = cm
+	}
+}
+
 func setStatusDotOperatorVersion(agentNew *instanav1.InstanaAgent) func(version *semver.Version) {
+	return func(version *semver.Version) {
+		agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
+	}
+}
+
+func setStatusDotOperatorVersionRemote(agentNew *instanav1.RemoteAgent) func(version *semver.Version) {
 	return func(version *semver.Version) {
 		agentNew.Status.OperatorVersion = &instanav1.SemanticVersion{Version: *version}
 	}

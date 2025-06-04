@@ -109,6 +109,11 @@ func main() {
 		log.Error(err, "Failure setting up Instana Agent Controller")
 		os.Exit(1)
 	}
+	// Add our own Remote Agent Controller to the manager
+	if err := controllers.AddRemote(mgr); err != nil {
+		log.Error(err, "Failure setting up Remote Instana Agent Controller")
+		os.Exit(1)
+	}
 
 	// controller-manager only runs controllers/runnables after getting the lock
 	// we do the cleanup beforehand so our new deployment gets the lock
