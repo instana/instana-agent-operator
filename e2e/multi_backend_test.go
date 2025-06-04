@@ -108,7 +108,7 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 }
 
 func TestRemovalOfAdditionalBackend(t *testing.T) {
-	agent := NewAgentCr(t)
+	agent := NewAgentCr()
 
 	agent.Spec.Agent.AdditionalBackends = append(agent.Spec.Agent.AdditionalBackends, instanav1.BackendSpec{
 		EndpointHost: "test1.instana.ibm.com",
@@ -158,7 +158,7 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Feature()
 
-	agent2 := NewAgentCr(t)
+	agent2 := NewAgentCr()
 	agent2.Spec.Agent.AdditionalBackends = []instanav1.BackendSpec{}
 	agent2.Spec.Agent.AdditionalBackends = append(agent2.Spec.Agent.AdditionalBackends, instanav1.BackendSpec{
 		EndpointHost: "test2.instana.ibm.com",
