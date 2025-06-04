@@ -73,6 +73,7 @@ NAMESPACE_PREPULLER ?= instana-agent-image-prepuller
 
 INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"crd/agents.instana.io" \
+	"crd/remoteagents.instana.io" \
 	"clusterrole/leader-election-role" \
 	"clusterrole/instana-agent-clusterrole" \
 	"clusterrolebinding/leader-election-rolebinding" \

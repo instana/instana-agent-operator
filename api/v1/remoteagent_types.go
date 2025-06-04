@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"log"
 	"reflect"
 
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -33,8 +34,6 @@ type RemoteAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	Agent BaseAgentSpec `json:"agent"`
 
-	//Hostname Name `json:"hostname,omitempty"`
-
 	Cluster Name `json:"cluster,omitempty"` //inherit from main agent
 
 	// Name of the zone in which the host(s) will be displayed on the map. Optional, but then 'cluster.name' must be specified.
@@ -44,7 +43,7 @@ type RemoteAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	Rbac Create `json:"rbac,omitempty"`
 
-	// Specifies whether a ServiceAccount should be created (default `true`), and possibly the name to use.
+	// Specifies whether a ServiceAccount should be created (default `true`).
 	// +kubebuilder:validation:Optional
 	ServiceAccountSpec `json:"serviceAccount,omitempty"`
 
@@ -52,8 +51,12 @@ type RemoteAgentSpec struct {
 	ResourceRequirements `json:",omitempty"`
 
 	// Supply Agent configuration e.g. for configuring certain Sensors.
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	ConfigurationYaml string `json:"remote_configuration_yaml,omitempty"`
+
+	// Supply Agent configuration values instead of inheriting from host.
+	// +kubebuilder:validation:Optional,
+	ManualSetup *bool `json:"manual_setup,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -114,77 +117,80 @@ type RemoteAgent struct {
 	Status RemoteAgentStatus `json:"status,omitempty"`
 }
 
-func (in *RemoteAgent) DefaultWithHost(agent InstanaAgent) {
-	// Get desired values from the host agent spec with defaults.
-	desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
-	inherit(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
+func (in *RemoteAgent) Default(agent InstanaAgent) {
+	if in.Spec.ManualSetup != nil && *in.Spec.ManualSetup {
+		log.Println("WHY NO WORK")
+		optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
+		optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
+		optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
+		optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
+		optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
+		optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
+		optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
+		optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+		optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
 
-	desiredEndpointPort := optional.Of(agent.Spec.Agent.EndpointPort).GetOrDefault("443")
-	inherit(&in.Spec.Agent.EndpointPort, &desiredEndpointPort)
+	} else {
+		log.Println("???")
+		// Get desired values from the host agent spec with defaults.
+		desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
+		inherit(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
 
-	desiredImageName := optional.Of(agent.Spec.Agent.ImageSpec.Name).GetOrDefault("icr.io/instana/agent")
-	inherit(&in.Spec.Agent.ImageSpec.Name, &desiredImageName)
+		desiredEndpointPort := optional.Of(agent.Spec.Agent.EndpointPort).GetOrDefault("443")
+		inherit(&in.Spec.Agent.EndpointPort, &desiredEndpointPort)
 
-	desiredImageTag := optional.Of(agent.Spec.Agent.ImageSpec.Tag).GetOrDefault("latest")
-	inherit(&in.Spec.Agent.ImageSpec.Tag, &desiredImageTag)
+		desiredImageName := optional.Of(agent.Spec.Agent.ImageSpec.Name).GetOrDefault("icr.io/instana/agent")
+		inherit(&in.Spec.Agent.ImageSpec.Name, &desiredImageName)
 
-	desiredPullPolicy := optional.Of(agent.Spec.Agent.ImageSpec.PullPolicy).GetOrDefault(corev1.PullAlways)
-	inherit(&in.Spec.Agent.ImageSpec.PullPolicy, &desiredPullPolicy)
+		desiredImageTag := optional.Of(agent.Spec.Agent.ImageSpec.Tag).GetOrDefault("latest")
+		inherit(&in.Spec.Agent.ImageSpec.Tag, &desiredImageTag)
 
-	desiredRbac := optional.Of(agent.Spec.Rbac.Create).GetOrDefault(pointer.To(true))
-	inherit(&in.Spec.Rbac.Create, &desiredRbac)
+		desiredPullPolicy := optional.Of(agent.Spec.Agent.ImageSpec.PullPolicy).GetOrDefault(corev1.PullAlways)
+		inherit(&in.Spec.Agent.ImageSpec.PullPolicy, &desiredPullPolicy)
 
-	desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
-	inherit(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
+		desiredRbac := optional.Of(agent.Spec.Rbac.Create).GetOrDefault(pointer.To(true))
+		inherit(&in.Spec.Rbac.Create, &desiredRbac)
 
-	//Get desired values from the host agent spec
-	inherit(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
-	inherit(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)
-	inherit(&in.Spec.Agent.Key, &agent.Spec.Agent.Key)
-	inherit(&in.Spec.Agent.DownloadKey, &agent.Spec.Agent.DownloadKey)
-	inherit(&in.Spec.Agent.KeysSecret, &agent.Spec.Agent.KeysSecret)
-	inherit(&in.Spec.Agent.ListenAddress, &agent.Spec.Agent.ListenAddress)
-	inherit(&in.Spec.Agent.MinReadySeconds, &agent.Spec.Agent.MinReadySeconds)
-	inherit(&in.Spec.Agent.ProxyHost, &agent.Spec.Agent.ProxyHost)
-	inherit(&in.Spec.Agent.ProxyPassword, &agent.Spec.Agent.ProxyPassword)
-	inherit(&in.Spec.Agent.ProxyPort, &agent.Spec.Agent.ProxyPort)
-	inherit(&in.Spec.Agent.ProxyProtocol, &agent.Spec.Agent.ProxyProtocol)
-	inherit(&in.Spec.Agent.ProxyUseDNS, &agent.Spec.Agent.ProxyUseDNS)
-	inherit(&in.Spec.Agent.ProxyUser, &agent.Spec.Agent.ProxyUser)
-	inherit(&in.Spec.Agent.RedactKubernetesSecrets, &agent.Spec.Agent.RedactKubernetesSecrets)
-	inherit(&in.Spec.Agent.MvnRepoFeaturesPath, &agent.Spec.Agent.MvnRepoFeaturesPath)
-	inherit(&in.Spec.Agent.MvnRepoSharedPath, &agent.Spec.Agent.MvnRepoSharedPath)
-	inherit(&in.Spec.Agent.MvnRepoUrl, &agent.Spec.Agent.MvnRepoUrl)
-	inherit(&in.Spec.Agent.MirrorReleaseRepoPassword, &agent.Spec.Agent.MirrorReleaseRepoPassword)
-	inherit(&in.Spec.Agent.MirrorReleaseRepoUrl, &agent.Spec.Agent.MirrorReleaseRepoUrl)
-	inherit(&in.Spec.Agent.MirrorReleaseRepoUsername, &agent.Spec.Agent.MirrorReleaseRepoUsername)
-	inherit(&in.Spec.Agent.MirrorSharedRepoPassword, &agent.Spec.Agent.MirrorSharedRepoPassword)
-	inherit(&in.Spec.Agent.MirrorSharedRepoUrl, &agent.Spec.Agent.MirrorSharedRepoUrl)
-	inherit(&in.Spec.Agent.MirrorSharedRepoUsername, &agent.Spec.Agent.MirrorSharedRepoUsername)
+		desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
+		inherit(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
 
-	if !reflect.DeepEqual(in.Spec.Agent.AdditionalBackends, agent.Spec.Agent.AdditionalBackends) {
-		in.Spec.Agent.AdditionalBackends = agent.Spec.Agent.AdditionalBackends
+		//Get desired values from the host agent spec
+		inherit(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
+		inherit(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)
+		inherit(&in.Spec.Agent.Key, &agent.Spec.Agent.Key)
+		inherit(&in.Spec.Agent.DownloadKey, &agent.Spec.Agent.DownloadKey)
+		inherit(&in.Spec.Agent.KeysSecret, &agent.Spec.Agent.KeysSecret)
+		inherit(&in.Spec.Agent.ListenAddress, &agent.Spec.Agent.ListenAddress)
+		inherit(&in.Spec.Agent.MinReadySeconds, &agent.Spec.Agent.MinReadySeconds)
+		inherit(&in.Spec.Agent.ProxyHost, &agent.Spec.Agent.ProxyHost)
+		inherit(&in.Spec.Agent.ProxyPassword, &agent.Spec.Agent.ProxyPassword)
+		inherit(&in.Spec.Agent.ProxyPort, &agent.Spec.Agent.ProxyPort)
+		inherit(&in.Spec.Agent.ProxyProtocol, &agent.Spec.Agent.ProxyProtocol)
+		inherit(&in.Spec.Agent.ProxyUseDNS, &agent.Spec.Agent.ProxyUseDNS)
+		inherit(&in.Spec.Agent.ProxyUser, &agent.Spec.Agent.ProxyUser)
+		inherit(&in.Spec.Agent.RedactKubernetesSecrets, &agent.Spec.Agent.RedactKubernetesSecrets)
+		inherit(&in.Spec.Agent.MvnRepoFeaturesPath, &agent.Spec.Agent.MvnRepoFeaturesPath)
+		inherit(&in.Spec.Agent.MvnRepoSharedPath, &agent.Spec.Agent.MvnRepoSharedPath)
+		inherit(&in.Spec.Agent.MvnRepoUrl, &agent.Spec.Agent.MvnRepoUrl)
+		inherit(&in.Spec.Agent.MirrorReleaseRepoPassword, &agent.Spec.Agent.MirrorReleaseRepoPassword)
+		inherit(&in.Spec.Agent.MirrorReleaseRepoUrl, &agent.Spec.Agent.MirrorReleaseRepoUrl)
+		inherit(&in.Spec.Agent.MirrorReleaseRepoUsername, &agent.Spec.Agent.MirrorReleaseRepoUsername)
+		inherit(&in.Spec.Agent.MirrorSharedRepoPassword, &agent.Spec.Agent.MirrorSharedRepoPassword)
+		inherit(&in.Spec.Agent.MirrorSharedRepoUrl, &agent.Spec.Agent.MirrorSharedRepoUrl)
+		inherit(&in.Spec.Agent.MirrorSharedRepoUsername, &agent.Spec.Agent.MirrorSharedRepoUsername)
+
+		if !reflect.DeepEqual(in.Spec.Agent.AdditionalBackends, agent.Spec.Agent.AdditionalBackends) {
+			in.Spec.Agent.AdditionalBackends = agent.Spec.Agent.AdditionalBackends
+		}
+
+		if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
+			in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
+		}
+
+		if !reflect.DeepEqual(in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements) {
+			in.Spec.Agent.Pod.ResourceRequirements = in.Spec.ResourceRequirements
+		}
 	}
-
-	if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
-		in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
-	}
-
-	if !reflect.DeepEqual(in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements) {
-		in.Spec.Agent.Pod.ResourceRequirements = in.Spec.ResourceRequirements
-	}
-}
-
-func (in *RemoteAgent) Default() {
-	optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
-	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
-	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
-	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
-	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
-	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
-	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
-	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
-	optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
 }
 
 // +kubebuilder:object:root=true
