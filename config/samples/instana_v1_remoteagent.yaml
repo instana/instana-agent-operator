@@ -1,7 +1,11 @@
 apiVersion: instana.io/v1
 kind: RemoteAgent
 metadata:
-  name: remoteagent-sample
+  name: remote-agent
   namespace: "instana-agent"
 spec:
-  # TODO(user): Add fields here
+  zone:
+    name: edited-zone # (optional) name of the zone of the host
+  remote_configuration_yaml: |
+    # You can leave this empty, or use this to configure your instana agent.
+    # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
