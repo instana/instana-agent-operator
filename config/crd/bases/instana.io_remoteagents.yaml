@@ -3285,6 +3285,10 @@ spec:
                   Limits describes the maximum amount of compute resources allowed.
                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                 type: object
+              manual_setup:
+                description: Supply Agent configuration values instead of inheriting
+                  from host.
+                type: boolean
               rbac:
                 description: Specifies whether RBAC resources should be created.
                 properties:
@@ -3310,7 +3314,7 @@ spec:
                 type: object
               serviceAccount:
                 description: Specifies whether a ServiceAccount should be created
-                  (default `true`), and possibly the name to use.
+                  (default `true`).
                 properties:
                   annotations:
                     additionalProperties:
@@ -3328,6 +3332,8 @@ spec:
                   name:
                     type: string
                 type: object
+            required:
+            - remote_configuration_yaml
             type: object
           status:
             properties:

@@ -140,9 +140,10 @@ func (r *RemoteAgentReconciler) reconcile(
 	hostAgent, _ := r.getAgent(ctx, agent.Namespace, "instana-agent")
 	//if host agent exists in namespace inherit values otherwise default to minimum values to start an agent
 	if hostAgent != nil {
-		agent.DefaultWithHost(*hostAgent)
+		log.Info("WOOO", "hostAgent", hostAgent)
+		agent.Default(*hostAgent)
 	} else {
-		agent.Default()
+		agent.Default(instanav1.InstanaAgent{})
 	}
 
 	operatorUtils := operator_utils.NewRemoteOperatorUtils(
