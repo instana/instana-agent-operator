@@ -27,7 +27,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?=  icr.io/instana/instana-agent-operator:latest
+IMG ?= icr.io/instana/instana-agent-operator:latest
 
 # Image URL for the Instana Agent, as listed in the 'relatedImages' field in the CSV
 AGENT_IMG ?= icr.io/instana/agent:latest
@@ -147,6 +147,12 @@ purge: ## Full purge of the agent in the cluster
 	@if kubectl get agents.instana.io instana-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
 		echo "Found, removing finalizers..."; \
 		kubectl patch agents.instana.io instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
+	else \
+		echo "CR not present"; \
+	fi
+	@if kubectl get remoteagents.instana.io instana-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Found, removing remote finalizers..."; \
+		kubectl patch remoteagents.instana.io instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
 	else \
 		echo "CR not present"; \
 	fi
@@ -271,6 +277,7 @@ endef
 namespace: ## Generate namespace instana-agent on OCP for manual testing
 	oc new-project instana-agent || true
 	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
+	oc adm policy add-scc-to-user anyuid -z remote-agent -n instana-agent
 
 .PHONY: create-cr
 create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
