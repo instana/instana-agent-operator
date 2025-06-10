@@ -88,6 +88,28 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1
+    - description: RemoteAgent is the Schema for the agents API
+      displayName: Remote Instana Agent
+      kind: RemoteAgent
+      name: remoteagents.instana.io
+      resources:
+      - kind: Deployment
+        name: RemoteAgent
+        version: apps/v1
+      - kind: Pod
+        name: RemoteAgent
+        version: v1
+      - kind: Secret
+        name: RemoteAgent
+        version: v1
+      specDescriptors:
+      - description: Key is the secret token which your agent uses to authenticate
+          to Instana's servers.
+        displayName: Agent Key
+        path: agent.key
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1
   description: |
     # Instana
 
