@@ -7,7 +7,7 @@ tasks:
     include:
       - dind
     steps:
-      - name: build-image
+      - name: unit-test
         include:
           - docker-socket
         script: |
@@ -17,7 +17,7 @@ tasks:
               env
               set -x
           fi
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64 static
       - name: detect-secrets
         include:
           - docker-socket
@@ -25,12 +25,13 @@ tasks:
         when: false
 
   pr-code-checks-2:
+    from: pr-code-checks
     displayName: "Build arm64 image"
     onError: stopAndFail
     include:
       - dind
     steps:
-      - name: build-image
+      - name: unit-test
         include:
           - docker-socket
         script: |
@@ -40,7 +41,7 @@ tasks:
               env
               set -x
           fi
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64 static
       - name: detect-secrets
         include:
           - docker-socket
@@ -48,12 +49,13 @@ tasks:
         when: false
 
   pr-code-checks-3:
+    from: pr-code-checks
     displayName: "Build s390x image"
     onError: stopAndFail
     include:
       - dind
     steps:
-      - name: build-image
+      - name: unit-test
         include:
           - docker-socket
         script: |
@@ -63,19 +65,20 @@ tasks:
               env
               set -x
           fi
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x static
       - name: detect-secrets
         include:
           - docker-socket
       - name: compliance-checks
         when: false
   pr-code-checks-4:
+    from: pr-code-checks
     displayName: "Build ppc64le image"
     onError: stopAndFail
     include:
       - dind
     steps:
-      - name: build-image
+      - name: unit-test
         include:
           - docker-socket
         script: |
@@ -85,14 +88,102 @@ tasks:
               env
               set -x
           fi
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le static
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        when: false
+  pr-code-checks-5:
+    from: pr-code-checks
+    displayName: "Build and test agent operator"
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
+          fi
+          pwd
+          GO_VERSION=1.24.1
+          echo "=== Installing Golang ${GO_VERSION} ==="
+          echo "Downloading golang binaries"
+          curl -sLo "go${GO_VERSION}.linux-amd64.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+
+          echo "Get checksum"
+          GO_SHA256=$(curl -s "https://go.dev/dl/?mode=json&include=all" | jq -r '.[] | select(.version=="go'${GO_VERSION}'") | .files[] | select(.filename=="go'${GO_VERSION}'.linux-amd64.tar.gz") | .sha256')
+          echo "GO_SHA256=${GO_SHA256}"
+
+          echo "Validating checksum"
+          echo "${GO_SHA256} go${GO_VERSION}.linux-amd64.tar.gz" | sha256sum --check
+          echo "Validate signature"
+          curl -sLo go${GO_VERSION}.linux-amd64.tar.gz.asc "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz.asc"
+          curl -sLo linux_signing_key.pub https://dl.google.com/dl/linux/linux_signing_key.pub
+
+          gpg --import linux_signing_key.pub
+          gpg --verify go${GO_VERSION}.linux-amd64.tar.gz.asc go${GO_VERSION}.linux-amd64.tar.gz
+
+          echo "All right, we have legit go binaries, installing it"
+          tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+          rm -f go${GO_VERSION}.linux-amd64.tar.gz
+
+          make build
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        when: false
+  
+  pr-code-checks-6:
+    from:: pr-code-checks
+    displayName: create-tag-files
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        include:
+          - docker-socket
+        script: |
+         #!/usr/bin/env bash
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
+          fi 
+          - -exc
+          - |
+          set -e
+          cat << EOF > image-tags/amd64
+          ${GIT_COMMIT}-amd64
+          EOF
+          cat << EOF > image-tags/arm64
+          ${GIT_COMMIT}-arm64
+          EOF
+          cat << EOF > image-tags/ppc64le
+          ${GIT_COMMIT}-ppc64le
+          EOF
+          cat << EOF > image-tags/s390x
+          ${GIT_COMMIT}-s390x
+          EOF
+          cat << EOF > image-tags/multi-arch
+          $GIT_COMMIT
+          EOF
       - name: detect-secrets
         include:
           - docker-socket
       - name: compliance-checks
         when: false
 
-  pr-code-checks-5:
+  pr-code-checks-7:
+    from: pr-code-checks
     displayName: e2e-ocp-latest
     include:
       - dind
@@ -111,9 +202,9 @@ tasks:
               exit 0
           fi
           SKIP_INSTALL_GCLOUD=true
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/setup.sh
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/build.sh
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/e2e.sh ocp-fyre-latest pr-code-checks 5
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/setup.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh ocp-fyre-latest pr-code-checks-7
       - name: detect-secrets
         include:
           - docker-socket
@@ -121,7 +212,7 @@ tasks:
         include:
           - docker-socket
 
-  pr-code-checks-6:
+  pr-code-checks-8:
     from: pr-code-checks
     displayName: e2e-gke-latest
     include:
@@ -140,9 +231,9 @@ tasks:
               echo "skipping tests due to run-gke-latest being false"
               exit 0
           fi
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/setup.sh
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/build.sh
-          source $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/ci/sps-scripts/e2e.sh gke-latest pr-code-checks-6
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/setup.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh gke-latest pr-code-checks-8
       - name: detect-secrets
         include:
           - docker-socket
