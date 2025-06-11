@@ -18,10 +18,10 @@ docker buildx inspect --bootstrap
 # Determine the build context based on flavor
 echo "[INFO] Determining the appropriate build context..."
 if [ "$2" = "dynamic" ]; then
-    BUILD_CONTEXT="$WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/dynamic"
+    BUILD_CONTEXT="$WORKSPACE/$APP_REPO_FOLDER/dynamic"
     echo "[INFO] Using dynamic build context: $BUILD_CONTEXT"
 elif [ "$2" = "static" ]; then
-    BUILD_CONTEXT="$WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/static"
+    BUILD_CONTEXT="$WORKSPACE/$APP_REPO_FOLDER/static"
     echo "[INFO] Using static build context: $BUILD_CONTEXT"
 else
     echo "[ERROR] Unknown FLAVOR specified: $2"
@@ -30,7 +30,7 @@ fi
 
 # Create a secure temporary file for secrets
 echo "[INFO] Creating a secure temporary file for secrets..."
-SECRET_DIR=$(mktemp -d $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/secrets.XXXXXX)
+SECRET_DIR=$(mktemp -d $WORKSPACE/$APP_REPO_FOLDER/secrets.XXXXXX)
 SECRET_FILE="$SECRET_DIR/DOWNLOAD_KEY"
 echo -n "$QA_AGENT_DOWNLOAD_KEY" > "$SECRET_FILE"
 chmod 600 "$SECRET_FILE"
@@ -73,12 +73,12 @@ docker buildx build \
     --load \
     --progress=plain \
     --no-cache \
-    --output type=oci,dest=$WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/image.tar \
+    --output type=oci,dest=$WORKSPACE/$APP_REPO_FOLDER/image.tar \
 
 echo "[INFO] Build process completed successfully."
 
 echo "[INFO] Saving the built image to the output location..."
 docker images
-docker save -o "$WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/image.tar" "$IMAGE_TAG"
+docker save -o "$WORKSPACE/$APP_REPO_FOLDER/image.tar" "$IMAGE_TAG"
 
-echo "[INFO] Docker image saved successfully to $WORKSPACE/$PIPELINE_CONFIG_REPO_PATH/image.tar"
+echo "[INFO] Docker image saved successfully to $WORKSPACE/$APP_REPO_FOLDER/image.tar"
