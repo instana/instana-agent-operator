@@ -25,6 +25,7 @@ tasks:
         when: false
 
   pr-code-checks-2:
+    from: pr-code-checks
     displayName: "Build arm64 image"
     onError: stopAndFail
     include:
@@ -48,6 +49,7 @@ tasks:
         when: false
 
   pr-code-checks-3:
+    from: pr-code-checks
     displayName: "Build s390x image"
     onError: stopAndFail
     include:
@@ -70,6 +72,7 @@ tasks:
       - name: compliance-checks
         when: false
   pr-code-checks-4:
+    from: pr-code-checks
     displayName: "Build ppc64le image"
     onError: stopAndFail
     include:
@@ -93,6 +96,7 @@ tasks:
         when: false
 
   pr-code-checks-5:
+    from: pr-code-checks
     displayName: e2e-ocp-latest
     include:
       - dind
