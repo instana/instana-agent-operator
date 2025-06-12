@@ -1,3 +1,18 @@
+/*
+(c) Copyright IBM Corp. 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package controllers
 
 import (
@@ -64,6 +79,35 @@ func filterPredicate() predicate.Predicate {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			switch e.Object.(type) {
 			case *instanav1.InstanaAgent:
+				return !e.DeleteStateUnknown
+			default:
+				return true
+			}
+		},
+	}
+}
+
+func filterPredicateRemote() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			switch createEvent.Object.(type) {
+			case *instanav1.RemoteAgent:
+				return true
+			default:
+				return false
+			}
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			switch e.ObjectOld.(type) {
+			case *instanav1.RemoteAgent:
+				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			default:
+				return wasModifiedByOther(e.ObjectNew, e.ObjectOld)
+			}
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			switch e.Object.(type) {
+			case *instanav1.RemoteAgent:
 				return !e.DeleteStateUnknown
 			default:
 				return true

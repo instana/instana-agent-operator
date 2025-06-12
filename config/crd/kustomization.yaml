@@ -3,4 +3,5 @@
 # It should be run by config/default
 resources:
 - bases/instana.io_agents.yaml
+- bases/instana.io_remoteagents.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
