@@ -1,0 +1,23 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+
+version: "2"
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - golines
+linters:
+  default: none
+  settings:
+    lll:
+      line-length: 120
+  enable:
+    - govet
+    - ineffassign
+    - unused
+    - misspell
+    - exhaustive
+    - errcheck
+    - lll
