@@ -20,6 +20,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/e2e-framework v0.4.0
+	github.com/joho/godotenv v1.5.1
 )
 
 require (
