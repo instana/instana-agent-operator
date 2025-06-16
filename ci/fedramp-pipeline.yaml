@@ -1,0 +1,241 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+# On manual trigger, this fedramp-pipeline will build a operator image and pass it over to a container registry and
+# create a kubernetes manifest-file collecting all the resources needed.
+#
+---
+var_sources:
+  - name: prerelease-container-registry
+    type: dummy
+    config:
+      vars: &prerelease-container-registry
+        repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/fedramp-v1.0.0/instana-agent-operator
+        tag: main
+        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: release-container-registry
+    type: dummy
+    config:
+      vars:
+        repository: delivery.instana.io/int-docker-agent-fedramp-release-local/instana-agent-operator/fedramp-v1.0.0/instana-agent-operator
+  - name: release-generic-registry
+    type: dummy
+    config:
+      vars:
+        repository: https://delivery.instana.io/artifactory/int-generic-agent-fedramp-release-local/instana-agent-operator/fedramp-v1.0.0/instana-agent-operator
+  - name: e2e-test-base-image
+    type: dummy
+    config:
+      vars: &e2e-test-base-image
+        type: registry-image
+        source:
+          repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+          tag: main
+          username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+          password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
+resources:
+  # Actual instana-agent-operator git source code
+  - name: source-code
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: fedramp-release-v1.0.0
+      username: instanacd
+      password: ((instanacd-github-api-token))
+  # Images to be built and pushed to the prerelease registry
+  - name: instana-agent-operator-fedramp-image-amd64
+    type: registry-image
+    icon: docker
+    source:
+      <<: *prerelease-container-registry
+  - name: instana-agent-operator-fedramp-image-arm64
+    type: registry-image
+    icon: docker
+    source:
+      <<: *prerelease-container-registry
+  - name: instana-agent-operator-fedramp-image-ppc64le
+    type: registry-image
+    icon: docker
+    source:
+      <<: *prerelease-container-registry
+  - name: instana-agent-operator-fedramp-image-s390x
+    type: registry-image
+    icon: docker
+    source:
+      <<: *prerelease-container-registry
+
+jobs:
+  - name: build-and-push-multiarch-fedramp-image
+    max_in_flight: 1
+    plan:
+      - get: source-code
+        trigger: false
+      - load_var: agent-operator-version
+        file: source-code/.git/ref
+        reveal: true
+      - load_var: git-commit
+        file: source-code/.git/HEAD
+        reveal: true
+      # Actual building of the images
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-arm64-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-s390x-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+      # Tasks to push the images to the prerelease registry
+      - task: tag-and-upload-images-to-prerelease-container-registry
+        privileged: true
+        file: source-code/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - put: instana-agent-operator-fedramp-image-amd64
+              params:
+                image: image-amd64/image.tar
+                additional_tags: image-tags/amd64
+            - put: instana-agent-operator-fedramp-image-arm64
+              params:
+                image: image-arm64/image.tar
+                additional_tags: image-tags/arm64
+            - put: instana-agent-operator-fedramp-image-ppc64le
+              params:
+                image: image-ppc64le/image.tar
+                additional_tags: image-tags/ppc64le
+            - put: instana-agent-operator-fedramp-image-s390x
+              params:
+                image: image-s390x/image.tar
+                additional_tags: image-tags/s390x
+      # Creates manifest-list for the multiarch release
+      - task: create-container-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          outputs:
+            - name: manifest-list
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            PRERELEASE_CONTAINER_REGISTRY: ((prerelease-container-registry:repository))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                echo "Attempting to create container manifest-list for ${PRERELEASE_CONTAINER_REGISTRY}."
+                manifest-tool \
+                  --username ${ARTIFACTORY_USERNAME} \
+                  --password ${ARTIFACTORY_PASSWORD} \
+                  push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${PRERELEASE_CONTAINER_REGISTRY}:${GIT_COMMIT}-ARCH \
+                  --target ${PRERELEASE_CONTAINER_REGISTRY}:${GIT_COMMIT} | tee manifest-output.txt
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
+                echo "Successfully generated a container manifest-list: $OPERATOR_IMG_DIGEST"
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+      # Takes manifest and the previously built images and pushes them to release repository
+      - task: push-prerelease-images-to-release-container-repository
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: manifest-list
+          params:
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            PRERELEASE_CONTAINER_REGISTRY: ((prerelease-container-registry:repository))
+            RELEASE_CONTAINER_REGISTRY: ((release-container-registry:repository))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                DIGEST=$(cat manifest-list/digest)
+                echo "Attempting to copy ${PRERELEASE_CONTAINER_REGISTRY}@${DIGEST} over to the registry ${RELEASE_CONTAINER_REGISTRY}."
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME} \
+                  --src-password ${ARTIFACTORY_PASSWORD} \
+                  --dest-username ${ARTIFACTORY_USERNAME} \
+                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  docker://${PRERELEASE_CONTAINER_REGISTRY}@${DIGEST} \
+                  docker://${RELEASE_CONTAINER_REGISTRY}:latest
+                echo "${PRERELEASE_CONTAINER_REGISTRY}@${DIGEST} has been copied over to ${RELEASE_CONTAINER_REGISTRY} registry successfully."
+      - task: push-kubernetes-manifest-file-to-release-generic-repository
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: source-code
+          params:
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            RELEASE_GENERIC_REGISTRY: ((release-generic-registry:repository))
+            RELEASE_REGISTRY: ((release-container-registry:repository))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                echo "Attempting to push Instana Agent Operator Kubernetes manifest YAML-file to ${RELEASE_GENERIC_REGISTRY} that points to ${RELEASE_REGISTRY}:latest"
+                cd source-code
+                make --silent IMG="${RELEASE_REGISTRY}:latest" controller-yaml > instana-agent-operator-manifest.yaml
+                curl --fail --show-error -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD}  -X PUT "${RELEASE_GENERIC_REGISTRY}/instana-agent-operator-manifest.yaml" -T "./instana-agent-operator-manifest.yaml"
+                echo "Pushing of Instana Agent Operator Kubernetes manifest YAML-file successful."
