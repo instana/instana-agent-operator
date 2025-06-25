@@ -27,11 +27,11 @@ RUN dnf update -y && dnf install -y \
 
 # Set environment variables for Go
 ENV GOPATH=/go
-ENV GO_VERSION=1.24.3
+ENV GO_VERSION=1.24.4
 ENV PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"
 
 # Install go
-RUN GO_SHA256="3333f6ea53afa971e9078895eaa4ac7204a8c6b5c68c10e6bc9a33e8e391bdd8 go${GO_VERSION}.linux-amd64.tar.gz"  \
+RUN GO_SHA256="77e5da33bb72aeaef1ba4418b6fe511bc4d041873cbf82e5aa6318740df98717 go${GO_VERSION}.linux-amd64.tar.gz"  \
     && curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
     && echo "${GO_SHA256}" | sha256sum --check \
     && rm -rf /usr/local/go \
