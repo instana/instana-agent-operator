@@ -6,18 +6,18 @@
 groups:
   - name: test
     jobs:
-    - self-update
-    - tag-release
-    - docker-build
-    - end-to-end-tests
-    - multiarch-operator-manifest-promotion
-    - operator-olm-github-release
+      - self-update
+      - tag-release
+      - docker-build
+      - end-to-end-tests
+      - multiarch-operator-manifest-promotion
+      - operator-olm-github-release
   - name: public-pr-creation
     jobs:
-    - olm-release-pr-creation
+      - olm-release-pr-creation
   - name: build-test-images
     jobs:
-    - build-e2e-operator-base-image
+      - build-e2e-operator-base-image
 
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
@@ -52,7 +52,6 @@ resource_types:
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
-
 resources:
   - name: slack-alert
     type: slack-notification
@@ -79,18 +78,8 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
       fetch_tags: true
-      #  match release tags like "v1.12.99"
-      #  match pre-release tags like "v1.12.100-pre"
+      #  match pre-release tags like "v1.12.100-pre" and release tags like "v1.12.99"
       tag_regex: '^v\d+\.\d+\.\d+.*$'
-      #          ^ beginning of the tag string
-      #           ^ all tags start with "v"
-      #            ^ ^ any number of digits
-      #               ^ the "." character
-      #                 ^ ^ any number of digits
-      #                    ^ the "." character
-      #                      ^ ^ any number of digits
-      #                         ^^ any prefix (denoting a non-release tag)
-      #                           ^ end of the tag string
 
   - name: instana-agent-operator-release
     type: github-release
@@ -208,55 +197,65 @@ jobs:
   - name: self-update
     on_success:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: success, context: self-update }
     on_failure:
       do:
         - put: slack-alert
           params:
-            channel: '#tech-agent-delivery-notifications'
+            channel: "#tech-agent-delivery-notifications"
             text: |
               :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: failure, context: self-update }
     on_error:
       do:
         - put: slack-alert
           params:
-            channel: '#tech-agent-delivery-notifications'
+            channel: "#tech-agent-delivery-notifications"
             text: |
               :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: error, context: self-update }
     on_abort:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: error, context: self-update }
     plan:
       - get: pipeline-source
         trigger: true
       - put: gh-status
-        inputs: [ pipeline-source ]
+        inputs: [pipeline-source]
         params: { state: pending, context: self-update }
       - put: gh-status
-        inputs: [ pipeline-source ]
+        inputs: [pipeline-source]
         params: { state: pending, context: build/docker }
       - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest }
+        inputs: [pipeline-source]
+        params:
+          { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest }
       - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest }
+        inputs: [pipeline-source]
+        params:
+          { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest }
       - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+        inputs: [pipeline-source]
+        params:
+          {
+            state: pending,
+            context: end-to-end-tests/run-e2e-test-openshift-4-11,
+          }
       - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+        inputs: [pipeline-source]
+        params:
+          {
+            state: pending,
+            context: multiarch-operator-manifest-promotion/build-multiarch-manifest,
+          }
       - put: gh-status
-        inputs: [ pipeline-source ]
+        inputs: [pipeline-source]
         params: { state: pending, context: operator-olm-github-release/build }
       - set_pipeline: self
         file: pipeline-source/ci/pipeline.yaml
@@ -270,31 +269,31 @@ jobs:
             tag_file: agent-operator-git-source/ci/version.txt
             force: true
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: success, context: tag-release }
     on_failure:
       do:
         - put: slack-alert
           params:
-            channel: '#tech-agent-delivery-notifications'
+            channel: "#tech-agent-delivery-notifications"
             text: |
               :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: failure, context: tag-release }
     on_error:
       do:
         - put: slack-alert
           params:
-            channel: '#tech-agent-delivery-notifications'
+            channel: "#tech-agent-delivery-notifications"
             text: |
               :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: error, context: tag-release }
     on_abort:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: error, context: tag-release }
     max_in_flight: 1
     plan:
@@ -325,31 +324,31 @@ jobs:
     max_in_flight: 1
     on_success:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: success, context: build/docker }
     on_failure:
       do:
         - put: slack-alert
           params:
-            channel: '#tech-agent-delivery-notifications'
+            channel: "#tech-agent-delivery-notifications"
             text: |
               :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: failure, context: build/docker }
     on_error:
-        do:
+      do:
         - put: slack-alert
           params:
-            channel: '#tech-agent-delivery-notifications'
+            channel: "#tech-agent-delivery-notifications"
             text: |
               :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
         - put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: error, context: build/docker }
     on_abort:
       put: gh-status
-      inputs: [ pipeline-source ]
+      inputs: [pipeline-source]
       params: { state: error, context: build/docker }
     plan:
       - get: pipeline-source
@@ -367,55 +366,59 @@ jobs:
           steps:
             - task: build-amd64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
-              output_mapping: 
+              output_mapping:
                 image: image-amd64
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/amd64
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-arm64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
-              output_mapping: 
+              output_mapping:
                 image: image-arm64
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/arm64
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-s390x
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
-              output_mapping: 
+              output_mapping:
                 image: image-s390x
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/s390x
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
-              output_mapping: 
+              output_mapping:
                 image: image-ppc64le
               vars:
-                dockerfile: Dockerfile
+                dockerfile: Containerfile
                 target-platform: linux/ppc64le
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: agent-operator-release-source/ci/create-tag-file.yml
+        file: agent-operator-release-source/ci/create-tag-file.yaml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
@@ -492,112 +495,17 @@ jobs:
       - get: agent-operator-image-manifest-sha
         passed: [docker-build]
       - in_parallel:
-        - do:
-          - put: metadata
-          - task: reslock-claim-gke-lowest
-            timeout: 60m
-            config:
-              platform: linux
-              image_resource:
-                type: registry-image
-                source: *e2e-test-base-image
-              params:
-                RESLOCK_COMMAND: claim
-                RESLOCK_RESOURCE_NAME: gke-lowest
-                RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
-              inputs:
-                - name: pipeline-source
-                - name: metadata
-              run:
-                path: pipeline-source/ci/scripts/reslock.sh
-          - task: run-e2e-test-gke-lowest
-            timeout: 40m
-            attempts: 1
-            config: &gke-e2e-test-config
-              platform: linux
-              image_resource: &e2e-test-image-resource
-                type: registry-image
-                source:
-                  repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-                  tag: main
-                  username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                  password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-              params:
-                GIT_COMMIT: ((.:git-commit))
-                CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
-                CLUSTER_TYPE: gke
-                NAME: gke-lowest
-                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
-                BUILD_BRANCH: main
-                INSTANA_API_KEY: ((qa-instana-agent-key))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-              inputs:
-                - name: pipeline-source
-              run:
-                path: bash
-                args:
-                  - -ceu
-                  - |
-                    cd pipeline-source
-                    bash ./ci/scripts/cluster-authentication.sh
-                    make pre-pull-images
-                    make e2e
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            on_failure:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            on_error:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            ensure:
-              do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
-                  platform: linux
-                  image_resource: *e2e-test-image-resource
-                  params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
-                    CLUSTER_TYPE: gke
-                    NAME: gke-lowest
-                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                  inputs:
-                    - name: pipeline-source
-                  run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - task: reslock-release-gke-lowest
-                timeout: 5m
+          - do:
+              - put: metadata
+              - task: reslock-claim-gke-lowest
+                timeout: 60m
                 config:
                   platform: linux
                   image_resource:
                     type: registry-image
                     source: *e2e-test-base-image
                   params:
-                    RESLOCK_COMMAND: release
+                    RESLOCK_COMMAND: claim
                     RESLOCK_RESOURCE_NAME: gke-lowest
                     RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
                   inputs:
@@ -605,110 +513,128 @@ jobs:
                     - name: metadata
                   run:
                     path: pipeline-source/ci/scripts/reslock.sh
-
-        - do:
-          - put: metadata
-          - task: reslock-claim-gke-latest
-            timeout: 60m
-            config:
-              platform: linux
-              image_resource:
-                type: registry-image
-                source: *e2e-test-base-image
-              params:
-                RESLOCK_COMMAND: claim
-                RESLOCK_RESOURCE_NAME: gke-latest
-                RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
-              inputs:
-                - name: pipeline-source
-                - name: metadata
-              run:
-                path: pipeline-source/ci/scripts/reslock.sh
-          - task: run-e2e-test-gke-latest
-            timeout: 40m
-            attempts: 1
-            config:
-              <<: *gke-e2e-test-config
-              params:
-                GIT_COMMIT: ((.:git-commit))
-                CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
-                CLUSTER_TYPE: gke
-                NAME: gke-latest
-                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
-                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-                INSTANA_API_URL: ((instana-qa.api_url))
-                INSTANA_API_TOKEN: ((instana-qa.api_token))
-                BUILD_BRANCH: main
-                INSTANA_API_KEY: ((qa-instana-agent-key))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-              inputs:
-                - name: pipeline-source
-              run:
-                path: bash
-                args:
-                  - -ceu
-                  - |
-                    cd pipeline-source
-                    bash ./ci/scripts/cluster-authentication.sh
-                    make pre-pull-images
-                    make e2e
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-latest }
-            on_failure:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-latest }
-            on_error:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
-            ensure:
-              do:
-              - task: cleanup-resources
-                timeout: 10m
-                config:
+              - task: run-e2e-test-gke-lowest
+                timeout: 40m
+                attempts: 1
+                config: &gke-e2e-test-config
                   platform: linux
-                  image_resource: *e2e-test-image-resource
+                  image_resource: &e2e-test-image-resource
+                    type: registry-image
+                    source:
+                      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                      tag: main
+                      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                    GIT_COMMIT: ((.:git-commit))
+                    CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-latest
-
+                    NAME: gke-lowest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                    INSTANA_ENDPOINT_PORT: 443
+                    BUILD_BRANCH: main
+                    INSTANA_API_KEY: ((qa-instana-agent-key))
+                    ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                    ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                   inputs:
                     - name: pipeline-source
                   run:
-                    path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - task: reslock-release-gke-latest
-                timeout: 5m
+                    path: bash
+                    args:
+                      - -ceu
+                      - |
+                        cd pipeline-source
+                        bash ./ci/scripts/cluster-authentication.sh
+                        make install pre-pull-images e2e
+                on_success:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: success,
+                      context: end-to-end-tests/run-e2e-test-gke-lowest,
+                    }
+                on_failure:
+                  do:
+                    - put: slack-alert
+                      params:
+                        channel: "#tech-agent-delivery-notifications"
+                        text: |
+                          :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    - put: gh-status
+                      inputs: [pipeline-source]
+                      params:
+                        {
+                          state: failure,
+                          context: end-to-end-tests/run-e2e-test-gke-lowest,
+                        }
+                on_error:
+                  do:
+                    - put: slack-alert
+                      params:
+                        channel: "#tech-agent-delivery-notifications"
+                        text: |
+                          :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    - put: gh-status
+                      inputs: [pipeline-source]
+                      params:
+                        {
+                          state: error,
+                          context: end-to-end-tests/run-e2e-test-gke-lowest,
+                        }
+                on_abort:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: error,
+                      context: end-to-end-tests/run-e2e-test-gke-lowest,
+                    }
+                ensure:
+                  do:
+                    - task: cleanup-resources
+                      timeout: 10m
+                      config:
+                        platform: linux
+                        image_resource: *e2e-test-image-resource
+                        params:
+                          CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                          CLUSTER_TYPE: gke
+                          NAME: gke-lowest
+                          GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                        inputs:
+                          - name: pipeline-source
+                        run:
+                          path: pipeline-source/ci/scripts/cleanup-resources.sh
+                    - task: reslock-release-gke-lowest
+                      timeout: 5m
+                      config:
+                        platform: linux
+                        image_resource:
+                          type: registry-image
+                          source: *e2e-test-base-image
+                        params:
+                          RESLOCK_COMMAND: release
+                          RESLOCK_RESOURCE_NAME: gke-lowest
+                          RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                        inputs:
+                          - name: pipeline-source
+                          - name: metadata
+                        run:
+                          path: pipeline-source/ci/scripts/reslock.sh
+
+          - do:
+              - put: metadata
+              - task: reslock-claim-gke-latest
+                timeout: 60m
                 config:
                   platform: linux
                   image_resource:
                     type: registry-image
                     source: *e2e-test-base-image
                   params:
-                    RESLOCK_COMMAND: release
+                    RESLOCK_COMMAND: claim
                     RESLOCK_RESOURCE_NAME: gke-latest
                     RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
                   inputs:
@@ -716,6 +642,113 @@ jobs:
                     - name: metadata
                   run:
                     path: pipeline-source/ci/scripts/reslock.sh
+              - task: run-e2e-test-gke-latest
+                timeout: 40m
+                attempts: 1
+                config:
+                  <<: *gke-e2e-test-config
+                  params:
+                    GIT_COMMIT: ((.:git-commit))
+                    CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-latest
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                    INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                    INSTANA_ENDPOINT_PORT: 443
+                    INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                    INSTANA_API_URL: ((instana-qa.api_url))
+                    INSTANA_API_TOKEN: ((instana-qa.api_token))
+                    BUILD_BRANCH: main
+                    INSTANA_API_KEY: ((qa-instana-agent-key))
+                    ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                    ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: bash
+                    args:
+                      - -ceu
+                      - |
+                        cd pipeline-source
+                        bash ./ci/scripts/cluster-authentication.sh
+                        make install pre-pull-images e2e
+                on_success:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: success,
+                      context: end-to-end-tests/run-e2e-test-gke-latest,
+                    }
+                on_failure:
+                  do:
+                    - put: slack-alert
+                      params:
+                        channel: "#tech-agent-delivery-notifications"
+                        text: |
+                          :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    - put: gh-status
+                      inputs: [pipeline-source]
+                      params:
+                        {
+                          state: failure,
+                          context: end-to-end-tests/run-e2e-test-gke-latest,
+                        }
+                on_error:
+                  do:
+                    - put: slack-alert
+                      params:
+                        channel: "#tech-agent-delivery-notifications"
+                        text: |
+                          :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    - put: gh-status
+                      inputs: [pipeline-source]
+                      params:
+                        {
+                          state: error,
+                          context: end-to-end-tests/run-e2e-test-gke-latest,
+                        }
+                on_abort:
+                  put: gh-status
+                  inputs: [pipeline-source]
+                  params:
+                    {
+                      state: error,
+                      context: end-to-end-tests/run-e2e-test-gke-latest,
+                    }
+                ensure:
+                  do:
+                    - task: cleanup-resources
+                      timeout: 10m
+                      config:
+                        platform: linux
+                        image_resource: *e2e-test-image-resource
+                        params:
+                          CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                          CLUSTER_TYPE: gke
+                          NAME: gke-latest
+
+                          GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                        inputs:
+                          - name: pipeline-source
+                        run:
+                          path: pipeline-source/ci/scripts/cleanup-resources.sh
+                    - task: reslock-release-gke-latest
+                      timeout: 5m
+                      config:
+                        platform: linux
+                        image_resource:
+                          type: registry-image
+                          source: *e2e-test-base-image
+                        params:
+                          RESLOCK_COMMAND: release
+                          RESLOCK_RESOURCE_NAME: gke-latest
+                          RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                        inputs:
+                          - name: pipeline-source
+                          - name: metadata
+                        run:
+                          path: pipeline-source/ci/scripts/reslock.sh
         # - do:
         #   - put: openshift-4.11
         #     inputs: detect
@@ -786,7 +819,6 @@ jobs:
         #         inputs: detect
         #         params:
         #           release: openshift-4.11
-
 
   - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
@@ -901,32 +933,48 @@ jobs:
                   docker://${RED_HAT_REGISTRY}:${OPERATOR_DOCKER_VERSION}
         on_success:
           put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          inputs: [pipeline-source]
+          params:
+            {
+              state: success,
+              context: multiarch-operator-manifest-promotion/build-multiarch-manifest,
+            }
         on_failure:
           do:
             - put: slack-alert
               params:
-                channel: '#tech-agent-delivery-notifications'
+                channel: "#tech-agent-delivery-notifications"
                 text: |
                   :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
             - put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+              inputs: [pipeline-source]
+              params:
+                {
+                  state: failure,
+                  context: multiarch-operator-manifest-promotion/build-multiarch-manifest,
+                }
         on_error:
           do:
             - put: slack-alert
               params:
-                channel: '#tech-agent-delivery-notifications'
+                channel: "#tech-agent-delivery-notifications"
                 text: |
                   :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
             - put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+              inputs: [pipeline-source]
+              params:
+                {
+                  state: error,
+                  context: multiarch-operator-manifest-promotion/build-multiarch-manifest,
+                }
         on_abort:
           put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          inputs: [pipeline-source]
+          params:
+            {
+              state: error,
+              context: multiarch-operator-manifest-promotion/build-multiarch-manifest,
+            }
       - get: preflight
         version:
           tag: 1.12.1
@@ -1090,31 +1138,33 @@ jobs:
                 ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR
         on_success:
           put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: success, context: operator-olm-github-release/build }
         on_failure:
           do:
             - put: slack-alert
               params:
-                channel: '#tech-agent-delivery-notifications'
+                channel: "#tech-agent-delivery-notifications"
                 text: |
                   :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
             - put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: operator-olm-github-release/build }
+              inputs: [pipeline-source]
+              params:
+                { state: failure, context: operator-olm-github-release/build }
         on_error:
           do:
             - put: slack-alert
               params:
-                channel: '#tech-agent-delivery-notifications'
+                channel: "#tech-agent-delivery-notifications"
                 text: |
                   :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
             - put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: operator-olm-github-release/build }
+              inputs: [pipeline-source]
+              params:
+                { state: error, context: operator-olm-github-release/build }
         on_abort:
           put: gh-status
-          inputs: [ pipeline-source ]
+          inputs: [pipeline-source]
           params: { state: error, context: operator-olm-github-release/build }
 
   - name: olm-release-pr-creation
@@ -1158,8 +1208,12 @@ jobs:
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: success, context: olm-release-pr-creation/community-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: success,
+                            context: olm-release-pr-creation/community-operators-rebase,
+                          }
                       - put: community-operators-repo
                         params:
                           repository: community-operators-repo
@@ -1168,26 +1222,38 @@ jobs:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/community-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: failure,
+                            context: olm-release-pr-creation/community-operators-rebase,
+                          }
                   on_error:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: error,
+                            context: olm-release-pr-creation/community-operators-rebase,
+                          }
                   on_abort:
                     put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
+                    inputs: [pipeline-source]
+                    params:
+                      {
+                        state: error,
+                        context: olm-release-pr-creation/community-operators-rebase,
+                      }
                 - task: community-operators-commit-changes-and-create-pr
                   config:
                     platform: linux
@@ -1216,32 +1282,48 @@ jobs:
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: success, context: olm-release-pr-creation/community-operators-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: success,
+                            context: olm-release-pr-creation/community-operators-commit-changes,
+                          }
                   on_failure:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/community-operators-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: failure,
+                            context: olm-release-pr-creation/community-operators-commit-changes,
+                          }
                   on_error:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: error,
+                            context: olm-release-pr-creation/community-operators-commit-changes,
+                          }
                   on_abort:
                     put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
+                    inputs: [pipeline-source]
+                    params:
+                      {
+                        state: error,
+                        context: olm-release-pr-creation/community-operators-commit-changes,
+                      }
             - do:
                 - get: certified-operators-repo
                 - task: certified-operators-rebase
@@ -1269,8 +1351,12 @@ jobs:
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: success, context: olm-release-pr-creation/certified-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: success,
+                            context: olm-release-pr-creation/certified-operators-rebase,
+                          }
                       - put: certified-operators-repo
                         params:
                           repository: certified-operators-repo
@@ -1279,26 +1365,38 @@ jobs:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/certified-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: failure,
+                            context: olm-release-pr-creation/certified-operators-rebase,
+                          }
                   on_error:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: error,
+                            context: olm-release-pr-creation/certified-operators-rebase,
+                          }
                   on_abort:
                     put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
+                    inputs: [pipeline-source]
+                    params:
+                      {
+                        state: error,
+                        context: olm-release-pr-creation/certified-operators-rebase,
+                      }
                 - task: certified-operators-commit-changes-and-create-pr
                   config:
                     platform: linux
@@ -1327,32 +1425,48 @@ jobs:
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: success, context: olm-release-pr-creation/certified-operators-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: success,
+                            context: olm-release-pr-creation/certified-operators-commit-changes,
+                          }
                   on_failure:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/certified-operators-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: failure,
+                            context: olm-release-pr-creation/certified-operators-commit-changes,
+                          }
                   on_error:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: error,
+                            context: olm-release-pr-creation/certified-operators-commit-changes,
+                          }
                   on_abort:
                     put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
+                    inputs: [pipeline-source]
+                    params:
+                      {
+                        state: error,
+                        context: olm-release-pr-creation/certified-operators-commit-changes,
+                      }
             - do:
                 - get: redhat-marketplace-operators-repo
                 - task: redhat-marketplace-operators-rebase
@@ -1380,8 +1494,12 @@ jobs:
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: success,
+                            context: olm-release-pr-creation/redhat-marketplace-operators-rebase,
+                          }
                       - put: redhat-marketplace-operators-repo
                         params:
                           repository: redhat-marketplace-operators-repo
@@ -1390,26 +1508,38 @@ jobs:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: failure,
+                            context: olm-release-pr-creation/redhat-marketplace-operators-rebase,
+                          }
                   on_error:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: error,
+                            context: olm-release-pr-creation/redhat-marketplace-operators-rebase,
+                          }
                   on_abort:
                     put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
+                    inputs: [pipeline-source]
+                    params:
+                      {
+                        state: error,
+                        context: olm-release-pr-creation/redhat-marketplace-operators-rebase,
+                      }
                 - task: redhat-marketplace-operator-commit-changes-and-create-pr
                   config:
                     platform: linux
@@ -1438,32 +1568,48 @@ jobs:
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: success,
+                            context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes,
+                          }
                   on_failure:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: failure,
+                            context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes,
+                          }
                   on_error:
                     do:
                       - put: slack-alert
                         params:
-                          channel: '#tech-agent-delivery-notifications'
+                          channel: "#tech-agent-delivery-notifications"
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ pipeline-source ]
-                        params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                        inputs: [pipeline-source]
+                        params:
+                          {
+                            state: error,
+                            context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes,
+                          }
                   on_abort:
                     put: gh-status
-                    inputs: [ pipeline-source ]
-                    params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
+                    inputs: [pipeline-source]
+                    params:
+                      {
+                        state: error,
+                        context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes,
+                      }
 
   - name: build-e2e-operator-base-image
     max_in_flight: 1
@@ -1483,9 +1629,9 @@ jobs:
             CONTEXT: pipeline-source/ci/images/e2e-base-image
             DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
           inputs:
-          - name: pipeline-source
+            - name: pipeline-source
           outputs:
-          - name: image
+            - name: image
           run:
             path: build
       - put: e2e-test-base-image

@@ -1,29 +1,17 @@
+# IDE
 *.iml
-target/
 .idea/
-instana-agent.yaml
+.vscode/
 
-# Local development demonstration file should be ignored as it is not relevant and might be accidentally added
+# Generated files
+config/crd/bases/instana.io_agents.yaml
+api/v1/zz_generated.deepcopy.go
+mocks/
+
+# Local development files
 instana_v1_instanaagent_demo.yaml
-
-# Eclipse https://github.com/github/gitignore/blob/master/Global/Eclipse.gitignore
-
-*.pydevproject
-.metadata
-tmp/
-*.tmp
-*.bak
-*.swp
-*~.nib
-local.properties
-.settings/
-.loadpath
-
-# Eclipse Core
-.project
-
-# JDT-specific (Eclipse Java Development Tools)
-.classpath
+instana-agent.yaml
+.env
 
 # macOS files
 .DS_Store
@@ -32,36 +20,28 @@ local.properties
 build/_output
 build/_test
 testbin/
-bin/
+bin/**
+!bin/.gitkeep
 
-### Go ###
 # Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-# Test binary, build with 'go test -c'
+
+# Tests, debugging, coverage etc
 *.test
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-/.vscode/
-/__debug_bin
+__debug_bin*
 
 # Scratch files
 scratch/
-config/crd/bases/instana.io_agents.yaml
 bundle.Dockerfile
 bundle/manifests/instana-agent-operator.clusterserviceversion.yaml
 bundle/manifests/instana.io_agents.yaml
 bundle/metadata/annotations.yaml
-mocks/
 
-# Binary
-instana-agent-operator
-
-# CI
+# CI/CD
 backend.cfg
-
-e2e/.env
-.tmp
+target/
