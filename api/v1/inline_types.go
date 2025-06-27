@@ -233,6 +233,10 @@ type AgentPodSpec struct {
 	// Set additional volume mounts for the agent pod.
 	// +kubebuilder:validation:Optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Set additional environment variables for the agent pod.
+	// +kubebuilder:validation:Optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 type TlsSpec struct {

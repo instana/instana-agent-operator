@@ -107,6 +107,12 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.EnableAgentSocketEnv,
 		env.NamespacesDetailsPathEnv,
 	)
+
+	// Add user-defined environment variables from the pod.env field
+	if len(d.InstanaAgent.Spec.Agent.Pod.Env) > 0 {
+		envVars = append(envVars, d.InstanaAgent.Spec.Agent.Pod.Env...)
+	}
+
 	d.Helpers.SortEnvVarsByName(envVars)
 	return envVars
 }
