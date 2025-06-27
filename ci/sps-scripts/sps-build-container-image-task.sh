@@ -15,18 +15,7 @@ echo "[INFO] Setting up Docker Buildx for multi-platform builds..."
 docker buildx create --name multiarch-builder --use
 docker buildx inspect --bootstrap
 
-# Determine the build context based on flavor
-echo "[INFO] Determining the appropriate build context..."
-if [ "$2" = "dynamic" ]; then
-    BUILD_CONTEXT="$WORKSPACE/$APP_REPO_FOLDER/dynamic"
-    echo "[INFO] Using dynamic build context: $BUILD_CONTEXT"
-elif [ "$2" = "static" ]; then
-    BUILD_CONTEXT="$WORKSPACE/$APP_REPO_FOLDER/static"
-    echo "[INFO] Using static build context: $BUILD_CONTEXT"
-else
-    echo "[ERROR] Unknown FLAVOR specified: $2"
-    exit 1
-fi
+BUILD_CONTEXT="$WORKSPACE/$APP_REPO_FOLDER/"
 
 # Create a secure temporary file for secrets
 echo "[INFO] Creating a secure temporary file for secrets..."
@@ -47,17 +36,11 @@ esac)
 
 echo "[INFO] Verifying script arguments..."
 echo "TARGETPLATFORM: $1"
-echo "FLAVOR: $2"
-echo "CLASSIFIER: $3"
 echo "ARCHITECTURE: $arch"
 echo "Version: $INSTANA_TWISTCLI_VERSION"
 
-# Construct the image tag with optional CLASSIFIER
-if [ -n "$3" ]; then
-    IMAGE_TAG="instana-agent-docker-$arch-$2-$3:$INSTANA_TWISTCLI_VERSION"
-else
-    IMAGE_TAG="instana-agent-docker-$arch-$2:$INSTANA_TWISTCLI_VERSION"
-fi
+# Construct the image tag
+IMAGE_TAG="instana-agent-docker-$arch:$INSTANA_TWISTCLI_VERSION"
 echo "IMAGE TAG: $IMAGE_TAG"
 
 # Build the container image
@@ -66,8 +49,6 @@ docker buildx build \
     "$BUILD_CONTEXT" \
     --platform "$1" \
     --build-arg TARGETPLATFORM="$1" \
-    --build-arg FLAVOR="$2" \
-    --build-arg CLASSIFIER="$3" \
     --secret id=DOWNLOAD_KEY,src=$SECRET_FILE \
     -t $IMAGE_TAG \
     --load \
