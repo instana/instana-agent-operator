@@ -2,7 +2,7 @@
 set -euo pipefail
 echo "===== e2e.sh - start ====="
 pwd
-export SOURCE_DIRECTORY="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}"
+export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
 echo "${SOURCE_DIRECTORY}"
 ls "${SOURCE_DIRECTORY}"
 CLUSTER_ID=$1
