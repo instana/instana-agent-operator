@@ -53,16 +53,16 @@ spec:
         - name: DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: app-secrets
-              key: db-password
+              name: env-test-secret
+              key: test-key
               optional: true
         
         # From ConfigMap
         - name: APP_CONFIG
           valueFrom:
             configMapKeyRef:
-              name: app-config
-              key: config.json
+              name: env-test-config
+              key: test-key
               optional: true
         
         # From resource field
