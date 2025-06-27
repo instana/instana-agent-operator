@@ -1,6 +1,5 @@
 /*
  * (c) Copyright IBM Corp. 2025
- * (c) Copyright Instana Inc. 2025
  */
 
 package e2e
@@ -19,6 +18,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestEnvVarsWithKubernetesFormat(t *testing.T) {
@@ -31,7 +31,7 @@ func TestEnvVarsWithKubernetesFormat(t *testing.T) {
 
 		// Create ConfigMap
 		configMap := &corev1.ConfigMap{
-			ObjectMeta: corev1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "env-test-config",
 				Namespace: cfg.Namespace(),
 			},
@@ -46,7 +46,7 @@ func TestEnvVarsWithKubernetesFormat(t *testing.T) {
 
 		// Create Secret
 		secret := &corev1.Secret{
-			ObjectMeta: corev1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "env-test-secret",
 				Namespace: cfg.Namespace(),
 			},
@@ -94,7 +94,7 @@ func TestEnvVarsWithKubernetesFormat(t *testing.T) {
 func ValidateEnvironmentVariables() features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Validating environment variables in agent pod")
-		
+
 		// Create a client to interact with the Kube API
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
@@ -108,7 +108,7 @@ func ValidateEnvironmentVariables() features.Func {
 		if err != nil || len(pods.Items) == 0 {
 			t.Fatal("Error while getting agent pods:", err)
 		}
-		
+
 		var stdout, stderr bytes.Buffer
 		podName := pods.Items[0].Name
 		containerName := "instana-agent"
@@ -139,7 +139,7 @@ func ValidateEnvironmentVariables() features.Func {
 		for _, test := range envVarTests {
 			stdout.Reset()
 			stderr.Reset()
-			
+
 			// Execute command to print environment variable
 			if err := r.ExecInPod(
 				ctx,
@@ -153,12 +153,12 @@ func ValidateEnvironmentVariables() features.Func {
 				t.Log(stderr.String())
 				t.Fatal("Failed to execute command in pod:", err)
 			}
-			
+
 			output := strings.TrimSpace(stdout.String())
 			if output == test.expected || (test.name == "MY_POD_NAME" && output != "") {
 				t.Logf("Environment variable %s has expected value: %s", test.name, output)
 			} else {
-				t.Errorf("Environment variable %s has unexpected value. Expected: %s, Got: %s", 
+				t.Errorf("Environment variable %s has unexpected value. Expected: %s, Got: %s",
 					test.name, test.expected, output)
 			}
 		}
