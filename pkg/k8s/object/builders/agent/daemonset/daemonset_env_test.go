@@ -117,4 +117,81 @@ func TestDaemonSetBuilder_PodEnvVars(t *testing.T) {
 	assert.True(t, foundTestEnvVarFromSecret, "TEST_ENV_VAR_FROM_SECRET not found in container environment variables")
 }
 
+func TestDaemonSetBuilder_EnvVarPrecedence(t *testing.T) {
+	// Given
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+				// Legacy env vars
+				Env: map[string]string{
+					"INSTANA_AGENT_TAGS": "legacy,simple,key-value",
+					"DUPLICATE_ENV_VAR":  "legacy-value",
+				},
+				Pod: instanav1.AgentPodSpec{
+					// New env vars with one duplicate to test precedence
+					Env: []corev1.EnvVar{
+						{
+							Name:  "INSTANA_AGENT_TAGS",
+							Value: "kubernetes,production,custom",
+						},
+						{
+							Name:  "DUPLICATE_ENV_VAR",
+							Value: "pod-value",
+						},
+					},
+				},
+			},
+			Cluster: instanav1.Name{
+				Name: "test-cluster",
+			},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager)
+
+	// When
+	obj := dsBuilder.Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+
+	// Then
+	ds, ok := obj.Get().(*appsv1.DaemonSet)
+	if !ok {
+		t.Fatal("Expected DaemonSet object")
+	}
+
+	envVars := ds.Spec.Template.Spec.Containers[0].Env
+
+	// Count occurrences of each env var name to check for duplicates
+	envVarCounts := make(map[string]int)
+	envVarValues := make(map[string]string)
+
+	for _, env := range envVars {
+		envVarCounts[env.Name]++
+		if env.Value != "" {
+			envVarValues[env.Name] = env.Value
+		}
+	}
+
+	// Check that there are no duplicates
+	for name, count := range envVarCounts {
+		assert.Equal(t, 1, count, "Environment variable %s appears %d times, expected once", name, count)
+	}
+
+	// Check that pod.env values take precedence over agent.env values
+	assert.Equal(t, "kubernetes,production,custom", envVarValues["INSTANA_AGENT_TAGS"],
+		"pod.env value for INSTANA_AGENT_TAGS should take precedence")
+	assert.Equal(t, "pod-value", envVarValues["DUPLICATE_ENV_VAR"],
+		"pod.env value for DUPLICATE_ENV_VAR should take precedence")
+}
+
 // Made with Bob
