@@ -179,15 +179,135 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	).
 		Return(expected)
 
-	agent := &instanav1.InstanaAgent{ObjectMeta: metav1.ObjectMeta{Name: "some-agent"}}
+	// Create agent with no pod.env
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{Name: "some-agent"},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Pod: instanav1.AgentPodSpec{},
+			},
+		},
+	}
+
 	db := &daemonSetBuilder{
-		EnvBuilder: envBuilder,
-		Helpers:    helpers.NewHelpers(agent),
+		EnvBuilder:   envBuilder,
+		Helpers:      helpers.NewHelpers(agent),
+		InstanaAgent: agent,
 	}
 
 	actual := db.getEnvVars()
 
 	assertions.Equal(expected, actual)
+}
+
+func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
+	assertions := require.New(t)
+	ctrl := gomock.NewController(t)
+
+	baseEnvVars := []corev1.EnvVar{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "hello",
+			Value: "world",
+		},
+	}
+
+	podEnvVars := []corev1.EnvVar{
+		{
+			Name:  "TEST_ENV",
+			Value: "test-value",
+		},
+		{
+			Name: "TEST_ENV_FROM_FIELD",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+	}
+
+	expectedEnvVars := append(baseEnvVars, podEnvVars...)
+
+	envBuilder := mocks.NewMockEnvBuilder(ctrl)
+	envBuilder.EXPECT().Build(
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+	).
+		Return(baseEnvVars)
+
+	// Create agent with pod.env
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{Name: "some-agent"},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Pod: instanav1.AgentPodSpec{
+					Env: podEnvVars,
+				},
+			},
+		},
+	}
+
+	db := &daemonSetBuilder{
+		EnvBuilder:   envBuilder,
+		Helpers:      helpers.NewHelpers(agent),
+		InstanaAgent: agent,
+	}
+
+	actual := db.getEnvVars()
+
+	// Check that both base env vars and pod env vars are present
+	assertions.Equal(len(expectedEnvVars), len(actual))
+
+	// Check that pod env vars are present
+	foundTestEnv := false
+	foundTestEnvFromField := false
+
+	for _, env := range actual {
+		if env.Name == "TEST_ENV" {
+			foundTestEnv = true
+			assertions.Equal("test-value", env.Value)
+		}
+		if env.Name == "TEST_ENV_FROM_FIELD" {
+			foundTestEnvFromField = true
+			assertions.Equal("metadata.name", env.ValueFrom.FieldRef.FieldPath)
+		}
+	}
+
+	assertions.True(foundTestEnv, "TEST_ENV not found in container environment variables")
+	assertions.True(foundTestEnvFromField, "TEST_ENV_FROM_FIELD not found in container environment variables")
 }
 
 func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
