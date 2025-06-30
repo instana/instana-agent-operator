@@ -9,6 +9,8 @@ import (
 	"context"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -25,14 +27,43 @@ func TestExtraVolumeWithSecret(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			t.Logf("Creating dummy secret")
+			t.Logf("Creating dummy secrets and configmap")
 
 			err = decoder.ApplyWithManifestDir(ctx, r, "../config/samples", "external_secret_instana_agent_key.yaml", []resources.CreateOption{})
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			t.Logf("Secret created")
+			// Create the my-secret Secret referenced in the environment variables
+			mySecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-secret",
+					Namespace: cfg.Namespace(),
+				},
+				Type: corev1.SecretTypeOpaque,
+				StringData: map[string]string{
+					"password": "test-password",
+				},
+			}
+			if err := r.Create(ctx, mySecret); err != nil {
+				t.Fatal("Failed to create my-secret:", err)
+			}
+
+			// Create the my-config ConfigMap referenced in the environment variables
+			myConfig := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-config",
+					Namespace: cfg.Namespace(),
+				},
+				Data: map[string]string{
+					"value": "test-value",
+				},
+			}
+			if err := r.Create(ctx, myConfig); err != nil {
+				t.Fatal("Failed to create my-config:", err)
+			}
+
+			t.Logf("Secrets and ConfigMap created")
 
 			t.Logf("Creating dummy agent CR with extra volume")
 			err = decoder.ApplyWithManifestDir(ctx, r, "../config/samples", "instana_v1_extended_instanaagent.yaml", []resources.CreateOption{})
