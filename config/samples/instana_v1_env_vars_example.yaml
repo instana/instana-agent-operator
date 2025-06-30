@@ -77,10 +77,10 @@ spec:
       volumes:
         - name: my-secret-volume
           secret:
-            secretName: instana-agent-key
+            secretName: env-test-secret
         - name: my-config-volume
           configMap:
-            name: app-config
+            name: env-test-config
       
       volumeMounts:
         - name: my-secret-volume
