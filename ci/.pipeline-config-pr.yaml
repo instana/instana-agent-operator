@@ -185,6 +185,14 @@ tasks:
   pr-code-checks-7:
     from: pr-code-checks
     displayName: e2e-ocp-latest
+    runAfter:
+      - pr-code-checks
+      - pr-code-checks-2
+      - pr-code-checks-3
+      - pr-code-checks-4
+      - pr-code-checks-5
+      - pr-code-checks-9
+      - pr-code-checks-10
     include:
       - dind
     steps:
@@ -215,6 +223,14 @@ tasks:
   pr-code-checks-8:
     from: pr-code-checks
     displayName: e2e-gke-latest
+    runAfter:
+      - pr-code-checks
+      - pr-code-checks-2
+      - pr-code-checks-3
+      - pr-code-checks-4
+      - pr-code-checks-5
+      - pr-code-checks-9
+      - pr-code-checks-10
     include:
       - dind
     steps:
@@ -316,3 +332,27 @@ tasks:
       - name: compliance-checks
         include:
           - docker-socket
+  
+  pr-code-checks-10:
+    from: pr-code-checks
+    displayName: build-e2e-operator-base-image
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+            trap env EXIT
+            env
+            set -x
+          fi
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh        
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+    
