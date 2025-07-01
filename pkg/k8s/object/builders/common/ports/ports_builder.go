@@ -50,7 +50,8 @@ func (p *portsBuilder) GetServicePorts() []corev1.ServicePort {
 // GetContainerPorts is responsible of creating a list of container ports based on the InstanaAgent configuration
 func (p *portsBuilder) GetContainerPorts() []corev1.ContainerPort {
 	containerPorts := []corev1.ContainerPort{InstanaAgentAPIPortConfig.AsContainerPort()}
-	if *p.otel.Enabled.Enabled != false { //nolint:gosimple
+	// ensure to not hit a nil pointer
+	if p.otel.Enabled.Enabled != nil && *p.otel.Enabled.Enabled != false { //nolint:gosimple
 		if *p.otel.GRPC.Enabled {
 			GRPCPortConfig := DefaultOpenTelemetryGRPCPortConfig
 			// Override default value if the config contains a new port number

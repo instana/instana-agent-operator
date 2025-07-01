@@ -309,18 +309,13 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 	}
 
 	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
-	portsBuilder.EXPECT().GetContainerPorts(
-		ports.AgentAPIsPort,
-		ports.OpenTelemetryLegacyPort,
-		ports.OpenTelemetryGRPCPort,
-		ports.OpenTelemetryHTTPPort,
-	).Return(expected)
+	portsBuilder.EXPECT().GetContainerPorts().Return(expected)
 
 	db := &daemonSetBuilder{
-		PortsBuilder: portsBuilder,
+		portsBuilder: portsBuilder,
 	}
 
-	actual := db.getContainerPorts()
+	actual := db.portsBuilder.GetContainerPorts()
 
 	assertions.Equal(expected, actual)
 }
