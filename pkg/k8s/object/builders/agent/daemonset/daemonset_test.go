@@ -19,7 +19,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -298,7 +297,7 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 	assertions.True(foundTestEnvFromField, "TEST_ENV_FROM_FIELD not found in container environment variables")
 }
 
-func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
+func TestDaemonSetBuilder_GetContainerPorts(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
 
@@ -310,18 +309,13 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 	}
 
 	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
-	portsBuilder.EXPECT().GetContainerPorts(
-		ports.AgentAPIsPort,
-		ports.OpenTelemetryLegacyPort,
-		ports.OpenTelemetryGRPCPort,
-		ports.OpenTelemetryHTTPPort,
-	).Return(expected)
+	portsBuilder.EXPECT().GetContainerPorts().Return(expected)
 
 	db := &daemonSetBuilder{
-		PortsBuilder: portsBuilder,
+		portsBuilder: portsBuilder,
 	}
 
-	actual := db.getContainerPorts()
+	actual := db.portsBuilder.GetContainerPorts()
 
 	assertions.Equal(expected, actual)
 }
