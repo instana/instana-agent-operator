@@ -112,6 +112,23 @@ spec:
       volumeMounts:
         - name: my-secret-volume
           mountPath: /secrets
+      env:
+        - name: INSTANA_AGENT_TAGS
+          value: "kubernetes,example"
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SECRET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: password
+        - name: CONFIG_VALUE
+          valueFrom:
+            configMapKeyRef:
+              name: my-config
+              key: value
 
     serviceMesh:
       # agent.serviceMesh.enabled sets the Instana agent's communication direction with JVMs.
