@@ -220,7 +220,7 @@ func TestRemoteAgent_Default(t *testing.T) {
 				Spec: *tt.spec,
 			}
 
-			ra.DefaultWithHost(mainAgent)
+			ra.Default(mainAgent)
 
 			assertions.Equal(tt.expected, &ra.Spec)
 		})
