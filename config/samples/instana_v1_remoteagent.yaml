@@ -9,3 +9,13 @@ spec:
   remote_configuration_yaml: |
     # You can leave this empty, or use this to configure your instana agent.
     # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
+  requests:
+        # agent.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
+    memory: 768Mi
+        # agent.pod.requests.cpu are the requested CPU units allocation for the agent pods.
+    cpu: "0.5"
+  limits:
+        # agent.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
+    memory: 768Mi
+        # agent.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
+    cpu: "1.5"
