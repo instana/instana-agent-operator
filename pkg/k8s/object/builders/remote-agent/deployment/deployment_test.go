@@ -25,7 +25,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/stretchr/testify/assert"
@@ -116,7 +115,7 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 					RemoteAgent: &instanav1.RemoteAgent{
 						Spec: test.agentSpec,
 					},
-					PodSelectorLabelGenerator: podSelector,
+					PodSelectorLabelGeneratorRemote: podSelector,
 				}
 
 				actual := d.getPodTemplateLabels()
@@ -172,8 +171,6 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 		env.DownloadKeyEnvRemote,
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
-		env.K8sServiceDomainEnvRemote,
-		env.EnableAgentSocketEnvRemote,
 	).
 		Return(expected)
 
@@ -184,31 +181,6 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 	}
 
 	actual := db.getEnvVars()
-
-	assertions.Equal(expected, actual)
-}
-
-func TestDeploymentBuilder_getContainerPorts(t *testing.T) {
-	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
-
-	expected := []corev1.ContainerPort{
-		{
-			Name:          "something",
-			ContainerPort: 12345,
-		},
-	}
-
-	portsBuilder := mocks.NewMockPortsBuilderRemote(ctrl)
-	portsBuilder.EXPECT().GetContainerPorts(
-		ports.AgentAPIsPort,
-	).Return(expected)
-
-	db := &deploymentBuilder{
-		PortsBuilderRemote: portsBuilder,
-	}
-
-	actual := db.getContainerPorts()
 
 	assertions.Equal(expected, actual)
 }

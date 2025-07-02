@@ -41,7 +41,7 @@ func TestConfigBuilderIsNamespaced(t *testing.T) {
 	statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
 	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
 
-	assert.Equal(t, "remote-instana-agent", s.ComponentName())
+	assert.Equal(t, "instana-agent-remote", s.ComponentName())
 }
 
 // TestAgentSecretConfigBuild is a all-in-one test to go through the agent config to extract secrets in all cases
@@ -51,7 +51,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		Namespace: "object-namespace-value",
 	}
 	objectMetaConfig := metav1.ObjectMeta{
-		Name:      objectMeta.Name + "-config",
+		Name:      "instana-agent-r-" + objectMeta.Name + "-config",
 		Namespace: objectMeta.Namespace,
 	}
 	cluster := instanav1.Name{
@@ -117,8 +117,8 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			expected: map[string][]byte{
 				"cluster_name":       []byte(objectMeta.Name),
 				"configuration.yaml": []byte("configuration-yaml-value"),
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+
+				"com.instana.agent.main.sender.Backend-1.cfg": []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
 		{
@@ -164,10 +164,10 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			},
 			keysSecret: &corev1.Secret{},
 			expected: map[string][]byte{
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-				"com.instana.agent.main.sender.Backend-2.cfg":  []byte("host=additional-backend-2-host\nport=additional-backend-2-port\nprotocol=HTTP/2\nkey=additional-backend-2-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
-				"com.instana.agent.main.sender.Backend-3.cfg":  []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
-				"com.instana.agent.main.sender.Backend-4.cfg":  []byte("host=additional-backend-4-host\nport=additional-backend-4-port\nprotocol=HTTP/2\nkey=additional-backend-4-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+
+				"com.instana.agent.main.sender.Backend-2.cfg": []byte("host=additional-backend-2-host\nport=additional-backend-2-port\nprotocol=HTTP/2\nkey=additional-backend-2-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+				"com.instana.agent.main.sender.Backend-3.cfg": []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+				"com.instana.agent.main.sender.Backend-4.cfg": []byte("host=additional-backend-4-host\nport=additional-backend-4-port\nprotocol=HTTP/2\nkey=additional-backend-4-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
 		{
@@ -215,11 +215,11 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			expected: map[string][]byte{
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
-				"com.instana.agent.main.sender.Backend-2.cfg":  []byte("host=additional-backend-2-host\nport=additional-backend-2-port\nprotocol=HTTP/2\nkey=additional-backend-2-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
-				"com.instana.agent.main.sender.Backend-3.cfg":  []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
-				"com.instana.agent.main.sender.Backend-4.cfg":  []byte("host=additional-backend-4-host\nport=additional-backend-4-port\nprotocol=HTTP/2\nkey=additional-backend-4-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+
+				"com.instana.agent.main.sender.Backend-1.cfg": []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+				"com.instana.agent.main.sender.Backend-2.cfg": []byte("host=additional-backend-2-host\nport=additional-backend-2-port\nprotocol=HTTP/2\nkey=additional-backend-2-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+				"com.instana.agent.main.sender.Backend-3.cfg": []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+				"com.instana.agent.main.sender.Backend-4.cfg": []byte("host=additional-backend-4-host\nport=additional-backend-4-port\nprotocol=HTTP/2\nkey=additional-backend-4-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
 		{
@@ -231,9 +231,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			keysSecret: &corev1.Secret{},
-			expected: map[string][]byte{
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-			},
+			expected:   map[string][]byte{},
 		},
 		{
 			name: "Should use the v1.Secret provided key in the Backend-1.cfg when keysSecret has been specified",
@@ -266,8 +264,8 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			expected: map[string][]byte{
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=key-from-secret\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+
+				"com.instana.agent.main.sender.Backend-1.cfg": []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=key-from-secret\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
 		{
@@ -322,9 +320,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			expected: map[string][]byte{
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=key-from-secret\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
-				"com.instana.agent.main.sender.Backend-3.cfg":  []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+
+				"com.instana.agent.main.sender.Backend-1.cfg": []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=key-from-secret\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
+				"com.instana.agent.main.sender.Backend-3.cfg": []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
 		{
@@ -359,9 +357,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					EndpointPort:   "additional-backend-2-port",
 				},
 			},
-			expected: map[string][]byte{
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-			},
+			expected: map[string][]byte{},
 		},
 	} {
 		t.Run(
