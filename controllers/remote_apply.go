@@ -23,8 +23,6 @@ import (
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	remoteagentdeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/deployment"
-	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/headless-service"
-	agentrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/rbac"
 	agentsecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets"
 	keyssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets/keys-secret"
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets/tls-secret"
@@ -37,12 +35,12 @@ import (
 func getRemoteAgentDeployments(
 	agent *instanav1.RemoteAgent,
 	statusManager status.RemoteAgentStatusManager,
-	k8SensorBackends []backends.K8SensorBackend,
+	additionalBackends []backends.K8SensorBackend,
 	keysSecret *corev1.Secret,
 ) []builder.ObjectBuilder {
-	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
+	builders := make([]builder.ObjectBuilder, 0, len(additionalBackends))
 
-	for _, backend := range k8SensorBackends {
+	for _, backend := range additionalBackends {
 		builders = append(
 			builders,
 			remoteagentdeployment.NewDeploymentBuilder(agent, statusManager, backend, keysSecret),
@@ -58,21 +56,18 @@ func (r *RemoteAgentReconciler) applyResources(
 	operatorUtils operator_utils.RemoteOperatorUtils,
 	statusManager status.RemoteAgentStatusManager,
 	keysSecret *corev1.Secret,
-	k8SensorBackends []backends.K8SensorBackend,
+	additionalBackends []backends.K8SensorBackend,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for remote agent")
 
 	builders := append(
-		getRemoteAgentDeployments(agent, statusManager, k8SensorBackends, keysSecret),
-		headlessservice.NewHeadlessServiceBuilder(agent),
-		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
+		getRemoteAgentDeployments(agent, statusManager, additionalBackends, keysSecret),
+		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, additionalBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		tlssecret.NewSecretBuilder(agent),
-		agentrbac.NewClusterRoleBuilder(agent),
-		agentrbac.NewClusterRoleBindingBuilder(agent),
 		agentserviceaccount.NewServiceAccountBuilder(agent),
-		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
+		keyssecret.NewSecretBuilder(agent, additionalBackends),
 	)
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for remote agent")
