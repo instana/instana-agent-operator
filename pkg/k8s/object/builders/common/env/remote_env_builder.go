@@ -69,8 +69,6 @@ const (
 	PodIPEnvRemote
 	PodUIDEnvRemote
 	PodNamespaceEnvRemote
-	K8sServiceDomainEnvRemote
-	EnableAgentSocketEnvRemote
 )
 
 type EnvBuilderRemote interface {
@@ -185,10 +183,6 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		return e.envWithObjectFieldSelector("POD_UID", "metadata.uid")
 	case PodNamespaceEnvRemote:
 		return e.envWithObjectFieldSelector("POD_NAMESPACE", "metadata.namespace")
-	case K8sServiceDomainEnvRemote:
-		return &corev1.EnvVar{Name: "K8S_SERVICE_DOMAIN", Value: e.helpers.HeadlessServiceName() + "." + e.agent.Namespace + ".svc"}
-	case EnableAgentSocketEnvRemote:
-		return boolToEnvVar("ENABLE_AGENT_SOCKET", e.agent.Spec.Agent.ServiceMesh.Enabled)
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
@@ -248,7 +242,7 @@ func (e *envBuilderRemote) backendEnv() *corev1.EnvVar {
 		ValueFrom: &corev1.EnvVarSource{
 			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: e.helpers.K8sSensorResourcesName(),
+					Name: e.helpers.RemoteResourcesName(),
 				},
 				Key: constants.BackendKey,
 			},
