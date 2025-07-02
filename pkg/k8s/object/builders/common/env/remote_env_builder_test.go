@@ -117,7 +117,6 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				PodIPEnvRemote,
 				PodUIDEnvRemote,
 				PodNamespaceEnvRemote,
-				K8sServiceDomainEnvRemote,
 				EntrypointSkipBackendTemplateGenerationRemote,
 			},
 			expected: []corev1.EnvVar{
@@ -158,7 +157,6 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				{Name: "POD_IP", Value: "status.podIP"},
 				{Name: "POD_UID", Value: "metadata.uid"},
 				{Name: "POD_NAMESPACE", Value: "metadata.namespace"},
-				{Name: "K8S_SERVICE_DOMAIN", Value: "-headless..svc"},
 				{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"},
 			},
 		},
