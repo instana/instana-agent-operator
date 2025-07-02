@@ -28,7 +28,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/optional"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,10 +36,10 @@ import (
 
 type configBuilder struct {
 	*instanav1.RemoteAgent
-	statusManager status.RemoteAgentStatusManager
-	keysSecret    *corev1.Secret
-	logger        logr.Logger
-	backends      []backends.K8SensorBackend
+	statusManager      status.RemoteAgentStatusManager
+	keysSecret         *corev1.Secret
+	logger             logr.Logger
+	additionalBackends []backends.K8SensorBackend
 }
 
 func NewConfigBuilder(
@@ -49,11 +48,11 @@ func NewConfigBuilder(
 	keysSecret *corev1.Secret,
 	backends []backends.K8SensorBackend) commonbuilder.ObjectBuilder {
 	return &configBuilder{
-		RemoteAgent:   agent,
-		statusManager: statusManager,
-		keysSecret:    keysSecret,
-		logger:        logf.Log.WithName("remote-instana-agent-config-secret-builder"),
-		backends:      backends,
+		RemoteAgent:        agent,
+		statusManager:      statusManager,
+		keysSecret:         keysSecret,
+		logger:             logf.Log.WithName("instana-agent-remote-config-secret-builder"),
+		additionalBackends: backends,
 	}
 }
 
@@ -77,7 +76,7 @@ func (c *configBuilder) Build() optional.Optional[client.Object] {
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.Name + "-config",
+			Name:      "instana-agent-r-" + c.Name + "-config",
 			Namespace: c.Namespace,
 		},
 		Data: data,
@@ -99,17 +98,6 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
 
-	// Deprecated since k8s sensor deployment will always be enabled now,
-	// can remove once deprecated sensor is removed from agent
-	mrshl, _ := yaml.Marshal(
-		map[string]any{
-			"com.instana.plugin.kubernetes": map[string]any{
-				"enabled": false,
-			},
-		},
-	)
-	data["configuration-disable-kubernetes-sensor.yaml"] = mrshl
-
 	backendConfig, err := c.backendConfig()
 
 	return mergeMaps(data, backendConfig), err
@@ -120,7 +108,7 @@ func (c *configBuilder) backendConfig() (map[string][]byte, error) {
 
 	// render additional backends configuration
 	var backendKey string
-	for i, backend := range c.backends {
+	for i, backend := range c.additionalBackends {
 		if (c.keysSecret.Name == "" && backend.EndpointKey == "") || backend.EndpointHost == "" {
 			// skip backend as it would be broken anyways, should be caught by the schema validator anyways, but better be safe than sorry
 			c.logger.Error(fmt.Errorf("backend not defined: backend key (plaintext or through secret) or endpoint missing"), "skipping additional backend due to missing values")
