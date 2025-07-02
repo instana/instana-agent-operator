@@ -17,3 +17,13 @@ spec:
     endpointPort: "443"
     env: {}
   manual_setup: true
+  requests:
+        # agent.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
+    memory: 768Mi
+        # agent.pod.requests.cpu are the requested CPU units allocation for the agent pods.
+    cpu: "0.5"
+  limits:
+        # agent.pod.limits.memory set the memory allocation limits in MiB for the agent pods.
+    memory: 768Mi
+        # agent.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
+    cpu: "1.5"
