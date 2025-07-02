@@ -34,7 +34,7 @@ func TestSecretBuilderComponentName(t *testing.T) {
 func TestSecretBuilderIsNamespaced(t *testing.T) {
 	s := NewContainerBuilder(&instanav1.RemoteAgent{}, &corev1.Secret{})
 
-	assert.Equal(t, "remote-instana-agent", s.ComponentName())
+	assert.Equal(t, "instana-agent-remote", s.ComponentName())
 }
 
 func TestContainerSecretBuilder(t *testing.T) {
@@ -43,7 +43,7 @@ func TestContainerSecretBuilder(t *testing.T) {
 		Namespace: "object-namespace-value",
 	}
 	objectMetaConfig := metav1.ObjectMeta{
-		Name:      objectMeta.Name + "-containers-instana-io",
+		Name:      "instana-agent-r-" + objectMeta.Name + "-containers-instana-io",
 		Namespace: objectMeta.Namespace,
 	}
 	secretType := metav1.TypeMeta{

@@ -36,7 +36,7 @@ func TestRemoteSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	s := NewSecretBuilder(&instanav1.RemoteAgent{}, make([]backends.K8SensorBackend, 0))
 
 	assertions.True(s.IsNamespaced())
-	assertions.Equal("remote-instana-agent", s.ComponentName())
+	assertions.Equal("instana-agent-remote", s.ComponentName())
 }
 
 func randString() string {

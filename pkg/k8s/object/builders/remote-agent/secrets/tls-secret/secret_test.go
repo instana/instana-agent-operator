@@ -38,7 +38,7 @@ func TestRemoteSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	s := NewSecretBuilder(&instanav1.RemoteAgent{})
 
 	assertions.True(s.IsNamespaced())
-	assertions.Equal("remote-instana-agent", s.ComponentName())
+	assertions.Equal("instana-agent-remote", s.ComponentName())
 }
 
 func TestRemoteSecretBuilder_Build(t *testing.T) {
@@ -77,7 +77,7 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 							},
 						}
 
-						helpers := mocks.NewMockHelpers(ctrl)
+						helpers := mocks.NewMockRemoteHelpers(ctrl)
 
 						sb := &secretBuilder{
 							RemoteAgent:   agent,

@@ -229,19 +229,6 @@ func TestHelpers_RemoteTLSSecretName(t *testing.T) {
 	}
 }
 
-func TestHelpers_RemoteHeadlessServiceName(t *testing.T) {
-	assertions := require.New(t)
-
-	h := NewRemoteHelpers(
-		&instanav1.RemoteAgent{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "rhjaoijdsoijoidsf",
-			},
-		},
-	)
-	assertions.Equal("rhjaoijdsoijoidsf-headless", h.HeadlessServiceName())
-}
-
 func TestHelpers_RemoteK8sSensorResourcesName(t *testing.T) {
 	assertions := require.New(t)
 
@@ -252,13 +239,13 @@ func TestHelpers_RemoteK8sSensorResourcesName(t *testing.T) {
 			},
 		},
 	)
-	assertions.Equal("rhjaoijdsoijoidsf-k8sensor", h.K8sSensorResourcesName())
+	assertions.Equal("rhjaoijdsoijoidsf-remote", h.RemoteResourcesName())
 }
 
 func TestHelpers_RemoteContainersSecretName(t *testing.T) {
 	assertions := require.New(t)
 
-	agentName := rand.String(rand.IntnRange(1, 15))
+	agentName := "instana-agent-r-" + rand.String(rand.IntnRange(1, 15))
 
 	h := NewRemoteHelpers(
 		&instanav1.RemoteAgent{

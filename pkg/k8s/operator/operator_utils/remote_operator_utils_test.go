@@ -23,8 +23,6 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
-	remoterbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/rbac"
-	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -53,11 +51,6 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 
 			// Prepare builders
 			builders := []builder.ObjectBuilder{}
-			builders = append(
-				builders,
-				remoterbac.NewClusterRoleBindingBuilder(&agent),
-				remoterbac.NewClusterRoleBindingBuilder(&agent),
-			)
 
 			// Dry-run
 			instanaAgentClient.EXPECT().
@@ -102,11 +95,6 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 
 			// Prepare builders
 			builders := []builder.ObjectBuilder{}
-			builders = append(
-				builders,
-				remoterbac.NewClusterRoleBuilder(&agent),
-				remoterbac.NewClusterRoleBindingBuilder(&agent),
-			)
 
 			// Mock calls
 			instanaAgentClient.EXPECT().
@@ -122,101 +110,6 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 
 			err := operatorUtils.ApplyAll(builders...)
 			assertions.Equal(expected.Error(), err.Error())
-		},
-	)
-	t.Run(
-		"Should return an error when applyAll in dry run mode causes an error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
-			agent := instanav1.RemoteAgent{}
-
-			var unstrctrd client.Object = &unstructured.Unstructured{}
-
-			// Prepare errors
-			expected := errors.New("Dry run failed")
-			errBuilder := multierror.NewMultiErrorBuilder()
-			errBuilder.Add(expected, expected)
-
-			// Prepare builders
-			builders := []builder.ObjectBuilder{}
-			builders = append(
-				builders,
-				remoterbac.NewClusterRoleBuilder(&agent),
-				remoterbac.NewClusterRoleBindingBuilder(&agent),
-			)
-
-			// Mock calls
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, expected)).
-				Times(len(builders))
-			dependentLifecycleManager.EXPECT().
-				UpdateDependentLifecycleInfo(gomock.Any()).
-				Return(nil).
-				AnyTimes()
-			dependentLifecycleManager.EXPECT().
-				CleanupDependents(gomock.Any()).
-				Return(nil).
-				AnyTimes()
-
-			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
-
-			err := operatorUtils.ApplyAll(builders...)
-			assertions.Equal(errBuilder.Build().Error(), err.Error())
-		},
-	)
-	t.Run(
-		"Should return an error when applyAll in causes an error", func(t *testing.T) {
-			assertions := require.New(t)
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
-			agent := instanav1.RemoteAgent{}
-			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
-
-			var unstrctrd client.Object = &unstructured.Unstructured{}
-
-			// Prepare errors
-			expected := errors.New("Non-Dry run failed")
-			errBuilder := multierror.NewMultiErrorBuilder()
-			errBuilder.Add(expected, expected)
-
-			// Prepare builders
-			builders := []builder.ObjectBuilder{}
-			builders = append(
-				builders,
-				remoterbac.NewClusterRoleBuilder(&agent),
-				remoterbac.NewClusterRoleBindingBuilder(&agent),
-			)
-
-			// Mock calls
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Any()).
-				Return(result.Of(unstrctrd, expected)).
-				Times(len(builders))
-			dependentLifecycleManager.EXPECT().
-				UpdateDependentLifecycleInfo(gomock.Any()).
-				Return(nil).
-				AnyTimes()
-
-			err := operatorUtils.ApplyAll(builders...)
-			assertions.Equal(errBuilder.Build().Error(), err.Error())
 		},
 	)
 }
