@@ -76,20 +76,8 @@ const (
 
 // RemoteAgentStatus defines the observed state of RemoteAgent
 
-// Deprecated: DeprecatedRemoteAgentStatus are the previous status fields that will be used to ensure backwards compatibility with any automation that may exist
-type DeprecatedRemoteAgentStatus struct {
-	Status     AgentOperatorState `json:"status,omitempty"`
-	Reason     string             `json:"reason,omitempty"`
-	LastUpdate metav1.Time        `json:"lastUpdate,omitempty"`
-
-	OldVersionsUpdated bool `json:"oldVersionsUpdated,omitempty"`
-
-	Deployment ResourceInfo `json:"deployment,omitempty"`
-}
-
 type RemoteAgentStatus struct {
-	ConfigSecret                ResourceInfo `json:"configsecret,omitempty"`
-	DeprecatedRemoteAgentStatus `json:",inline"`
+	ConfigSecret ResourceInfo `json:"configsecret,omitempty"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +listType=map
@@ -98,6 +86,7 @@ type RemoteAgentStatus struct {
 	// +kubebuilder:validation:Minimum=0
 	ObservedGeneration *int64           `json:"observedGeneration,omitempty"`
 	OperatorVersion    *SemanticVersion `json:"operatorVersion,omitempty"`
+	Deployment         ResourceInfo     `json:"deployment,omitempty"`
 }
 
 // +kubebuilder:object:root=true
