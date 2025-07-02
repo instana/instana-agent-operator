@@ -1,0 +1,100 @@
+apiVersion: instana.io/v1
+kind: InstanaAgent
+metadata:
+  name: instana-agent
+  namespace: instana-agent
+spec:
+  zone:
+    name: dev-zone
+  cluster:
+    name: my-cluster
+  agent:
+    key: replace-with-your-agent-key
+    endpointHost: ingress-red-saas.instana.io
+    endpointPort: "443"
+    # Legacy environment variables (simple key-value pairs)
+    env:
+      INSTANA_AGENT_TAGS: legacy,simple,key-value
+    
+    image:
+      name: icr.io/instana/agent
+      tag: latest
+      pullPolicy: Always
+    
+    pod:
+      # New environment variables feature with full Kubernetes EnvVar support
+      env:
+        # Simple value
+        - name: INSTANA_AGENT_TAGS
+          value: "kubernetes,production,custom"
+        
+        # From field reference
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        
+        # From secret
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: env-test-secret
+              key: test-key
+              optional: true
+        
+        # From ConfigMap
+        - name: APP_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: env-test-config
+              key: test-key
+              optional: true
+        
+        # From resource field
+        - name: CPU_REQUEST
+          valueFrom:
+            resourceFieldRef:
+              containerName: instana-agent
+              resource: requests.cpu
+              divisor: 1m
+      
+      # Example volumes and volumeMounts
+      volumes:
+        - name: my-secret-volume
+          secret:
+            secretName: env-test-secret
+        - name: my-config-volume
+          configMap:
+            name: env-test-config
+      
+      volumeMounts:
+        - name: my-secret-volume
+          mountPath: /secrets
+        - name: my-config-volume
+          mountPath: /config
+  
+  rbac:
+    create: true
+  
+  service:
+    create: true
+  
+  serviceAccount:
+    create: true
+
+# Made with Bob
