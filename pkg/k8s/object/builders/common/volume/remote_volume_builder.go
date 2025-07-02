@@ -91,7 +91,7 @@ func (v *volumeBuilderRemote) configVolume() (*corev1.Volume, *corev1.VolumeMoun
 		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName:  v.remoteAgent.Name + "-config",
+				SecretName:  "instana-agent-r-" + v.remoteAgent.Name + "-config",
 				DefaultMode: pointer.To[int32](0440),
 			},
 		},
