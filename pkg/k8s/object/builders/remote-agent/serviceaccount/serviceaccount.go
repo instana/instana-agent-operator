@@ -48,7 +48,7 @@ func (s *serviceAccountBuilder) build() *corev1.ServiceAccount {
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "remote-agent",
+			Name:        "instana-agent-remote",
 			Namespace:   s.Namespace,
 			Annotations: s.Spec.ServiceAccountSpec.Annotations,
 		},
