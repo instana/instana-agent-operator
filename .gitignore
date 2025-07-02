@@ -51,9 +51,11 @@ bin/
 # Scratch files
 scratch/
 config/crd/bases/instana.io_agents.yaml
+config/crd/bases/instana.io_remoteagents.yaml
 bundle.Dockerfile
 bundle/manifests/instana-agent-operator.clusterserviceversion.yaml
 bundle/manifests/instana.io_agents.yaml
+bundle/manifests/instana.io_remoteagents.yaml
 bundle/metadata/annotations.yaml
 mocks/
 
