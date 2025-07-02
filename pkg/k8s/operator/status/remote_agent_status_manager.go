@@ -19,7 +19,6 @@ package status
 import (
 	"context"
 	"fmt"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -198,23 +197,6 @@ func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Co
 	return result.OfSuccess(condition)
 }
 
-func (a *remoteAgentStatusManager) updateWasPerformed() bool {
-	switch operatorVersion, _ := semver.NewVersion(env.GetOperatorVersion()); {
-	case a.agentOld.Status.ObservedGeneration == nil:
-		return false
-	case *a.agentOld.Status.ObservedGeneration != a.agentOld.Generation:
-		return true
-	case a.agentOld.Status.OperatorVersion == nil:
-		return false
-	case operatorVersion == nil:
-		return true
-	case !a.agentOld.Status.OperatorVersion.Version.Equal(operatorVersion):
-		return true
-	default:
-		return false
-	}
-}
-
 func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
 	ctx context.Context,
 	reconcileErr error,
@@ -224,12 +206,6 @@ func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
 	agentNew := a.agentOld.DeepCopy()
 	logger := log.FromContext(ctx).WithName("remote-instana-agent-status-manager")
 
-	// Handle Deprecated Status Fields
-
-	agentNew.Status.Status = getAgentPhase(reconcileErr)
-	agentNew.Status.Reason = getReason(reconcileErr)
-	agentNew.Status.LastUpdate = metav1.Time{Time: time.Now()}
-
 	a.getConfigSecret(ctx).
 		OnSuccess(setStatusDotConfigSecretRemote(agentNew)).
 		OnFailure(errBuilder.AddSingle)
@@ -238,9 +214,6 @@ func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
 		OnSuccess(setStatusDotDeployment(agentNew)). // New handler for Deployment status
 		OnFailure(errBuilder.AddSingle)
 
-	if a.updateWasPerformed() {
-		agentNew.Status.OldVersionsUpdated = true
-	}
 	// Handle Conditions
 
 	agentNew.Status.ObservedGeneration = pointer.To(a.agentOld.GetGeneration())
