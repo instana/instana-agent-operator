@@ -35,8 +35,7 @@ type RemoteHelpers interface {
 	ServiceAccountName() string
 	TLSIsEnabled() bool
 	TLSSecretName() string
-	HeadlessServiceName() string
-	K8sSensorResourcesName() string
+	RemoteResourcesName() string
 	ContainersSecretName() string
 	UseContainersSecret() bool
 	ImagePullSecrets() []corev1.LocalObjectReference
@@ -62,10 +61,6 @@ func (h *remoteHelpers) TLSIsEnabled() bool {
 
 func (h *remoteHelpers) TLSSecretName() string {
 	return optional.Of(h.Spec.Agent.TlsSpec.SecretName).GetOrDefault(h.Name + "-tls")
-}
-
-func (h *remoteHelpers) HeadlessServiceName() string {
-	return h.Name + "-headless"
 }
 
 func (h *remoteHelpers) ContainersSecretName() string {
@@ -96,8 +91,8 @@ func (h *remoteHelpers) ImagePullSecrets() []corev1.LocalObjectReference {
 	}
 }
 
-func (h *remoteHelpers) K8sSensorResourcesName() string {
-	return h.Name + "-k8sensor"
+func (h *remoteHelpers) RemoteResourcesName() string {
+	return h.Name + "-remote"
 }
 
 func (h *remoteHelpers) SortEnvVarsByName(envVars []corev1.EnvVar) {
