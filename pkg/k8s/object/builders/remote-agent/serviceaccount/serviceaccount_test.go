@@ -62,7 +62,7 @@ func TestRemoteServiceAccountBuilder_Build(t *testing.T) {
 				assertions := require.New(t)
 				ctrl := gomock.NewController(t)
 
-				serviceAccountName := "remote-agent"
+				serviceAccountName := "instana-agent-remote"
 				namespace := rand.String(10)
 
 				const annotationKeyName = "instana.io/example"
@@ -100,7 +100,7 @@ func TestRemoteServiceAccountBuilder_Build(t *testing.T) {
 					},
 				)
 
-				helpers := mocks.NewMockHelpers(ctrl)
+				helpers := mocks.NewMockRemoteHelpers(ctrl)
 
 				sb := &serviceAccountBuilder{
 					RemoteAgent:   agent,
