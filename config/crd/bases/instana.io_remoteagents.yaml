@@ -3418,23 +3418,12 @@ spec:
                 - name
                 - uid
                 type: object
-              lastUpdate:
-                format: date-time
-                type: string
               observedGeneration:
                 format: int64
                 minimum: 0
                 type: integer
-              oldVersionsUpdated:
-                type: boolean
               operatorVersion:
                 pattern: ^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
-                type: string
-              reason:
-                type: string
-              status:
-                description: AgentOperatorState type representing the running state
-                  of the Agent Operator itself.
                 type: string
             type: object
         type: object
