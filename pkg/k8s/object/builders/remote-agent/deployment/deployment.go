@@ -47,9 +47,8 @@ type deploymentBuilder struct {
 	*instanav1.RemoteAgent
 	statusManager status.RemoteAgentStatusManager
 	helpers.RemoteHelpers
-	transformations.PodSelectorLabelGenerator
+	transformations.PodSelectorLabelGeneratorRemote
 	hash.JsonHasher
-	ports.PortsBuilderRemote
 	env.EnvBuilderRemote
 	volume.VolumeBuilderRemote
 	backend    backends.K8SensorBackend
@@ -102,17 +101,9 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.DownloadKeyEnvRemote,
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
-		env.K8sServiceDomainEnvRemote,
-		env.EnableAgentSocketEnvRemote,
 	)
 	d.SortEnvVarsByName(envVars)
 	return envVars
-}
-
-func (d *deploymentBuilder) getContainerPorts() []corev1.ContainerPort {
-	return d.GetContainerPorts(
-		ports.AgentAPIsPort,
-	)
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
@@ -168,7 +159,7 @@ func (d *deploymentBuilder) getTolerations() []corev1.Toleration {
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
-	name := fmt.Sprintf("remote-agent-%s", d.getName())
+	name := fmt.Sprintf("instana-agent-r-%s", d.getName())
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -191,7 +182,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					Annotations: d.RemoteAgent.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "remote-agent",
+					ServiceAccountName: "instana-agent-remote",
 					Volumes:            append(volumes, userVolumes...),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
@@ -218,7 +209,6 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 								FailureThreshold:    3,
 							},
 							Resources: d.Spec.Agent.Pod.GetOrDefault(),
-							Ports:     d.getContainerPorts(),
 						},
 					},
 					Tolerations: d.getTolerations(),
@@ -260,14 +250,13 @@ func NewDeploymentBuilder(
 	keysSecret *corev1.Secret,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
-		RemoteAgent:               agent,
-		statusManager:             statusManager,
-		RemoteHelpers:             helpers.NewRemoteHelpers(agent),
-		PodSelectorLabelGenerator: transformations.PodSelectorLabelsRemote(agent, componentName),
-		EnvBuilderRemote:          env.NewEnvBuilderRemote(agent, nil),
-		VolumeBuilderRemote:       volume.NewVolumeBuilderRemote(agent),
-		PortsBuilderRemote:        ports.NewPortsBuilderRemote(agent),
-		backend:                   backend,
-		keysSecret:                keysSecret,
+		RemoteAgent:                     agent,
+		statusManager:                   statusManager,
+		RemoteHelpers:                   helpers.NewRemoteHelpers(agent),
+		PodSelectorLabelGeneratorRemote: transformations.PodSelectorLabelsRemote(agent, componentName),
+		EnvBuilderRemote:                env.NewEnvBuilderRemote(agent, nil),
+		VolumeBuilderRemote:             volume.NewVolumeBuilderRemote(agent),
+		backend:                         backend,
+		keysSecret:                      keysSecret,
 	}
 }
