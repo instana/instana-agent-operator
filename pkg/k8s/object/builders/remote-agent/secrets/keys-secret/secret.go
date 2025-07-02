@@ -30,13 +30,13 @@ import (
 
 type secretBuilder struct {
 	*instanav1.RemoteAgent
-	backends []backends.K8SensorBackend
+	additionalBackends []backends.K8SensorBackend
 }
 
 func NewSecretBuilder(agent *instanav1.RemoteAgent, backends []backends.K8SensorBackend) builder.ObjectBuilder {
 	return &secretBuilder{
-		RemoteAgent: agent,
-		backends:    backends,
+		RemoteAgent:        agent,
+		additionalBackends: backends,
 	}
 }
 
@@ -73,7 +73,7 @@ func (s *secretBuilder) build() *corev1.Secret {
 }
 
 func (s *secretBuilder) getData() map[string][]byte {
-	data := make(map[string][]byte, len(s.backends)+1)
+	data := make(map[string][]byte, len(s.additionalBackends)+1)
 
 	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
 		func(downloadKey string) {
@@ -81,7 +81,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 		},
 	)
 
-	for _, backend := range s.backends {
+	for _, backend := range s.additionalBackends {
 		optional.Of(backend.EndpointKey).IfPresent(
 			func(key string) {
 				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
