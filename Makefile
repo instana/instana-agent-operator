@@ -150,9 +150,9 @@ purge: ## Full purge of the agent in the cluster
 	else \
 		echo "CR not present"; \
 	fi
-	@if kubectl get remoteagents.instana.io instana-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
+	@if kubectl get remoteagents.instana.io remote-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
 		echo "Found, removing remote finalizers..."; \
-		kubectl patch remoteagents.instana.io instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
+		kubectl patch remoteagents.instana.io remote-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
 	else \
 		echo "CR not present"; \
 	fi
@@ -277,7 +277,7 @@ endef
 namespace: ## Generate namespace instana-agent on OCP for manual testing
 	oc new-project instana-agent || true
 	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
-	oc adm policy add-scc-to-user anyuid -z remote-agent -n instana-agent
+	oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent
 
 .PHONY: create-cr
 create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
@@ -397,7 +397,6 @@ gen-mocks: get-mockgen
 	${GOBIN}/mockgen --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/ports/remote_ports_builder.go --destination ./mocks/remote_ports_builder_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/env/remote_env_builder.go --destination ./mocks/remote_env_builder_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/volume/remote_volume_builder.go --destination ./mocks/remote_volume_builder_mock.go --package mocks 
 	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/helpers/remote_helpers.go --destination ./mocks/remote_helpers_mock.go --package mocks 
