@@ -22,7 +22,6 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -52,8 +51,6 @@ func AddRemote(mgr manager.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
-		Owns(&rbacv1.ClusterRole{}).
-		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(
 			&instanav1.InstanaAgent{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -167,7 +164,7 @@ func (r *RemoteAgentReconciler) reconcile(
 		}
 	}
 
-	k8SensorBackends := r.getK8SensorBackends(agent)
+	backends := r.getK8SensorBackends(agent)
 
 	if applyResourcesRes := r.applyResources(
 		ctx,
@@ -175,7 +172,7 @@ func (r *RemoteAgentReconciler) reconcile(
 		operatorUtils,
 		statusManager,
 		keysSecret,
-		k8SensorBackends,
+		backends,
 	); applyResourcesRes.suppliesReconcileResult() {
 		return applyResourcesRes
 	}
