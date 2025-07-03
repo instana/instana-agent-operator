@@ -104,12 +104,25 @@ func checkPortWithRetry(ctx context.Context, t *testing.T, r *resources.Resource
 	deadline := startTime.Add(portCheckTimeout)
 
 	for time.Now().Before(deadline) {
+		// Get the current pod name as it might have changed due to daemonset update
+		pods := &corev1.PodList{}
+		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
+		err := r.List(ctx, pods, listOps)
+		if err != nil || len(pods.Items) == 0 {
+			t.Logf("Error while getting agent pods or no pods found: %v. Retrying in %v", err, portCheckInterval)
+			time.Sleep(portCheckInterval)
+			continue
+		}
+
+		// Use the current pod name
+		currentPodName := pods.Items[0].Name
+
 		var stdout, stderr bytes.Buffer
 
-		err := r.ExecInPod(
+		err = r.ExecInPod(
 			ctx,
 			namespace,
-			podName,
+			currentPodName,
 			containerName,
 			[]string{"sh", "-c", "ss -tulnp | grep " + port},
 			&stdout,
@@ -118,13 +131,13 @@ func checkPortWithRetry(ctx context.Context, t *testing.T, r *resources.Resource
 
 		output := stdout.String()
 		if err == nil && strings.Contains(output, port) {
-			t.Logf("%s port %s found after %v. Output: %s",
-				portType, port, time.Since(startTime), output)
+			t.Logf("%s port %s found after %v in pod %s. Output: %s",
+				portType, port, time.Since(startTime), currentPodName, output)
 			return
 		}
 
-		t.Logf("%s port %s not found yet, retrying in %v. Error: %v",
-			portType, port, portCheckInterval, err)
+		t.Logf("%s port %s not found yet in pod %s, retrying in %v. Error: %v",
+			portType, port, currentPodName, portCheckInterval, err)
 		time.Sleep(portCheckInterval)
 	}
 
@@ -169,27 +182,20 @@ func ValidateCustomOpenTelemetryPorts() features.Func {
 			t.Fatal(err)
 		}
 
-		// Get agent pods
-		pods := &corev1.PodList{}
-		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
-		err = r.List(ctx, pods, listOps)
-		if err != nil || len(pods.Items) == 0 {
-			t.Fatal("Error while getting agent pods:", err)
-		}
-
-		podName := pods.Items[0].Name
+		// We'll get the pod name dynamically in each check function
+		// since the pod might be replaced during the test
 		containerName := "instana-agent"
-
-		// Verify old ports are no longer used
-		verifyPortNotInUse(ctx, t, r, cfg.Namespace(), podName, containerName, "4317", "old GRPC")
-		verifyPortNotInUse(ctx, t, r, cfg.Namespace(), podName, containerName, "4318", "old HTTP")
 
 		// Check for new ports with retry
 		t.Log("Checking for new GRPC port 4327 with retry")
-		checkPortWithRetry(ctx, t, r, cfg.Namespace(), podName, containerName, "4327", "new GRPC")
-
+		checkPortWithRetry(ctx, t, r, cfg.Namespace(), "", containerName, "4327", "new GRPC")
 		t.Log("Checking for new HTTP port 4328 with retry")
-		checkPortWithRetry(ctx, t, r, cfg.Namespace(), podName, containerName, "4328", "new HTTP")
+		checkPortWithRetry(ctx, t, r, cfg.Namespace(), "", containerName, "4328", "new HTTP")
+
+		// Verify old ports are no longer used
+		t.Log("Ensure that default ports are free now")
+		verifyPortNotInUse(ctx, t, r, cfg.Namespace(), "", containerName, "4317", "old GRPC")
+		verifyPortNotInUse(ctx, t, r, cfg.Namespace(), "", containerName, "4318", "old HTTP")
 
 		return ctx
 	}
@@ -204,12 +210,25 @@ func verifyPortNotInUse(ctx context.Context, t *testing.T, r *resources.Resource
 	time.Sleep(10 * time.Second)
 
 	for time.Now().Before(deadline) {
+		// Get the current pod name as it might have changed due to daemonset update
+		pods := &corev1.PodList{}
+		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
+		err := r.List(ctx, pods, listOps)
+		if err != nil || len(pods.Items) == 0 {
+			t.Logf("Error while getting agent pods or no pods found: %v. Retrying in %v", err, portCheckInterval)
+			time.Sleep(portCheckInterval)
+			continue
+		}
+
+		// Use the current pod name
+		currentPodName := pods.Items[0].Name
+
 		var stdout, stderr bytes.Buffer
 
-		err := r.ExecInPod(
+		err = r.ExecInPod(
 			ctx,
 			namespace,
-			podName,
+			currentPodName,
 			containerName,
 			[]string{"sh", "-c", "ss -tulnp | grep " + port + " || echo 'Port not found'"},
 			&stdout,
@@ -217,7 +236,7 @@ func verifyPortNotInUse(ctx context.Context, t *testing.T, r *resources.Resource
 		)
 
 		if err != nil {
-			t.Logf("Error executing command: %v", err)
+			t.Logf("Error executing command in pod %s: %v", currentPodName, err)
 			time.Sleep(portCheckInterval)
 			continue
 		}
