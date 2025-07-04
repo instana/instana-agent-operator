@@ -64,29 +64,19 @@ type RemoteAgentSpec struct {
 type RemoteAgentOperatorState string
 
 const (
-	// RemoteOperatorStateRunning the operator is running properly and all changes applied successfully.
-	RemoteOperatorStateRunning RemoteAgentOperatorState = "Running"
-	// RemoteOperatorStateUpdating the operator is running properly but is currently applying CR changes and getting the Agent in the correct state.
+	RemoteOperatorStateRunning  RemoteAgentOperatorState = "Running"
 	RemoteOperatorStateUpdating RemoteAgentOperatorState = "Updating"
-	// RemoteOperatorStateFailed the operator is not running properly and likely there were issues applying the CustomResource correctly.
-	RemoteOperatorStateFailed RemoteAgentOperatorState = "Failed"
+	RemoteOperatorStateFailed   RemoteAgentOperatorState = "Failed"
 )
 
 // +k8s:openapi-gen=true
 
-// RemoteAgentStatus defines the observed state of RemoteAgent
-
 type RemoteAgentStatus struct {
-	ConfigSecret ResourceInfo `json:"configsecret,omitempty"`
-	// +patchMergeKey=type
-	// +patchStrategy=merge
-	// +listType=map
-	// +listMapKey=type
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	// +kubebuilder:validation:Minimum=0
-	ObservedGeneration *int64           `json:"observedGeneration,omitempty"`
-	OperatorVersion    *SemanticVersion `json:"operatorVersion,omitempty"`
-	Deployment         ResourceInfo     `json:"deployment,omitempty"`
+	ConfigSecret       ResourceInfo       `json:"configsecret,omitempty"`
+	Conditions         []metav1.Condition `json:"conditions,omitempty"`
+	ObservedGeneration *int64             `json:"observedGeneration,omitempty"`
+	OperatorVersion    *SemanticVersion   `json:"operatorVersion,omitempty"`
+	Deployment         ResourceInfo       `json:"deployment,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -96,7 +86,6 @@ type RemoteAgentStatus struct {
 // +kubebuilder:storageversion
 // +operator-sdk:csv:customresourcedefinitions:displayName="Remote Instana Agent",resources={{Deployment,apps/v1,RemoteAgent},{Pod,v1,RemoteAgent},{Secret,v1,RemoteAgent}}
 
-// RemoteAgent is the Schema for the agents API
 type RemoteAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -105,83 +94,79 @@ type RemoteAgent struct {
 	Status RemoteAgentStatus `json:"status,omitempty"`
 }
 
-func (in *RemoteAgent) Default(agent InstanaAgent) {
-	if in.Spec.ManualSetup != nil && *in.Spec.ManualSetup {
-		optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
-		optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
-		optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
-		optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
-		optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
-		optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
-		optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
-		optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
-		optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
+func (in *RemoteAgent) InheritDefault(agent InstanaAgent) {
+	desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
+	inheritString(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
 
-	} else {
-		// Get desired values from the host agent spec with defaults.
-		desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
-		inherit(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
+	desiredEndpointPort := optional.Of(agent.Spec.Agent.EndpointPort).GetOrDefault("443")
+	inheritString(&in.Spec.Agent.EndpointPort, &desiredEndpointPort)
 
-		desiredEndpointPort := optional.Of(agent.Spec.Agent.EndpointPort).GetOrDefault("443")
-		inherit(&in.Spec.Agent.EndpointPort, &desiredEndpointPort)
+	desiredImageName := optional.Of(agent.Spec.Agent.ImageSpec.Name).GetOrDefault("icr.io/instana/agent")
+	inheritString(&in.Spec.Agent.ImageSpec.Name, &desiredImageName)
 
-		desiredImageName := optional.Of(agent.Spec.Agent.ImageSpec.Name).GetOrDefault("icr.io/instana/agent")
-		inherit(&in.Spec.Agent.ImageSpec.Name, &desiredImageName)
+	desiredImageTag := optional.Of(agent.Spec.Agent.ImageSpec.Tag).GetOrDefault("latest")
+	inheritString(&in.Spec.Agent.ImageSpec.Tag, &desiredImageTag)
 
-		desiredImageTag := optional.Of(agent.Spec.Agent.ImageSpec.Tag).GetOrDefault("latest")
-		inherit(&in.Spec.Agent.ImageSpec.Tag, &desiredImageTag)
+	desiredPullPolicy := optional.Of(agent.Spec.Agent.ImageSpec.PullPolicy).GetOrDefault(corev1.PullAlways)
+	inheritPullPolicy(&in.Spec.Agent.ImageSpec.PullPolicy, &desiredPullPolicy)
 
-		desiredPullPolicy := optional.Of(agent.Spec.Agent.ImageSpec.PullPolicy).GetOrDefault(corev1.PullAlways)
-		inherit(&in.Spec.Agent.ImageSpec.PullPolicy, &desiredPullPolicy)
+	desiredRbac := optional.Of(agent.Spec.Rbac.Create).GetOrDefault(pointer.To(true))
+	inheritBoolPointer(&in.Spec.Rbac.Create, &desiredRbac)
 
-		desiredRbac := optional.Of(agent.Spec.Rbac.Create).GetOrDefault(pointer.To(true))
-		inherit(&in.Spec.Rbac.Create, &desiredRbac)
+	desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
+	inheritBoolPointer(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
 
-		desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
-		inherit(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
+	inheritString(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
+	inheritString(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)
+	inheritString(&in.Spec.Agent.Key, &agent.Spec.Agent.Key)
+	inheritString(&in.Spec.Agent.DownloadKey, &agent.Spec.Agent.DownloadKey)
+	inheritString(&in.Spec.Agent.KeysSecret, &agent.Spec.Agent.KeysSecret)
+	inheritString(&in.Spec.Agent.ListenAddress, &agent.Spec.Agent.ListenAddress)
+	inheritInt(&in.Spec.Agent.MinReadySeconds, &agent.Spec.Agent.MinReadySeconds)
+	inheritString(&in.Spec.Agent.ProxyHost, &agent.Spec.Agent.ProxyHost)
+	inheritString(&in.Spec.Agent.ProxyPassword, &agent.Spec.Agent.ProxyPassword)
+	inheritString(&in.Spec.Agent.ProxyPort, &agent.Spec.Agent.ProxyPort)
+	inheritString(&in.Spec.Agent.ProxyProtocol, &agent.Spec.Agent.ProxyProtocol)
+	inheritBool(&in.Spec.Agent.ProxyUseDNS, &agent.Spec.Agent.ProxyUseDNS)
+	inheritString(&in.Spec.Agent.ProxyUser, &agent.Spec.Agent.ProxyUser)
+	inheritString(&in.Spec.Agent.RedactKubernetesSecrets, &agent.Spec.Agent.RedactKubernetesSecrets)
+	inheritString(&in.Spec.Agent.MvnRepoFeaturesPath, &agent.Spec.Agent.MvnRepoFeaturesPath)
+	inheritString(&in.Spec.Agent.MvnRepoSharedPath, &agent.Spec.Agent.MvnRepoSharedPath)
+	inheritString(&in.Spec.Agent.MvnRepoUrl, &agent.Spec.Agent.MvnRepoUrl)
+	inheritString(&in.Spec.Agent.MirrorReleaseRepoPassword, &agent.Spec.Agent.MirrorReleaseRepoPassword)
+	inheritString(&in.Spec.Agent.MirrorReleaseRepoUrl, &agent.Spec.Agent.MirrorReleaseRepoUrl)
+	inheritString(&in.Spec.Agent.MirrorReleaseRepoUsername, &agent.Spec.Agent.MirrorReleaseRepoUsername)
+	inheritString(&in.Spec.Agent.MirrorSharedRepoPassword, &agent.Spec.Agent.MirrorSharedRepoPassword)
+	inheritString(&in.Spec.Agent.MirrorSharedRepoUrl, &agent.Spec.Agent.MirrorSharedRepoUrl)
+	inheritString(&in.Spec.Agent.MirrorSharedRepoUsername, &agent.Spec.Agent.MirrorSharedRepoUsername)
 
-		//Get desired values from the host agent spec
-		inherit(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
-		inherit(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)
-		inherit(&in.Spec.Agent.Key, &agent.Spec.Agent.Key)
-		inherit(&in.Spec.Agent.DownloadKey, &agent.Spec.Agent.DownloadKey)
-		inherit(&in.Spec.Agent.KeysSecret, &agent.Spec.Agent.KeysSecret)
-		inherit(&in.Spec.Agent.ListenAddress, &agent.Spec.Agent.ListenAddress)
-		inherit(&in.Spec.Agent.MinReadySeconds, &agent.Spec.Agent.MinReadySeconds)
-		inherit(&in.Spec.Agent.ProxyHost, &agent.Spec.Agent.ProxyHost)
-		inherit(&in.Spec.Agent.ProxyPassword, &agent.Spec.Agent.ProxyPassword)
-		inherit(&in.Spec.Agent.ProxyPort, &agent.Spec.Agent.ProxyPort)
-		inherit(&in.Spec.Agent.ProxyProtocol, &agent.Spec.Agent.ProxyProtocol)
-		inherit(&in.Spec.Agent.ProxyUseDNS, &agent.Spec.Agent.ProxyUseDNS)
-		inherit(&in.Spec.Agent.ProxyUser, &agent.Spec.Agent.ProxyUser)
-		inherit(&in.Spec.Agent.RedactKubernetesSecrets, &agent.Spec.Agent.RedactKubernetesSecrets)
-		inherit(&in.Spec.Agent.MvnRepoFeaturesPath, &agent.Spec.Agent.MvnRepoFeaturesPath)
-		inherit(&in.Spec.Agent.MvnRepoSharedPath, &agent.Spec.Agent.MvnRepoSharedPath)
-		inherit(&in.Spec.Agent.MvnRepoUrl, &agent.Spec.Agent.MvnRepoUrl)
-		inherit(&in.Spec.Agent.MirrorReleaseRepoPassword, &agent.Spec.Agent.MirrorReleaseRepoPassword)
-		inherit(&in.Spec.Agent.MirrorReleaseRepoUrl, &agent.Spec.Agent.MirrorReleaseRepoUrl)
-		inherit(&in.Spec.Agent.MirrorReleaseRepoUsername, &agent.Spec.Agent.MirrorReleaseRepoUsername)
-		inherit(&in.Spec.Agent.MirrorSharedRepoPassword, &agent.Spec.Agent.MirrorSharedRepoPassword)
-		inherit(&in.Spec.Agent.MirrorSharedRepoUrl, &agent.Spec.Agent.MirrorSharedRepoUrl)
-		inherit(&in.Spec.Agent.MirrorSharedRepoUsername, &agent.Spec.Agent.MirrorSharedRepoUsername)
-
-		if !reflect.DeepEqual(in.Spec.Agent.AdditionalBackends, agent.Spec.Agent.AdditionalBackends) {
-			in.Spec.Agent.AdditionalBackends = agent.Spec.Agent.AdditionalBackends
-		}
-
-		if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
-			in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
-		}
-
-		if !reflect.DeepEqual(in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements) {
-			in.Spec.Agent.Pod.ResourceRequirements = in.Spec.ResourceRequirements
-		}
+	if !reflect.DeepEqual(in.Spec.Agent.AdditionalBackends, agent.Spec.Agent.AdditionalBackends) {
+		in.Spec.Agent.AdditionalBackends = agent.Spec.Agent.AdditionalBackends
 	}
+
+	if !reflect.DeepEqual(in.Spec.Agent.TlsSpec, agent.Spec.Agent.TlsSpec) {
+		in.Spec.Agent.TlsSpec = agent.Spec.Agent.TlsSpec
+	}
+
+	if !reflect.DeepEqual(in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements) {
+		in.Spec.Agent.Pod.ResourceRequirements = in.Spec.ResourceRequirements
+	}
+}
+
+func (in *RemoteAgent) Default() {
+	optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
+	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Tag, "latest")
+	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
+	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+	optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
 }
 
 // +kubebuilder:object:root=true
 
-// RemoteAgentList contains a list of RemoteAgent
 type RemoteAgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -192,13 +177,32 @@ func init() {
 	SchemeBuilder.Register(&RemoteAgent{}, &RemoteAgentList{})
 }
 
-func inherit[T comparable](target *T, source *T) {
-	if *source != zeroValue[T]() && *target != *source {
+func inheritString(target *string, source *string) {
+	if source != nil && *source != "" && (target == nil || *target != *source) {
 		*target = *source
 	}
 }
 
-func zeroValue[T any]() T {
-	var zero T
-	return zero
+func inheritBool(target *bool, source *bool) {
+	if source != nil && (target == nil || *target != *source) {
+		*target = *source
+	}
+}
+
+func inheritBoolPointer(target **bool, source **bool) {
+	if source != nil && *source != nil && (target == nil || *target == nil || **target != **source) {
+		*target = *source
+	}
+}
+
+func inheritInt(target *int, source *int) {
+	if source != nil && *source != 0 && (target == nil || *target != *source) {
+		*target = *source
+	}
+}
+
+func inheritPullPolicy(target *corev1.PullPolicy, source *corev1.PullPolicy) {
+	if source != nil && *source != "" && (target == nil || *target != *source) {
+		*target = *source
+	}
 }

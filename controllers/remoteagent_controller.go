@@ -18,15 +18,18 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -94,7 +97,7 @@ func AddRemote(mgr manager.Manager) error {
 			NewRemoteAgentReconciler(
 				mgr.GetClient(),
 				mgr.GetScheme(),
-				mgr.GetEventRecorderFor("remote-instana-agent-controller"),
+				mgr.GetEventRecorderFor("instana-agent-remote-controller"),
 			),
 		)
 }
@@ -135,11 +138,14 @@ func (r *RemoteAgentReconciler) reconcile(
 	log.Info("reconciling remote Agent CR")
 
 	hostAgent, _ := r.getAgent(ctx, agent.Namespace, "instana-agent")
-	//if host agent exists in namespace inherit values otherwise default to minimum values to start an agent
-	if hostAgent != nil {
-		agent.Default(*hostAgent)
-	} else {
-		agent.Default(instanav1.InstanaAgent{})
+	//if host agent exists in namespace inherit values otherwise waits for a host agent to be created
+	if hostAgent != nil && agent.Spec.ManualSetup == nil {
+		if err := r.setOwnerReferenceIfNeeded(ctx, agent, hostAgent); err != nil {
+			return reconcileFailure(err)
+		}
+		agent.InheritDefault(*hostAgent)
+	} else { //manual setup is set to true (user configures all values. Wants an independant remote agent)
+		agent.Default()
 	}
 
 	operatorUtils := operator_utils.NewRemoteOperatorUtils(
@@ -165,6 +171,18 @@ func (r *RemoteAgentReconciler) reconcile(
 	}
 
 	backends := r.getK8SensorBackends(agent)
+	if hostAgent == nil && agent.Spec.ManualSetup == nil {
+		log.Info("InstanaAgent not found, requeuing RemoteAgent", "namespace", req.Namespace)
+		r.applyResources(
+			ctx,
+			agent,
+			operatorUtils,
+			statusManager,
+			keysSecret,
+			backends,
+		)
+		return reconcileSuccess(ctrl.Result{RequeueAfter: 60 * time.Second})
+	}
 
 	if applyResourcesRes := r.applyResources(
 		ctx,
@@ -197,7 +215,7 @@ func (r *RemoteAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 ) {
 	defer recovery.Catch(&reconcileErr)
 
-	logger := logf.FromContext(ctx).WithName("remote-instana-agent-controller")
+	logger := logf.FromContext(ctx).WithName("instana-agent-remote-controller")
 	ctx = logf.IntoContext(ctx, logger)
 
 	statusManager := status.NewRemoteAgentStatusManager(r.client, r.recorder)
@@ -209,4 +227,50 @@ func (r *RemoteAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}()
 
 	return r.reconcile(ctx, req, statusManager).reconcileResult()
+}
+
+// sets instana agent daemonset as owner for cascading deletion of inherited remote agents
+func (r *RemoteAgentReconciler) setOwnerReferenceIfNeeded(
+	ctx context.Context,
+	remoteAgent *instanav1.RemoteAgent,
+	instanaAgent *instanav1.InstanaAgent,
+) error {
+	log := log.FromContext(ctx)
+
+	// Store pre-modified copy
+	original := remoteAgent.DeepCopy()
+
+	if hasOwnerReference(remoteAgent, metav1.OwnerReference{
+		APIVersion: instanaAgent.APIVersion,
+		Kind:       instanaAgent.Kind,
+		Name:       instanaAgent.Name,
+		UID:        instanaAgent.UID,
+	}) {
+		return nil // already owned
+	}
+
+	if err := controllerutil.SetControllerReference(instanaAgent, remoteAgent, r.scheme); err != nil {
+		log.Error(err, "Failed to set owner reference")
+		return err
+	}
+
+	if err := r.client.Patch(ctx, remoteAgent, client.MergeFrom(original)); err != nil {
+		log.Error(err, "Failed to patch RemoteAgent with owner reference")
+		return err
+	}
+
+	log.Info("Successfully set InstanaAgent as owner of RemoteAgent", "ownerReferences", remoteAgent.OwnerReferences)
+	return nil
+}
+
+func hasOwnerReference(remote *instanav1.RemoteAgent, owner metav1.OwnerReference) bool {
+	for _, ref := range remote.OwnerReferences {
+		if ref.UID == owner.UID &&
+			ref.Name == owner.Name &&
+			ref.Kind == owner.Kind &&
+			ref.APIVersion == owner.APIVersion {
+			return true
+		}
+	}
+	return false
 }

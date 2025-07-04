@@ -28,6 +28,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -97,6 +98,17 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 	if c.Spec.Agent.ConfigurationYaml != "" {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
+
+	// Deprecated since k8s sensor deployment will always be enabled now,
+	// can remove once deprecated sensor is removed from agent
+	mrshl, _ := yaml.Marshal(
+		map[string]any{
+			"com.instana.plugin.kubernetes": map[string]any{
+				"enabled": false,
+			},
+		},
+	)
+	data["configuration-disable-kubernetes-sensor.yaml"] = mrshl
 
 	backendConfig, err := c.backendConfig()
 

@@ -219,8 +219,11 @@ func TestRemoteAgent_Default(t *testing.T) {
 				},
 				Spec: *tt.spec,
 			}
-
-			ra.Default(mainAgent)
+			if ra.Spec.ManualSetup == nil {
+				ra.InheritDefault(mainAgent)
+			} else {
+				ra.Default()
+			}
 
 			assertions.Equal(tt.expected, &ra.Spec)
 		})

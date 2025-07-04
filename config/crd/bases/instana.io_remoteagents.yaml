@@ -21,7 +21,6 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: RemoteAgent is the Schema for the agents API
         properties:
           apiVersion:
             description: |-
@@ -3514,9 +3513,6 @@ spec:
                   - type
                   type: object
                 type: array
-                x-kubernetes-list-map-keys:
-                - type
-                x-kubernetes-list-type: map
               configsecret:
                 description: ResourceInfo holds Name and UID to given object
                 properties:
@@ -3541,7 +3537,6 @@ spec:
                 type: object
               observedGeneration:
                 format: int64
-                minimum: 0
                 type: integer
               operatorVersion:
                 pattern: ^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
