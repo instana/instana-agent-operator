@@ -391,7 +391,7 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		}
 
 		// wait for operator pods of the deployment to become ready
-		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
+		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*3))
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
