@@ -40,14 +40,14 @@ type configBuilder struct {
 	statusManager      status.RemoteAgentStatusManager
 	keysSecret         *corev1.Secret
 	logger             logr.Logger
-	additionalBackends []backends.K8SensorBackend
+	additionalBackends []backends.RemoteSensorBackend
 }
 
 func NewConfigBuilder(
 	agent *instanav1.RemoteAgent,
 	statusManager status.RemoteAgentStatusManager,
 	keysSecret *corev1.Secret,
-	backends []backends.K8SensorBackend) commonbuilder.ObjectBuilder {
+	backends []backends.RemoteSensorBackend) commonbuilder.ObjectBuilder {
 	return &configBuilder{
 		RemoteAgent:        agent,
 		statusManager:      statusManager,

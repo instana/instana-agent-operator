@@ -64,24 +64,24 @@ func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAge
 	return k8SensorBackends
 }
 
-func (r *RemoteAgentReconciler) getK8SensorBackends(agent *instanav1.RemoteAgent) []backends.K8SensorBackend {
-	k8SensorBackends := make([]backends.K8SensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
-	k8SensorBackends = append(
-		k8SensorBackends,
-		*backends.NewK8SensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
+func (r *RemoteAgentReconciler) getRemoteSensorBackends(agent *instanav1.RemoteAgent) []backends.RemoteSensorBackend {
+	remoteSensorBackends := make([]backends.RemoteSensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
+	remoteSensorBackends = append(
+		remoteSensorBackends,
+		*backends.NewRemoteSensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
 	)
 
 	if len(agent.Spec.Agent.AdditionalBackends) == 0 {
-		return k8SensorBackends
+		return remoteSensorBackends
 	}
 
 	for i, additionalBackend := range agent.Spec.Agent.AdditionalBackends {
-		k8SensorBackends = append(
-			k8SensorBackends,
-			*backends.NewK8SensorBackend("-"+strconv.Itoa(i+1), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
+		remoteSensorBackends = append(
+			remoteSensorBackends,
+			*backends.NewRemoteSensorBackend("-"+strconv.Itoa(i+1), additionalBackend.Key, "", additionalBackend.EndpointHost, additionalBackend.EndpointPort),
 		)
 	}
-	return k8SensorBackends
+	return remoteSensorBackends
 }
 
 func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {

@@ -31,7 +31,7 @@ import (
 func TestConfigBuilderComponentName(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
+	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
 
 	assert.True(t, s.IsNamespaced())
 }
@@ -39,7 +39,7 @@ func TestConfigBuilderComponentName(t *testing.T) {
 func TestConfigBuilderIsNamespaced(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
+	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
 
 	assert.Equal(t, "instana-agent-remote", s.ComponentName())
 }
@@ -80,11 +80,11 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 	}
 
 	for _, test := range []struct {
-		name        string
-		agent       instanav1.RemoteAgent
-		k8sBackends []backend.K8SensorBackend
-		keysSecret  *corev1.Secret
-		expected    map[string][]byte
+		name           string
+		agent          instanav1.RemoteAgent
+		remoteBackends []backend.RemoteSensorBackend
+		keysSecret     *corev1.Secret
+		expected       map[string][]byte
 	}{
 		{
 			name: "Should return v1.Secret struct containing data from the InstanaAgentSpec as Backend-1.cfg with inline field, yaml and pure string fields",
@@ -105,7 +105,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					},
 				},
 			},
-			k8sBackends: []backend.K8SensorBackend{
+			remoteBackends: []backend.RemoteSensorBackend{
 				{
 					ResourceSuffix: "",
 					EndpointHost:   "main-backend-host",
@@ -136,7 +136,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					},
 				},
 			},
-			k8sBackends: []backend.K8SensorBackend{
+			remoteBackends: []backend.RemoteSensorBackend{
 				{
 					ResourceSuffix: "",
 					EndpointHost:   "",
@@ -189,7 +189,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			keysSecret: &corev1.Secret{},
-			k8sBackends: []backend.K8SensorBackend{
+			remoteBackends: []backend.RemoteSensorBackend{
 				{
 					EndpointHost: "main-backend-host",
 					EndpointPort: "main-backend-port",
@@ -259,7 +259,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					"key": []byte("key-from-secret"),
 				},
 			},
-			k8sBackends: []backend.K8SensorBackend{
+			remoteBackends: []backend.RemoteSensorBackend{
 				{
 					EndpointHost: "main-backend-host",
 					EndpointPort: "main-backend-port",
@@ -304,7 +304,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 					"key": []byte("key-from-secret"),
 				},
 			},
-			k8sBackends: []backend.K8SensorBackend{
+			remoteBackends: []backend.RemoteSensorBackend{
 				{
 					ResourceSuffix: "",
 					EndpointHost:   "main-backend-host",
@@ -349,7 +349,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				},
 			},
 			keysSecret: &corev1.Secret{},
-			k8sBackends: []backend.K8SensorBackend{
+			remoteBackends: []backend.RemoteSensorBackend{
 				{
 					EndpointHost: "main-backend-host",
 					EndpointPort: "main-backend-port",
@@ -371,7 +371,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
 				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
 
-				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.k8sBackends)
+				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.remoteBackends)
 
 				actual := builder.Build().Get()
 

@@ -33,7 +33,7 @@ import (
 func TestRemoteSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	s := NewSecretBuilder(&instanav1.RemoteAgent{}, make([]backends.K8SensorBackend, 0))
+	s := NewSecretBuilder(&instanav1.RemoteAgent{}, make([]backends.RemoteSensorBackend, 0))
 
 	assertions.True(s.IsNamespaced())
 	assertions.Equal("instana-agent-remote", s.ComponentName())
@@ -77,8 +77,8 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 							},
 						}
 
-						backend := backends.NewK8SensorBackend("", key, downloadKey, "", "")
-						var backends [1]backends.K8SensorBackend
+						backend := backends.NewRemoteSensorBackend("", key, downloadKey, "", "")
+						var backends [1]backends.RemoteSensorBackend
 						backends[0] = *backend
 
 						sb := NewSecretBuilder(&agent, backends[:])

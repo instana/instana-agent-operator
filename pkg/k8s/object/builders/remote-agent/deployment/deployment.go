@@ -51,7 +51,7 @@ type deploymentBuilder struct {
 	hash.JsonHasher
 	env.EnvBuilderRemote
 	volume.VolumeBuilderRemote
-	backend    backends.K8SensorBackend
+	backend    backends.RemoteSensorBackend
 	keysSecret *corev1.Secret
 	zone       *instanav1.Zone
 }
@@ -246,7 +246,7 @@ func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 func NewDeploymentBuilder(
 	agent *instanav1.RemoteAgent,
 	statusManager status.RemoteAgentStatusManager,
-	backend backends.K8SensorBackend,
+	backend backends.RemoteSensorBackend,
 	keysSecret *corev1.Secret,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{

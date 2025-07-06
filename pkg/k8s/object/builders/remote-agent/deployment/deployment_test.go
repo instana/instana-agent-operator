@@ -255,7 +255,7 @@ func TestDeploymentBuilder_getUserVolumes(t *testing.T) {
 func TestDeploymentBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := assert.New(t)
 
-	emptyBackend := backend.K8SensorBackend{}
+	emptyBackend := backend.RemoteSensorBackend{}
 	dBuilder := NewDeploymentBuilder(nil, nil, emptyBackend, nil)
 
 	assertions.True(dBuilder.IsNamespaced())
@@ -416,7 +416,7 @@ func TestDeploymentBuilder_Build(t *testing.T) {
 				status.EXPECT().AddAgentDeployment(gomock.Any())
 			}
 
-			emptyBackend := backend.K8SensorBackend{}
+			emptyBackend := backend.RemoteSensorBackend{}
 			dBuilder := NewDeploymentBuilder(test.agent, status, emptyBackend, nil)
 
 			result := dBuilder.Build()

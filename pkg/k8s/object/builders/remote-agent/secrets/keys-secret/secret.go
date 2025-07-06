@@ -30,10 +30,10 @@ import (
 
 type secretBuilder struct {
 	*instanav1.RemoteAgent
-	additionalBackends []backends.K8SensorBackend
+	additionalBackends []backends.RemoteSensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.RemoteAgent, backends []backends.K8SensorBackend) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.RemoteAgent, backends []backends.RemoteSensorBackend) builder.ObjectBuilder {
 	return &secretBuilder{
 		RemoteAgent:        agent,
 		additionalBackends: backends,

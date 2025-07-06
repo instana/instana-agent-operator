@@ -144,7 +144,7 @@ func (r *RemoteAgentReconciler) reconcile(
 			return reconcileFailure(err)
 		}
 		agent.InheritDefault(*hostAgent)
-	} else { //manual setup is set to true (user configures all values. Wants an independant remote agent)
+	} else { //manual setup is set to true (user configures all values. Wants an independent remote agent)
 		agent.Default()
 	}
 
@@ -170,7 +170,7 @@ func (r *RemoteAgentReconciler) reconcile(
 		}
 	}
 
-	backends := r.getK8SensorBackends(agent)
+	backends := r.getRemoteSensorBackends(agent)
 	if hostAgent == nil && agent.Spec.ManualSetup == nil {
 		log.Info("InstanaAgent not found, requeuing RemoteAgent", "namespace", req.Namespace)
 		r.applyResources(

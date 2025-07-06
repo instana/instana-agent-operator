@@ -35,7 +35,7 @@ import (
 func getRemoteAgentDeployments(
 	agent *instanav1.RemoteAgent,
 	statusManager status.RemoteAgentStatusManager,
-	additionalBackends []backends.K8SensorBackend,
+	additionalBackends []backends.RemoteSensorBackend,
 	keysSecret *corev1.Secret,
 ) []builder.ObjectBuilder {
 	builders := make([]builder.ObjectBuilder, 0, len(additionalBackends))
@@ -56,7 +56,7 @@ func (r *RemoteAgentReconciler) applyResources(
 	operatorUtils operator_utils.RemoteOperatorUtils,
 	statusManager status.RemoteAgentStatusManager,
 	keysSecret *corev1.Secret,
-	additionalBackends []backends.K8SensorBackend,
+	additionalBackends []backends.RemoteSensorBackend,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for remote agent")
