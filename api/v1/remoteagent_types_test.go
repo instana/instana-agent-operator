@@ -150,6 +150,7 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 				ServiceAccountSpec: ServiceAccountSpec{
 					Create: Create{Create: defaultTrue},
 				},
+				Hostname: "instana-agent-remote-default-instana-agent-remote",
 			},
 		},
 		{
@@ -204,6 +205,7 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 				ServiceAccountSpec: ServiceAccountSpec{
 					Create: Create{Create: defaultTrue},
 				},
+				Hostname: "instana-agent-remote-default-instana-agent-remote",
 			},
 		},
 	}

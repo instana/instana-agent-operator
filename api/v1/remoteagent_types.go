@@ -119,7 +119,7 @@ func (in *InstanaAgentRemote) InheritDefault(agent InstanaAgent) {
 	desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
 	inheritBoolPointer(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
 
-	optional.ValueOrDefault(&in.Spec.Hostname, fmt.Sprintf("instana-remote-%s-%s", in.Namespace, in.Name))
+	optional.ValueOrDefault(&in.Spec.Hostname, fmt.Sprintf("instana-agent-remote-%s-%s", in.Namespace, in.Name))
 
 	inheritString(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
 	inheritString(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)

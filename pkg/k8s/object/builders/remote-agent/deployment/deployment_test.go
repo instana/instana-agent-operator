@@ -171,6 +171,7 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 		env.DownloadKeyEnvRemote,
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
+		env.HostnameEnvRemote,
 	).
 		Return(expected)
 

@@ -157,10 +157,30 @@ func (d *deploymentBuilder) getTolerations() []corev1.Toleration {
 	}
 }
 
+func (d *deploymentBuilder) injectFailingReadinessProbeOnNoHostAgent() bool {
+	// Add real conditions here as needed, e.g.:
+	return d.Spec.Agent.Key == ""
+}
+
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
 	name := fmt.Sprintf("instana-agent-r-%s", d.getName())
+
+	var readinessProbe *corev1.Probe
+	if d.injectFailingReadinessProbeOnNoHostAgent() {
+		readinessProbe = &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/not-ready", // Intentionally invalid
+					Port: intstr.FromInt(8080),
+				},
+			},
+			InitialDelaySeconds: 0,
+			PeriodSeconds:       5,
+			FailureThreshold:    100,
+		}
+	}
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -209,7 +229,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 								PeriodSeconds:       10,
 								FailureThreshold:    3,
 							},
-							Resources: d.Spec.Agent.Pod.GetOrDefault(),
+							Resources:      d.Spec.Agent.Pod.GetOrDefault(),
+							ReadinessProbe: readinessProbe,
 						},
 					},
 					Tolerations: d.getTolerations(),
