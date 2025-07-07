@@ -69,6 +69,7 @@ const (
 	PodIPEnvRemote
 	PodUIDEnvRemote
 	PodNamespaceEnvRemote
+	HostnameEnvRemote
 )
 
 type EnvBuilderRemote interface {
@@ -150,6 +151,8 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		return stringToEnvVar("INSTANA_AGENT_HTTP_LISTEN", e.agent.Spec.Agent.ListenAddress)
 	case RedactK8sSecretsEnvRemote:
 		return stringToEnvVar("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
+	case HostnameEnvRemote:
+		return stringToEnvVar("INSTANA_AGENT_HOST_NAME", e.agent.Spec.Hostname)
 	case AgentZoneEnvRemote:
 		return &corev1.EnvVar{Name: "AGENT_ZONE", Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name)}
 	case HTTPSProxyEnvRemote:

@@ -3395,6 +3395,8 @@ spec:
                   name:
                     type: string
                 type: object
+              hostname:
+                type: string
               limits:
                 additionalProperties:
                   anyOf:

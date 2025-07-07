@@ -101,6 +101,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.DownloadKeyEnvRemote,
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
+		env.HostnameEnvRemote,
 	)
 	d.SortEnvVarsByName(envVars)
 	return envVars

@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -56,6 +57,8 @@ type InstanaAgentRemoteSpec struct {
 	// Supply Agent configuration values instead of inheriting from host.
 	// +kubebuilder:validation:Optional,
 	ManualSetup *bool `json:"manual_setup,omitempty"`
+
+	Hostname string `json:"hostname,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -116,6 +119,8 @@ func (in *InstanaAgentRemote) InheritDefault(agent InstanaAgent) {
 	desiredSA := optional.Of(agent.Spec.ServiceAccountSpec.Create.Create).GetOrDefault(pointer.To(true))
 	inheritBoolPointer(&in.Spec.ServiceAccountSpec.Create.Create, &desiredSA)
 
+	optional.ValueOrDefault(&in.Spec.Hostname, fmt.Sprintf("instana-remote-%s-%s", in.Namespace, in.Name))
+
 	inheritString(&in.Spec.Agent.ConfigurationYaml, &in.Spec.ConfigurationYaml)
 	inheritString(&in.Spec.Cluster.Name, &agent.Spec.Cluster.Name)
 	inheritString(&in.Spec.Agent.Key, &agent.Spec.Agent.Key)
@@ -163,6 +168,7 @@ func (in *InstanaAgentRemote) Default() {
 	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
 	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
 	optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
+	optional.ValueOrDefault(&in.Spec.Hostname, fmt.Sprintf("instana-agent-remote-%s-%s", in.Namespace, in.Name))
 }
 
 // +kubebuilder:object:root=true
