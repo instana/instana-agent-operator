@@ -116,6 +116,7 @@ rules:
   - instana.io
   resources:
   - agents
+  - agentsremote
   verbs:
   - create
   - delete
@@ -128,12 +129,14 @@ rules:
   - instana.io
   resources:
   - agents/finalizers
+  - agentsremote/finalizers
   verbs:
   - update
 - apiGroups:
   - instana.io
   resources:
   - agents/status
+  - agentsremote/status
   verbs:
   - get
   - patch

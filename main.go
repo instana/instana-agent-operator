@@ -109,6 +109,23 @@ func main() {
 		log.Error(err, "Failure setting up Instana Agent Controller")
 		os.Exit(1)
 	}
+	// Add our own Instana Agent Remote Controller to the manager
+	if err := controllers.AddRemote(mgr); err != nil {
+		log.Error(err, "Failure setting up Remote Instana Agent Controller")
+		os.Exit(1)
+	}
+
+	// controller-manager only runs controllers/runnables after getting the lock
+	// we do the cleanup beforehand so our new deployment gets the lock
+	log.Info("Deleting the controller-manager deployment and RBAC if it's present")
+	//we need a new client because we have to delete old resources before starting the new manager
+	if client, err := k8sClient.New(cfg, k8sClient.Options{
+		Scheme: scheme,
+	}); err != nil {
+		log.Error(err, "Failed to create a new k8s client")
+	} else {
+		cleanupOldOperator(client)
+	}
 
 	// controller-manager only runs controllers/runnables after getting the lock
 	// we do the cleanup beforehand so our new deployment gets the lock

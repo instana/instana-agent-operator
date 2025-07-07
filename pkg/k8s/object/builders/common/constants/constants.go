@@ -19,8 +19,9 @@ package constants
 
 // components
 const (
-	ComponentInstanaAgent = "instana-agent"
-	ComponentK8Sensor     = "k8sensor"
+	ComponentInstanaAgentRemote = "instana-agent-remote"
+	ComponentInstanaAgent       = "instana-agent"
+	ComponentK8Sensor           = "k8sensor"
 )
 
 // labels
