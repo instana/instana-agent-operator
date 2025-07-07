@@ -118,6 +118,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 				"configuration.yaml": []byte("configuration-yaml-value"),
 				"configuration-prometheus-remote-write.yaml":   []byte("com.instana.plugin.prometheus:\n    remote_write:\n        enabled: true\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
@@ -166,6 +167,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			keysSecret: &corev1.Secret{},
 			expected: map[string][]byte{
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-2.cfg":  []byte("host=additional-backend-2-host\nport=additional-backend-2-port\nprotocol=HTTP/2\nkey=additional-backend-2-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 				"com.instana.agent.main.sender.Backend-3.cfg":  []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 				"com.instana.agent.main.sender.Backend-4.cfg":  []byte("host=additional-backend-4-host\nport=additional-backend-4-port\nprotocol=HTTP/2\nkey=additional-backend-4-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
@@ -218,6 +220,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			},
 			expected: map[string][]byte{
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 				"com.instana.agent.main.sender.Backend-2.cfg":  []byte("host=additional-backend-2-host\nport=additional-backend-2-port\nprotocol=HTTP/2\nkey=additional-backend-2-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 				"com.instana.agent.main.sender.Backend-3.cfg":  []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
@@ -238,6 +241,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			expected: map[string][]byte{
 				"configuration-prometheus-remote-write.yaml":   []byte("com.instana.plugin.prometheus:\n    remote_write:\n        enabled: true\n"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 			},
 		},
 		{
@@ -273,6 +277,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			},
 			expected: map[string][]byte{
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=key-from-secret\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
 		},
@@ -330,6 +335,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			},
 			expected: map[string][]byte{
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=key-from-secret\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 				"com.instana.agent.main.sender.Backend-3.cfg":  []byte("host=additional-backend-3-host\nport=additional-backend-3-port\nprotocol=HTTP/2\nkey=additional-backend-3-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},
@@ -369,6 +375,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			},
 			expected: map[string][]byte{
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n"),
 			},
 		},
 	} {
@@ -403,10 +410,24 @@ func TestAgentConfigBuildForOTEL(t *testing.T) {
 		expected      map[string][]byte
 	}{
 		{
-			name: "Should not have OpenTelemetry configuration YAML-file when OpenTelemetry.Enabled is set to false",
+			name: "Should render OpenTelemetry configuration YAML-file when OpenTelemetry.Enabled is set to false but other fields are defined",
 			openTelemetry: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(false)},
+				HTTP: instanav1.OpenTelemetryPortConfig{
+					Port: pointer.To(int32(4318)),
+				},
 			},
+			expected: map[string][]byte{
+				"cluster_name":                                 []byte("test-cluster"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n    http:\n        port: 4318\n"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
+				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
+				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
+			},
+		},
+		{
+			name:          "Should not have OpenTelemetry configuration YAML-file when no OpenTelemetry fields are defined",
+			openTelemetry: instanav1.OpenTelemetry{},
 			expected: map[string][]byte{
 				"cluster_name":       []byte("test-cluster"),
 				"configuration.yaml": []byte("configuration-yaml-value"),
@@ -434,7 +455,7 @@ func TestAgentConfigBuildForOTEL(t *testing.T) {
 			},
 		},
 		{
-			name: "Should not have OpenTelemetry configuration YAML-file when OpenTelemetry.Enabled is set to false even though it has child fields that were set as enabled",
+			name: "Should render OpenTelemetry configuration YAML-file when OpenTelemetry.Enabled is set to false but GRPC is enabled",
 			openTelemetry: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(false)},
 				GRPC: instanav1.OpenTelemetryPortConfig{
@@ -442,8 +463,9 @@ func TestAgentConfigBuildForOTEL(t *testing.T) {
 				},
 			},
 			expected: map[string][]byte{
-				"cluster_name":       []byte("test-cluster"),
-				"configuration.yaml": []byte("configuration-yaml-value"),
+				"cluster_name":                                 []byte("test-cluster"),
+				"configuration-opentelemetry.yaml":             []byte("com.instana.plugin.opentelemetry:\n    enabled: false\n    grpc:\n        enabled: true\n"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
 			},
