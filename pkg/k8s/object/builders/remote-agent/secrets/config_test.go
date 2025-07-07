@@ -30,16 +30,16 @@ import (
 
 func TestConfigBuilderComponentName(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
+	statusManager := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
+	s := NewConfigBuilder(&instanav1.InstanaAgentRemote{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
 
 	assert.True(t, s.IsNamespaced())
 }
 
 func TestConfigBuilderIsNamespaced(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
-	s := NewConfigBuilder(&instanav1.RemoteAgent{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
+	statusManager := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
+	s := NewConfigBuilder(&instanav1.InstanaAgentRemote{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
 
 	assert.Equal(t, "instana-agent-remote", s.ComponentName())
 }
@@ -81,16 +81,16 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 
 	for _, test := range []struct {
 		name           string
-		agent          instanav1.RemoteAgent
+		agent          instanav1.InstanaAgentRemote
 		remoteBackends []backend.RemoteSensorBackend
 		keysSecret     *corev1.Secret
 		expected       map[string][]byte
 	}{
 		{
 			name: "Should return v1.Secret struct containing data from the InstanaAgentSpec as Backend-1.cfg with inline field, yaml and pure string fields",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Cluster: cluster,
 					Agent: instanav1.BaseAgentSpec{
 						EndpointHost:      "main-backend-host",
@@ -123,9 +123,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 		{
 			name: "Should return v1.Secret struct containing Backend-2+ configs as Backend-1 configuration is missing",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:          "proxy-host-value",
 						ProxyPort:          "proxy-port-value",
@@ -172,9 +172,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 		{
 			name: "Should return corev1.Secret struct containing both Backend-1 and additional backends",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						EndpointHost:       "main-backend-host",
 						EndpointPort:       "main-backend-port",
@@ -224,9 +224,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 		{
 			name: "Should create the config v1.Secret without Backend-N.cfg fields when nothing was specified",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{},
 				},
 			},
@@ -237,9 +237,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 		{
 			name: "Should use the v1.Secret provided key in the Backend-1.cfg when keysSecret has been specified",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:     "proxy-host-value",
 						ProxyPort:     "proxy-port-value",
@@ -272,9 +272,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 		{
 			name: "Should use the v1.Secret provided key in the Backend-1.cfg when keysSecret has been specified",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:     "proxy-host-value",
 						ProxyPort:     "proxy-port-value",
@@ -329,9 +329,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		},
 		{
 			name: "Should not add any backends when keys dont exist",
-			agent: instanav1.RemoteAgent{
+			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:     "proxy-host-value",
 						ProxyPort:     "proxy-port-value",
@@ -368,7 +368,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			test.name, func(t *testing.T) {
 				ctrl := gomock.NewController(t)
 
-				statusManager := mocks.NewMockRemoteAgentStatusManager(ctrl)
+				statusManager := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
 				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
 
 				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.remoteBackends)

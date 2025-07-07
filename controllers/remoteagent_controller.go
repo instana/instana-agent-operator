@@ -45,10 +45,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
-// Add will create a new Remote Agent Controller and add this to the Manager for reconciling
+// Add will create a new Instana Agent Remote Controller and add this to the Manager for reconciling
 func AddRemote(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&instanav1.RemoteAgent{}).
+		For(&instanav1.InstanaAgentRemote{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
@@ -66,17 +66,17 @@ func AddRemote(mgr manager.Manager) error {
 					return nil
 				}
 
-				var remoteAgentList instanav1.RemoteAgentList
+				var remoteAgentList instanav1.InstanaAgentRemoteList
 				if err := mgr.GetClient().List(ctx, &remoteAgentList, &client.ListOptions{
 					Namespace: namespace,
 				}); err != nil {
-					//error retrieving remote agent specs in namespace. do not trigger reconcile
+					//error retrieving instana agent remote specs in namespace. do not trigger reconcile
 					return nil
 				}
 
-				//no remote agent specs in namespace. do not trigger reconcile
+				//no instana agent remote specs in namespace. do not trigger reconcile
 				if len(remoteAgentList.Items) == 0 {
-					log.Info("No RemoteAgents in same namespace as InstanaAgent", "namespace", namespace)
+					log.Info("No InstanaAgentRemote in the same namespace as InstanaAgent", "namespace", namespace)
 					return nil
 				}
 
@@ -94,7 +94,7 @@ func AddRemote(mgr manager.Manager) error {
 		).
 		WithEventFilter(filterPredicateRemote()).
 		Complete(
-			NewRemoteAgentReconciler(
+			NewInstanaAgentRemoteReconciler(
 				mgr.GetClient(),
 				mgr.GetScheme(),
 				mgr.GetEventRecorderFor("instana-agent-remote-controller"),
@@ -103,30 +103,30 @@ func AddRemote(mgr manager.Manager) error {
 }
 
 // NewInstanaAgentReconciler initializes a new InstanaAgentReconciler instance
-func NewRemoteAgentReconciler(
+func NewInstanaAgentRemoteReconciler(
 	client client.Client,
 	scheme *runtime.Scheme,
 	recorder record.EventRecorder,
-) *RemoteAgentReconciler {
-	return &RemoteAgentReconciler{
+) *InstanaAgentRemoteReconciler {
+	return &InstanaAgentRemoteReconciler{
 		client:   instanaclient.NewInstanaAgentClient(client),
 		recorder: recorder,
 		scheme:   scheme,
 	}
 }
 
-type RemoteAgentReconciler struct {
+type InstanaAgentRemoteReconciler struct {
 	client   instanaclient.InstanaAgentClient
 	recorder record.EventRecorder
 	scheme   *runtime.Scheme
 }
 
-func (r *RemoteAgentReconciler) reconcile(
+func (r *InstanaAgentRemoteReconciler) reconcile(
 	ctx context.Context,
 	req ctrl.Request,
-	statusManager status.RemoteAgentStatusManager,
+	statusManager status.InstanaAgentRemoteStatusManager,
 ) reconcileReturn {
-	agent, getAgentRes := r.getRemoteAgent(ctx, req)
+	agent, getAgentRes := r.getInstanaAgentRemote(ctx, req)
 	if getAgentRes.suppliesReconcileResult() {
 		return getAgentRes
 	}
@@ -135,7 +135,7 @@ func (r *RemoteAgentReconciler) reconcile(
 
 	log := r.loggerFor(ctx, agent)
 	ctx = logr.NewContext(ctx, log)
-	log.Info("reconciling remote Agent CR")
+	log.Info("reconciling instana agent remote CR")
 
 	hostAgent, _ := r.getAgent(ctx, agent.Namespace, "instana-agent")
 	//if host agent exists in namespace inherit values otherwise waits for a host agent to be created
@@ -144,7 +144,7 @@ func (r *RemoteAgentReconciler) reconcile(
 			return reconcileFailure(err)
 		}
 		agent.InheritDefault(*hostAgent)
-	} else { //manual setup is set to true (user configures all values. Wants an independent remote agent)
+	} else { //manual setup is set to true (user configures all values. nothing is inherited)
 		agent.Default()
 	}
 
@@ -172,7 +172,7 @@ func (r *RemoteAgentReconciler) reconcile(
 
 	backends := r.getRemoteSensorBackends(agent)
 	if hostAgent == nil && agent.Spec.ManualSetup == nil {
-		log.Info("InstanaAgent not found, requeuing RemoteAgent", "namespace", req.Namespace)
+		log.Info("InstanaAgent not found, requeuing InstanaAgentRemote Reconciliation", "namespace", req.Namespace)
 		r.applyResources(
 			ctx,
 			agent,
@@ -195,21 +195,21 @@ func (r *RemoteAgentReconciler) reconcile(
 		return applyResourcesRes
 	}
 
-	log.Info("successfully finished reconcile on remote agent CR")
+	log.Info("successfully finished reconcile on Instna Agent Remote CR")
 
 	return reconcileSuccess(ctrl.Result{})
 }
 
-// +kubebuilder:rbac:groups=instana.io,resources=remoteagents,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=instana.io,resources=agentsremote,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete;bind
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
-// +kubebuilder:rbac:groups=instana.io,resources=remoteagents/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=instana.io,resources=remoteagents/finalizers,verbs=update
+// +kubebuilder:rbac:groups=instana.io,resources=agentsremote/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=instana.io,resources=agentsremote/finalizers,verbs=update
 // +kubebuilder:rbac:groups=policy,resources=podsecuritypolicies,verbs=use
 
-func (r *RemoteAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
+func (r *InstanaAgentRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	res ctrl.Result,
 	reconcileErr error,
 ) {
@@ -218,7 +218,7 @@ func (r *RemoteAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	logger := logf.FromContext(ctx).WithName("instana-agent-remote-controller")
 	ctx = logf.IntoContext(ctx, logger)
 
-	statusManager := status.NewRemoteAgentStatusManager(r.client, r.recorder)
+	statusManager := status.NewInstanaAgentRemoteStatusManager(r.client, r.recorder)
 	defer func() {
 		if err := statusManager.UpdateAgentStatus(ctx, reconcileErr); err != nil {
 			errBuilder := multierror.NewMultiErrorBuilder(reconcileErr, err)
@@ -229,10 +229,10 @@ func (r *RemoteAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return r.reconcile(ctx, req, statusManager).reconcileResult()
 }
 
-// sets instana agent daemonset as owner for cascading deletion of inherited remote agents
-func (r *RemoteAgentReconciler) setOwnerReferenceIfNeeded(
+// sets instana agent daemonset as owner for cascading deletion of inherited instana agent remote
+func (r *InstanaAgentRemoteReconciler) setOwnerReferenceIfNeeded(
 	ctx context.Context,
-	remoteAgent *instanav1.RemoteAgent,
+	remoteAgent *instanav1.InstanaAgentRemote,
 	instanaAgent *instanav1.InstanaAgent,
 ) error {
 	log := log.FromContext(ctx)
@@ -255,15 +255,15 @@ func (r *RemoteAgentReconciler) setOwnerReferenceIfNeeded(
 	}
 
 	if err := r.client.Patch(ctx, remoteAgent, client.MergeFrom(original)); err != nil {
-		log.Error(err, "Failed to patch RemoteAgent with owner reference")
+		log.Error(err, "Failed to patch InstanaAgentRemote with owner reference")
 		return err
 	}
 
-	log.Info("Successfully set InstanaAgent as owner of RemoteAgent", "ownerReferences", remoteAgent.OwnerReferences)
+	log.Info("Successfully set InstanaAgent as owner of InstanaAgentRemote", "ownerReferences", remoteAgent.OwnerReferences)
 	return nil
 }
 
-func hasOwnerReference(remote *instanav1.RemoteAgent, owner metav1.OwnerReference) bool {
+func hasOwnerReference(remote *instanav1.InstanaAgentRemote, owner metav1.OwnerReference) bool {
 	for _, ref := range remote.OwnerReferences {
 		if ref.UID == owner.UID &&
 			ref.Name == owner.Name &&

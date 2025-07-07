@@ -137,7 +137,7 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 	}
 }
 
-func NewTransformationsRemote(agent *instanav1.RemoteAgent) Transformations {
+func NewTransformationsRemote(agent *instanav1.InstanaAgentRemote) Transformations {
 	return &transformations{
 		OwnerReference: metav1.OwnerReference{
 			APIVersion:         agent.APIVersion,

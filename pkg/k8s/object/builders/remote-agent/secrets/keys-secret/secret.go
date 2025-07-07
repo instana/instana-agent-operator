@@ -29,13 +29,13 @@ import (
 )
 
 type secretBuilder struct {
-	*instanav1.RemoteAgent
+	*instanav1.InstanaAgentRemote
 	additionalBackends []backends.RemoteSensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.RemoteAgent, backends []backends.RemoteSensorBackend) builder.ObjectBuilder {
+func NewSecretBuilder(agent *instanav1.InstanaAgentRemote, backends []backends.RemoteSensorBackend) builder.ObjectBuilder {
 	return &secretBuilder{
-		RemoteAgent:        agent,
+		InstanaAgentRemote: agent,
 		additionalBackends: backends,
 	}
 }
@@ -45,7 +45,7 @@ func (s *secretBuilder) IsNamespaced() bool {
 }
 
 func (s *secretBuilder) ComponentName() string {
-	return constants.ComponentRemoteAgent
+	return constants.ComponentInstanaAgentRemote
 }
 
 func (s *secretBuilder) Build() optional.Optional[client.Object] {

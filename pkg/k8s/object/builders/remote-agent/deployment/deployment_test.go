@@ -39,21 +39,21 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 	for _, test := range []struct {
 		name              string
 		getPodLabelsInput map[string]string
-		agentSpec         instanav1.RemoteAgentSpec
+		agentSpec         instanav1.InstanaAgentRemoteSpec
 	}{
 		{
 			name: "agent_mode_unset",
 			getPodLabelsInput: map[string]string{
 				"instana/agent-mode": string(instanav1.APM),
 			},
-			agentSpec: instanav1.RemoteAgentSpec{},
+			agentSpec: instanav1.InstanaAgentRemoteSpec{},
 		},
 		{
 			name: "agent_mode_set_by_user",
 			getPodLabelsInput: map[string]string{
 				"instana/agent-mode": string(instanav1.KUBERNETES),
 			},
-			agentSpec: instanav1.RemoteAgentSpec{
+			agentSpec: instanav1.InstanaAgentRemoteSpec{
 				Agent: instanav1.BaseAgentSpec{
 					Mode: instanav1.KUBERNETES,
 				},
@@ -66,7 +66,7 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 				"reoirionv":          "98458hgoisjdf",
 				"instana/agent-mode": string(instanav1.APM),
 			},
-			agentSpec: instanav1.RemoteAgentSpec{
+			agentSpec: instanav1.InstanaAgentRemoteSpec{
 				Agent: instanav1.BaseAgentSpec{
 					Pod: instanav1.AgentPodSpec{
 						Labels: map[string]string{
@@ -84,7 +84,7 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 				"reoirionv":          "98458hgoisjdf",
 				"instana/agent-mode": string(instanav1.KUBERNETES),
 			},
-			agentSpec: instanav1.RemoteAgentSpec{
+			agentSpec: instanav1.InstanaAgentRemoteSpec{
 				Agent: instanav1.BaseAgentSpec{
 					Mode: instanav1.KUBERNETES,
 					Pod: instanav1.AgentPodSpec{
@@ -112,7 +112,7 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 				podSelector.EXPECT().GetPodLabels(gomock.Eq(test.getPodLabelsInput)).Return(expected)
 
 				d := &deploymentBuilder{
-					RemoteAgent: &instanav1.RemoteAgent{
+					InstanaAgentRemote: &instanav1.InstanaAgentRemote{
 						Spec: test.agentSpec,
 					},
 					PodSelectorLabelGeneratorRemote: podSelector,
@@ -174,7 +174,7 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 	).
 		Return(expected)
 
-	agent := &instanav1.RemoteAgent{ObjectMeta: metav1.ObjectMeta{Name: "some-agent"}}
+	agent := &instanav1.InstanaAgentRemote{ObjectMeta: metav1.ObjectMeta{Name: "some-agent"}}
 	db := &deploymentBuilder{
 		EnvBuilderRemote: envBuilder,
 		RemoteHelpers:    helpers.NewRemoteHelpers(agent),
@@ -220,11 +220,11 @@ func TestDeploymentBuilder_getUserVolumes(t *testing.T) {
 	volumeBuilder := mocks.NewMockVolumeBuilderRemote(ctrl)
 	volumeBuilder.EXPECT().BuildFromUserConfig().Return(expectedVolumes, expectedVolumeMounts)
 
-	agent := &instanav1.RemoteAgent{
+	agent := &instanav1.InstanaAgentRemote{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "testAgent",
 		},
-		Spec: instanav1.RemoteAgentSpec{
+		Spec: instanav1.InstanaAgentRemoteSpec{
 			Agent: instanav1.BaseAgentSpec{
 				Pod: instanav1.AgentPodSpec{
 					Volumes: []corev1.Volume{
@@ -243,7 +243,7 @@ func TestDeploymentBuilder_getUserVolumes(t *testing.T) {
 	}
 	db := &deploymentBuilder{
 		VolumeBuilderRemote: volumeBuilder,
-		RemoteAgent:         agent,
+		InstanaAgentRemote:  agent,
 	}
 
 	actualVolumes, actualVolumeMounts := db.getUserVolumes()
@@ -259,7 +259,7 @@ func TestDeploymentBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	dBuilder := NewDeploymentBuilder(nil, nil, emptyBackend, nil)
 
 	assertions.True(dBuilder.IsNamespaced())
-	assertions.Equal(constants.ComponentRemoteAgent, dBuilder.ComponentName())
+	assertions.Equal(constants.ComponentInstanaAgentRemote, dBuilder.ComponentName())
 }
 
 func TestZoning(t *testing.T) {
@@ -295,11 +295,11 @@ func TestZoning(t *testing.T) {
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
 
-				agent := &instanav1.RemoteAgent{
+				agent := &instanav1.InstanaAgentRemote{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: agentName,
 					},
-					Spec: instanav1.RemoteAgentSpec{
+					Spec: instanav1.InstanaAgentRemoteSpec{
 						Agent: instanav1.BaseAgentSpec{
 							Pod: instanav1.AgentPodSpec{
 								Affinity: corev1.Affinity{},
@@ -325,7 +325,7 @@ func TestZoning(t *testing.T) {
 				}
 
 				dBuilder := &deploymentBuilder{
-					RemoteAgent: agent,
+					InstanaAgentRemote: agent,
 				}
 
 				if test.hasZoneSet {
@@ -378,18 +378,18 @@ func TestZoning(t *testing.T) {
 func TestDeploymentBuilder_Build(t *testing.T) {
 	tests := []struct {
 		name          string
-		agent         *instanav1.RemoteAgent
+		agent         *instanav1.InstanaAgentRemote
 		expectPresent bool
 	}{
 		{
 			name:          "should_be_not_present",
-			agent:         &instanav1.RemoteAgent{},
+			agent:         &instanav1.InstanaAgentRemote{},
 			expectPresent: false,
 		},
 		{
 			name: "should_be_present",
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						Key: "key",
 					},
@@ -411,7 +411,7 @@ func TestDeploymentBuilder_Build(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			status := mocks.NewMockRemoteAgentStatusManager(ctrl)
+			status := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
 			if test.expectPresent {
 				status.EXPECT().AddAgentDeployment(gomock.Any())
 			}

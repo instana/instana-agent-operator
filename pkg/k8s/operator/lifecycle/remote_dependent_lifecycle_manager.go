@@ -45,14 +45,14 @@ type RemoteDependentLifecycleManager interface {
 
 type remoteDependentLifecycleManager struct {
 	ctx                context.Context
-	agent              *instanav1.RemoteAgent
+	agent              *instanav1.InstanaAgentRemote
 	instanaAgentClient instanaClient.InstanaAgentClient
 	transformations    transformations.Transformations
 }
 
 func NewRemoteDependentLifecycleManager(
 	ctx context.Context,
-	agent *instanav1.RemoteAgent,
+	agent *instanav1.InstanaAgentRemote,
 	instanaClient instanaClient.InstanaAgentClient,
 ) RemoteDependentLifecycleManager {
 	return &remoteDependentLifecycleManager{

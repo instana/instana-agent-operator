@@ -25,7 +25,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-func TestRemoteAgent_Default(t *testing.T) {
+func TestInstanaAgentRemote_Default(t *testing.T) {
 	defaultTrue := pointer.To(true)
 
 	mainAgent := InstanaAgent{
@@ -87,15 +87,15 @@ func TestRemoteAgent_Default(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		spec     *RemoteAgentSpec
-		expected *RemoteAgentSpec
+		spec     *InstanaAgentRemoteSpec
+		expected *InstanaAgentRemoteSpec
 	}{
 		{
 			name: "defaults_from_host_agent",
-			spec: &RemoteAgentSpec{
+			spec: &InstanaAgentRemoteSpec{
 				ConfigurationYaml: "remote-config-yaml",
 			},
-			expected: &RemoteAgentSpec{
+			expected: &InstanaAgentRemoteSpec{
 				ConfigurationYaml: "remote-config-yaml",
 				Agent: BaseAgentSpec{
 					EndpointHost: "custom-host.instana.io",
@@ -154,7 +154,7 @@ func TestRemoteAgent_Default(t *testing.T) {
 		},
 		{
 			name: "manual_config_agent",
-			spec: &RemoteAgentSpec{
+			spec: &InstanaAgentRemoteSpec{
 				ConfigurationYaml: "remote-config-yaml",
 				ManualSetup:       defaultTrue,
 				Zone: Name{
@@ -177,7 +177,7 @@ func TestRemoteAgent_Default(t *testing.T) {
 					Name: "test-cluster",
 				},
 			},
-			expected: &RemoteAgentSpec{
+			expected: &InstanaAgentRemoteSpec{
 				ManualSetup:       defaultTrue,
 				ConfigurationYaml: "remote-config-yaml",
 				Zone: Name{
@@ -212,7 +212,7 @@ func TestRemoteAgent_Default(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assertions := require.New(t)
 
-			ra := &RemoteAgent{
+			ra := &InstanaAgentRemote{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "instana-agent-remote",
 					Namespace: "default",

@@ -21,7 +21,7 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
+func TestUpdateInstanaAgentRemoteStatusReturnsErrorOnPatchFailure(t *testing.T) {
 	assertions := require.New(t)
 
 	ctrl := gomock.NewController(t)
@@ -44,8 +44,8 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 		Return(writer).
 		AnyTimes()
 
-	agentStatusManager := NewRemoteAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
-	agentStatusManager.SetAgentOld(&instanav1.RemoteAgent{})
+	agentStatusManager := NewInstanaAgentRemoteStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
+	agentStatusManager.SetAgentOld(&instanav1.InstanaAgentRemote{})
 	agentStatusManager.SetAgentSecretConfig(types.NamespacedName{
 		Name:      "SetAgentSecretConfigName",
 		Namespace: "SetAgentSecretConfigNamespace",
@@ -54,8 +54,8 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 	assertions.NotNil(err)
 }
 
-// func TestUpdateRemoteAgentStatus(t *testing.T) {
-// 	instanaAgent := instanav1.RemoteAgent{}
+// func TestUpdateInstanaAgentRemoteStatus(t *testing.T) {
+// 	instanaAgent := instanav1.InstanaAgentRemote{}
 // 	configSecret := types.NamespacedName{
 // 		Name:      "SetAgentSecretConfigName",
 // 		Namespace: "SetAgentSecretConfigNamespace",
@@ -69,9 +69,9 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 	for _, test := range []struct {
 // 		name                  string
 // 		getAsResultErrors     []error
-// 		agent                 *instanav1.RemoteAgent
+// 		agent                 *instanav1.InstanaAgentRemote
 // 		configSecret          *types.NamespacedName
-// 		remoteAgentDeployment *types.NamespacedName
+// 		instanaAgentRemoteDeployment *types.NamespacedName
 // 		reconciliationErrors  error
 // 		expected              string
 // 		envVarOperatorVersion *string
@@ -81,74 +81,74 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{nil, nil, nil, nil},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 		},
 // 		{
 // 			name:              "AgentStatusManager.updateWasPerformed observed-generation-does-not-match-generation",
 // 			getAsResultErrors: []error{nil, nil, nil, nil},
-// 			agent: &instanav1.RemoteAgent{
+// 			agent: &instanav1.InstanaAgentRemote{
 // 				ObjectMeta: metav1.ObjectMeta{
 // 					Generation: num + 1,
 // 				},
-// 				Status: instanav1.RemoteAgentStatus{
+// 				Status: instanav1.InstanaAgentRemoteStatus{
 // 					ObservedGeneration: &num,
 // 				},
 // 			},
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 		},
 // 		{
 // 			name:              "AgentStatusManager.updateWasPerformed operator-versions-do-not-match",
 // 			getAsResultErrors: []error{nil, nil, nil, nil},
-// 			agent: &instanav1.RemoteAgent{
+// 			agent: &instanav1.InstanaAgentRemote{
 // 				ObjectMeta: metav1.ObjectMeta{
 // 					Generation: num,
 // 				},
-// 				Status: instanav1.RemoteAgentStatus{
+// 				Status: instanav1.InstanaAgentRemoteStatus{
 // 					ObservedGeneration: &num,
 // 					OperatorVersion:    &semVer,
 // 				},
 // 			},
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 		},
 // 		{
 // 			name:              "AgentStatusManager.updateWasPerformed operator-version-is-nil",
 // 			getAsResultErrors: []error{nil, nil, nil, nil},
-// 			agent: &instanav1.RemoteAgent{
+// 			agent: &instanav1.InstanaAgentRemote{
 // 				ObjectMeta: metav1.ObjectMeta{
 // 					Generation: num,
 // 				},
-// 				Status: instanav1.RemoteAgentStatus{
+// 				Status: instanav1.InstanaAgentRemoteStatus{
 // 					ObservedGeneration: &num,
 // 					OperatorVersion:    nil,
 // 				},
 // 			},
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 		},
 // 		{
 // 			name:              "AgentStatusManager.updateWasPerformed broken-operator-version-environment-variable",
 // 			getAsResultErrors: []error{nil, nil, nil, nil},
-// 			agent: &instanav1.RemoteAgent{
+// 			agent: &instanav1.InstanaAgentRemote{
 // 				ObjectMeta: metav1.ObjectMeta{
 // 					Generation: num,
 // 				},
-// 				Status: instanav1.RemoteAgentStatus{
+// 				Status: instanav1.InstanaAgentRemoteStatus{
 // 					ObservedGeneration: &num,
 // 					OperatorVersion:    &semVer,
 // 				},
 // 			},
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 			envVarOperatorVersion: &brokenOperatorVersion,
@@ -158,7 +158,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{},
 // 			agent:                 nil,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 		},
@@ -167,7 +167,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{nil, nil, nil, nil},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          nil,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "",
 // 		},
@@ -176,7 +176,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{errors.New("first_call_errors"), nil, nil, nil},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "first_call_errors",
 // 		},
@@ -185,7 +185,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{nil, errors.New("second_call_errors"), nil, nil},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "second_call_errors",
 // 		},
@@ -194,7 +194,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{nil, nil, errors.New("third_call_errors"), nil},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "third_call_errors",
 // 		},
@@ -203,7 +203,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{nil, nil, nil, errors.New("fourth_call_errors")},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  nil,
 // 			expected:              "fourth_call_errors",
 // 		},
@@ -212,7 +212,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 			getAsResultErrors:     []error{nil, nil, nil, nil},
 // 			agent:                 &instanaAgent,
 // 			configSecret:          &configSecret,
-// 			remoteAgentDeployment: remoteDeployment,
+// 			instanaAgentRemoteDeployment: remoteDeployment,
 // 			reconciliationErrors:  errors.New("reconciliation_error"),
 // 			expected:              "",
 // 		},
@@ -249,7 +249,7 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 					Return(writer).
 // 					AnyTimes()
 
-// 				agentStatusManager := NewRemoteAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
+// 				agentStatusManager := NewInstanaAgentRemoteStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
 
 // 				if test.agent != nil {
 // 					agentStatusManager.SetAgentOld(test.agent)
@@ -257,8 +257,8 @@ func TestUpdateRemoteAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 // 				if test.configSecret != nil {
 // 					agentStatusManager.SetAgentSecretConfig(*test.configSecret)
 // 				}
-// 				if test.remoteAgentDeployment != nil {
-// 					agentStatusManager.AddAgentDeployment(*test.remoteAgentDeployment)
+// 				if test.instanaAgentRemoteDeployment != nil {
+// 					agentStatusManager.AddAgentDeployment(*test.instanaAgentRemoteDeployment)
 // 				}
 
 // 				err := agentStatusManager.UpdateAgentStatus(ctx, test.reconciliationErrors)

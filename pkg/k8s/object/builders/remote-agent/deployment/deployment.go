@@ -40,12 +40,12 @@ import (
 )
 
 const (
-	componentName = constants.ComponentRemoteAgent
+	componentName = constants.ComponentInstanaAgentRemote
 )
 
 type deploymentBuilder struct {
-	*instanav1.RemoteAgent
-	statusManager status.RemoteAgentStatusManager
+	*instanav1.InstanaAgentRemote
+	statusManager status.InstanaAgentRemoteStatusManager
 	helpers.RemoteHelpers
 	transformations.PodSelectorLabelGeneratorRemote
 	hash.JsonHasher
@@ -65,8 +65,8 @@ func (d *deploymentBuilder) IsNamespaced() bool {
 }
 
 func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
-	podLabels := optional.Of(d.RemoteAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
-	podLabels[constants.LabelAgentMode] = string(optional.Of(d.RemoteAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
+	podLabels := optional.Of(d.InstanaAgentRemote.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
+	podLabels[constants.LabelAgentMode] = string(optional.Of(d.InstanaAgentRemote.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
 
 	return d.GetPodLabels(podLabels)
 }
@@ -121,9 +121,9 @@ func (d *deploymentBuilder) getUserVolumes() ([]corev1.Volume, []corev1.VolumeMo
 func (d *deploymentBuilder) getName() string {
 	switch d.zone {
 	case nil:
-		return d.RemoteAgent.Name
+		return d.InstanaAgentRemote.Name
 	default:
-		return fmt.Sprintf("%s-%s", d.RemoteAgent.Name, d.zone.Name.Name)
+		return fmt.Sprintf("%s-%s", d.InstanaAgentRemote.Name, d.zone.Name.Name)
 	}
 }
 
@@ -141,7 +141,7 @@ func (d *deploymentBuilder) getNonStandardLabels() map[string]string {
 func (d *deploymentBuilder) getAffinity() *corev1.Affinity {
 	switch d.zone {
 	case nil:
-		return &d.RemoteAgent.Spec.Agent.Pod.Affinity
+		return &d.InstanaAgentRemote.Spec.Agent.Pod.Affinity
 	default:
 		return &d.zone.Affinity
 	}
@@ -150,7 +150,7 @@ func (d *deploymentBuilder) getAffinity() *corev1.Affinity {
 func (d *deploymentBuilder) getTolerations() []corev1.Toleration {
 	switch d.zone {
 	case nil:
-		return d.RemoteAgent.Spec.Agent.Pod.Tolerations
+		return d.InstanaAgentRemote.Spec.Agent.Pod.Tolerations
 	default:
 		return d.zone.Tolerations
 	}
@@ -179,7 +179,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      d.getPodTemplateLabels(),
-					Annotations: d.RemoteAgent.Spec.Agent.Pod.Annotations,
+					Annotations: d.InstanaAgentRemote.Spec.Agent.Pod.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: "instana-agent-remote",
@@ -244,13 +244,13 @@ func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 }
 
 func NewDeploymentBuilder(
-	agent *instanav1.RemoteAgent,
-	statusManager status.RemoteAgentStatusManager,
+	agent *instanav1.InstanaAgentRemote,
+	statusManager status.InstanaAgentRemoteStatusManager,
 	backend backends.RemoteSensorBackend,
 	keysSecret *corev1.Secret,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
-		RemoteAgent:                     agent,
+		InstanaAgentRemote:              agent,
 		statusManager:                   statusManager,
 		RemoteHelpers:                   helpers.NewRemoteHelpers(agent),
 		PodSelectorLabelGeneratorRemote: transformations.PodSelectorLabelsRemote(agent, componentName),

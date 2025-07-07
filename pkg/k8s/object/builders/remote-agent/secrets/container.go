@@ -39,20 +39,20 @@ type dockerConfig struct {
 }
 
 // NewBuilder creates a builder struct implementing common builders interface
-func NewContainerBuilder(agent *instanav1.RemoteAgent, keysSecret *corev1.Secret) commonbuilder.ObjectBuilder {
+func NewContainerBuilder(agent *instanav1.InstanaAgentRemote, keysSecret *corev1.Secret) commonbuilder.ObjectBuilder {
 	return &containerBuilder{
-		remoteAgent: agent,
-		keysSecret:  keysSecret,
-		helpers:     helpers.NewRemoteHelpers(agent),
-		marshaler:   json_or_die.NewJsonOrDie[dockerConfig](),
+		instanaAgentRemote: agent,
+		keysSecret:         keysSecret,
+		helpers:            helpers.NewRemoteHelpers(agent),
+		marshaler:          json_or_die.NewJsonOrDie[dockerConfig](),
 	}
 }
 
 type containerBuilder struct {
-	remoteAgent *instanav1.RemoteAgent
-	helpers     helpers.RemoteHelpers
-	marshaler   json_or_die.JsonOrDieMarshaler[*dockerConfig]
-	keysSecret  *corev1.Secret
+	instanaAgentRemote *instanav1.InstanaAgentRemote
+	helpers            helpers.RemoteHelpers
+	marshaler          json_or_die.JsonOrDieMarshaler[*dockerConfig]
+	keysSecret         *corev1.Secret
 }
 
 func (s *containerBuilder) IsNamespaced() bool {
@@ -60,7 +60,7 @@ func (s *containerBuilder) IsNamespaced() bool {
 }
 
 func (s *containerBuilder) ComponentName() string {
-	return constants.ComponentRemoteAgent
+	return constants.ComponentInstanaAgentRemote
 }
 
 // Build generates a v1.Secret if Agent.ImageSpec.Name contains "containers.instana.io" and the key for the secret is found
@@ -83,7 +83,7 @@ func (s *containerBuilder) build() *corev1.Secret {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "instana-agent-r-" + s.helpers.ContainersSecretName(),
-				Namespace: s.remoteAgent.Namespace,
+				Namespace: s.instanaAgentRemote.Namespace,
 			},
 			Data: map[string][]byte{
 				corev1.DockerConfigJsonKey: s.marshalJSON(*downloadKey),
@@ -107,10 +107,10 @@ func (s *containerBuilder) downloadKey() *string {
 		}
 	}
 
-	if s.remoteAgent.Spec.Agent.DownloadKey != "" {
-		return &s.remoteAgent.Spec.Agent.DownloadKey
-	} else if s.remoteAgent.Spec.Agent.Key != "" {
-		return &s.remoteAgent.Spec.Agent.Key
+	if s.instanaAgentRemote.Spec.Agent.DownloadKey != "" {
+		return &s.instanaAgentRemote.Spec.Agent.DownloadKey
+	} else if s.instanaAgentRemote.Spec.Agent.Key != "" {
+		return &s.instanaAgentRemote.Spec.Agent.Key
 	}
 
 	return nil

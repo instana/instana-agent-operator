@@ -53,7 +53,7 @@ func TestVolumeBuilderBuildsAreUniqueRemote(t *testing.T) {
 		"each returned volume and volume mount is unique", func(t *testing.T) {
 			assertions := require.New(t)
 
-			vb := NewVolumeBuilderRemote(&instanav1.RemoteAgent{})
+			vb := NewVolumeBuilderRemote(&instanav1.InstanaAgentRemote{})
 			volume, volumeMount := vb.Build(rangeUntilRemote(numDefinedVolumesRemote)...)
 
 			assertions.Len(volume, numDefinedVolumesRemote-2)
@@ -69,7 +69,7 @@ func TestVolumeBuilderPanicsWhenVolumeNumberDoesntExistRemote(t *testing.T) {
 	t.Run(
 		"panics once a volume is introduced that isn't found in the defined volumes", func(t *testing.T) {
 			assert.PanicsWithError(t, "unknown volume requested", func() {
-				_, _ = NewVolumeBuilderRemote(&instanav1.RemoteAgent{}).
+				_, _ = NewVolumeBuilderRemote(&instanav1.InstanaAgentRemote{}).
 					Build([]RemoteVolume{RemoteVolume(9999)}...)
 			})
 		},
@@ -90,7 +90,7 @@ func TestVolumeBuilderBuildRemote(t *testing.T) {
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
 
-				vb := NewVolumeBuilderRemote(&instanav1.RemoteAgent{})
+				vb := NewVolumeBuilderRemote(&instanav1.InstanaAgentRemote{})
 
 				volumes, volumeMounts := vb.Build(rangeUntilRemote(numDefinedVolumesRemote)...)
 
@@ -145,15 +145,15 @@ func TestVolumeBuilderTlsSpecRemote(t *testing.T) {
 		name               string
 		volume             RemoteVolume
 		volumeName         string
-		instanaAgent       instanav1.RemoteAgent
+		instanaAgent       instanav1.InstanaAgentRemote
 		expectedNumVolumes int
 	}{
 		{
 			name:       "Should return an TLS volume when Agent configuration has TLS Spec values",
 			volume:     TlsVolumeRemote,
 			volumeName: "remote-agent-tls",
-			instanaAgent: instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			instanaAgent: instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						TlsSpec: instanav1.TlsSpec{
 							SecretName: "very-secret",
@@ -166,7 +166,7 @@ func TestVolumeBuilderTlsSpecRemote(t *testing.T) {
 		{
 			name:               "Should not return a TLS volume entry when TLS Spec values are missing from Agent configuration",
 			volume:             TlsVolumeRemote,
-			instanaAgent:       instanav1.RemoteAgent{Spec: instanav1.RemoteAgentSpec{Agent: instanav1.BaseAgentSpec{TlsSpec: instanav1.TlsSpec{}}}},
+			instanaAgent:       instanav1.InstanaAgentRemote{Spec: instanav1.InstanaAgentRemoteSpec{Agent: instanav1.BaseAgentSpec{TlsSpec: instanav1.TlsSpec{}}}},
 			expectedNumVolumes: 0,
 		},
 	} {
@@ -194,8 +194,8 @@ func TestVolumeBuilderRepositoryRemote(t *testing.T) {
 			assertions := require.New(t)
 
 			vb := NewVolumeBuilderRemote(
-				&instanav1.RemoteAgent{
-					Spec: instanav1.RemoteAgentSpec{
+				&instanav1.InstanaAgentRemote{
+					Spec: instanav1.InstanaAgentRemoteSpec{
 						Agent: instanav1.BaseAgentSpec{
 							Host: instanav1.HostSpec{
 								Repository: "very-repository",

@@ -23,7 +23,7 @@ import (
 	v1 "github.com/instana/instana-agent-operator/api/v1"
 )
 
-func (r *RemoteAgentReconciler) addOrUpdateFinalizers(ctx context.Context, agentOld *v1.RemoteAgent) reconcileReturn {
+func (r *InstanaAgentRemoteReconciler) addOrUpdateFinalizers(ctx context.Context, agentOld *v1.InstanaAgentRemote) reconcileReturn {
 	agentNew := agentOld.DeepCopy()
 
 	if controllerutil.AddFinalizer(agentNew, finalizerV3) {

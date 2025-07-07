@@ -73,7 +73,7 @@ NAMESPACE_PREPULLER ?= instana-agent-image-prepuller
 
 INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"crd/agents.instana.io" \
-	"crd/remoteagents.instana.io" \
+	"crd/agentsremote.instana.io" \
 	"clusterrole/leader-election-role" \
 	"clusterrole/instana-agent-clusterrole" \
 	"clusterrolebinding/leader-election-rolebinding" \
@@ -150,9 +150,9 @@ purge: ## Full purge of the agent in the cluster
 	else \
 		echo "CR not present"; \
 	fi
-	@if kubectl get remoteagents.instana.io remote-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
+	@if kubectl get agentsremote.instana.io instana-agent-remote -n $(NAMESPACE) >/dev/null 2>&1; then \
 		echo "Found, removing remote finalizers..."; \
-		kubectl patch remoteagents.instana.io remote-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
+		kubectl patch agentsremote.instana.io instana-agent-remote -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
 	else \
 		echo "CR not present"; \
 	fi

@@ -64,7 +64,7 @@ func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAge
 	return k8SensorBackends
 }
 
-func (r *RemoteAgentReconciler) getRemoteSensorBackends(agent *instanav1.RemoteAgent) []backends.RemoteSensorBackend {
+func (r *InstanaAgentRemoteReconciler) getRemoteSensorBackends(agent *instanav1.InstanaAgentRemote) []backends.RemoteSensorBackend {
 	remoteSensorBackends := make([]backends.RemoteSensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
 	remoteSensorBackends = append(
 		remoteSensorBackends,
@@ -93,7 +93,7 @@ func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1
 	)
 }
 
-func (r *RemoteAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.RemoteAgent) logr.Logger {
+func (r *InstanaAgentRemoteReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgentRemote) logr.Logger {
 	return logf.FromContext(ctx).WithValues(
 		"Generation",
 		agent.Generation,

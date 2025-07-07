@@ -27,29 +27,29 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
-func (r *RemoteAgentReconciler) cleanupDependents(
+func (r *InstanaAgentRemoteReconciler) cleanupDependents(
 	ctx context.Context,
-	agentOld *instanav1.RemoteAgent,
+	agentOld *instanav1.InstanaAgentRemote,
 	operatorUtils operator_utils.RemoteOperatorUtils,
 ) reconcileReturn {
 	agentNew := agentOld.DeepCopy()
 	log := r.loggerFor(ctx, agentNew)
 
 	if !controllerutil.RemoveFinalizer(agentNew, finalizerV3) {
-		log.V(2).Info("remote agent finalizer not present, so no further cleanup is needed")
+		log.V(2).Info("instana agent remote finalizer not present, so no further cleanup is needed")
 		return reconcileContinue()
 	} else if err := operatorUtils.DeleteAll(); err != nil {
-		log.Error(err, "failed to cleanup remote agent dependents during uninstall")
+		log.Error(err, "failed to cleanup instana agent remote dependents during uninstall")
 		return reconcileFailure(err)
 	} else {
-		log.V(1).Info("successfully cleaned up remote agent dependents during uninstall")
+		log.V(1).Info("successfully cleaned up instana agent remote dependents during uninstall")
 		return r.updateAgent(ctx, agentOld, agentNew)
 	}
 }
 
-func (r *RemoteAgentReconciler) handleDeletion(
+func (r *InstanaAgentRemoteReconciler) handleDeletion(
 	ctx context.Context,
-	agent *instanav1.RemoteAgent,
+	agent *instanav1.InstanaAgentRemote,
 	operatorUtils operator_utils.RemoteOperatorUtils,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
@@ -69,9 +69,9 @@ func (r *RemoteAgentReconciler) handleDeletion(
 	}
 }
 
-func (r *RemoteAgentReconciler) cleanupNodeLabels(
+func (r *InstanaAgentRemoteReconciler) cleanupNodeLabels(
 	ctx context.Context,
-	agent *instanav1.RemoteAgent,
+	agent *instanav1.InstanaAgentRemote,
 ) {
 	log := r.loggerFor(ctx, agent)
 	p := utils.RunCommand("kubectl label node --all pool-")

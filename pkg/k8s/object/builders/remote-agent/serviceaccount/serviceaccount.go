@@ -29,7 +29,7 @@ import (
 )
 
 type serviceAccountBuilder struct {
-	*instanav1.RemoteAgent
+	*instanav1.InstanaAgentRemote
 	helpers.RemoteHelpers
 }
 
@@ -38,7 +38,7 @@ func (s *serviceAccountBuilder) IsNamespaced() bool {
 }
 
 func (s *serviceAccountBuilder) ComponentName() string {
-	return constants.ComponentRemoteAgent
+	return constants.ComponentInstanaAgentRemote
 }
 
 func (s *serviceAccountBuilder) build() *corev1.ServiceAccount {
@@ -63,9 +63,9 @@ func (s *serviceAccountBuilder) Build() optional.Optional[client.Object] {
 	}
 }
 
-func NewServiceAccountBuilder(agent *instanav1.RemoteAgent) builder.ObjectBuilder {
+func NewServiceAccountBuilder(agent *instanav1.InstanaAgentRemote) builder.ObjectBuilder {
 	return &serviceAccountBuilder{
-		RemoteAgent:   agent,
-		RemoteHelpers: helpers.NewRemoteHelpers(agent),
+		InstanaAgentRemote: agent,
+		RemoteHelpers:      helpers.NewRemoteHelpers(agent),
 	}
 }

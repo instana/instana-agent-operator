@@ -27,8 +27,8 @@ import (
 
 // +k8s:openapi-gen=true
 
-// RemoteAgentSpec defines the desired state of the Remote Agent
-type RemoteAgentSpec struct {
+// InstanaAgentRemoteSpec defines the desired state of the Instana Agent Remote
+type InstanaAgentRemoteSpec struct {
 	// Agent deployment specific fields.
 	// +kubebuilder:validation:Optional
 	Agent BaseAgentSpec `json:"agent"`
@@ -60,18 +60,18 @@ type RemoteAgentSpec struct {
 
 // +k8s:openapi-gen=true
 
-// RemoteAgentOperatorState type representing the running state of the Agent Operator itself.
-type RemoteAgentOperatorState string
+// InstanaAgentRemoteOperatorState type representing the running state of the Agent Operator itself.
+type InstanaAgentRemoteOperatorState string
 
 const (
-	RemoteOperatorStateRunning  RemoteAgentOperatorState = "Running"
-	RemoteOperatorStateUpdating RemoteAgentOperatorState = "Updating"
-	RemoteOperatorStateFailed   RemoteAgentOperatorState = "Failed"
+	RemoteOperatorStateRunning  InstanaAgentRemoteOperatorState = "Running"
+	RemoteOperatorStateUpdating InstanaAgentRemoteOperatorState = "Updating"
+	RemoteOperatorStateFailed   InstanaAgentRemoteOperatorState = "Failed"
 )
 
 // +k8s:openapi-gen=true
 
-type RemoteAgentStatus struct {
+type InstanaAgentRemoteStatus struct {
 	ConfigSecret       ResourceInfo       `json:"configsecret,omitempty"`
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 	ObservedGeneration *int64             `json:"observedGeneration,omitempty"`
@@ -82,19 +82,19 @@ type RemoteAgentStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=remoteagents,singular=remoteagent,shortName=ra,scope=Namespaced,categories=monitoring;
+// +kubebuilder:resource:path=agentsremote,singular=agentremote,shortName=ar,scope=Namespaced,categories=monitoring;
 // +kubebuilder:storageversion
-// +operator-sdk:csv:customresourcedefinitions:displayName="Remote Instana Agent",resources={{Deployment,apps/v1,RemoteAgent},{Pod,v1,RemoteAgent},{Secret,v1,RemoteAgent}}
+// +operator-sdk:csv:customresourcedefinitions:displayName="Remote Instana Agent",resources={{Deployment,apps/v1,InstanaAgentRemote},{Pod,v1,InstanaAgentRemote},{Secret,v1,InstanaAgentRemote}}
 
-type RemoteAgent struct {
+type InstanaAgentRemote struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RemoteAgentSpec   `json:"spec,omitempty"`
-	Status RemoteAgentStatus `json:"status,omitempty"`
+	Spec   InstanaAgentRemoteSpec   `json:"spec,omitempty"`
+	Status InstanaAgentRemoteStatus `json:"status,omitempty"`
 }
 
-func (in *RemoteAgent) InheritDefault(agent InstanaAgent) {
+func (in *InstanaAgentRemote) InheritDefault(agent InstanaAgent) {
 	desiredEndpointHost := optional.Of(agent.Spec.Agent.EndpointHost).GetOrDefault("ingress-red-saas.instana.io")
 	inheritString(&in.Spec.Agent.EndpointHost, &desiredEndpointHost)
 
@@ -153,7 +153,7 @@ func (in *RemoteAgent) InheritDefault(agent InstanaAgent) {
 	}
 }
 
-func (in *RemoteAgent) Default() {
+func (in *InstanaAgentRemote) Default() {
 	optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
 	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
 	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
@@ -167,14 +167,14 @@ func (in *RemoteAgent) Default() {
 
 // +kubebuilder:object:root=true
 
-type RemoteAgentList struct {
+type InstanaAgentRemoteList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RemoteAgent `json:"items"`
+	Items           []InstanaAgentRemote `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&RemoteAgent{}, &RemoteAgentList{})
+	SchemeBuilder.Register(&InstanaAgentRemote{}, &InstanaAgentRemoteList{})
 }
 
 func inheritString(target *string, source *string) {

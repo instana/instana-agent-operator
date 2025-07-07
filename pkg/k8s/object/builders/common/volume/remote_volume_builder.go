@@ -42,11 +42,11 @@ type VolumeBuilderRemote interface {
 }
 
 type volumeBuilderRemote struct {
-	remoteAgent *instanav1.RemoteAgent
+	remoteAgent *instanav1.InstanaAgentRemote
 	helpers     helpers.RemoteHelpers
 }
 
-func NewVolumeBuilderRemote(agent *instanav1.RemoteAgent) VolumeBuilderRemote {
+func NewVolumeBuilderRemote(agent *instanav1.InstanaAgentRemote) VolumeBuilderRemote {
 	return &volumeBuilderRemote{
 		remoteAgent: agent,
 		helpers:     helpers.NewRemoteHelpers(agent),

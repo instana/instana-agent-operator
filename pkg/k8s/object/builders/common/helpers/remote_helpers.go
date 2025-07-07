@@ -28,7 +28,7 @@ import (
 )
 
 type remoteHelpers struct {
-	*instanav1.RemoteAgent
+	*instanav1.InstanaAgentRemote
 }
 
 type RemoteHelpers interface {
@@ -101,8 +101,8 @@ func (h *remoteHelpers) SortEnvVarsByName(envVars []corev1.EnvVar) {
 	})
 }
 
-func NewRemoteHelpers(agent *instanav1.RemoteAgent) RemoteHelpers {
+func NewRemoteHelpers(agent *instanav1.InstanaAgentRemote) RemoteHelpers {
 	return &remoteHelpers{
-		RemoteAgent: agent,
+		InstanaAgentRemote: agent,
 	}
 }

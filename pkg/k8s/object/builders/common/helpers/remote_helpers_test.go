@@ -30,13 +30,13 @@ import (
 func TestHelpers_RemoteServiceAccountName(t *testing.T) {
 	for _, tt := range []struct {
 		name  string
-		agent *instanav1.RemoteAgent
+		agent *instanav1.InstanaAgentRemote
 		want  string
 	}{
 		{
 			name: "ServiceAccount name is set in spec",
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					ServiceAccountSpec: instanav1.ServiceAccountSpec{
 						Name: instanav1.Name{
 							Name: "0wegoijsdgo",
@@ -48,8 +48,8 @@ func TestHelpers_RemoteServiceAccountName(t *testing.T) {
 		},
 		{
 			name: "ServiceAccount name is set in spec and create is true",
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					ServiceAccountSpec: instanav1.ServiceAccountSpec{
 						Name: instanav1.Name{
 							Name: "erhpoijsg94",
@@ -64,11 +64,11 @@ func TestHelpers_RemoteServiceAccountName(t *testing.T) {
 		},
 		{
 			name: "ServiceAccount create is true in spec",
-			agent: &instanav1.RemoteAgent{
+			agent: &instanav1.InstanaAgentRemote{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "-94jsdogijoijwgt",
 				},
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					ServiceAccountSpec: instanav1.ServiceAccountSpec{
 						Create: instanav1.Create{
 							Create: pointer.To(true),
@@ -80,11 +80,11 @@ func TestHelpers_RemoteServiceAccountName(t *testing.T) {
 		},
 		{
 			name: "ServiceAccount create is false in spec",
-			agent: &instanav1.RemoteAgent{
+			agent: &instanav1.InstanaAgentRemote{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "-94jsdogijoijwgt",
 				},
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					ServiceAccountSpec: instanav1.ServiceAccountSpec{
 						Create: instanav1.Create{
 							Create: pointer.To(false),
@@ -96,7 +96,7 @@ func TestHelpers_RemoteServiceAccountName(t *testing.T) {
 		},
 		{
 			name:  "No ServiceAccount options specified",
-			agent: &instanav1.RemoteAgent{},
+			agent: &instanav1.InstanaAgentRemote{},
 			want:  "default",
 		},
 	} {
@@ -165,8 +165,8 @@ func TestHelpers_RemoteTLSIsEnabled(t *testing.T) {
 				assertions := require.New(t)
 
 				h := NewRemoteHelpers(
-					&instanav1.RemoteAgent{
-						Spec: instanav1.RemoteAgentSpec{
+					&instanav1.InstanaAgentRemote{
+						Spec: instanav1.InstanaAgentRemoteSpec{
 							Agent: instanav1.BaseAgentSpec{
 								TlsSpec: instanav1.TlsSpec{
 									SecretName:  test.secretName,
@@ -186,16 +186,16 @@ func TestHelpers_RemoteTLSIsEnabled(t *testing.T) {
 func TestHelpers_RemoteTLSSecretName(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
-		agent      *instanav1.RemoteAgent
+		agent      *instanav1.InstanaAgentRemote
 		wantSecret string
 	}{
 		{
 			name: "secret_name_set_explicitly",
-			agent: &instanav1.RemoteAgent{
+			agent: &instanav1.InstanaAgentRemote{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "oioijsdjdsf",
 				},
-				Spec: instanav1.RemoteAgentSpec{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						TlsSpec: instanav1.TlsSpec{
 							SecretName: "prpojdg",
@@ -207,7 +207,7 @@ func TestHelpers_RemoteTLSSecretName(t *testing.T) {
 		},
 		{
 			name: "secret_name_not_set_explicitly",
-			agent: &instanav1.RemoteAgent{
+			agent: &instanav1.InstanaAgentRemote{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "risoijsdgljs",
 				},
@@ -233,7 +233,7 @@ func TestHelpers_RemoteK8sSensorResourcesName(t *testing.T) {
 	assertions := require.New(t)
 
 	h := NewRemoteHelpers(
-		&instanav1.RemoteAgent{
+		&instanav1.InstanaAgentRemote{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "rhjaoijdsoijoidsf",
 			},
@@ -248,7 +248,7 @@ func TestHelpers_RemoteContainersSecretName(t *testing.T) {
 	agentName := "instana-agent-r-" + rand.String(rand.IntnRange(1, 15))
 
 	h := NewRemoteHelpers(
-		&instanav1.RemoteAgent{
+		&instanav1.InstanaAgentRemote{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: agentName,
 			},
@@ -321,11 +321,11 @@ func TestHelpers_RemoteUseContainersSecret(t *testing.T) {
 				assertions := require.New(t)
 
 				h := NewRemoteHelpers(
-					&instanav1.RemoteAgent{
+					&instanav1.InstanaAgentRemote{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: rand.String(rand.IntnRange(1, 15)),
 						},
-						Spec: instanav1.RemoteAgentSpec{
+						Spec: instanav1.InstanaAgentRemoteSpec{
 							Agent: instanav1.BaseAgentSpec{
 								ExtendedImageSpec: instanav1.ExtendedImageSpec{
 									PullSecrets: test.userProvidedPullSecrets,

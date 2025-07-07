@@ -22,7 +22,7 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
-	remoteagentdeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/deployment"
+	instanaagentremotedeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/deployment"
 	agentsecrets "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets"
 	keyssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets/keys-secret"
 	tlssecret "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/remote-agent/secrets/tls-secret"
@@ -32,9 +32,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func getRemoteAgentDeployments(
-	agent *instanav1.RemoteAgent,
-	statusManager status.RemoteAgentStatusManager,
+func getInstanaAgentRemoteDeployments(
+	agent *instanav1.InstanaAgentRemote,
+	statusManager status.InstanaAgentRemoteStatusManager,
 	additionalBackends []backends.RemoteSensorBackend,
 	keysSecret *corev1.Secret,
 ) []builder.ObjectBuilder {
@@ -43,26 +43,26 @@ func getRemoteAgentDeployments(
 	for _, backend := range additionalBackends {
 		builders = append(
 			builders,
-			remoteagentdeployment.NewDeploymentBuilder(agent, statusManager, backend, keysSecret),
+			instanaagentremotedeployment.NewDeploymentBuilder(agent, statusManager, backend, keysSecret),
 		)
 	}
 
 	return builders
 }
 
-func (r *RemoteAgentReconciler) applyResources(
+func (r *InstanaAgentRemoteReconciler) applyResources(
 	ctx context.Context,
-	agent *instanav1.RemoteAgent,
+	agent *instanav1.InstanaAgentRemote,
 	operatorUtils operator_utils.RemoteOperatorUtils,
-	statusManager status.RemoteAgentStatusManager,
+	statusManager status.InstanaAgentRemoteStatusManager,
 	keysSecret *corev1.Secret,
 	additionalBackends []backends.RemoteSensorBackend,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
-	log.V(1).Info("applying Kubernetes resources for remote agent")
+	log.V(1).Info("applying Kubernetes resources for instana agent remote")
 
 	builders := append(
-		getRemoteAgentDeployments(agent, statusManager, additionalBackends, keysSecret),
+		getInstanaAgentRemoteDeployments(agent, statusManager, additionalBackends, keysSecret),
 		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, additionalBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
 		tlssecret.NewSecretBuilder(agent),
@@ -70,10 +70,10 @@ func (r *RemoteAgentReconciler) applyResources(
 		keyssecret.NewSecretBuilder(agent, additionalBackends),
 	)
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
-		log.Error(err, "failed to apply kubernetes resources for remote agent")
+		log.Error(err, "failed to apply kubernetes resources for instana agent remote")
 		return reconcileFailure(err)
 	}
 
-	log.V(1).Info("successfully applied kubernetes resources for remote agent")
+	log.V(1).Info("successfully applied kubernetes resources for instana agent remote")
 	return reconcileContinue()
 }

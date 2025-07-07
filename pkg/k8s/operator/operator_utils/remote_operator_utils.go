@@ -41,13 +41,13 @@ type remoteOperatorUtils struct {
 	builderTransformer        builder.BuilderTransformer
 	dependentLifecycleManager lifecycle.DependentLifecycleManager
 	instanaAgentClient        client.InstanaAgentClient
-	instanaAgent              *instanav1.RemoteAgent
+	instanaAgent              *instanav1.InstanaAgentRemote
 }
 
 func NewRemoteOperatorUtils(
 	ctx context.Context,
 	instanaAgentClient client.InstanaAgentClient,
-	agent *instanav1.RemoteAgent,
+	agent *instanav1.InstanaAgentRemote,
 	dependentLifecycleManager lifecycle.DependentLifecycleManager,
 ) RemoteOperatorUtils {
 	return &remoteOperatorUtils{

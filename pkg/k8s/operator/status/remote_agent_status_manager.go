@@ -41,23 +41,23 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
-type RemoteAgentStatusManager interface {
+type InstanaAgentRemoteStatusManager interface {
 	AddAgentDeployment(agentDeployment client.ObjectKey) // Added method for Deployment
-	SetAgentOld(agent *instanav1.RemoteAgent)
+	SetAgentOld(agent *instanav1.InstanaAgentRemote)
 	SetAgentSecretConfig(agentSecretConfig client.ObjectKey)
 	UpdateAgentStatus(ctx context.Context, reconcileErr error) error
 }
 
-type remoteAgentStatusManager struct {
+type instanaAgentRemoteStatusManager struct {
 	instAgentClient   instanaclient.InstanaAgentClient
 	eventRecorder     record.EventRecorder
-	agentOld          *instanav1.RemoteAgent
+	agentOld          *instanav1.InstanaAgentRemote
 	agentDeployments  []client.ObjectKey // New field to store deployments
 	agentSecretConfig client.ObjectKey
 }
 
-func NewRemoteAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) RemoteAgentStatusManager {
-	return &remoteAgentStatusManager{
+func NewInstanaAgentRemoteStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) InstanaAgentRemoteStatusManager {
+	return &instanaAgentRemoteStatusManager{
 		instAgentClient:  instAgentClient,
 		eventRecorder:    eventRecorder,
 		agentDeployments: make([]client.ObjectKey, 0, 1), // Initialize the deployments list
@@ -65,21 +65,21 @@ func NewRemoteAgentStatusManager(instAgentClient instanaclient.InstanaAgentClien
 }
 
 // AddAgentDeployment adds a deployment to the list of agent deployments
-func (a *remoteAgentStatusManager) AddAgentDeployment(agentDeployment client.ObjectKey) {
+func (a *instanaAgentRemoteStatusManager) AddAgentDeployment(agentDeployment client.ObjectKey) {
 	if !list.NewContainsElementChecker(a.agentDeployments).Contains(agentDeployment) {
 		a.agentDeployments = append(a.agentDeployments, agentDeployment)
 	}
 }
 
-func (a *remoteAgentStatusManager) SetAgentOld(agent *instanav1.RemoteAgent) {
+func (a *instanaAgentRemoteStatusManager) SetAgentOld(agent *instanav1.InstanaAgentRemote) {
 	a.agentOld = agent.DeepCopy()
 }
 
-func (a *remoteAgentStatusManager) SetAgentSecretConfig(agentSecretConfig types.NamespacedName) {
+func (a *instanaAgentRemoteStatusManager) SetAgentSecretConfig(agentSecretConfig types.NamespacedName) {
 	a.agentSecretConfig = agentSecretConfig
 }
 
-func (a *remoteAgentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
+func (a *instanaAgentRemoteStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
 	defer recovery.Catch(&finalErr)
 
 	if a.agentOld == nil {
@@ -89,7 +89,7 @@ func (a *remoteAgentStatusManager) UpdateAgentStatus(ctx context.Context, reconc
 	errBuilder := multierror.NewMultiErrorBuilder()
 
 	agentNew, _ :=
-		a.remoteAgentWithUpdatedStatus(ctx, reconcileErr).
+		a.InstanaAgentRemoteWithUpdatedStatus(ctx, reconcileErr).
 			OnFailure(errBuilder.AddSingle).
 			Get()
 
@@ -105,7 +105,7 @@ func (a *remoteAgentStatusManager) UpdateAgentStatus(ctx context.Context, reconc
 	return errBuilder.Build()
 }
 
-func (a *remoteAgentStatusManager) getDeployment(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *instanaAgentRemoteStatusManager) getDeployment(ctx context.Context) result.Result[instanav1.ResourceInfo] {
 	if len(a.agentDeployments) != 1 {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -115,18 +115,18 @@ func (a *remoteAgentStatusManager) getDeployment(ctx context.Context) result.Res
 	return result.Map(deployment, toResourceInfo)
 }
 
-func (a *remoteAgentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *instanaAgentRemoteStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
 	cm := a.instAgentClient.GetAsResult(ctx, a.agentSecretConfig, &corev1.Secret{})
 
 	return result.Map(cm, toResourceInfo)
 }
 
-func (a *remoteAgentStatusManager) setConditionAndFireEvent(agentNew *instanav1.RemoteAgent, condition metav1.Condition) {
+func (a *instanaAgentRemoteStatusManager) setConditionAndFireEvent(agentNew *instanav1.InstanaAgentRemote, condition metav1.Condition) {
 	meta.SetStatusCondition(&agentNew.Status.Conditions, condition)
 	a.eventRecorder.Event(agentNew, eventTypeFromCondition(condition), condition.Reason, condition.Message)
 }
 
-func (a *remoteAgentStatusManager) getReconcileSucceededCondition(reconcileErr error) metav1.Condition {
+func (a *instanaAgentRemoteStatusManager) getReconcileSucceededCondition(reconcileErr error) metav1.Condition {
 	res := metav1.Condition{
 		Type:               ConditionTypeReconcileSucceeded,
 		Status:             "",
@@ -139,7 +139,7 @@ func (a *remoteAgentStatusManager) getReconcileSucceededCondition(reconcileErr e
 	case nil:
 		res.Status = metav1.ConditionTrue
 		res.Reason = "ReconcileSucceeded"
-		res.Message = "most recent reconcile of remote agent CR completed without issue"
+		res.Message = "most recent reconcile of instana agent remote CR completed without issue"
 	default:
 		res.Status = metav1.ConditionFalse
 		res.Reason = "ReconcileFailed"
@@ -150,7 +150,7 @@ func (a *remoteAgentStatusManager) getReconcileSucceededCondition(reconcileErr e
 	return res
 }
 
-func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
+func (a *instanaAgentRemoteStatusManager) getAllAgentsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               ConditionTypeAllAgentsAvailable,
 		Status:             "",
@@ -172,7 +172,7 @@ func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Co
 			condition.Status = metav1.ConditionUnknown
 			condition.Reason = "AgentDeploymentInfoUnavailable"
 			msg := fmt.Sprintf(
-				"failed to retrieve status of Remote Agent Deployment: %s due to error: %s",
+				"failed to retrieve status of Instana Agent Remote Deployment: %s due to error: %s",
 				key.Name,
 				err.Error(),
 			)
@@ -187,20 +187,20 @@ func (a *remoteAgentStatusManager) getAllAgentsAvailableCondition(ctx context.Co
 	if list.NewConditions(deployments).All(deploymentIsAvailableAndComplete) && len(deployments) > 0 {
 		condition.Status = metav1.ConditionTrue
 		condition.Reason = "AllDesiredAgentsAvailable"
-		condition.Message = "All desired Remote Agents are available and using up-to-date configuration"
+		condition.Message = "All desired Instana Agent Remote are available and using up-to-date configuration"
 	} else {
 		condition.Status = metav1.ConditionFalse
 		condition.Reason = "NotAllDesiredAgentsAvailable"
-		condition.Message = "Not all desired Remote agents are available or some Agents are not using up-to-date configuration"
+		condition.Message = "Not all desired Instana Agent Remote are available or some Agents are not using up-to-date configuration"
 	}
 
 	return result.OfSuccess(condition)
 }
 
-func (a *remoteAgentStatusManager) remoteAgentWithUpdatedStatus(
+func (a *instanaAgentRemoteStatusManager) InstanaAgentRemoteWithUpdatedStatus(
 	ctx context.Context,
 	reconcileErr error,
-) result.Result[*instanav1.RemoteAgent] {
+) result.Result[*instanav1.InstanaAgentRemote] {
 	errBuilder := multierror.NewMultiErrorBuilder()
 
 	agentNew := a.agentOld.DeepCopy()

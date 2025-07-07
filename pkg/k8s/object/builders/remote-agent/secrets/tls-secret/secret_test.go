@@ -35,7 +35,7 @@ import (
 func TestRemoteSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	s := NewSecretBuilder(&instanav1.RemoteAgent{})
+	s := NewSecretBuilder(&instanav1.InstanaAgentRemote{})
 
 	assertions.True(s.IsNamespaced())
 	assertions.Equal("instana-agent-remote", s.ComponentName())
@@ -62,11 +62,11 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 
 						namespace := rand.String(rand.IntnRange(1, 15))
 
-						agent := &instanav1.RemoteAgent{
+						agent := &instanav1.InstanaAgentRemote{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: namespace,
 							},
-							Spec: instanav1.RemoteAgentSpec{
+							Spec: instanav1.InstanaAgentRemoteSpec{
 								Agent: instanav1.BaseAgentSpec{
 									TlsSpec: instanav1.TlsSpec{
 										SecretName:  secretName,
@@ -80,8 +80,8 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 						helpers := mocks.NewMockRemoteHelpers(ctrl)
 
 						sb := &secretBuilder{
-							RemoteAgent:   agent,
-							RemoteHelpers: helpers,
+							InstanaAgentRemote: agent,
+							RemoteHelpers:      helpers,
 						}
 
 						switch {

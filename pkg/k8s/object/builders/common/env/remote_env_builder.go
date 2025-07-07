@@ -76,12 +76,12 @@ type EnvBuilderRemote interface {
 }
 
 type envBuilderRemote struct {
-	agent   *instanav1.RemoteAgent
+	agent   *instanav1.InstanaAgentRemote
 	zone    *instanav1.Zone
 	helpers helpers.RemoteHelpers
 }
 
-func NewEnvBuilderRemote(agent *instanav1.RemoteAgent, zone *instanav1.Zone) EnvBuilderRemote {
+func NewEnvBuilderRemote(agent *instanav1.InstanaAgentRemote, zone *instanav1.Zone) EnvBuilderRemote {
 	return &envBuilderRemote{
 		agent:   agent,
 		zone:    zone,

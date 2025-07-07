@@ -27,7 +27,7 @@ type PodSelectorLabelGeneratorRemote interface {
 }
 
 type podSelectorLabelGeneratorRemote struct {
-	*instanav1.RemoteAgent
+	*instanav1.InstanaAgentRemote
 	zone      *instanav1.Zone
 	component string
 }
@@ -62,18 +62,18 @@ func (p *podSelectorLabelGeneratorRemote) GetPodSelectorLabels() map[string]stri
 	return labels
 }
 
-func PodSelectorLabelsRemote(agent *instanav1.RemoteAgent, component string) PodSelectorLabelGeneratorRemote {
+func PodSelectorLabelsRemote(agent *instanav1.InstanaAgentRemote, component string) PodSelectorLabelGeneratorRemote {
 	return PodSelectorLabelsWithZoneInfoRemote(agent, component, nil)
 }
 
 func PodSelectorLabelsWithZoneInfoRemote(
-	agent *instanav1.RemoteAgent,
+	agent *instanav1.InstanaAgentRemote,
 	component string,
 	zone *instanav1.Zone,
 ) PodSelectorLabelGeneratorRemote {
 	return &podSelectorLabelGeneratorRemote{
-		RemoteAgent: agent,
-		component:   component,
-		zone:        zone,
+		InstanaAgentRemote: agent,
+		component:          component,
+		zone:               zone,
 	}
 }

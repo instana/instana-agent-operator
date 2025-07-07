@@ -26,13 +26,13 @@ import (
 )
 
 func TestSecretBuilderComponentName(t *testing.T) {
-	s := NewContainerBuilder(&instanav1.RemoteAgent{}, &corev1.Secret{})
+	s := NewContainerBuilder(&instanav1.InstanaAgentRemote{}, &corev1.Secret{})
 
 	assert.True(t, s.IsNamespaced())
 }
 
 func TestSecretBuilderIsNamespaced(t *testing.T) {
-	s := NewContainerBuilder(&instanav1.RemoteAgent{}, &corev1.Secret{})
+	s := NewContainerBuilder(&instanav1.InstanaAgentRemote{}, &corev1.Secret{})
 
 	assert.Equal(t, "instana-agent-remote", s.ComponentName())
 }
@@ -120,9 +120,9 @@ func TestContainerSecretBuilder(t *testing.T) {
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
-				agent := &instanav1.RemoteAgent{
+				agent := &instanav1.InstanaAgentRemote{
 					ObjectMeta: objectMeta,
-					Spec: instanav1.RemoteAgentSpec{
+					Spec: instanav1.InstanaAgentRemoteSpec{
 						Agent: instanav1.BaseAgentSpec{
 							ExtendedImageSpec: instanav1.ExtendedImageSpec{
 								// Only fetches container secrets when ImageSpec is "containers.instana.io"

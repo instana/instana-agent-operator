@@ -109,7 +109,7 @@ func TestCleanupDependentsDeletesUnmatchedDataRemote(t *testing.T) {
 
 	dependentLifecycleManager := NewRemoteDependentLifecycleManager(
 		ctx,
-		&instanav1.RemoteAgent{},
+		&instanav1.InstanaAgentRemote{},
 		instanaAgentClient,
 	)
 
@@ -169,7 +169,7 @@ func TestCleanupDependentsDeleteAllReturnsErrorRemote(t *testing.T) {
 
 	dependentLifecycleManager := NewRemoteDependentLifecycleManager(
 		ctx,
-		&instanav1.RemoteAgent{},
+		&instanav1.InstanaAgentRemote{},
 		instanaAgentClient,
 	)
 
@@ -182,7 +182,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 	for _, test := range []struct {
 		name             string
 		expected         string
-		instanaAgent     instanav1.RemoteAgent
+		instanaAgent     instanav1.InstanaAgentRemote
 		generatedObjects int
 		clientGetterFunc func(
 			_ context.Context,
@@ -216,7 +216,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 
 				return nil
 			},
-			instanaAgent: instanav1.RemoteAgent{ObjectMeta: metav1.ObjectMeta{Generation: 1234}},
+			instanaAgent: instanav1.InstanaAgentRemote{ObjectMeta: metav1.ObjectMeta{Generation: 1234}},
 		},
 		{
 			name:             "Completely successful run of CleanupDependents with ConfigMap.Data containing already data",
@@ -243,7 +243,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 
 				return nil
 			},
-			instanaAgent: instanav1.RemoteAgent{ObjectMeta: metav1.ObjectMeta{Generation: 1234}},
+			instanaAgent: instanav1.InstanaAgentRemote{ObjectMeta: metav1.ObjectMeta{Generation: 1234}},
 		},
 	} {
 		t.Run(
@@ -287,7 +287,7 @@ func TestUpdateLifecycleInfoRemote(t *testing.T) {
 	for _, test := range []struct {
 		name             string
 		expected         string
-		instanaAgent     instanav1.RemoteAgent
+		instanaAgent     instanav1.InstanaAgentRemote
 		clientGetterFunc func(
 			_ context.Context,
 			_ types.NamespacedName,
@@ -314,7 +314,7 @@ func TestUpdateLifecycleInfoRemote(t *testing.T) {
 				}
 				return nil
 			},
-			instanaAgent: instanav1.RemoteAgent{},
+			instanaAgent: instanav1.InstanaAgentRemote{},
 		},
 		{
 			name:     "Should initialize ConfigMap if NotFound error was given and UpdateLifecycleInfo",
@@ -327,7 +327,7 @@ func TestUpdateLifecycleInfoRemote(t *testing.T) {
 			) error {
 				return k8serrors.NewNotFound(schema.GroupResource{}, "asdasd")
 			},
-			instanaAgent: instanav1.RemoteAgent{},
+			instanaAgent: instanav1.InstanaAgentRemote{},
 		},
 		{
 			name:     "Should initialize empty ConfigMap on error and UpdateLifecycleInfo",
@@ -340,7 +340,7 @@ func TestUpdateLifecycleInfoRemote(t *testing.T) {
 			) error {
 				return errors.New("An expected error occurred")
 			},
-			instanaAgent: instanav1.RemoteAgent{},
+			instanaAgent: instanav1.InstanaAgentRemote{},
 		},
 		{
 			name:     "Should run with existing ConfigMap.Data field populated and UpdateLifecycleInfo",
@@ -364,7 +364,7 @@ func TestUpdateLifecycleInfoRemote(t *testing.T) {
 				config.Data["v0.0.1-dev_1234"] = string(currentDependentsJson)
 				return nil
 			},
-			instanaAgent: instanav1.RemoteAgent{ObjectMeta: metav1.ObjectMeta{Generation: 1234}},
+			instanaAgent: instanav1.InstanaAgentRemote{ObjectMeta: metav1.ObjectMeta{Generation: 1234}},
 		},
 	} {
 		t.Run(

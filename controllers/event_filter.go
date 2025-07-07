@@ -91,7 +91,7 @@ func filterPredicateRemote() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			switch createEvent.Object.(type) {
-			case *instanav1.RemoteAgent:
+			case *instanav1.InstanaAgentRemote:
 				return true
 			default:
 				return false
@@ -99,7 +99,7 @@ func filterPredicateRemote() predicate.Predicate {
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			switch e.ObjectOld.(type) {
-			case *instanav1.RemoteAgent:
+			case *instanav1.InstanaAgentRemote:
 				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
 			default:
 				return wasModifiedByOther(e.ObjectNew, e.ObjectOld)
@@ -107,7 +107,7 @@ func filterPredicateRemote() predicate.Predicate {
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			switch e.Object.(type) {
-			case *instanav1.RemoteAgent:
+			case *instanav1.InstanaAgentRemote:
 				return !e.DeleteStateUnknown
 			default:
 				return true

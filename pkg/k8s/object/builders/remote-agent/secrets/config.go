@@ -36,20 +36,20 @@ import (
 )
 
 type configBuilder struct {
-	*instanav1.RemoteAgent
-	statusManager      status.RemoteAgentStatusManager
+	*instanav1.InstanaAgentRemote
+	statusManager      status.InstanaAgentRemoteStatusManager
 	keysSecret         *corev1.Secret
 	logger             logr.Logger
 	additionalBackends []backends.RemoteSensorBackend
 }
 
 func NewConfigBuilder(
-	agent *instanav1.RemoteAgent,
-	statusManager status.RemoteAgentStatusManager,
+	agent *instanav1.InstanaAgentRemote,
+	statusManager status.InstanaAgentRemoteStatusManager,
 	keysSecret *corev1.Secret,
 	backends []backends.RemoteSensorBackend) commonbuilder.ObjectBuilder {
 	return &configBuilder{
-		RemoteAgent:        agent,
+		InstanaAgentRemote: agent,
 		statusManager:      statusManager,
 		keysSecret:         keysSecret,
 		logger:             logf.Log.WithName("instana-agent-remote-config-secret-builder"),
@@ -58,7 +58,7 @@ func NewConfigBuilder(
 }
 
 func (c *configBuilder) ComponentName() string {
-	return constants.ComponentRemoteAgent
+	return constants.ComponentInstanaAgentRemote
 }
 
 func (c *configBuilder) IsNamespaced() bool {

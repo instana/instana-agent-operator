@@ -40,7 +40,7 @@ func TestRemoteServiceAccountBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	sb := NewServiceAccountBuilder(nil)
 
 	assertions.True(sb.IsNamespaced())
-	assertions.Equal(constants.ComponentRemoteAgent, sb.ComponentName())
+	assertions.Equal(constants.ComponentInstanaAgentRemote, sb.ComponentName())
 }
 
 func TestRemoteServiceAccountBuilder_Build(t *testing.T) {
@@ -68,11 +68,11 @@ func TestRemoteServiceAccountBuilder_Build(t *testing.T) {
 				const annotationKeyName = "instana.io/example"
 				annotationKeyValue := rand.String(10)
 
-				agent := &instanav1.RemoteAgent{
+				agent := &instanav1.InstanaAgentRemote{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: namespace,
 					},
-					Spec: instanav1.RemoteAgentSpec{
+					Spec: instanav1.InstanaAgentRemoteSpec{
 						ServiceAccountSpec: instanav1.ServiceAccountSpec{
 							Create: instanav1.Create{
 								Create: test.createServiceAccount,
@@ -103,8 +103,8 @@ func TestRemoteServiceAccountBuilder_Build(t *testing.T) {
 				helpers := mocks.NewMockRemoteHelpers(ctrl)
 
 				sb := &serviceAccountBuilder{
-					RemoteAgent:   agent,
-					RemoteHelpers: helpers,
+					InstanaAgentRemote: agent,
+					RemoteHelpers:      helpers,
 				}
 
 				actual := sb.Build()

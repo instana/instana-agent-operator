@@ -29,28 +29,28 @@ import (
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 )
 
-func (r *RemoteAgentReconciler) getRemoteAgent(ctx context.Context, req ctrl.Request) (
-	*instanav1.RemoteAgent,
+func (r *InstanaAgentRemoteReconciler) getInstanaAgentRemote(ctx context.Context, req ctrl.Request) (
+	*instanav1.InstanaAgentRemote,
 	reconcileReturn,
 ) {
-	var agent instanav1.RemoteAgent
+	var agent instanav1.InstanaAgentRemote
 
 	log := logf.FromContext(ctx)
 
 	switch err := r.client.Get(ctx, req.NamespacedName, &agent); {
 	case k8serrors.IsNotFound(err):
-		log.V(10).Info("attempted to reconcile remote agent CR that could not be found")
+		log.V(10).Info("attempted to reconcile instana agent remote CR that could not be found")
 		return nil, reconcileSuccess(ctrl.Result{})
 	case !errors.Is(err, nil):
-		log.Error(err, "failed to retrieve info about remote agent CR")
+		log.Error(err, "failed to retrieve info about instana agent remote CR")
 		return nil, reconcileFailure(err)
 	default:
-		log.V(1).Info("successfully retrieved remote agent CR info")
+		log.V(1).Info("successfully retrieved instana agent remote CR info")
 		return &agent, reconcileContinue()
 	}
 }
 
-func (r *RemoteAgentReconciler) getAgent(ctx context.Context, namespace, hostAgentName string) (*instanav1.InstanaAgent, reconcileReturn) {
+func (r *InstanaAgentRemoteReconciler) getAgent(ctx context.Context, namespace, hostAgentName string) (*instanav1.InstanaAgent, reconcileReturn) {
 	var agent instanav1.InstanaAgent
 	err := r.client.Get(ctx, types.NamespacedName{Name: hostAgentName, Namespace: namespace}, &agent)
 	if k8serrors.IsNotFound(err) {
@@ -62,10 +62,10 @@ func (r *RemoteAgentReconciler) getAgent(ctx context.Context, namespace, hostAge
 	return &agent, reconcileContinue()
 }
 
-func (r *RemoteAgentReconciler) updateAgent(
+func (r *InstanaAgentRemoteReconciler) updateAgent(
 	ctx context.Context,
-	agentOld *instanav1.RemoteAgent,
-	agentNew *instanav1.RemoteAgent,
+	agentOld *instanav1.InstanaAgentRemote,
+	agentNew *instanav1.InstanaAgentRemote,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agentNew)
 
@@ -76,11 +76,11 @@ func (r *RemoteAgentReconciler) updateAgent(
 		client.FieldOwner(instanaclient.FieldOwnerName),
 	); errors.Is(err, nil) {
 	case true:
-		log.V(1).Info("successfully applied updates to remote agent CR")
+		log.V(1).Info("successfully applied updates to instana agent remote CR")
 		return reconcileSuccess(ctrl.Result{Requeue: true})
 	default:
 		if !k8serrors.IsNotFound(err) {
-			log.Error(err, "failed to apply updates to remote agent CR")
+			log.Error(err, "failed to apply updates to instana agent remote CR")
 		}
 		return reconcileFailure(err)
 	}

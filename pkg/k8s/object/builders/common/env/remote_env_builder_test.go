@@ -28,7 +28,7 @@ import (
 func TestRemoteEnvBuilderBuildPanicsWhenEnvVarNotExists(t *testing.T) {
 	assertions := require.New(t)
 
-	builder := NewEnvBuilderRemote(&instanav1.RemoteAgent{}, nil)
+	builder := NewEnvBuilderRemote(&instanav1.InstanaAgentRemote{}, nil)
 	assertions.PanicsWithError(
 		"unknown environment variable requested", func() {
 			builder.Build(EnvVarRemote(9999))
@@ -40,15 +40,15 @@ func TestRemoteEnvBuilderBuildPanicsWhenEnvVarNotExists(t *testing.T) {
 func TestRemoteEnvBuilderBuild(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		agent    *instanav1.RemoteAgent
+		agent    *instanav1.InstanaAgentRemote
 		zone     *instanav1.Zone
 		envVars  []EnvVarRemote
 		expected []corev1.EnvVar
 	}{
 		{
 			name: "Should produce all env vars with values from the Instana Agent Spec",
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Zone:    instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
 					Cluster: instanav1.Name{Name: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
 					Agent: instanav1.BaseAgentSpec{
@@ -166,7 +166,7 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				Mode: "INSTANA_AGENT_ZONE_MODE",
 				Name: instanav1.Name{Name: "INSTANA_AGENT_ZONE_NAME"},
 			},
-			agent: &instanav1.RemoteAgent{},
+			agent: &instanav1.InstanaAgentRemote{},
 			envVars: []EnvVarRemote{
 				AgentModeEnvRemote,
 				ZoneNameEnvRemote,
@@ -179,8 +179,8 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 		{
 			name: "Should not include any fields for boolean type that is set to false",
 			zone: &instanav1.Zone{},
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyUseDNS: false,
 					},
@@ -194,8 +194,8 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 		{
 			name: "Should allow http proxy without credentials, but different port",
 			zone: &instanav1.Zone{},
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost: "INSTANA_AGENT_PROXY_HOST",
 						ProxyPort: "8080",
@@ -212,8 +212,8 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 		{
 			name: "Should allow http proxy with credentials, and different protocol",
 			zone: &instanav1.Zone{},
-			agent: &instanav1.RemoteAgent{
-				Spec: instanav1.RemoteAgentSpec{
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:     "INSTANA_AGENT_PROXY_HOST",
 						ProxyPort:     "443",

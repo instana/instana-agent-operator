@@ -43,7 +43,7 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
 			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
-			agent := instanav1.RemoteAgent{}
+			agent := instanav1.InstanaAgentRemote{}
 
 			var unstrctrd client.Object = &unstructured.Unstructured{}
 
@@ -87,7 +87,7 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
 			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
-			agent := instanav1.RemoteAgent{}
+			agent := instanav1.InstanaAgentRemote{}
 
 			var unstrctrd client.Object = &unstructured.Unstructured{}
 
@@ -126,7 +126,7 @@ func TestRemoteOperatorUtilsDeleteAll(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
 			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
-			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &instanav1.RemoteAgent{}, dependentLifecycleManager)
+			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &instanav1.InstanaAgentRemote{}, dependentLifecycleManager)
 
 			// Mock calls
 			dependentLifecycleManager.EXPECT().

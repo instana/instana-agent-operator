@@ -33,7 +33,7 @@ import (
 func TestRemoteSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := require.New(t)
 
-	s := NewSecretBuilder(&instanav1.RemoteAgent{}, make([]backends.RemoteSensorBackend, 0))
+	s := NewSecretBuilder(&instanav1.InstanaAgentRemote{}, make([]backends.RemoteSensorBackend, 0))
 
 	assertions.True(s.IsNamespaced())
 	assertions.Equal("instana-agent-remote", s.ComponentName())
@@ -63,12 +63,12 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 						name := randString()
 						namespace := randString()
 
-						agent := instanav1.RemoteAgent{
+						agent := instanav1.InstanaAgentRemote{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      name,
 								Namespace: namespace,
 							},
-							Spec: instanav1.RemoteAgentSpec{
+							Spec: instanav1.InstanaAgentRemoteSpec{
 								Agent: instanav1.BaseAgentSpec{
 									KeysSecret:  keysSecret,
 									Key:         key,

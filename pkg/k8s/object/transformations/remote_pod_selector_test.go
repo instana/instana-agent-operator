@@ -117,7 +117,7 @@ func Test_podSelectorLabelGeneratorRemote_GetPodSelectorLabels(t *testing.T) {
 	agentName := rand.String(10)
 	component := rand.String(10)
 
-	agent := &instanav1.RemoteAgent{ObjectMeta: metav1.ObjectMeta{Name: agentName}}
+	agent := &instanav1.InstanaAgentRemote{ObjectMeta: metav1.ObjectMeta{Name: agentName}}
 
 	p := PodSelectorLabelsRemote(agent, component)
 
