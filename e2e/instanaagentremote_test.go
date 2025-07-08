@@ -1,9 +1,13 @@
+/*
+ * (c) Copyright IBM Corp. 2025
+ * (c) Copyright Instana Inc. 2025
+ */
+
 package e2e
 
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -186,12 +190,8 @@ func NewAgentRemoteCr(name string) v1.InstanaAgentRemote {
 				Name: "e2e",
 			},
 			// ensure to not overlap between concurrent test runs on different clusters, randomize cluster name, but have consistent zone
-			Cluster: v1.Name{Name: envconf.RandomName("e2e", 9)},
-			Agent: v1.BaseAgentSpec{
-				Key:          InstanaTestCfg.InstanaBackend.AgentKey,
-				EndpointHost: InstanaTestCfg.InstanaBackend.EndpointHost,
-				EndpointPort: strconv.Itoa(InstanaTestCfg.InstanaBackend.EndpointPort),
-			},
+			Cluster:           v1.Name{Name: envconf.RandomName("e2e", 9)},
+			ConfigurationYaml: "testing",
 		},
 	}
 }
