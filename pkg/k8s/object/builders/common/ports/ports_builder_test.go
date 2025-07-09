@@ -23,7 +23,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 		expectedServicePorts   []corev1.ServicePort
 	}{
 		{
-			name: "Enabled all with opt-in",
+			name: "Should enable all OpenTelemetry-ports when explicitly opted-in",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(true)},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: pointer.To(true)},
@@ -43,7 +43,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Enabled only GPRC",
+			name: "Should enable only GPRC OpenTelemetry-port when explicitly opted-in",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(true)},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: pointer.To(true)},
@@ -61,7 +61,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Enabled only HTTP",
+			name: "Should enable only HTTP OpenTelemetry-port when explicitly opted-in",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(true)},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: pointer.To(false)},
@@ -77,7 +77,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Disable all OLTP ports without legacy setting",
+			name: "Should disable all OpenTelemetry-ports when all is explicitly opted-out",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(false)},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: pointer.To(false)},
@@ -91,7 +91,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Disable all OLTP ports via legacy setting",
+			name: "Should disable all OpenTelemetry-ports when only parent field is explicitly set to false",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(false)},
 			},
@@ -103,7 +103,7 @@ func TestPortsBuilderGetPorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Conflicting supported and legacy settings",
+			name: "Should have parent OpenTelemetry enablement field take precedence even when child fields are set to true",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(false)},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: pointer.To(true)},
@@ -141,7 +141,7 @@ func TestPortsBuilderOverridePorts(t *testing.T) {
 		expectedServicePorts   []corev1.ServicePort
 	}{
 		{
-			name: "Both GRPC and HTTP ports are overwritten with another port number specified in OpenTelemetry",
+			name: "Should have both HTTP- and GRPC-port numbers overwritten when explicitly specified",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: &enabled},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: &enabled, Port: &GRPCPort},
@@ -161,7 +161,7 @@ func TestPortsBuilderOverridePorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Only HTTP port is overwritten with another port number specified in OpenTelemetry",
+			name: "Should have only HTTP-port overwritten when explicitly specified",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: &enabled},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: &enabled},
@@ -181,7 +181,7 @@ func TestPortsBuilderOverridePorts(t *testing.T) {
 			},
 		},
 		{
-			name: "Only GRPC port is overwritten with another port number specified in OpenTelemetry",
+			name: "Should have only GRPC-port overwritten when explicitly specified",
 			openTelemetrySettings: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: &enabled},
 				GRPC:    instanav1.OpenTelemetryPortConfig{Enabled: &enabled, Port: &GRPCPort},
