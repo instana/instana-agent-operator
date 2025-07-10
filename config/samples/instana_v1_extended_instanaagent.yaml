@@ -157,14 +157,13 @@ spec:
     create: true
 
   opentelemetry:
-  # enabled: false # legacy setting, will only enable grpc, defaults to false
+  # enabled: true # parent level setting defaults to true
    grpc:
-     enabled: true # takes precedence over legacy settings above, defaults to true if "grpc:" is present
+     enabled: true # only evaluated, if parent level setting is set to true or is not defined
      port: 4317 # default port for grpc
    http:
-     enabled: true # allows to enable http endpoints, defaults to true if "http:" is present
+     enabled: true # # only evaluated, if parent level setting is set to true or is not defined
      port: 4318 # default port for http
-
   prometheus:
     remoteWrite:
       enabled: false # If true, it will also apply `service.create=true`
