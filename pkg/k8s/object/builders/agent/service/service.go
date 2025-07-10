@@ -1,3 +1,7 @@
+/*
+(c) Copyright IBM Corp. 2024, 2025
+*/
+
 package service
 
 import (
@@ -20,10 +24,9 @@ const (
 
 func NewServiceBuilder(agent *instanav1.InstanaAgent) builder.ObjectBuilder {
 	return &serviceBuilder{
-		instanaAgent: agent,
-
+		instanaAgent:              agent,
 		podSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
-		portsBuilder:              ports.NewPortsBuilder(agent),
+		portsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
 		openTelemetrySettings:     agent.Spec.OpenTelemetry,
 	}
 }
@@ -44,6 +47,7 @@ func (s *serviceBuilder) IsNamespaced() bool {
 }
 
 func (s *serviceBuilder) build() *corev1.Service {
+	localPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -54,14 +58,9 @@ func (s *serviceBuilder) build() *corev1.Service {
 			Namespace: s.instanaAgent.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: s.podSelectorLabelGenerator.GetPodSelectorLabels(),
-			Ports: s.portsBuilder.GetServicePorts(
-				ports.AgentAPIsPort,
-				ports.OpenTelemetryLegacyPort,
-				ports.OpenTelemetryGRPCPort,
-				ports.OpenTelemetryHTTPPort,
-			),
-			InternalTrafficPolicy: pointer.To(corev1.ServiceInternalTrafficPolicyLocal),
+			Selector:              s.podSelectorLabelGenerator.GetPodSelectorLabels(),
+			Ports:                 s.portsBuilder.GetServicePorts(),
+			InternalTrafficPolicy: &localPolicy,
 		},
 	}
 }
@@ -72,7 +71,7 @@ func (s *serviceBuilder) Build() optional.Optional[client.Object] {
 		fallthrough
 	case pointer.DerefOrEmpty(s.instanaAgent.Spec.Prometheus.RemoteWrite.Enabled):
 		fallthrough
-	case s.openTelemetrySettings.IsEnabled():
+	case *s.openTelemetrySettings.Enabled.Enabled:
 		return optional.Of[client.Object](s.build())
 	default:
 		return optional.Empty[client.Object]()

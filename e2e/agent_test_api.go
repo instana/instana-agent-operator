@@ -1,6 +1,5 @@
 /*
- * (c) Copyright IBM Corp. 2024
- * (c) Copyright Instana Inc. 2024
+ * (c) Copyright IBM Corp. 2024, 2025
  */
 
 package e2e
@@ -392,7 +391,7 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		}
 
 		// wait for operator pods of the deployment to become ready
-		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
+		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*3))
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
@@ -685,7 +684,7 @@ func ValidateSecretsMountedFromExtraVolume() e2etypes.StepFunc {
 
 // Helper to produce test structs
 func NewAgentCr() v1.InstanaAgent {
-	boolTrue := true
+	enabled := true
 
 	return v1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -704,8 +703,9 @@ func NewAgentCr() v1.InstanaAgent {
 				EndpointPort: strconv.Itoa(InstanaTestCfg.InstanaBackend.EndpointPort),
 			},
 			OpenTelemetry: v1.OpenTelemetry{
-				GRPC: &v1.Enabled{Enabled: &boolTrue},
-				HTTP: &v1.Enabled{Enabled: &boolTrue},
+				Enabled: v1.Enabled{Enabled: &enabled},
+				GRPC:    v1.OpenTelemetryPortConfig{Enabled: &enabled},
+				HTTP:    v1.OpenTelemetryPortConfig{Enabled: &enabled},
 			},
 		},
 	}
