@@ -87,18 +87,11 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 	if c.Spec.Agent.ConfigurationYaml != "" {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
+
 	// Always render OpenTelemetry configuration if any field is defined
-	// The workload in the pod assumes by default to start opentelemetry ports
-	// for http and grpc with default ports if not explicitly disabled
-	otlp := c.Spec.OpenTelemetry
-	if otlp.Enabled.Enabled != nil ||
-		otlp.HTTP.Enabled != nil ||
-		otlp.GRPC.Enabled != nil ||
-		otlp.HTTP.Port != nil ||
-		otlp.GRPC.Port != nil {
-		mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp})
-		data["configuration-opentelemetry.yaml"] = mrshl
-	}
+	mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": c.Spec.OpenTelemetry})
+	data["configuration-opentelemetry.yaml"] = mrshl
+
 	if pointer.DerefOrEmpty(c.Spec.Prometheus.RemoteWrite.Enabled) {
 		mrshl, _ := yaml.Marshal(
 			map[string]any{
@@ -114,7 +107,7 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 
 	// Deprecated since k8s sensor deployment will always be enabled now,
 	// can remove once deprecated sensor is removed from agent
-	mrshl, _ := yaml.Marshal(
+	mrshl, _ = yaml.Marshal(
 		map[string]any{
 			"com.instana.plugin.kubernetes": map[string]any{
 				"enabled": false,

@@ -426,16 +426,6 @@ func TestAgentConfigBuildForOTEL(t *testing.T) {
 			},
 		},
 		{
-			name:          "Should not have OpenTelemetry configuration YAML-file when no OpenTelemetry fields are defined",
-			openTelemetry: instanav1.OpenTelemetry{},
-			expected: map[string][]byte{
-				"cluster_name":       []byte("test-cluster"),
-				"configuration.yaml": []byte("configuration-yaml-value"),
-				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
-				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\n"),
-			},
-		},
-		{
 			name: "Should have HTTP and GRPC disabled, when their fields have explicitly been set to false",
 			openTelemetry: instanav1.OpenTelemetry{
 				Enabled: instanav1.Enabled{Enabled: pointer.To(true)},
