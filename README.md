@@ -35,6 +35,19 @@ Prerequisites:
 * Something like [Docker](https://www.docker.com/) or [Podman](https://podman.io/)
 * Instana Agent key
 
+There's also the possibility of using the nix flake which provides a devShell with the right version of go, gopls and gotools as well as the operator-sdk.
+
+In order to use it you will need to install:
+* [nix](https://nixos.org/)
+* [direnv](https://direnv.net/)
+
+Afterwards you only need to run once:
+```
+direnv allow
+```
+
+In order to tell direnv to allow the flake to be activated anytime you're inside the repository.
+
 Developing (and running) the Operator is easiest in two ways:
 
 ### **Option 1:** Running Go Operator locally against a **Minikube** cluster

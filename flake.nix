@@ -1,5 +1,6 @@
 {
-  description = "A nix-flake-based Go development environment";
+  description =
+    "A nix-flake-based Go/Kubernetes Controller development environment using operator-sdk";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -42,6 +43,9 @@
 
             # goimports, godoc, etc.
             gotools
+
+            # SDK for building Kubernetes applications
+            operator-sdk
           ];
         };
       });
