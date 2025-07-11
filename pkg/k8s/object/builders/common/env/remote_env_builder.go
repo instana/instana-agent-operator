@@ -34,7 +34,6 @@ type EnvVarRemote int
 const (
 	AgentModeEnvRemote EnvVarRemote = iota
 	ZoneNameEnvRemote
-	ClusterNameEnvRemote
 	AgentEndpointEnvRemote
 	AgentEndpointPortEnvRemote
 	MavenRepoURLEnvRemote
@@ -69,7 +68,6 @@ const (
 	PodIPEnvRemote
 	PodUIDEnvRemote
 	PodNamespaceEnvRemote
-	HostnameEnvRemote
 )
 
 type EnvBuilderRemote interface {
@@ -111,8 +109,6 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		return e.agentModeEnv()
 	case ZoneNameEnvRemote:
 		return e.zoneNameEnv()
-	case ClusterNameEnvRemote:
-		return stringToEnvVar("INSTANA_KUBERNETES_CLUSTER_NAME", e.agent.Spec.Cluster.Name)
 	case AgentEndpointEnvRemote:
 		return stringToEnvVar("INSTANA_AGENT_ENDPOINT", e.agent.Spec.Agent.EndpointHost)
 	case AgentEndpointPortEnvRemote:
@@ -151,10 +147,8 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		return stringToEnvVar("INSTANA_AGENT_HTTP_LISTEN", e.agent.Spec.Agent.ListenAddress)
 	case RedactK8sSecretsEnvRemote:
 		return stringToEnvVar("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
-	case HostnameEnvRemote:
-		return stringToEnvVar("INSTANA_AGENT_HOST_NAME", e.agent.Spec.Hostname)
 	case AgentZoneEnvRemote:
-		return &corev1.EnvVar{Name: "AGENT_ZONE", Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name)}
+		return &corev1.EnvVar{Name: "AGENT_ZONE", Value: optional.Of(e.agent.Spec.Zone.Name).GetOrDefault(e.agent.Spec.Zone.Name)}
 	case HTTPSProxyEnvRemote:
 		return e.httpsProxyEnv()
 	case BackendURLEnvRemote:

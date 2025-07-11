@@ -75,7 +75,6 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	envVars := d.EnvBuilderRemote.Build(
 		env.AgentModeEnvRemote,
 		env.ZoneNameEnvRemote,
-		env.ClusterNameEnvRemote,
 		env.AgentEndpointEnvRemote,
 		env.AgentEndpointPortEnvRemote,
 		env.MavenRepoURLEnvRemote,
@@ -101,7 +100,6 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.DownloadKeyEnvRemote,
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
-		env.HostnameEnvRemote,
 	)
 	d.SortEnvVarsByName(envVars)
 	return envVars
@@ -157,30 +155,11 @@ func (d *deploymentBuilder) getTolerations() []corev1.Toleration {
 	}
 }
 
-func (d *deploymentBuilder) injectFailingReadinessProbeOnNoHostAgent() bool {
-	// Add real conditions here as needed, e.g.:
-	return d.Spec.Agent.Key == ""
-}
-
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
 	name := fmt.Sprintf("instana-agent-r-%s", d.getName())
-
-	var readinessProbe *corev1.Probe
-	if d.injectFailingReadinessProbeOnNoHostAgent() {
-		readinessProbe = &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/not-ready", // Intentionally invalid
-					Port: intstr.FromInt(8080),
-				},
-			},
-			InitialDelaySeconds: 0,
-			PeriodSeconds:       5,
-			FailureThreshold:    100,
-		}
-	}
+	hostname := fmt.Sprintf("instana-agent-r-%s-%s", d.GetNamespace(), d.getName())
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -209,6 +188,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirst,
 					ImagePullSecrets:   d.ImagePullSecrets(),
+					Hostname:           hostname,
 					Containers: []corev1.Container{
 						{
 							Name:            d.getName(),
@@ -229,8 +209,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 								PeriodSeconds:       10,
 								FailureThreshold:    3,
 							},
-							Resources:      d.Spec.Agent.Pod.GetOrDefault(),
-							ReadinessProbe: readinessProbe,
+							Resources: d.Spec.Agent.Pod.GetOrDefault(),
 						},
 					},
 					Tolerations: d.getTolerations(),
@@ -256,9 +235,9 @@ func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 	switch {
 	case d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "":
 		fallthrough
-	case d.zone == nil && d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "":
+	case d.zone == nil && d.Spec.Zone.Name == "":
 		fallthrough
-	case d.zone != nil && d.Spec.Cluster.Name == "":
+	case d.zone != nil:
 		return optional.Empty[client.Object]()
 	default:
 		return optional.Of[client.Object](d.build())

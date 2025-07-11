@@ -28,136 +28,15 @@ import (
 func TestInstanaAgentRemote_Default(t *testing.T) {
 	defaultTrue := pointer.To(true)
 
-	mainAgent := InstanaAgent{
-		Spec: InstanaAgentSpec{
-			Agent: BaseAgentSpec{
-				EndpointHost: "custom-host.instana.io",
-				EndpointPort: "8443",
-				ExtendedImageSpec: ExtendedImageSpec{
-					ImageSpec: ImageSpec{
-						Name:       "custom/agent",
-						Tag:        "1.2.3",
-						PullPolicy: corev1.PullIfNotPresent,
-					},
-				},
-				Key:               "agent-key",
-				DownloadKey:       "download-key",
-				KeysSecret:        "instana-keys",
-				ListenAddress:     "0.0.0.0",
-				MinReadySeconds:   10,
-				ConfigurationYaml: "config-yaml",
-				AdditionalBackends: []BackendSpec{
-					{
-						EndpointHost: "backend1",
-						EndpointPort: "443",
-						Key:          "test",
-					},
-					{
-						EndpointHost: "backend2",
-						EndpointPort: "443",
-						Key:          "test",
-					},
-				},
-				TlsSpec:                   TlsSpec{SecretName: "tls-secret"},
-				ProxyHost:                 "proxy-host",
-				ProxyPort:                 "3128",
-				ProxyProtocol:             "http",
-				ProxyUseDNS:               true,
-				ProxyUser:                 "proxy-user",
-				ProxyPassword:             "proxy-pass",
-				Env:                       map[string]string{"ENV_VAR": "value"},
-				RedactKubernetesSecrets:   "true",
-				MvnRepoFeaturesPath:       "/mvn/features",
-				MvnRepoSharedPath:         "/mvn/shared",
-				MvnRepoUrl:                "http://mvn.repo",
-				MirrorReleaseRepoUsername: "release-user",
-				MirrorReleaseRepoPassword: "release-pass",
-				MirrorReleaseRepoUrl:      "http://release.repo",
-				MirrorSharedRepoUsername:  "shared-user",
-				MirrorSharedRepoPassword:  "shared-pass",
-				MirrorSharedRepoUrl:       "http://shared.repo",
-			},
-			Cluster: Name{Name: "test-cluster"},
-			Rbac:    Create{Create: defaultTrue},
-			ServiceAccountSpec: ServiceAccountSpec{
-				Create: Create{Create: defaultTrue},
-			},
-		},
-	}
-
 	tests := []struct {
 		name     string
 		spec     *InstanaAgentRemoteSpec
 		expected *InstanaAgentRemoteSpec
 	}{
 		{
-			name: "defaults_from_host_agent",
+			name: "agent_setup",
 			spec: &InstanaAgentRemoteSpec{
 				ConfigurationYaml: "remote-config-yaml",
-			},
-			expected: &InstanaAgentRemoteSpec{
-				ConfigurationYaml: "remote-config-yaml",
-				Agent: BaseAgentSpec{
-					EndpointHost: "custom-host.instana.io",
-					EndpointPort: "8443",
-					ExtendedImageSpec: ExtendedImageSpec{
-						ImageSpec: ImageSpec{
-							Name:       "custom/agent",
-							Tag:        "1.2.3",
-							PullPolicy: corev1.PullIfNotPresent,
-						},
-					},
-					Key:               "agent-key",
-					DownloadKey:       "download-key",
-					KeysSecret:        "instana-keys",
-					ListenAddress:     "0.0.0.0",
-					MinReadySeconds:   10,
-					ConfigurationYaml: "remote-config-yaml",
-					AdditionalBackends: []BackendSpec{
-						{
-							EndpointHost: "backend1",
-							EndpointPort: "443",
-							Key:          "test",
-						},
-						{
-							EndpointHost: "backend2",
-							EndpointPort: "443",
-							Key:          "test",
-						},
-					},
-					TlsSpec:                   TlsSpec{SecretName: "tls-secret"},
-					ProxyHost:                 "proxy-host",
-					ProxyPort:                 "3128",
-					ProxyProtocol:             "http",
-					ProxyUseDNS:               true,
-					ProxyUser:                 "proxy-user",
-					ProxyPassword:             "proxy-pass",
-					RedactKubernetesSecrets:   "true",
-					MvnRepoFeaturesPath:       "/mvn/features",
-					MvnRepoSharedPath:         "/mvn/shared",
-					MvnRepoUrl:                "http://mvn.repo",
-					MirrorReleaseRepoUsername: "release-user",
-					MirrorReleaseRepoPassword: "release-pass",
-					MirrorReleaseRepoUrl:      "http://release.repo",
-					MirrorSharedRepoUsername:  "shared-user",
-					MirrorSharedRepoPassword:  "shared-pass",
-					MirrorSharedRepoUrl:       "http://shared.repo",
-				},
-				Cluster: Name{
-					Name: "test-cluster",
-				},
-				Rbac: Create{Create: defaultTrue},
-				ServiceAccountSpec: ServiceAccountSpec{
-					Create: Create{Create: defaultTrue},
-				},
-				Hostname: "instana-agent-remote-default-instana-agent-remote",
-			},
-		},
-		{
-			name: "manual_config_agent",
-			spec: &InstanaAgentRemoteSpec{
-				ConfigurationYaml: "remote-config-yaml",
-				ManualSetup:       defaultTrue,
 				Zone: Name{
 					"test",
 				},
@@ -174,12 +53,8 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 					Key:         "agent-key-123",
 					DownloadKey: "download-key",
 				},
-				Cluster: Name{
-					Name: "test-cluster",
-				},
 			},
 			expected: &InstanaAgentRemoteSpec{
-				ManualSetup:       defaultTrue,
 				ConfigurationYaml: "remote-config-yaml",
 				Zone: Name{
 					"test",
@@ -198,14 +73,10 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 					DownloadKey:       "download-key",
 					ConfigurationYaml: "remote-config-yaml",
 				},
-				Cluster: Name{
-					Name: "test-cluster",
-				},
 				Rbac: Create{Create: defaultTrue},
 				ServiceAccountSpec: ServiceAccountSpec{
 					Create: Create{Create: defaultTrue},
 				},
-				Hostname: "instana-agent-remote-default-instana-agent-remote",
 			},
 		},
 	}
@@ -221,11 +92,7 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 				},
 				Spec: *tt.spec,
 			}
-			if ra.Spec.ManualSetup == nil {
-				ra.InheritDefault(mainAgent)
-			} else {
-				ra.Default()
-			}
+			ra.Default()
 
 			assertions.Equal(tt.expected, &ra.Spec)
 		})

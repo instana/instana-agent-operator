@@ -20,7 +20,6 @@ import (
 	"errors"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -48,18 +47,6 @@ func (r *InstanaAgentRemoteReconciler) getInstanaAgentRemote(ctx context.Context
 		log.V(1).Info("successfully retrieved instana agent remote CR info")
 		return &agent, reconcileContinue()
 	}
-}
-
-func (r *InstanaAgentRemoteReconciler) getAgent(ctx context.Context, namespace, hostAgentName string) (*instanav1.InstanaAgent, reconcileReturn) {
-	var agent instanav1.InstanaAgent
-	err := r.client.Get(ctx, types.NamespacedName{Name: hostAgentName, Namespace: namespace}, &agent)
-	if k8serrors.IsNotFound(err) {
-		return nil, reconcileSuccess(ctrl.Result{})
-	}
-	if err != nil {
-		return nil, reconcileFailure(err)
-	}
-	return &agent, reconcileContinue()
 }
 
 func (r *InstanaAgentRemoteReconciler) updateAgent(

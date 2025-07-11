@@ -54,9 +54,6 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 		Name:      "instana-agent-r-" + objectMeta.Name + "-config",
 		Namespace: objectMeta.Namespace,
 	}
-	cluster := instanav1.Name{
-		Name: objectMeta.Name,
-	}
 	backends := []instanav1.BackendSpec{
 		{
 			EndpointHost: "additional-backend-2-host",
@@ -91,7 +88,6 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			agent: instanav1.InstanaAgentRemote{
 				ObjectMeta: objectMeta,
 				Spec: instanav1.InstanaAgentRemoteSpec{
-					Cluster: cluster,
 					Agent: instanav1.BaseAgentSpec{
 						EndpointHost:      "main-backend-host",
 						EndpointPort:      "main-backend-port",
@@ -115,8 +111,7 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 			},
 			keysSecret: &corev1.Secret{},
 			expected: map[string][]byte{
-				"cluster_name":       []byte(objectMeta.Name),
-				"configuration.yaml": []byte("configuration-yaml-value"),
+				"configuration.yaml":                           []byte("configuration-yaml-value"),
 				"configuration-disable-kubernetes-sensor.yaml": []byte("com.instana.plugin.kubernetes:\n    enabled: false\n"),
 				"com.instana.agent.main.sender.Backend-1.cfg":  []byte("host=main-backend-host\nport=main-backend-port\nprotocol=HTTP/2\nkey=main-backend-key\nproxy.type=HTTP\nproxy.host=proxy-host-value\nproxy.port=proxy-port-value\nproxy.dns=true\nproxy.user=proxy-user-value\nproxy.password=proxy-password-value\n"),
 			},

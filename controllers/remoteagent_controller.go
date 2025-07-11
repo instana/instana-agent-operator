@@ -18,23 +18,16 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
@@ -54,44 +47,6 @@ func AddRemote(mgr manager.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
-		Watches(
-			&instanav1.InstanaAgent{},
-			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-				log := log.FromContext(ctx)
-
-				// Ensure the triggering object is namespaced
-				namespace := obj.GetNamespace()
-				if namespace == "" {
-					//agent needs to be namespaced bound. If not do no reconcile
-					return nil
-				}
-
-				var remoteAgentList instanav1.InstanaAgentRemoteList
-				if err := mgr.GetClient().List(ctx, &remoteAgentList, &client.ListOptions{
-					Namespace: namespace,
-				}); err != nil {
-					//error retrieving instana agent remote specs in namespace. do not trigger reconcile
-					return nil
-				}
-
-				//no instana agent remote specs in namespace. do not trigger reconcile
-				if len(remoteAgentList.Items) == 0 {
-					log.Info("No InstanaAgentRemote in the same namespace as InstanaAgent", "namespace", namespace)
-					return nil
-				}
-
-				var requests []reconcile.Request
-				for _, remoteAgent := range remoteAgentList.Items {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      remoteAgent.Name,
-							Namespace: remoteAgent.Namespace,
-						},
-					})
-				}
-				return requests
-			}),
-		).
 		WithEventFilter(filterPredicateRemote()).
 		Complete(
 			NewInstanaAgentRemoteReconciler(
@@ -137,16 +92,7 @@ func (r *InstanaAgentRemoteReconciler) reconcile(
 	ctx = logr.NewContext(ctx, log)
 	log.Info("reconciling instana agent remote CR")
 
-	hostAgent, _ := r.getAgent(ctx, agent.Namespace, "instana-agent")
-	//if host agent exists in namespace inherit values otherwise waits for a host agent to be created
-	if hostAgent != nil && agent.Spec.ManualSetup == nil {
-		if err := r.setOwnerReferenceIfNeeded(ctx, agent, hostAgent); err != nil {
-			return reconcileFailure(err)
-		}
-		agent.InheritDefault(*hostAgent)
-	} else { //manual setup is set to true (user configures all values. nothing is inherited)
-		agent.Default()
-	}
+	agent.Default()
 
 	operatorUtils := operator_utils.NewRemoteOperatorUtils(
 		ctx,
@@ -171,18 +117,6 @@ func (r *InstanaAgentRemoteReconciler) reconcile(
 	}
 
 	backends := r.getRemoteSensorBackends(agent)
-	if hostAgent == nil && agent.Spec.ManualSetup == nil {
-		log.Info("InstanaAgent not found, requeuing InstanaAgentRemote Reconciliation", "namespace", req.Namespace)
-		r.applyResources(
-			ctx,
-			agent,
-			operatorUtils,
-			statusManager,
-			keysSecret,
-			backends,
-		)
-		return reconcileSuccess(ctrl.Result{RequeueAfter: 60 * time.Second})
-	}
 
 	if applyResourcesRes := r.applyResources(
 		ctx,
@@ -203,7 +137,6 @@ func (r *InstanaAgentRemoteReconciler) reconcile(
 // +kubebuilder:rbac:groups=instana.io,resources=agentsremote,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete;bind
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=instana.io,resources=agentsremote/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=instana.io,resources=agentsremote/finalizers,verbs=update
@@ -227,50 +160,4 @@ func (r *InstanaAgentRemoteReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}()
 
 	return r.reconcile(ctx, req, statusManager).reconcileResult()
-}
-
-// sets instana agent daemonset as owner for cascading deletion of inherited instana agent remote
-func (r *InstanaAgentRemoteReconciler) setOwnerReferenceIfNeeded(
-	ctx context.Context,
-	remoteAgent *instanav1.InstanaAgentRemote,
-	instanaAgent *instanav1.InstanaAgent,
-) error {
-	log := log.FromContext(ctx)
-
-	// Store pre-modified copy
-	original := remoteAgent.DeepCopy()
-
-	if hasOwnerReference(remoteAgent, metav1.OwnerReference{
-		APIVersion: instanaAgent.APIVersion,
-		Kind:       instanaAgent.Kind,
-		Name:       instanaAgent.Name,
-		UID:        instanaAgent.UID,
-	}) {
-		return nil // already owned
-	}
-
-	if err := controllerutil.SetControllerReference(instanaAgent, remoteAgent, r.scheme); err != nil {
-		log.Error(err, "Failed to set owner reference")
-		return err
-	}
-
-	if err := r.client.Patch(ctx, remoteAgent, client.MergeFrom(original)); err != nil {
-		log.Error(err, "Failed to patch InstanaAgentRemote with owner reference")
-		return err
-	}
-
-	log.Info("Successfully set InstanaAgent as owner of InstanaAgentRemote", "ownerReferences", remoteAgent.OwnerReferences)
-	return nil
-}
-
-func hasOwnerReference(remote *instanav1.InstanaAgentRemote, owner metav1.OwnerReference) bool {
-	for _, ref := range remote.OwnerReferences {
-		if ref.UID == owner.UID &&
-			ref.Name == owner.Name &&
-			ref.Kind == owner.Kind &&
-			ref.APIVersion == owner.APIVersion {
-			return true
-		}
-	}
-	return false
 }

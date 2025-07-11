@@ -3390,13 +3390,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - name
                 x-kubernetes-list-type: map
-              cluster:
-                properties:
-                  name:
-                    type: string
-                type: object
-              hostname:
-                type: string
               limits:
                 additionalProperties:
                   anyOf:
@@ -3408,10 +3401,6 @@ spec:
                   Limits describes the maximum amount of compute resources allowed.
                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                 type: object
-              manual_setup:
-                description: Supply Agent configuration values instead of inheriting
-                  from host.
-                type: boolean
               rbac:
                 description: Specifies whether RBAC resources should be created.
                 properties:
@@ -3456,6 +3445,7 @@ spec:
                     type: string
                 type: object
             required:
+            - agent
             - remote_configuration_yaml
             type: object
           status:

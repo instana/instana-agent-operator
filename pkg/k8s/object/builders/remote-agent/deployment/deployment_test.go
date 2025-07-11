@@ -145,7 +145,6 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 	envBuilder.EXPECT().Build(
 		env.AgentModeEnvRemote,
 		env.ZoneNameEnvRemote,
-		env.ClusterNameEnvRemote,
 		env.AgentEndpointEnvRemote,
 		env.AgentEndpointPortEnvRemote,
 		env.MavenRepoURLEnvRemote,
@@ -171,7 +170,6 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 		env.DownloadKeyEnvRemote,
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
-		env.HostnameEnvRemote,
 	).
 		Return(expected)
 
@@ -393,9 +391,6 @@ func TestDeploymentBuilder_Build(t *testing.T) {
 				Spec: instanav1.InstanaAgentRemoteSpec{
 					Agent: instanav1.BaseAgentSpec{
 						Key: "key",
-					},
-					Cluster: instanav1.Name{
-						Name: "cluster",
 					},
 					Zone: instanav1.Name{
 						Name: "zone-a",

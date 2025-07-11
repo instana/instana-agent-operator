@@ -46,11 +46,10 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 		expected []corev1.EnvVar
 	}{
 		{
-			name: "Should produce all env vars with values from the Instana Agent Spec",
+			name: "Should produce all env vars with values from the Instana Agent Remote Spec",
 			agent: &instanav1.InstanaAgentRemote{
 				Spec: instanav1.InstanaAgentRemoteSpec{
-					Zone:    instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
-					Cluster: instanav1.Name{Name: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
+					Zone: instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
 					Agent: instanav1.BaseAgentSpec{
 						EndpointHost:              "INSTANA_AGENT_ENDPOINT_HOST",
 						EndpointPort:              "INSTANA_AGENT_ENDPOINT_PORT",
@@ -83,7 +82,6 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 			envVars: []EnvVarRemote{
 				AgentModeEnvRemote,
 				ZoneNameEnvRemote,
-				ClusterNameEnvRemote,
 				AgentEndpointEnvRemote,
 				AgentEndpointPortEnvRemote,
 				MavenRepoURLEnvRemote,
@@ -124,7 +122,6 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				{Name: "USER_SPECIFIED_ENV_VAR2", Value: "USER_SPECIFIED_ENV_VAR_VAL2"},
 				{Name: "INSTANA_AGENT_MODE", Value: "INSTANA_BASE_AGENT_SPEC_MODE"},
 				{Name: "INSTANA_ZONE", Value: "INSTANA_AGENT_SPEC_ZONE_NAME"},
-				{Name: "INSTANA_KUBERNETES_CLUSTER_NAME", Value: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
 				{Name: "INSTANA_AGENT_ENDPOINT", Value: "INSTANA_AGENT_ENDPOINT_HOST"},
 				{Name: "INSTANA_AGENT_ENDPOINT_PORT", Value: "INSTANA_AGENT_ENDPOINT_PORT"},
 				{Name: "INSTANA_MVN_REPOSITORY_URL", Value: "INSTANA_MVN_REPOSITORY_URL"},
@@ -143,7 +140,7 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				{Name: "INSTANA_AGENT_PROXY_USE_DNS", Value: "true"},
 				{Name: "INSTANA_AGENT_HTTP_LISTEN", Value: "INSTANA_AGENT_HTTP_LISTEN"},
 				{Name: "INSTANA_KUBERNETES_REDACT_SECRETS", Value: "INSTANA_KUBERNETES_REDACT_SECRETS"},
-				{Name: "AGENT_ZONE", Value: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
+				{Name: "AGENT_ZONE", Value: "INSTANA_AGENT_SPEC_ZONE_NAME"},
 				{Name: "HTTPS_PROXY", Value: "INSTANA_AGENT_PROXY_PROTOCOL://INSTANA_AGENT_PROXY_USER:INSTANA_AGENT_PROXY_PASSWORD@INSTANA_AGENT_PROXY_HOST:80"},
 				{Name: "BACKEND_URL", Value: "https://$(BACKEND)"},
 				{Name: "NO_PROXY", Value: "kubernetes.default.svc"},

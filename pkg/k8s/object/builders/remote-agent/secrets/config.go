@@ -92,9 +92,6 @@ func (c *configBuilder) Build() optional.Optional[client.Object] {
 func (c *configBuilder) data() (map[string][]byte, error) {
 	data := map[string][]byte{}
 
-	if c.Spec.Cluster.Name != "" {
-		data["cluster_name"] = []byte(c.Spec.Cluster.Name)
-	}
 	if c.Spec.Agent.ConfigurationYaml != "" {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
