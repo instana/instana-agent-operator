@@ -1,99 +1,97 @@
 version: "2"
 
 tasks:
-  pr-code-checks:
-    displayName: "Build amd64 image"
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-              trap env EXIT
-              env
-              set -x
-          fi
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        when: false
+  # pr-code-checks:
+  #   displayName: "Build amd64 image"
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+  #             trap env EXIT
+  #             env
+  #             set -x
+  #         fi
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
 
-  pr-code-checks-2:
-    from: pr-code-checks
-    displayName: "Build arm64 image"
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-              trap env EXIT
-              env
-              set -x
-          fi
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        when: false
+  # pr-code-checks-2:
+  #   from: pr-code-checks
+  #   displayName: "Build arm64 image"
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+  #             trap env EXIT
+  #             env
+  #             set -x
+  #         fi
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
 
-  pr-code-checks-3:
-    from: pr-code-checks
-    displayName: "Build s390x image"
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-              trap env EXIT
-              env
-              set -x
-          fi
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        when: false
-  pr-code-checks-4:
-    from: pr-code-checks
-    displayName: "Build ppc64le image"
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-              trap env EXIT
-              env
-              set -x
-          fi
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        when: false
+  # pr-code-checks-3:
+  #   from: pr-code-checks
+  #   displayName: "Build s390x image"
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+  #             trap env EXIT
+  #             env
+  #             set -x
+  #         fi
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+      
+  # pr-code-checks-4:
+  #   from: pr-code-checks
+  #   displayName: "Build ppc64le image"
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+  #             trap env EXIT
+  #             env
+  #             set -x
+  #         fi
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+      
   pr-code-checks-5:
     from: pr-code-checks
     displayName: "Build and test agent operator"
@@ -102,6 +100,7 @@ tasks:
       - dind
     steps:
       - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
@@ -112,247 +111,226 @@ tasks:
               set -x
           fi
           pwd
-          GO_VERSION=1.24.1
-          echo "=== Installing Golang ${GO_VERSION} ==="
-          echo "Downloading golang binaries"
-          curl -sLo "go${GO_VERSION}.linux-amd64.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
-
-          echo "Get checksum"
-          GO_SHA256=$(curl -s "https://go.dev/dl/?mode=json&include=all" | jq -r '.[] | select(.version=="go'${GO_VERSION}'") | .files[] | select(.filename=="go'${GO_VERSION}'.linux-amd64.tar.gz") | .sha256')
-          echo "GO_SHA256=${GO_SHA256}"
-
-          echo "Validating checksum"
-          echo "${GO_SHA256} go${GO_VERSION}.linux-amd64.tar.gz" | sha256sum --check
-          echo "Validate signature"
-          curl -sLo go${GO_VERSION}.linux-amd64.tar.gz.asc "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz.asc"
-          curl -sLo linux_signing_key.pub https://dl.google.com/dl/linux/linux_signing_key.pub
-
-          gpg --import linux_signing_key.pub
-          gpg --verify go${GO_VERSION}.linux-amd64.tar.gz.asc go${GO_VERSION}.linux-amd64.tar.gz
-
-          echo "All right, we have legit go binaries, installing it"
-          tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
-          rm -f go${GO_VERSION}.linux-amd64.tar.gz
-
+          yum -y install microdnf
+          echo "Installing jq"
+          microdnf install -y jq tar gzip gpg
+          source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+          export PATH=$PATH:/usr/local/go/bin
+          export GOROOT=/usr/local/go
+          export GOPATH=$WORKSPACE/$APP_REPO_FOLDER/
           make build
       - name: detect-secrets
         include:
           - docker-socket
-      - name: compliance-checks
-        when: false
   
-  pr-code-checks-6:
-    from:: pr-code-checks
-    displayName: create-tag-files
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        include:
-          - docker-socket
-        script: |
-         #!/usr/bin/env bash
-          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-              trap env EXIT
-              env
-              set -x
-          fi 
-          - -exc
-          - |
-          set -e
-          cat << EOF > image-tags/amd64
-          ${GIT_COMMIT}-amd64
-          EOF
-          cat << EOF > image-tags/arm64
-          ${GIT_COMMIT}-arm64
-          EOF
-          cat << EOF > image-tags/ppc64le
-          ${GIT_COMMIT}-ppc64le
-          EOF
-          cat << EOF > image-tags/s390x
-          ${GIT_COMMIT}-s390x
-          EOF
-          cat << EOF > image-tags/multi-arch
-          $GIT_COMMIT
-          EOF
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        when: false
+  # pr-code-checks-6:
+  #   from: pr-code-checks
+  #   displayName: "create-tag-files"
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #        #!/usr/bin/env bash
+  #         if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+  #             trap env EXIT
+  #             env
+  #             set -x
+  #         fi 
+  #         - -exc
+  #         - |
+  #         set -e
+  #         cat << EOF > image-tags/amd64
+  #         ${GIT_COMMIT}-amd64
+  #         EOF
+  #         cat << EOF > image-tags/arm64
+  #         ${GIT_COMMIT}-arm64
+  #         EOF
+  #         cat << EOF > image-tags/ppc64le
+  #         ${GIT_COMMIT}-ppc64le
+  #         EOF
+  #         cat << EOF > image-tags/s390x
+  #         ${GIT_COMMIT}-s390x
+  #         EOF
+  #         cat << EOF > image-tags/multi-arch
+  #         $GIT_COMMIT
+  #         EOF
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
 
-  pr-code-checks-7:
-    from: pr-code-checks
-    displayName: e2e-ocp-latest
-    runAfter:
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-3
-      - pr-code-checks-4
-      - pr-code-checks-5
-      - pr-code-checks-9
-      - pr-code-checks-10
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        script: |
-          #!/usr/bin/env bash
-          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-            trap env EXIT
-            env
-            set -x
-          fi
-          if [[ "$(get_env run-ocp-fyre-latest)" == "false" ]]; then
-              echo "skipping tests due to run-ocp-fyre-latest being false"
-              exit 0
-          fi
-          SKIP_INSTALL_GCLOUD=true
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/setup.sh
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build.sh
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh ocp-fyre-latest pr-code-checks-7
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        include:
-          - docker-socket
+  # pr-code-checks-7:
+  #   from: pr-code-checks
+  #   displayName: e2e-ocp-latest
+  #   runAfter:
+  #     - pr-code-checks
+  #     - pr-code-checks-2
+  #     - pr-code-checks-3
+  #     - pr-code-checks-4
+  #     - pr-code-checks-5
+  #     - pr-code-checks-9
+  #     - pr-code-checks-10
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+  #           trap env EXIT
+  #           env
+  #           set -x
+  #         fi
+  #         if [[ "$(get_env run-ocp-fyre-latest)" == "false" ]]; then
+  #             echo "skipping tests due to run-ocp-fyre-latest being false"
+  #             exit 0
+  #         fi
+  #         SKIP_INSTALL_GCLOUD=true
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/setup.sh
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build.sh
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh ocp-fyre-latest pr-code-checks-7
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
 
-  pr-code-checks-8:
-    from: pr-code-checks
-    displayName: e2e-gke-latest
-    runAfter:
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-3
-      - pr-code-checks-4
-      - pr-code-checks-5
-      - pr-code-checks-9
-      - pr-code-checks-10
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        script: |
-          #!/usr/bin/env bash
-          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-            trap env EXIT
-            env
-            set -x
-          fi
-          if [[ "$(get_env run-gke-latest)" == "false" ]]; then
-              echo "skipping tests due to run-gke-latest being false"
-              exit 0
-          fi
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/setup.sh
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build.sh
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh gke-latest pr-code-checks-8
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        include:
-          - docker-socket
+  # pr-code-checks-8:
+  #   from: pr-code-checks
+  #   displayName: e2e-gke-latest
+  #   runAfter:
+  #     - pr-code-checks
+  #     - pr-code-checks-2
+  #     - pr-code-checks-3
+  #     - pr-code-checks-4
+  #     - pr-code-checks-5
+  #     - pr-code-checks-9
+  #     - pr-code-checks-10
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+  #           trap env EXIT
+  #           env
+  #           set -x
+  #         fi
+  #         if [[ "$(get_env run-gke-latest)" == "false" ]]; then
+  #             echo "skipping tests due to run-gke-latest being false"
+  #             exit 0
+  #         fi
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/setup.sh
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build.sh
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh gke-latest pr-code-checks-8
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+
+  # pr-code-checks-9:
+  #   from: pr-code-checks
+  #   displayName: operator-olm-build
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+  #           trap env EXIT
+  #           env
+  #           set -x
+  #         fi
+  #         - -ceu
+  #         - |
+  #            IMAGE_TAG=${GIT_COMMIT}
+  #               set +x
+  #               unset HISTFILE
+  #               skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
+  #               set -x
+
+  #               OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+  #               OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
+  #               echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+
+  #               pushd pipeline-source
+
+  #               # Create a place to store our output for packaging up
+  #               mkdir -p target
+
+  #               # strip the leading "v" from the operator version for github artefacts and release:
+  #               export PREFIX="v"
+  #               export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
+
+  #               # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+  #               # Uses jq to filter out non-release versions
+  #               export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+  #                 | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
+  #                 | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+  #               if [[ "x${PREV_VERSION}" = "x" ]]; then
+  #                 echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+  #                 exit 1
+  #               fi
+
+  #               echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
+  #               export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
+
+  #               # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
+  #               make IMG="${OPERATOR_IMAGE}" \
+  #                 VERSION="${OLM_RELEASE_VERSION}" \
+  #                 PREV_VERSION="${PREV_VERSION}" \
+  #                 AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
+  #                 bundle
+
+  #               cp bundle.Dockerfile ../docker-input/
+  #               cp -R bundle ../docker-input/
+  #               pushd bundle
+  #               zip -r ../../target/olm-${OLM_RELEASE_VERSION}.zip .
+  #               popd
+
+  #               # Create the YAML for installing the Agent Operator, which we want to package with the release
+  #               make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > ../target/instana-agent-operator.yaml
+
+  #               echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
+  #               echo
+  #               cat ../target/instana-agent-operator.yaml    
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
   
-  pr-code-checks-9:
-    from: pr-code-checks
-    displayName: operator-olm-build
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        script: |
-          #!/usr/bin/env bash
-          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-            trap env EXIT
-            env
-            set -x
-          fi
-          - -ceu
-          - |
-             IMAGE_TAG=${GIT_COMMIT}
-                set +x
-                unset HISTFILE
-                skopeo login -u ${DELIVERY_INSTANA_IO_USER} -p ${DELIVERY_INSTANA_IO_PW} delivery.instana.io
-                set -x
-
-                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
-                OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
-                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
-
-                pushd pipeline-source
-
-                # Create a place to store our output for packaging up
-                mkdir -p target
-
-                # strip the leading "v" from the operator version for github artefacts and release:
-                export PREFIX="v"
-                export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
-
-                # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
-                # Uses jq to filter out non-release versions
-                export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
-                  | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
-                  | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-
-                if [[ "x${PREV_VERSION}" = "x" ]]; then
-                  echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
-                  exit 1
-                fi
-
-                echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
-                export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
-
-                # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
-                make IMG="${OPERATOR_IMAGE}" \
-                  VERSION="${OLM_RELEASE_VERSION}" \
-                  PREV_VERSION="${PREV_VERSION}" \
-                  AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
-                  bundle
-
-                cp bundle.Dockerfile ../docker-input/
-                cp -R bundle ../docker-input/
-                pushd bundle
-                zip -r ../../target/olm-${OLM_RELEASE_VERSION}.zip .
-                popd
-
-                # Create the YAML for installing the Agent Operator, which we want to package with the release
-                make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > ../target/instana-agent-operator.yaml
-
-                echo "===== DISPLAYING target/instana-agent-operator.yaml ====="
-                echo
-                cat ../target/instana-agent-operator.yaml    
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        include:
-          - docker-socket
-  
-  pr-code-checks-10:
-    from: pr-code-checks
-    displayName: build-e2e-operator-base-image
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        script: |
-          #!/usr/bin/env bash
-          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-            trap env EXIT
-            env
-            set -x
-          fi
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh        
-      - name: detect-secrets
-        include:
-          - docker-socket
-      - name: compliance-checks
-        include:
-          - docker-socket
+  # pr-code-checks-10:
+  #   from: pr-code-checks
+  #   displayName: build-e2e-operator-base-image
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+  #           trap env EXIT
+  #           env
+  #           set -x
+  #         fi 
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh        
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
     
