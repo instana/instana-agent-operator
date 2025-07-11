@@ -11,13 +11,12 @@ export INSTANA_TWISTCLI_VERSION=$(get_env INSTANA_TWISTCLI_VERSION)
 echo "[INFO] Authenticating with the private Docker registry..."
 echo "$ARTIFACTORY_INTERNAL_PASSWORD" | docker login delivery.instana.io --username $ARTIFACTORY_INTERNAL_USERNAME --password-stdin
 
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo service docker start
+BUILD_CONTEXT=$WORKSPACE/$APP_REPO_FOLDER/ci/images/e2e-base-image/
 
 # Build the container image
 echo "[INFO] Building the operator image..."
 
-docker build $WORKSPACE/$APP_REPO_FOLDER/ci/images/e2e-base-image/Dockerfile    
+docker buildx build \
+    "$BUILD_CONTEXT"
 
 echo "[INFO] Build process completed successfully."
