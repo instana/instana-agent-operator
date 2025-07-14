@@ -72,7 +72,7 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 }
 
 func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
-	envVars := d.EnvBuilderRemote.Build(
+	baseEnvVars := d.EnvBuilderRemote.Build(
 		env.AgentModeEnvRemote,
 		env.ZoneNameEnvRemote,
 		env.AgentEndpointEnvRemote,
@@ -101,8 +101,32 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.InstanaAgentPodNameEnvRemote,
 		env.PodIPEnvRemote,
 	)
-	d.SortEnvVarsByName(envVars)
-	return envVars
+	// Create a map to track environment variables by name to ensure no duplicates
+	// and to ensure pod.env values take precedence over agent.env values
+	envVarMap := make(map[string]corev1.EnvVar)
+
+	// Add base environment variables to the map
+	for _, envVar := range baseEnvVars {
+		envVarMap[envVar.Name] = envVar
+	}
+
+	// Add user-defined environment variables from the pod.env field
+	// These will overwrite any existing variables with the same name
+	if d.InstanaAgentRemote.Spec.Agent.Pod.Env != nil {
+		for _, envVar := range d.InstanaAgentRemote.Spec.Agent.Pod.Env {
+			envVarMap[envVar.Name] = envVar
+		}
+	}
+
+	// Convert the map back to a slice
+	result := make([]corev1.EnvVar, 0, len(envVarMap))
+	for _, envVar := range envVarMap {
+		result = append(result, envVar)
+	}
+
+	// Sort the environment variables by name for consistency
+	d.SortEnvVarsByName(result)
+	return result
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {

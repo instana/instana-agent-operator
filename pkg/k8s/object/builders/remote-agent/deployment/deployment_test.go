@@ -126,7 +126,7 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 	}
 }
 
-func TestDeploymentBuilder_getEnvVars(t *testing.T) {
+func TestDeploymentBuilder_getBaseEnvVars(t *testing.T) {
 	assertions := require.New(t)
 	ctrl := gomock.NewController(t)
 
@@ -175,8 +175,9 @@ func TestDeploymentBuilder_getEnvVars(t *testing.T) {
 
 	agent := &instanav1.InstanaAgentRemote{ObjectMeta: metav1.ObjectMeta{Name: "some-agent"}}
 	db := &deploymentBuilder{
-		EnvBuilderRemote: envBuilder,
-		RemoteHelpers:    helpers.NewRemoteHelpers(agent),
+		EnvBuilderRemote:   envBuilder,
+		RemoteHelpers:      helpers.NewRemoteHelpers(agent),
+		InstanaAgentRemote: agent,
 	}
 
 	actual := db.getEnvVars()
