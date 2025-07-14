@@ -112,10 +112,8 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 	// Add user-defined environment variables from the pod.env field
 	// These will overwrite any existing variables with the same name
-	if d.InstanaAgentRemote.Spec.Agent.Pod.Env != nil {
-		for _, envVar := range d.InstanaAgentRemote.Spec.Agent.Pod.Env {
-			envVarMap[envVar.Name] = envVar
-		}
+	for _, envVar := range d.InstanaAgentRemote.Spec.Agent.Pod.Env {
+		envVarMap[envVar.Name] = envVar
 	}
 
 	// Convert the map back to a slice
