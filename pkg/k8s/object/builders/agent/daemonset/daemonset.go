@@ -1,18 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package daemonset
@@ -44,6 +31,34 @@ const (
 	componentName = constants.ComponentInstanaAgent
 )
 
+func NewDaemonSetBuilder(
+	agent *instanav1.InstanaAgent,
+	isOpenshift bool,
+	statusManager status.AgentStatusManager,
+) builder.ObjectBuilder {
+	return NewDaemonSetBuilderWithZoneInfo(agent, isOpenshift, statusManager, nil)
+}
+
+func NewDaemonSetBuilderWithZoneInfo(
+	agent *instanav1.InstanaAgent,
+	isOpenshift bool,
+	statusManager status.AgentStatusManager,
+	zone *instanav1.Zone,
+) builder.ObjectBuilder {
+	return &daemonSetBuilder{
+		InstanaAgent:  agent,
+		statusManager: statusManager,
+
+		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(agent, componentName, zone),
+		JsonHasher:                hash.NewJsonHasher(),
+		Helpers:                   helpers.NewHelpers(agent),
+		portsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
+		EnvBuilder:                env.NewEnvBuilder(agent, zone),
+		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenshift),
+		zone:                      zone,
+	}
+}
+
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
 	statusManager status.AgentStatusManager
@@ -51,11 +66,11 @@ type daemonSetBuilder struct {
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
 	helpers.Helpers
-	ports.PortsBuilder
 	env.EnvBuilder
 	volume.VolumeBuilder
 
-	zone *instanav1.Zone
+	portsBuilder ports.PortsBuilder
+	zone         *instanav1.Zone
 }
 
 func (d *daemonSetBuilder) ComponentName() string {
@@ -133,15 +148,6 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 	// Sort the environment variables by name for consistency
 	d.Helpers.SortEnvVarsByName(result)
 	return result
-}
-
-func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
-	return d.GetContainerPorts(
-		ports.AgentAPIsPort,
-		ports.OpenTelemetryLegacyPort,
-		ports.OpenTelemetryGRPCPort,
-		ports.OpenTelemetryHTTPPort,
-	)
 }
 
 func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
@@ -254,7 +260,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 									HTTPGet: &corev1.HTTPGetAction{
 										Host: "127.0.0.1",
 										Path: "/status",
-										Port: intstr.FromString(string(ports.AgentAPIsPort)),
+										Port: intstr.FromInt32(ports.InstanaAgentAPIPortConfig.Port),
 									},
 								},
 								InitialDelaySeconds: 600,
@@ -263,7 +269,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 								FailureThreshold:    3,
 							},
 							Resources: d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
-							Ports:     d.getContainerPorts(),
+							Ports:     d.portsBuilder.GetContainerPorts(),
 						},
 					},
 					Tolerations: d.getTolerations(),
@@ -293,33 +299,5 @@ func (d *daemonSetBuilder) Build() (res optional.Optional[client.Object]) {
 		return optional.Empty[client.Object]()
 	default:
 		return optional.Of[client.Object](d.build())
-	}
-}
-
-func NewDaemonSetBuilder(
-	agent *instanav1.InstanaAgent,
-	isOpenshift bool,
-	statusManager status.AgentStatusManager,
-) builder.ObjectBuilder {
-	return NewDaemonSetBuilderWithZoneInfo(agent, isOpenshift, statusManager, nil)
-}
-
-func NewDaemonSetBuilderWithZoneInfo(
-	agent *instanav1.InstanaAgent,
-	isOpenshift bool,
-	statusManager status.AgentStatusManager,
-	zone *instanav1.Zone,
-) builder.ObjectBuilder {
-	return &daemonSetBuilder{
-		InstanaAgent:  agent,
-		statusManager: statusManager,
-
-		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(agent, componentName, zone),
-		JsonHasher:                hash.NewJsonHasher(),
-		Helpers:                   helpers.NewHelpers(agent),
-		PortsBuilder:              ports.NewPortsBuilder(agent),
-		EnvBuilder:                env.NewEnvBuilder(agent, zone),
-		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenshift),
-		zone:                      zone,
 	}
 }

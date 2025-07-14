@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package secrets
@@ -87,10 +87,11 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 	if c.Spec.Agent.ConfigurationYaml != "" {
 		data["configuration.yaml"] = []byte(c.Spec.Agent.ConfigurationYaml)
 	}
-	if otlp := c.Spec.OpenTelemetry; !otlp.GrpcIsEnabled() || !otlp.HttpIsEnabled() {
-		mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": otlp})
-		data["configuration-opentelemetry.yaml"] = mrshl
-	}
+
+	// Always render OpenTelemetry configuration if any field is defined
+	mrshl, _ := yaml.Marshal(map[string]instanav1.OpenTelemetry{"com.instana.plugin.opentelemetry": c.Spec.OpenTelemetry})
+	data["configuration-opentelemetry.yaml"] = mrshl
+
 	if pointer.DerefOrEmpty(c.Spec.Prometheus.RemoteWrite.Enabled) {
 		mrshl, _ := yaml.Marshal(
 			map[string]any{
@@ -106,7 +107,7 @@ func (c *configBuilder) data() (map[string][]byte, error) {
 
 	// Deprecated since k8s sensor deployment will always be enabled now,
 	// can remove once deprecated sensor is removed from agent
-	mrshl, _ := yaml.Marshal(
+	mrshl, _ = yaml.Marshal(
 		map[string]any{
 			"com.instana.plugin.kubernetes": map[string]any{
 				"enabled": false,

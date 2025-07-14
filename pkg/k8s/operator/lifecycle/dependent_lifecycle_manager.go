@@ -1,18 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package lifecycle
@@ -29,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
@@ -71,24 +59,51 @@ func NewDependentLifecycleManager(
 func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(
 	currentGenerationDependents []client.Object,
 ) error {
-	lifecycleCm, _ := d.getOrInitializeLifecycleCm()
-	currentGenKey := d.getCurrentGenKey()
+	log := logf.FromContext(d.ctx)
 
-	// Ensures that a lifecycle comparison will be performed even if neither the generation nor the operator version
-	// have been updated, should only be necessary for the sake of testing during development
-	if existingVersion, isPresent := lifecycleCm.Data[currentGenKey]; isPresent {
-		lifecycleCm.Data[currentGenKey+"-dirty"] = existingVersion
+	retryError := d.retry(5, 100*time.Millisecond,
+		func() (bool, error) {
+			// Get the initial ConfigMap
+			lifecycleCm, _ := d.getOrInitializeLifecycleCm()
+
+			currentGenKey := d.getCurrentGenKey()
+
+			// Ensures that a lifecycle comparison will be performed even if neither the generation nor the operator version
+			// have been updated, should only be necessary for the sake of testing during development
+			if existingVersion, isPresent := lifecycleCm.Data[currentGenKey]; isPresent {
+				lifecycleCm.Data[currentGenKey+"-dirty"] = existingVersion
+			}
+
+			currentDependentsJson, _ := json.Marshal(asUnstructureds(currentGenerationDependents...))
+			lifecycleCm.Data[currentGenKey] = string(currentDependentsJson)
+
+			d.transformations.AddCommonLabels(&lifecycleCm, constants.ComponentInstanaAgent)
+			d.transformations.AddOwnerReference(&lifecycleCm)
+
+			// Try to apply the changes
+			_, err := d.instanaAgentClient.Apply(d.ctx, &lifecycleCm).Get()
+
+			// If successful or error is not a conflict, break the loop
+			if err == nil || !k8serrors.IsConflict(err) {
+				return true, err
+			}
+
+			// If we got a conflict error, log and retry with exponential backoff
+			log.Info("Conflict detected when updating ConfigMap, retrying...",
+				"configmap", d.getConfigMapName(),
+				"namespace", d.agent.GetNamespace(),
+			)
+
+			return false, err
+		})
+
+	if retryError != nil && k8serrors.IsConflict(retryError) {
+		log.Error(retryError, "Failed to update ConfigMap after maximum retries due to conflicts",
+			"configmap", d.getConfigMapName(),
+			"namespace", d.agent.GetNamespace())
 	}
 
-	currentDependentsJson, _ := json.Marshal(asUnstructureds(currentGenerationDependents...))
-	lifecycleCm.Data[currentGenKey] = string(currentDependentsJson)
-
-	d.transformations.AddCommonLabels(&lifecycleCm, constants.ComponentInstanaAgent)
-	d.transformations.AddOwnerReference(&lifecycleCm)
-
-	_, err := d.instanaAgentClient.Apply(d.ctx, &lifecycleCm).Get()
-
-	return err
+	return retryError
 }
 
 // CleanupDependents is responsible of deleting all dependents that don't appear
@@ -97,31 +112,95 @@ func (d *dependentLifecycleManager) UpdateDependentLifecycleInfo(
 func (d *dependentLifecycleManager) CleanupDependents(
 	currentDependents ...client.Object,
 ) error {
-	lifecycleConfigMap, _ := d.getLifecycleConfigMap()
-	errBuilder := multierror.NewMultiErrorBuilder()
-	currentGeneration := asUnstructureds(currentDependents...)
+	log := logf.FromContext(d.ctx)
 
-	for key, jsonString := range lifecycleConfigMap.Data {
-		olderGeneration, _ := d.unmarshalToUnstructured(jsonString)
-		deprecatedDependents := list.
-			NewDeepDiff[unstructured.Unstructured]().
-			Diff(
-				olderGeneration,
-				currentGeneration,
-			)
-		_, err := d.deleteAll(deprecatedDependents)
-		if err != nil {
-			errBuilder.AddSingle(err)
+	retryError := d.retry(5, 100*time.Millisecond,
+		func() (bool, error) {
+			// Get the latest ConfigMap on each attempt
+			lifecycleConfigMap, _ := d.getLifecycleConfigMap()
+
+			errBuilder := multierror.NewMultiErrorBuilder()
+			currentGeneration := asUnstructureds(currentDependents...)
+
+			for key, jsonString := range lifecycleConfigMap.Data {
+				olderGeneration, _ := d.unmarshalToUnstructured(jsonString)
+				deprecatedDependents := list.
+					NewDeepDiff[unstructured.Unstructured]().
+					Diff(
+						olderGeneration,
+						currentGeneration,
+					)
+				_, deleteErr := d.deleteAll(deprecatedDependents)
+				if deleteErr != nil {
+					errBuilder.AddSingle(deleteErr)
+				}
+
+				if deleteErr == nil && key != d.getCurrentGenKey() {
+					delete(lifecycleConfigMap.Data, key)
+				}
+			}
+
+			result := d.instanaAgentClient.Apply(d.ctx, &lifecycleConfigMap)
+			result.OnFailure(errBuilder.AddSingle)
+
+			err := errBuilder.Build()
+
+			// If successful or error is not a conflict, break the loop
+			if err == nil || !isConflictError(err) {
+				return true, err
+			}
+
+			// If we got a conflict error, log and retry with exponential backoff
+			log.Info("Conflict detected when cleaning up dependents, retrying...",
+				"configmap", d.getConfigMapName(),
+				"namespace", d.agent.GetNamespace())
+
+			return false, err
+		})
+
+	if retryError != nil && isConflictError(retryError) {
+		log.Error(retryError, "Failed to clean up dependents after maximum retries due to conflicts",
+			"configmap", d.getConfigMapName(),
+			"namespace", d.agent.GetNamespace())
+	}
+
+	return retryError
+}
+
+// Retry is a simple retry function with a backtrack
+func (d *dependentLifecycleManager) retry(attempts int, sleep time.Duration, fn func() (bool, error),
+) error {
+	var err error
+	for i := range attempts {
+		done, err := fn()
+		if done {
+			return err
 		}
 
-		if err == nil && key != d.getCurrentGenKey() {
-			delete(lifecycleConfigMap.Data, key)
+		// Skip sleeping after the last retry
+		if i < attempts-1 {
+			time.Sleep(sleep * time.Duration(1<<i))
 		}
 	}
 
-	d.instanaAgentClient.Apply(d.ctx, &lifecycleConfigMap).OnFailure(errBuilder.AddSingle)
+	return err
+}
 
-	return errBuilder.Build()
+// isConflictError checks if the error is a conflict error
+func isConflictError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if it's a direct conflict error
+	if k8serrors.IsConflict(err) {
+		return true
+	}
+
+	// Check if it contains a conflict error message
+	return err.Error() != "" &&
+		(err.Error() == "Operation cannot be fulfilled" ||
+			err.Error() == "the object has been modified")
 }
 
 func (d *dependentLifecycleManager) getConfigMapName() string {
