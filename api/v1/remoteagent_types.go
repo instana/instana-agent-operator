@@ -44,10 +44,6 @@ type InstanaAgentRemoteSpec struct {
 
 	// +kubebuilder:validation:Optional
 	ResourceRequirements `json:",omitempty"`
-
-	// Supply Agent configuration e.g. for configuring certain Sensors.
-	// +kubebuilder:validation:Required
-	ConfigurationYaml string `json:"remote_configuration_yaml,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -87,7 +83,6 @@ type InstanaAgentRemote struct {
 }
 
 func (in *InstanaAgentRemote) Default() {
-	optional.ValueOrDefault(&in.Spec.Agent.ConfigurationYaml, in.Spec.ConfigurationYaml)
 	optional.ValueOrDefault(&in.Spec.Agent.EndpointHost, "ingress-red-saas.instana.io")
 	optional.ValueOrDefault(&in.Spec.Agent.EndpointPort, "443")
 	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.Name, "icr.io/instana/agent")

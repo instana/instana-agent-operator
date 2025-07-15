@@ -36,7 +36,6 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 		{
 			name: "agent_setup",
 			spec: &InstanaAgentRemoteSpec{
-				ConfigurationYaml: "remote-config-yaml",
 				Zone: Name{
 					"test",
 				},
@@ -50,12 +49,12 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 							PullPolicy: corev1.PullIfNotPresent,
 						},
 					},
-					Key:         "agent-key-123",
-					DownloadKey: "download-key",
+					ConfigurationYaml: "remote-config-yaml",
+					Key:               "agent-key-123",
+					DownloadKey:       "download-key",
 				},
 			},
 			expected: &InstanaAgentRemoteSpec{
-				ConfigurationYaml: "remote-config-yaml",
 				Zone: Name{
 					"test",
 				},

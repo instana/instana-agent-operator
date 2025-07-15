@@ -51,11 +51,11 @@ func NewAgentRemoteCr(name string) v1.InstanaAgentRemote {
 			Zone: v1.Name{
 				Name: "e2e",
 			},
-			ConfigurationYaml: "testing",
 			Agent: v1.BaseAgentSpec{
-				Key:          InstanaTestCfg.InstanaBackend.AgentKey,
-				EndpointHost: InstanaTestCfg.InstanaBackend.EndpointHost,
-				EndpointPort: strconv.Itoa(InstanaTestCfg.InstanaBackend.EndpointPort),
+				Key:               InstanaTestCfg.InstanaBackend.AgentKey,
+				EndpointHost:      InstanaTestCfg.InstanaBackend.EndpointHost,
+				EndpointPort:      strconv.Itoa(InstanaTestCfg.InstanaBackend.EndpointPort),
+				ConfigurationYaml: "testing",
 			},
 		},
 	}

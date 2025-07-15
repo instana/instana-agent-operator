@@ -11,8 +11,9 @@ spec:
     endpointHost: ingress-red-saas.instana.io
     endpointPort: "443"
     env: {}
-  remote_configuration_yaml: |
-    # Remote Sensor Configurations
+    configuration_yaml: |
+      # You can leave this empty, or use this to configure your instana agent.
+      # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
   requests: # (optional)
         # agent.pod.requests.memory is the requested memory allocation in MiB for the agent pods.
     memory: 768Mi

@@ -3407,10 +3407,6 @@ spec:
                   create:
                     type: boolean
                 type: object
-              remote_configuration_yaml:
-                description: Supply Agent configuration e.g. for configuring certain
-                  Sensors.
-                type: string
               requests:
                 additionalProperties:
                   anyOf:
@@ -3446,7 +3442,6 @@ spec:
                 type: object
             required:
             - agent
-            - remote_configuration_yaml
             type: object
           status:
             properties:
