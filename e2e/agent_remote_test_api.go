@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,6 +52,11 @@ func NewAgentRemoteCr(name string) v1.InstanaAgentRemote {
 				Name: "e2e",
 			},
 			ConfigurationYaml: "testing",
+			Agent: v1.BaseAgentSpec{
+				Key:          InstanaTestCfg.InstanaBackend.AgentKey,
+				EndpointHost: InstanaTestCfg.InstanaBackend.EndpointHost,
+				EndpointPort: strconv.Itoa(InstanaTestCfg.InstanaBackend.EndpointPort),
+			},
 		},
 	}
 }
