@@ -73,12 +73,12 @@ func DeployAgentRemoteCr(agent *v1.InstanaAgentRemote) e2etypes.StepFunc {
 		r := client.Resources(cfg.Namespace())
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
-			log.Fatal("Could not add Agent Remote CR to client scheme", err)
+			log.Fatal("Could not add Agent Remote CR to client scheme ", err)
 		}
 
 		err = r.Create(ctx, agent)
 		if err != nil {
-			log.Fatal("Could not create Agent Remote CR", err)
+			log.Fatal("Could not create Agent Remote CR ", err)
 		}
 
 		return ctx

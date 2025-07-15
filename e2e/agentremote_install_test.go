@@ -7,14 +7,12 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
-	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
 func TestInitialRemoteInstall(t *testing.T) {
@@ -51,26 +49,28 @@ func TestInitialRemoteInstall(t *testing.T) {
 }
 func TestUpdateRemoteInstall(t *testing.T) {
 	agent := NewAgentRemoteCr(AgentRemoteCustomResourceName)
-	installLatestFeature := features.New("deploy latest released instana-agent-operator").
-		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			const latestOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml"
-			t.Logf("Installing latest available operator from %s", latestOperatorYamlUrl)
-			p := utils.RunCommand(
-				fmt.Sprintf("kubectl apply -f %s", latestOperatorYamlUrl),
-			)
-			if p.Err() != nil {
-				t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
-			}
-			return ctx
-		}).
-		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
-		Setup(DeployAgentRemoteCr(&agent)).
-		Assess("wait for instana agent remote deployment to become ready", WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName)).
-		Assess("check agent log for successful connection", WaitForAgentRemoteSuccessfulBackendConnection()).
-		Feature()
+	// Cannot currently use as instana agent remote does not exist in latest version
+	// installLatestFeature := features.New("deploy latest released instana-agent-operator").
+	// 	Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+	// 		const latestOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml"
+	// 		t.Logf("Installing latest available operator from %s", latestOperatorYamlUrl)
+	// 		p := utils.RunCommand(
+	// 			fmt.Sprintf("kubectl apply -f %s", latestOperatorYamlUrl),
+	// 		)
+	// 		if p.Err() != nil {
+	// 			t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
+	// 		}
+	// 		return ctx
+	// 	}).
+	// 	Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+	// 	Setup(DeployAgentRemoteCr(&agent)).
+	// 	Assess("wait for instana agent remote deployment to become ready", WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName)).
+	// 	Assess("check agent log for successful connection", WaitForAgentRemoteSuccessfulBackendConnection()).
+	// 	Feature()
 
-	updateInstallDevBuildFeature := features.New("upgrade install from latest released to dev-operator-build").
+	updateInstallDevBuildFeature := features.New("install dev-operator-build").
 		Setup(SetupOperatorDevBuild()).
+		Setup(DeployAgentRemoteCr(&agent)).
 		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for instana remote agent deployment to become ready", WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName)).
 		Assess("check agent log for successful connection", WaitForAgentRemoteSuccessfulBackendConnection()).
@@ -96,5 +96,5 @@ func TestUpdateRemoteInstall(t *testing.T) {
 		Feature()
 
 	// test feature
-	testEnv.Test(t, installLatestFeature, updateInstallDevBuildFeature, checkReconciliationFeature)
+	testEnv.Test(t, updateInstallDevBuildFeature, checkReconciliationFeature)
 }
