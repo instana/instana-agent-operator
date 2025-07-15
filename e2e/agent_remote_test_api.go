@@ -140,6 +140,14 @@ func EnsureAgentRemoteDeletion() env.Func {
 			return ctx, fmt.Errorf("failed to initialize client: %v", err)
 		}
 
+		agent := &v1.InstanaAgentRemote{}
+		err = r.Get(ctx, AgentRemoteCustomResourceName, InstanaNamespace, agent)
+		if errors.IsNotFound(err) {
+			// No agent cr found, skip this cleanup step
+			log.Info("No agent remote CR present, skipping deletion")
+			return ctx, nil
+		}
+
 		p := utils.RunCommand("kubectl get pods -n instana-agent")
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
@@ -163,7 +171,6 @@ func EnsureAgentRemoteDeletion() env.Func {
 		// full purge of remote resources if anything would be left in the cluster
 		// Removing the finalizer from the existing Agent CR to make it deletable
 		// kubectl patch agent instana-agent-remote -p '{"metadata":{"finalizers":[]}}' --type=merge
-		agent := &v1.InstanaAgentRemote{}
 		log.Info("Patching agent remote cr to remove finalizers")
 		err = r.Patch(ctx, agent, k8s.Patch{
 			PatchType: types.MergePatchType,
