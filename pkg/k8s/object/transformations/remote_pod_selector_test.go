@@ -124,7 +124,7 @@ func Test_podSelectorLabelGeneratorRemote_GetPodSelectorLabels(t *testing.T) {
 	actual := p.GetPodSelectorLabels()
 	assertions.Equal(
 		map[string]string{
-			"app.kubernetes.io/name":      "remote-instana-agent",
+			"app.kubernetes.io/name":      "instana-agent-remote",
 			"app.kubernetes.io/instance":  agentName,
 			"app.kubernetes.io/component": component,
 		}, actual,

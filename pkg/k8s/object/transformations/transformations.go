@@ -44,7 +44,7 @@ const (
 	name       = "instana-agent"
 	partOf     = "instana"
 	managedBy  = "instana-agent-operator"
-	nameRemote = "remote-instana-agent"
+	nameRemote = "instana-agent-remote"
 )
 
 var (

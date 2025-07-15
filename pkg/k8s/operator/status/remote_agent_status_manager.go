@@ -204,7 +204,7 @@ func (a *instanaAgentRemoteStatusManager) InstanaAgentRemoteWithUpdatedStatus(
 	errBuilder := multierror.NewMultiErrorBuilder()
 
 	agentNew := a.agentOld.DeepCopy()
-	logger := log.FromContext(ctx).WithName("remote-instana-agent-status-manager")
+	logger := log.FromContext(ctx).WithName("instana-agent-remote-status-manager")
 
 	a.getConfigSecret(ctx).
 		OnSuccess(setStatusDotConfigSecretRemote(agentNew)).
