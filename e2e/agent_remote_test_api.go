@@ -147,6 +147,13 @@ func EnsureAgentRemoteDeletion() env.Func {
 			log.Info("No agent remote CR present, skipping deletion")
 			return ctx, nil
 		}
+		agent2 := &v1.InstanaAgentRemote{}
+		err = r.Get(ctx, "remote-1", InstanaNamespace, agent)
+		if errors.IsNotFound(err) {
+			// No agent cr found, skip this cleanup step
+			log.Info("No agent remote CR present, skipping deletion")
+			return ctx, nil
+		}
 
 		p := utils.RunCommand("kubectl get pods -n instana-agent")
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
@@ -173,6 +180,10 @@ func EnsureAgentRemoteDeletion() env.Func {
 		// kubectl patch agent instana-agent-remote -p '{"metadata":{"finalizers":[]}}' --type=merge
 		log.Info("Patching agent remote cr to remove finalizers")
 		err = r.Patch(ctx, agent, k8s.Patch{
+			PatchType: types.MergePatchType,
+			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
+		})
+		err = r.Patch(ctx, agent2, k8s.Patch{
 			PatchType: types.MergePatchType,
 			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
 		})
