@@ -154,7 +154,7 @@ func EnsureAgentRemoteDeletion() env.Func {
 			return ctx, nil
 		}
 		agent2 := &v1.InstanaAgentRemote{}
-		err = r.Get(ctx, "remote-1", InstanaNamespace, agent)
+		err = r.Get(ctx, "remote-1", InstanaNamespace, agent2)
 		if errors.IsNotFound(err) {
 			// No agent cr found, skip this cleanup step
 			log.Info("No agent remote CR present, skipping deletion")
@@ -189,6 +189,9 @@ func EnsureAgentRemoteDeletion() env.Func {
 			PatchType: types.MergePatchType,
 			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
 		})
+		if err != nil {
+			return ctx, fmt.Errorf("cleanup: Patch agent remote CR failed: %v", err)
+		}
 		err = r.Patch(ctx, agent2, k8s.Patch{
 			PatchType: types.MergePatchType,
 			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
