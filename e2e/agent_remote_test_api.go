@@ -143,6 +143,12 @@ func EnsureAgentRemoteDeletion() env.Func {
 		p := utils.RunCommand("kubectl get pods -n instana-agent")
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
+		p = utils.RunCommand("kubectl get deployments -n instana-agent")
+		log.Info("Current deployments: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
+		p = utils.RunCommand("kubectl get agentsremote -n instana-agent")
+		log.Info("Current agents remote: ", p.Command(), p.ExitCode(), "\n", p.Result())
+
 		p = utils.RunCommand("kubectl get agentremote remote-agent -o yaml -n instana-agent")
 		// redact agent key if present
 		log.Info("Current agent remote CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
