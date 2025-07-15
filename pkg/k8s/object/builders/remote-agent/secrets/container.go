@@ -82,7 +82,7 @@ func (s *containerBuilder) build() *corev1.Secret {
 				Kind:       "Secret",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "instana-agent-r-" + s.helpers.ContainersSecretName(),
+				Name:      s.helpers.ContainersSecretName(),
 				Namespace: s.instanaAgentRemote.Namespace,
 			},
 			Data: map[string][]byte{

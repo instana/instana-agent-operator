@@ -245,7 +245,7 @@ func TestHelpers_RemoteK8sSensorResourcesName(t *testing.T) {
 func TestHelpers_RemoteContainersSecretName(t *testing.T) {
 	assertions := require.New(t)
 
-	agentName := "instana-agent-r-" + rand.String(rand.IntnRange(1, 15))
+	agentName := rand.String(rand.IntnRange(1, 15))
 
 	h := NewRemoteHelpers(
 		&instanav1.InstanaAgentRemote{
@@ -255,7 +255,7 @@ func TestHelpers_RemoteContainersSecretName(t *testing.T) {
 		},
 	)
 
-	assertions.Equal(agentName+"-containers-instana-io", h.ContainersSecretName())
+	assertions.Equal("instana-agent-r-"+agentName+"-containers-instana-io", h.ContainersSecretName())
 }
 
 func TestHelpers_RemoteUseContainersSecret(t *testing.T) {

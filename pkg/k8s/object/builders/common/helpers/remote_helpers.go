@@ -64,7 +64,7 @@ func (h *remoteHelpers) TLSSecretName() string {
 }
 
 func (h *remoteHelpers) ContainersSecretName() string {
-	return h.Name + "-containers-instana-io"
+	return "instana-agent-r-" + h.Name + "-containers-instana-io"
 }
 
 func (h *remoteHelpers) UseContainersSecret() bool {

@@ -31,8 +31,9 @@ type InstanaAgentRemoteSpec struct {
 	// +kubebuilder:validation:Required
 	Agent BaseAgentSpec `json:"agent"`
 
-	// Name of the zone in which the host(s) will be displayed on the map. Optional, but then 'cluster.name' must be specified.
-	Zone Name `json:"zone,omitempty"`
+	// Name of the zone in which the host(s) will be displayed on the map. Required as we do not set cluster name.
+	// +kubebuilder:validation:Required
+	Zone Name `json:"zone"`
 
 	// Specifies whether RBAC resources should be created.
 	// +kubebuilder:validation:Optional
