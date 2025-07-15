@@ -134,12 +134,18 @@ func EnsureAgentRemoteDeletion() env.Func {
 		log.Info("==== Starting Cleanup, errors are expected if resources are not available ====")
 		log.Infof("Ensure namespace %s is not present", cfg.Namespace())
 
+		// Create a client to interact with the Kube API
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			return ctx, fmt.Errorf("failed to initialize client: %v", err)
+		}
+
 		p := utils.RunCommand("kubectl get pods -n instana-agent")
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
-		p = utils.RunCommand("kubectl get agentremote instana-agent -o yaml -n instana-agent")
+		p = utils.RunCommand("kubectl get agentremote remote-agent -o yaml -n instana-agent")
 		// redact agent key if present
-		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
+		log.Info("Current agent remote CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
 
 		// Cleanup a potentially existing Agent CR first
 		if _, err := DeleteAgentRemoteCRIfPresent()(ctx, cfg); err != nil {
@@ -149,6 +155,18 @@ func EnsureAgentRemoteDeletion() env.Func {
 		log.Info("Agent CR cleanup completed")
 
 		// full purge of remote resources if anything would be left in the cluster
+		// Removing the finalizer from the existing Agent CR to make it deletable
+		// kubectl patch agent instana-agent-remote -p '{"metadata":{"finalizers":[]}}' --type=merge
+		agent := &v1.InstanaAgentRemote{}
+		log.Info("Patching agent remote cr to remove finalizers")
+		err = r.Patch(ctx, agent, k8s.Patch{
+			PatchType: types.MergePatchType,
+			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
+		})
+		if err != nil {
+			return ctx, fmt.Errorf("cleanup: Patch agent remote CR failed: %v", err)
+		}
+
 		p = utils.RunCommand("kubectl delete crd/agentsremote.instana.io")
 		if p.Err() != nil {
 			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
