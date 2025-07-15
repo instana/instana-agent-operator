@@ -61,18 +61,18 @@ func DeployAgentRemoteCr(agent *v1.InstanaAgentRemote) e2etypes.StepFunc {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Log("Creating a new Agent Remote CR")
+		log.Info("Creating a new Agent Remote CR")
 
 		// Create Agent Remote CR
 		r := client.Resources(cfg.Namespace())
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
-			t.Fatal("Could not add Agent Remote CR to client scheme", err)
+			log.Fatal("Could not add Agent Remote CR to client scheme", err)
 		}
 
 		err = r.Create(ctx, agent)
 		if err != nil {
-			t.Fatal("Could not create Agent Remote CR", err)
+			log.Fatal("Could not create Agent Remote CR", err)
 		}
 
 		return ctx
@@ -81,7 +81,7 @@ func DeployAgentRemoteCr(agent *v1.InstanaAgentRemote) e2etypes.StepFunc {
 
 func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Log("Searching for successful backend connection in agent remote logs")
+		log.Info("Searching for successful backend connection in agent remote logs")
 		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		if err != nil {
 			t.Fatal(err)
@@ -89,22 +89,22 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 		time.Sleep(20 * time.Second)
 		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent-remote"})
 		if err != nil {
-			t.Fatal(err)
+			log.Fatal(err)
 		}
 		if len(podList.Items) == 0 {
-			t.Fatal("No pods found")
+			log.Fatal("No pods found")
 		}
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
 		for i := 0; i < 9; i++ {
-			t.Log("Sleeping 20 seconds")
+			log.Info("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
-			t.Log("Fetching logs")
+			log.Info("Fetching logs")
 			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
-				t.Fatal("Could not stream logs", err)
+				log.Fatal("Could not stream logs", err)
 			}
 			defer podLogs.Close()
 
@@ -112,18 +112,18 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			_, err = io.Copy(buf, podLogs)
 
 			if err != nil {
-				t.Fatal(err)
+				log.Fatal(err)
 			}
 			if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
-				t.Log("Connection established correctly")
+				log.Info("Connection established correctly")
 				connectionSuccessful = true
 				break
 			} else {
-				t.Log("Could not find working connection in log of the first pod yet")
+				log.Info("Could not find working connection in log of the first pod yet")
 			}
 		}
 		if !connectionSuccessful {
-			t.Fatal("Agent pod did not log successful connection, dumping log", buf.String())
+			log.Fatal("Agent pod did not log successful connection, dumping log", buf.String())
 		}
 		return ctx
 	}
