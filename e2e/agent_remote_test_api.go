@@ -140,20 +140,8 @@ func EnsureAgentRemoteDeletion() env.Func {
 		log.Info("==== Starting Cleanup, errors are expected if resources are not available ====")
 		log.Infof("Ensure namespace %s is not present", cfg.Namespace())
 
-		// Create a client to interact with the Kube API
-		r, err := resources.New(cfg.Client().RESTConfig())
-		if err != nil {
-			return ctx, fmt.Errorf("failed to initialize client: %v", err)
-		}
-
 		p := utils.RunCommand("kubectl get pods -n instana-agent")
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
-
-		p = utils.RunCommand("kubectl get deployments -n instana-agent")
-		log.Info("Current deployments: ", p.Command(), p.ExitCode(), "\n", p.Result())
-
-		p = utils.RunCommand("kubectl get agentsremote -n instana-agent")
-		log.Info("Current agents remote: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
 		p = utils.RunCommand("kubectl get agentremote remote-agent -o yaml -n instana-agent")
 		// redact agent key if present
@@ -165,22 +153,6 @@ func EnsureAgentRemoteDeletion() env.Func {
 		}
 
 		log.Info("Agent CR cleanup completed")
-
-		agent2 := &v1.InstanaAgentRemote{}
-		err = r.Get(ctx, "remote-1", InstanaNamespace, agent2)
-		if errors.IsNotFound(err) {
-			// No agent cr found, skip this cleanup step
-			log.Info("No agent remote CR present, skipping deletion")
-			return ctx, nil
-		}
-
-		err = r.Patch(ctx, agent2, k8s.Patch{
-			PatchType: types.MergePatchType,
-			Data:      []byte(`{"metadata":{"finalizers":[]}}`),
-		})
-		if err != nil {
-			return ctx, fmt.Errorf("cleanup: Patch agent remote CR failed: %v", err)
-		}
 
 		p = utils.RunCommand("kubectl delete crd/agentsremote.instana.io")
 		if p.Err() != nil {
