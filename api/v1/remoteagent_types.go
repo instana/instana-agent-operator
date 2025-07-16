@@ -42,9 +42,6 @@ type InstanaAgentRemoteSpec struct {
 	// Specifies whether a ServiceAccount should be created (default `true`).
 	// +kubebuilder:validation:Optional
 	ServiceAccountSpec `json:"serviceAccount,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ResourceRequirements `json:",omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -91,7 +88,6 @@ func (in *InstanaAgentRemote) Default() {
 	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
 	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
-	optional.ValueOrDefault(&in.Spec.Agent.Pod.ResourceRequirements, in.Spec.ResourceRequirements)
 }
 
 // +kubebuilder:object:root=true
