@@ -148,6 +148,13 @@ func (d *deploymentBuilder) getName() string {
 	}
 }
 
+func (d *deploymentBuilder) getHostName() string {
+	if d.Spec.Hostname != nil && d.Spec.Hostname.Name != "" {
+		return d.Spec.Hostname.Name
+	}
+	return fmt.Sprintf("instana-agent-r-%s-%s", d.getName(), d.GetNamespace())
+}
+
 func (d *deploymentBuilder) getNonStandardLabels() map[string]string {
 	switch d.zone {
 	case nil:
@@ -181,7 +188,6 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
 	name := fmt.Sprintf("instana-agent-r-%s", d.getName())
-	hostname := fmt.Sprintf("instana-agent-r-%s-%s", d.GetNamespace(), d.getName())
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -210,7 +216,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirst,
 					ImagePullSecrets:   d.ImagePullSecrets(),
-					Hostname:           hostname,
+					Hostname:           d.getHostName(),
 					Containers: []corev1.Container{
 						{
 							Name:            d.getName(),

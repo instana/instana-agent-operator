@@ -3359,6 +3359,11 @@ spec:
                 - endpointHost
                 - endpointPort
                 type: object
+              hostname:
+                properties:
+                  name:
+                    type: string
+                type: object
               rbac:
                 description: Specifies whether RBAC resources should be created.
                 properties:

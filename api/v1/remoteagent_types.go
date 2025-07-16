@@ -42,6 +42,9 @@ type InstanaAgentRemoteSpec struct {
 	// Specifies whether a ServiceAccount should be created (default `true`).
 	// +kubebuilder:validation:Optional
 	ServiceAccountSpec `json:"serviceAccount,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Hostname *Name `json:"hostname,omitempty"`
 }
 
 // +k8s:openapi-gen=true
