@@ -26,10 +26,14 @@ func TestMain(m *testing.M) {
 	// cluster level setup
 	testEnv.Setup(
 		AdjustOcpPermissionsIfNecessary(),
+		AdjustOcpPermissionsIfNecessaryRemote(),
 	)
 	// ensure a new clean namespace before every test
 	// EnvFuncs are only allowed in testEnv.Setup, testEnv.BeforeEachTest requires TestEnvFuncs, therefore converting below
 	testEnv.BeforeEachTest(
+		func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
+			return EnsureAgentRemoteDeletion()(ctx, cfg)
+		},
 		func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
 			return EnsureAgentNamespaceDeletion()(ctx, cfg)
 		},
@@ -40,6 +44,9 @@ func TestMain(m *testing.M) {
 	// Consider leave artifacts in cluster for easier debugging,
 	// as a new run needs to cleanup anyways. Cleanup for now to ensure
 	// that the existing test suite is not facing issues.
-	testEnv.Finish(EnsureAgentNamespaceDeletion())
+	testEnv.Finish(
+		EnsureAgentRemoteDeletion(),
+		EnsureAgentNamespaceDeletion(),
+	)
 	os.Exit(testEnv.Run(m))
 }
