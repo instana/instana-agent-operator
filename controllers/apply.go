@@ -1,6 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
-(c) Copyright Instana Inc.
+(c) Copyright IBM Corp. 2024, 2025
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +20,7 @@ import (
 	"context"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/headless-service"
 	agentrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/rbac"
@@ -31,6 +31,7 @@ import (
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
 	k8ssensorpoddisruptionbudget "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/poddisruptionbudget"
@@ -67,13 +68,14 @@ func getK8sSensorDeployments(
 	isOpenShift bool,
 	statusManager status.AgentStatusManager,
 	k8SensorBackends []backends.K8SensorBackend,
+	keysSecret *corev1.Secret,
 ) []builder.ObjectBuilder {
 	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
 
 	for _, backend := range k8SensorBackends {
 		builders = append(
 			builders,
-			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend),
+			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend, keysSecret),
 		)
 	}
 
@@ -88,6 +90,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
 	k8SensorBackends []backends.K8SensorBackend,
+	namespacesDetails namespaces.NamespacesDetails,
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
@@ -108,9 +111,10 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
+		namespaces_configmap.NewConfigMapBuilder(agent, statusManager, namespacesDetails),
 	)
 
-	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends)...)
+	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret)...)
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")

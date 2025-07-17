@@ -35,7 +35,7 @@ AGENT_IMG ?= icr.io/instana/agent:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.30
+ENVTEST_K8S_VERSION = 1.32
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -68,6 +68,16 @@ else
     CONTAINER_CMD = podman
 endif
 
+NAMESPACE ?= instana-agent
+NAMESPACE_PREPULLER ?= instana-agent-image-prepuller
+
+INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
+	"crd/agents.instana.io" \
+	"clusterrole/leader-election-role" \
+	"clusterrole/instana-agent-clusterrole" \
+	"clusterrolebinding/leader-election-rolebinding" \
+	"clusterrolebinding/instana-agent-clusterrolebinding"
+
 all: build
 
 
@@ -99,11 +109,11 @@ EXCLUDE_PATTERN = $(shell echo $(EXCLUDED_TEST_DIRS) | sed 's/ /|/g')
 PACKAGES = $(shell go list ./... | grep -vE "$(EXCLUDE_PATTERN)" | tr '\n' ' ')
 KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
 test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
-	 KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
+	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 .PHONY: e2e
-e2e:
-	go test -timeout=20m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
+e2e: ## Run end-to-end tests
+	go test -timeout=30m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
 
@@ -130,6 +140,30 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	kubectl delete -k config/crd
 
+purge: ## Full purge of the agent in the cluster
+	@echo "=== Removing finalizers from agent CR, if present ==="
+	@echo "Checking if agent CR is present in namespace $(NAMESPACE)..."
+	@if kubectl get agents.instana.io instana-agent -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Found, removing finalizers..."; \
+		kubectl patch agents.instana.io instana-agent -p '{"metadata":{"finalizers":null}}' --type=merge -n $(NAMESPACE); \
+	else \
+		echo "CR not present"; \
+	fi
+	@echo "=== Cleaning up cluster wide resources, if present ==="
+	@for resource in $(INSTANA_AGENT_CLUSTER_WIDE_RESOURCES); do \
+		resource_type=$$(echo $$resource | cut -d'/' -f1); \
+		resource_name=$$(echo $$resource | cut -d'/' -f2); \
+		if kubectl get $$resource_type $$resource_name > /dev/null 2>&1; then \
+			echo "Deleting $$resource..."; \
+			kubectl delete $$resource_type $$resource_name; \
+		else \
+			echo "Resource $$resource does not exist, skipping..."; \
+		fi; \
+	done
+	@echo "Cleanup complete!"
+	@echo "=== Removing instana-agent namespace, if present ==="
+	kubectl delete ns $(NAMESPACE) --wait || true
+
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
@@ -151,7 +185,7 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
@@ -232,6 +266,86 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+.PHONY: namespace
+namespace: ## Generate namespace instana-agent on OCP for manual testing
+	oc new-project instana-agent || true
+	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
+
+.PHONY: create-cr
+create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
+	kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml
+
+.PHONY: create-pull-secret
+create-pull-secret: ## Creates image pull secret for delivery.instana.io from your local docker config
+	@echo "Filtering Docker config for delivery.instana.io settings, ensure to login locally first..."
+	@mkdir -p .tmp
+	@jq '{auths: {"delivery.instana.io": .auths["delivery.instana.io"]}}' ${HOME}/.docker/config.json > .tmp/filtered-docker-config.json
+	@echo "Checking if secret delivery-instana-io-pull-secret exists in namespace $(NAMESPACE)..."
+	@if kubectl get secret delivery-instana-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Updating existing secret delivery-instana-io-pull-secret..."; \
+		kubectl delete secret delivery-instana-io-pull-secret -n $(NAMESPACE); \
+		kubectl create secret generic delivery-instana-io-pull-secret \
+			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+			--type=kubernetes.io/dockerconfigjson \
+			-n $(NAMESPACE); \
+	else \
+		echo "Creating new secret delivery-instana-io-pull-secret..."; \
+		kubectl create secret generic delivery-instana-io-pull-secret \
+			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+			--type=kubernetes.io/dockerconfigjson \
+			-n $(NAMESPACE); \
+	fi
+	@echo "Patching serviceaccount..."
+	@kubectl patch serviceaccount instana-agent-operator \
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n instana-agent
+	@rm -rf .tmp
+	@echo "Restarting operator deployment..."
+	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
+
+.PHONY: pre-pull-images
+pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow network situations to run tests reliably)
+	@if [ "$(INSTANA_API_KEY)" == "" ]; then \
+		echo "env variable INSTANA_API_KEY is undefined but should contain the agent download key"; \
+		exit 1; \
+	fi
+	kubectl apply -f ci/scripts/instana-agent-image-prepuller-ns.yaml || true
+	@echo "Creating Docker registry secret..."
+	@echo "Checking if secret containers-instana-io-pull-secret exists in namespace $(NAMESPACE_PREPULLER)..."
+	@if kubectl get secret containers-instana-io-pull-secret -n $(NAMESPACE_PREPULLER) >/dev/null 2>&1; then \
+		echo "Updating existing secret containers-instana-io-pull-secret..."; \
+		kubectl delete secret containers-instana-io-pull-secret -n $(NAMESPACE_PREPULLER); \
+	fi
+	@kubectl create secret docker-registry containers-instana-io-pull-secret \
+		--docker-server=containers.instana.io \
+		--docker-username="_" \
+		--docker-password=$${INSTANA_API_KEY} \
+		-n $(NAMESPACE_PREPULLER)
+	@echo "Start instana-agent-image-prepuller daemonset..."
+	@echo "Checking if daemonset instana-agent-image-prepuller exists in namespace $(NAMESPACE_PREPULLER)..."
+	@if kubectl get ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER) >/dev/null 2>&1; then \
+		echo "Updating existing secret containers-instana-io-pull-secret..."; \
+		kubectl delete ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER); \
+		kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0; \
+	fi
+	@kubectl apply -f ci/scripts/instana-agent-image-prepuller.yaml -n $(NAMESPACE_PREPULLER)
+	@echo "Waiting for the instana-agent-prepuller daemonset"
+	@kubectl rollout status ds/instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER) --timeout=1800s
+	@echo "Cleaning up instana-agent-prepuller namespace"
+	kubectl delete ds instana-agent-image-prepuller -n $(NAMESPACE_PREPULLER)
+	kubectl delete pods -n $(NAMESPACE_PREPULLER) -l name=instana-agent-image-prepuller --force --grace-period=0 || true
+	kubectl delete ns $(NAMESPACE_PREPULLER)
+
+.PHONY: setup-ocp-mirror
+setup-ocp-mirror: ## Setup ocp internal registry and define ImageContentSourcePolicy to pull from internal registry
+	./ci/scripts/setup-ocp-mirror.sh
+
+.PHONY: dev-run-ocp
+dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
+
+.PHONY: logs
+logs: ## Tail operator logs
+	kubectl logs -f deployment/instana-agent-controller-manager -n $(NAMESPACE)
 
 ##@ OLM
 
@@ -262,7 +376,7 @@ get-mockgen:
 	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
 
 gen-mocks: get-mockgen
-	${GOBIN}/mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.18.5/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
+	${GOBIN}/mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.20.4/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
 	${GOBIN}/mockgen --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
 	${GOBIN}/mockgen --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
 	${GOBIN}/mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 

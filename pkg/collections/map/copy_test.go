@@ -1,3 +1,7 @@
+/*
+ * (c) Copyright IBM Corp. 2025
+ */
+
 package _map
 
 import (
@@ -7,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
-func TestCopier_Copy(t *testing.T) {
+func TestCopierCopy(t *testing.T) {
 	assertions := require.New(t)
 
 	expected := map[string]string{
@@ -20,6 +24,6 @@ func TestCopier_Copy(t *testing.T) {
 
 	actual := c.Copy()
 
-	assertions.NotSame(expected, actual)
+	assertions.NotSame(&expected, &actual)
 	assertions.Equal(expected, actual)
 }

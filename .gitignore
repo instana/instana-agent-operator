@@ -64,3 +64,4 @@ instana-agent-operator
 backend.cfg
 
 e2e/.env
+.tmp

@@ -161,9 +161,9 @@ resources:
     type: registry-image
     icon: cube
     source: &e2e-test-base-image
-      repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
       tag: main
 
   - name: community-operators-repo
@@ -309,10 +309,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: agent-operator-git-source
             - name: pipeline-source
@@ -445,10 +445,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           outputs:
             - name: manifest-list
           params:
@@ -511,17 +511,17 @@ jobs:
               run:
                 path: pipeline-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-lowest
-            timeout: 30m
+            timeout: 40m
             attempts: 1
             config: &gke-e2e-test-config
               platform: linux
               image_resource: &e2e-test-image-resource
                 type: registry-image
                 source:
-                  repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                  repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                   tag: main
-                  username: _json_key
-                  password: ((project-berlin-tests-gcp-instana-qa))
+                  username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                  password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               params:
                 GIT_COMMIT: ((.:git-commit))
                 CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
@@ -543,6 +543,7 @@ jobs:
                   - |
                     cd pipeline-source
                     bash ./ci/scripts/cluster-authentication.sh
+                    make pre-pull-images
                     make e2e
             on_success:
               put: gh-status
@@ -624,7 +625,7 @@ jobs:
               run:
                 path: pipeline-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-latest
-            timeout: 30m
+            timeout: 40m
             attempts: 1
             config:
               <<: *gke-e2e-test-config
@@ -652,6 +653,7 @@ jobs:
                   - |
                     cd pipeline-source
                     bash ./ci/scripts/cluster-authentication.sh
+                    make pre-pull-images
                     make e2e
             on_success:
               put: gh-status
@@ -721,7 +723,7 @@ jobs:
         #     params:
         #       claim: openshift-4.11
         #   - task: run-e2e-test-openshift-4.11
-        #     timeout: 30m
+        #     timeout: 40m
         #     attempts: 1
         #     config:
         #       <<: *gke-e2e-test-config
@@ -810,10 +812,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: agent-operator-image-manifest-sha
           params:
@@ -926,6 +928,8 @@ jobs:
           inputs: [ pipeline-source ]
           params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
       - get: preflight
+        version:
+          tag: 1.12.1
         params:
           globs:
             - preflight-linux-amd64
@@ -935,10 +939,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: preflight
           params:
@@ -996,10 +1000,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: agent-operator-release-source
             - name: agent-operator-image-manifest-sha
@@ -1135,10 +1139,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
+                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
@@ -1190,10 +1194,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
+                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
@@ -1246,10 +1250,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
+                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
@@ -1301,10 +1305,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
+                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
@@ -1357,10 +1361,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
+                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
@@ -1412,10 +1416,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: gcr.io/instana-agent-qa/agent-operator/e2e-test-base-image
+                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: _json_key
-                        password: ((project-berlin-tests-gcp-instana-qa))
+                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo

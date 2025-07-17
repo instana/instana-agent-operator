@@ -233,6 +233,10 @@ type AgentPodSpec struct {
 	// Set additional volume mounts for the agent pod.
 	// +kubebuilder:validation:Optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Set additional environment variables for the agent pod.
+	// +kubebuilder:validation:Optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 type TlsSpec struct {
@@ -267,7 +271,7 @@ type ImageSpec struct {
 }
 
 type ExtendedImageSpec struct {
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	ImageSpec `json:",inline"`
 
 	// PullSecrets allows you to override the default pull secret that is created when `agent.image.name` starts with

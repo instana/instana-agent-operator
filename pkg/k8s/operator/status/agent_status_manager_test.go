@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package status
@@ -56,6 +56,10 @@ func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 		Name:      "AddAgentDaemonsetName",
 		Namespace: "AddAgentDaemonsetNamespace",
 	})
+	agentStatusManager.SetAgentNamespacesConfigMap(types.NamespacedName{
+		Name:      "SetAgentNamespacesConfigMapName",
+		Namespace: "SetAgentNamespacesConfigMapNamespace",
+	})
 	err := agentStatusManager.UpdateAgentStatus(ctx, nil)
 	assertions.NotNil(err)
 }
@@ -71,6 +75,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 		Namespace: "AddAgentDaemonsetNamespace",
 	}}
 	k8sSensorDeployment := &types.NamespacedName{Name: "test_name_deployment", Namespace: "test_namespace_deployment"}
+	namespacesConfigmap := &types.NamespacedName{Name: "test_name_namespaces_configmap", Namespace: "test_name_namespaces_configmap"}
 
 	num := int64(1)
 	semVer := instanav1.SemanticVersion{}
@@ -83,23 +88,25 @@ func TestUpdateAgentStatus(t *testing.T) {
 		configSecret          *types.NamespacedName
 		daemonsets            []*types.NamespacedName
 		k8sSensorDeployment   *types.NamespacedName
+		namespacesConfigmap   *types.NamespacedName
 		reconciliationErrors  error
 		expected              string
 		envVarOperatorVersion *string
 	}{
 		{
 			name:                 "Should not return errors with full configuration",
-			getAsResultErrors:    []error{nil, nil, nil, nil},
+			getAsResultErrors:    []error{nil, nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:              "AgentStatusManager.updateWasPerformed observed-generation-does-not-match-generation",
-			getAsResultErrors: []error{nil, nil, nil, nil},
+			getAsResultErrors: []error{nil, nil, nil, nil, nil},
 			agent: &instanav1.InstanaAgent{
 				Status: instanav1.InstanaAgentStatus{
 					ObservedGeneration: &num,
@@ -108,12 +115,13 @@ func TestUpdateAgentStatus(t *testing.T) {
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:              "AgentStatusManager.updateWasPerformed operator-versions-do-not-match",
-			getAsResultErrors: []error{nil, nil, nil, nil},
+			getAsResultErrors: []error{nil, nil, nil, nil, nil},
 			agent: &instanav1.InstanaAgent{
 				Status: instanav1.InstanaAgentStatus{
 					ObservedGeneration: &num,
@@ -126,12 +134,13 @@ func TestUpdateAgentStatus(t *testing.T) {
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:              "AgentStatusManager.updateWasPerformed operator-version-is-nil",
-			getAsResultErrors: []error{nil, nil, nil, nil},
+			getAsResultErrors: []error{nil, nil, nil, nil, nil},
 			agent: &instanav1.InstanaAgent{
 				Status: instanav1.InstanaAgentStatus{
 					ObservedGeneration: &num,
@@ -144,12 +153,13 @@ func TestUpdateAgentStatus(t *testing.T) {
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:              "AgentStatusManager.updateWasPerformed broken-operator-version-environment-variable",
-			getAsResultErrors: []error{nil, nil, nil, nil},
+			getAsResultErrors: []error{nil, nil, nil, nil, nil},
 			agent: &instanav1.InstanaAgent{
 				Status: instanav1.InstanaAgentStatus{
 					ObservedGeneration: &num,
@@ -162,6 +172,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 			configSecret:          &configSecret,
 			daemonsets:            daemonsets,
 			k8sSensorDeployment:   k8sSensorDeployment,
+			namespacesConfigmap:   namespacesConfigmap,
 			reconciliationErrors:  nil,
 			expected:              "",
 			envVarOperatorVersion: &brokenOperatorVersion,
@@ -173,86 +184,95 @@ func TestUpdateAgentStatus(t *testing.T) {
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:                 "Return empty when ConfigMap is nil",
-			getAsResultErrors:    []error{nil, nil, nil, nil},
+			getAsResultErrors:    []error{nil, nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         nil,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:                 "Return empty when DaemonSets are nil",
-			getAsResultErrors:    []error{nil, nil},
+			getAsResultErrors:    []error{nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           nil,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:                 "Return empty when K8SSensor Deployment is nil",
-			getAsResultErrors:    []error{nil, nil, nil, nil},
+			getAsResultErrors:    []error{nil, nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  nil,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             "",
 		},
 		{
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#1",
-			getAsResultErrors:    []error{errors.New("first_call_errors"), nil, nil, nil},
+			getAsResultErrors:    []error{errors.New("first_call_errors"), nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             errors.New("first_call_errors").Error(),
 		},
 		{
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#2",
-			getAsResultErrors:    []error{nil, errors.New("second_call_errors"), nil, nil},
+			getAsResultErrors:    []error{nil, errors.New("second_call_errors"), nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             errors.New("second_call_errors").Error(),
 		},
 		{
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#3",
-			getAsResultErrors:    []error{nil, nil, errors.New("third_call_errors"), nil},
+			getAsResultErrors:    []error{nil, nil, errors.New("third_call_errors"), nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             errors.New("third_call_errors").Error(),
 		},
 		{
 			name:                 "InstanaAgentClient.GetAsResult returns-error-#4",
-			getAsResultErrors:    []error{nil, nil, nil, errors.New("fourth_call_errors")},
+			getAsResultErrors:    []error{nil, nil, nil, errors.New("fourth_call_errors"), nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: nil,
 			expected:             errors.New("fourth_call_errors").Error(),
 		},
 		{
 			name:                 "Reconciliation error does not affect returning errors",
-			getAsResultErrors:    []error{nil, nil, nil, nil},
+			getAsResultErrors:    []error{nil, nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,
 			k8sSensorDeployment:  k8sSensorDeployment,
+			namespacesConfigmap:  namespacesConfigmap,
 			reconciliationErrors: errors.New("reconciliation_error"),
 			expected:             "",
 		},
@@ -299,6 +319,9 @@ func TestUpdateAgentStatus(t *testing.T) {
 				}
 				if test.k8sSensorDeployment != nil {
 					agentStatusManager.SetK8sSensorDeployment(*test.k8sSensorDeployment)
+				}
+				if test.namespacesConfigmap != nil {
+					agentStatusManager.SetAgentNamespacesConfigMap(*test.namespacesConfigmap)
 				}
 				if len(test.daemonsets) != 0 {
 					for _, val := range test.daemonsets {

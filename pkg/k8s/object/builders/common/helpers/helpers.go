@@ -1,6 +1,12 @@
+/*
+(c) Copyright IBM Corp. 2025
+(c) Copyright Instana Inc. 2025
+*/
+
 package helpers
 
 import (
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +33,7 @@ type Helpers interface {
 	ContainersSecretName() string
 	UseContainersSecret() bool
 	ImagePullSecrets() []corev1.LocalObjectReference
+	SortEnvVarsByName(envVars []corev1.EnvVar)
 }
 
 func (h *helpers) serviceAccountNameDefault() string {
@@ -84,6 +91,12 @@ func (h *helpers) ImagePullSecrets() []corev1.LocalObjectReference {
 	} else {
 		return h.Spec.Agent.ExtendedImageSpec.PullSecrets
 	}
+}
+
+func (h *helpers) SortEnvVarsByName(envVars []corev1.EnvVar) {
+	sort.Slice(envVars, func(i, j int) bool {
+		return envVars[i].Name < envVars[j].Name
+	})
 }
 
 func NewHelpers(agent *instanav1.InstanaAgent) Helpers {

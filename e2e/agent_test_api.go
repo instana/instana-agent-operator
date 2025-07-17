@@ -58,7 +58,8 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		log.Info("Current pods: ", p.Command(), p.ExitCode(), "\n", p.Result())
 
 		p = utils.RunCommand("kubectl get agent instana-agent -o yaml -n instana-agent")
-		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", p.Result())
+		// redact agent key if present
+		log.Info("Current agent CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
 
 		// Cleanup a potentially existing Agent CR first
 		if _, err = DeleteAgentCRIfPresent()(ctx, cfg); err != nil {
@@ -66,15 +67,6 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		}
 
 		log.Info("Agent CR cleanup completed")
-
-		// Just in case a helm chart install was present before from helm chart pipeline
-		p = utils.RunCommand("helm ls -n instana-agent")
-		log.Info("Current helm chart: ", p.Command(), p.ExitCode(), "\n", p.Result())
-
-		p = utils.RunCommand("helm uninstall instana-agent -n instana-agent")
-		if p.Err() != nil {
-			log.Warningf("Could not delete helm chart, might not be present? %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
-		}
 
 		// full purge of resources if anything would be left in the cluster
 		p = utils.RunCommand("kubectl delete crd/agents.instana.io clusterrole/instana-agent-k8sensor clusterrole/instana-agent-clusterrole clusterrole/leader-election-role clusterrolebinding/leader-election-rolebinding clusterrolebinding/instana-agent-clusterrolebinding")
@@ -320,9 +312,6 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 
 func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		// Wait for instana-agent-controller-manager deployment to ensure that CRD is installed correctly before proceeding.
-		// Technically, it could be categorized as "Assess" method, but the setup process requires to wait in between.
-		// Therefore, keeping the wait logic in this section.
 		client, err := cfg.NewClient()
 		if err != nil {
 			t.Fatal(err)
@@ -345,6 +334,39 @@ func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
 	}
 }
 
+func UpdateAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("Creating a new Agent CR")
+
+		// Create Agent CR
+		r := client.Resources(cfg.Namespace())
+		err = v1.AddToScheme(r.GetScheme())
+		if err != nil {
+			t.Fatal("Could not add Agent CR to client scheme", err)
+		}
+
+		// First get the current resource
+		existingAgent := &v1.InstanaAgent{}
+		err = r.Get(ctx, agent.Name, cfg.Namespace(), existingAgent)
+		if err != nil {
+			t.Fatal("Could not get existing Agent CR", err)
+		}
+
+		// Update the existing resource
+		existingAgent.Spec = agent.Spec
+		err = r.Update(ctx, existingAgent)
+		if err != nil {
+			t.Fatal("Could not update Agent CR", err)
+		}
+
+		return ctx
+	}
+}
+
 // Assess functions
 func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
@@ -356,9 +378,23 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		dep := appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
 		}
+
+		// active wait for deployment to be created by the operator, if it is not coming up within 1 minute, something is really off
+		for range 12 {
+			err = client.Resources().Get(ctx, name, cfg.Namespace(), &dep)
+			if err != nil {
+				t.Log("Give the operator a few more seconds to inject resources")
+				time.Sleep(5 * time.Second)
+			} else {
+				t.Logf("Deployment %s was present", name)
+				break
+			}
+		}
+
 		// wait for operator pods of the deployment to become ready
 		err = wait.For(conditions.New(client.Resources()).DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("Deployment %s is ready", name)
@@ -385,6 +421,7 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).DaemonSetReady(&ds), wait.WithTimeout(time.Minute*5))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("DaemonSet %s is ready", daemonSetName)
@@ -404,6 +441,7 @@ func EnsureOldControllerManagerDeploymentIsNotRunning() e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("Deployment %s is deleted", InstanaOperatorOldDeploymentName)
@@ -423,6 +461,7 @@ func EnsureOldClusterRoleIsGone() e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrole), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("ClusteRole %s is deleted", InstanaOperatorOldClusterRoleName)
@@ -442,6 +481,7 @@ func EnsureOldClusterRoleBindingIsGone() e2etypes.StepFunc {
 		}
 		err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&clusterrolebinding), wait.WithTimeout(time.Minute*2))
 		if err != nil {
+			PrintOperatorLogs(ctx, cfg, t)
 			t.Fatal(err)
 		}
 		t.Logf("ClusteRoleBinding %s is deleted", InstanaOperatorOldClusterRoleBindingName)
@@ -456,6 +496,7 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 		if err != nil {
 			t.Fatal(err)
 		}
+		time.Sleep(20 * time.Second)
 		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
 		if err != nil {
 			t.Fatal(err)
@@ -643,7 +684,7 @@ func ValidateSecretsMountedFromExtraVolume() e2etypes.StepFunc {
 }
 
 // Helper to produce test structs
-func NewAgentCr(t *testing.T) v1.InstanaAgent {
+func NewAgentCr() v1.InstanaAgent {
 	boolTrue := true
 
 	return v1.InstanaAgent{
@@ -656,7 +697,7 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 				Name: "e2e",
 			},
 			// ensure to not overlap between concurrent test runs on different clusters, randomize cluster name, but have consistent zone
-			Cluster: v1.Name{Name: envconf.RandomName("e2e", 4)},
+			Cluster: v1.Name{Name: envconf.RandomName("e2e", 9)},
 			Agent: v1.BaseAgentSpec{
 				Key:          InstanaTestCfg.InstanaBackend.AgentKey,
 				EndpointHost: InstanaTestCfg.InstanaBackend.EndpointHost,
@@ -668,4 +709,11 @@ func NewAgentCr(t *testing.T) v1.InstanaAgent {
 			},
 		},
 	}
+}
+
+func PrintOperatorLogs(ctx context.Context, cfg *envconf.Config, t *testing.T) {
+	p := utils.RunCommand(
+		fmt.Sprintf("kubectl logs deployment/instana-agent-controller-manager -n %s", cfg.Namespace()),
+	)
+	t.Log("Error while creating pull secret", p.Out())
 }

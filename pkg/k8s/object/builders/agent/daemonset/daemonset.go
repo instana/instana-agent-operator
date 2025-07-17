@@ -74,7 +74,8 @@ func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 }
 
 func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
-	return d.EnvBuilder.Build(
+	// Get environment variables from the env builder (includes agent.env vars)
+	baseEnvVars := d.EnvBuilder.Build(
 		env.AgentModeEnv,
 		env.ZoneNameEnv,
 		env.ClusterNameEnv,
@@ -105,7 +106,33 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodIPEnv,
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
+		env.NamespacesDetailsPathEnv,
 	)
+
+	// Create a map to track environment variables by name to ensure no duplicates
+	// and to ensure pod.env values take precedence over agent.env values
+	envVarMap := make(map[string]corev1.EnvVar)
+
+	// Add base environment variables to the map
+	for _, envVar := range baseEnvVars {
+		envVarMap[envVar.Name] = envVar
+	}
+
+	// Add user-defined environment variables from the pod.env field
+	// These will overwrite any existing variables with the same name
+	for _, envVar := range d.InstanaAgent.Spec.Agent.Pod.Env {
+		envVarMap[envVar.Name] = envVar
+	}
+
+	// Convert the map back to a slice
+	result := make([]corev1.EnvVar, 0, len(envVarMap))
+	for _, envVar := range envVarMap {
+		result = append(result, envVar)
+	}
+
+	// Sort the environment variables by name for consistency
+	d.Helpers.SortEnvVarsByName(result)
+	return result
 }
 
 func (d *daemonSetBuilder) getContainerPorts() []corev1.ContainerPort {
@@ -133,6 +160,7 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.ConfigVolume,
 		volume.TlsVolume,
 		volume.RepoVolume,
+		volume.NamespacesDetailsVolume,
 	)
 }
 
