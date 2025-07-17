@@ -17,6 +17,8 @@ package deployment
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -150,9 +152,46 @@ func (d *deploymentBuilder) getName() string {
 
 func (d *deploymentBuilder) getHostName() string {
 	if d.Spec.Hostname != nil && d.Spec.Hostname.Name != "" {
-		return d.Spec.Hostname.Name
+		// Sanitize hostname to make it Kubernetes-compatible
+		hostname := sanitizeHostname(d.Spec.Hostname.Name)
+		return hostname
 	}
 	return fmt.Sprintf("instana-agent-r-%s-%s", d.getName(), d.GetNamespace())
+}
+
+// sanitizeHostname ensures the hostname meets Kubernetes requirements:
+// - Contains only lowercase alphanumeric characters or '-'
+// - Starts with an alphanumeric character
+// - Ends with an alphanumeric character
+// - Is no longer than 63 characters
+func sanitizeHostname(hostname string) string {
+	// Convert to lowercase
+	hostname = strings.ToLower(hostname)
+
+	// Replace dots and other invalid characters with hyphens
+	reg := regexp.MustCompile("[^a-z0-9-]")
+	hostname = reg.ReplaceAllString(hostname, "-")
+
+	// Ensure it starts with an alphanumeric character
+	if len(hostname) > 0 && !regexp.MustCompile("^[a-z0-9]").MatchString(hostname) {
+		hostname = "a" + hostname
+	}
+
+	// Ensure it ends with an alphanumeric character
+	if len(hostname) > 0 && !regexp.MustCompile("[a-z0-9]$").MatchString(hostname) {
+		hostname = hostname + "0"
+	}
+
+	// Truncate to 63 characters if needed
+	if len(hostname) > 63 {
+		hostname = hostname[:63]
+		// After truncation, ensure it still ends with an alphanumeric character
+		if !regexp.MustCompile("[a-z0-9]$").MatchString(hostname) {
+			hostname = hostname[:62] + "0"
+		}
+	}
+
+	return hostname
 }
 
 func (d *deploymentBuilder) getNonStandardLabels() map[string]string {
