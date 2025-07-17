@@ -495,7 +495,7 @@ jobs:
         - do:
           - put: metadata
           - task: reslock-claim-gke-lowest
-            timeout: 60m
+            timeout: 75m
             config:
               platform: linux
               image_resource:
@@ -511,7 +511,7 @@ jobs:
               run:
                 path: pipeline-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-lowest
-            timeout: 40m
+            timeout: 55m
             attempts: 1
             config: &gke-e2e-test-config
               platform: linux
@@ -609,7 +609,7 @@ jobs:
         - do:
           - put: metadata
           - task: reslock-claim-gke-latest
-            timeout: 60m
+            timeout: 75m
             config:
               platform: linux
               image_resource:
@@ -625,7 +625,7 @@ jobs:
               run:
                 path: pipeline-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-latest
-            timeout: 40m
+            timeout: 55m
             attempts: 1
             config:
               <<: *gke-e2e-test-config
@@ -723,7 +723,7 @@ jobs:
         #     params:
         #       claim: openshift-4.11
         #   - task: run-e2e-test-openshift-4.11
-        #     timeout: 40m
+        #     timeout: 55m
         #     attempts: 1
         #     config:
         #       <<: *gke-e2e-test-config
