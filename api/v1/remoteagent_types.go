@@ -71,7 +71,7 @@ type InstanaAgentRemoteStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=agentsremote,singular=agentremote,shortName=ar,scope=Namespaced,categories=monitoring;
+// +kubebuilder:resource:path=agentsremote,singular=agentremote,shortName=ar,scope=Namespaced,categories=monitoring;openshift-optional
 // +kubebuilder:storageversion
 // +operator-sdk:csv:customresourcedefinitions:displayName="Remote Instana Agent",resources={{Deployment,apps/v1,InstanaAgentRemote},{Pod,v1,InstanaAgentRemote},{Secret,v1,InstanaAgentRemote}}
 
