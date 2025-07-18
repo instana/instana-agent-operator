@@ -54,7 +54,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
-					NonResourceURLs: []string{"/version", "/healthz"},
+					NonResourceURLs: []string{"/version", "/healthz", "/metrics", "/metrics/*"},
 					Verbs:           []string{"get"},
 					APIGroups:       []string{},
 					Resources:       []string{},

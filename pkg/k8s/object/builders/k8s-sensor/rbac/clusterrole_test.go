@@ -58,7 +58,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
-					NonResourceURLs: []string{"/version", "/healthz"},
+					NonResourceURLs: []string{"/version", "/healthz", "/metrics", "/metrics/*"},
 					Verbs:           []string{"get"},
 					APIGroups:       []string{},
 					Resources:       []string{},
