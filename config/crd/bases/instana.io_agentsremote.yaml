@@ -10,6 +10,7 @@ spec:
   names:
     categories:
     - monitoring
+    - openshift-optional
     kind: InstanaAgentRemote
     listKind: InstanaAgentRemoteList
     plural: agentsremote

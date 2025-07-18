@@ -5,7 +5,7 @@ metadata:
     alm-examples: |-
       [
           {
-              "apiVersion": "instana.io/v1beta1",
+              "apiVersion": "instana.io/v1",
               "kind": "InstanaAgent",
               "metadata": {
                   "name": "instana-agent",
@@ -66,28 +66,6 @@ spec:
         name: instana-agent
         version: v1
       version: v1beta1
-    - description: InstanaAgent is the Schema for the agents API
-      displayName: Instana Agent
-      kind: InstanaAgent
-      name: agents.instana.io
-      resources:
-      - kind: DaemonSet
-        name: instana-agent
-        version: v1
-      - kind: Pod
-        name: instana-agent
-        version: v1
-      - kind: Secret
-        name: instana-agent
-        version: v1
-      specDescriptors:
-      - description: Key is the secret token which your agent uses to authenticate
-          to Instana's servers.
-        displayName: Agent Key
-        path: agent.key
-        x-descriptors:
-        - urn:alm:descriptor:io.kubernetes:Secret
-      version: v1
     - description: InstanaAgentRemote is the Schema for the agents API
       displayName: Instana Agent Remote
       kind: InstanaAgentRemote
@@ -101,6 +79,28 @@ spec:
         version: v1
       - kind: Secret
         name: InstanaAgentRemote
+        version: v1
+      specDescriptors:
+      - description: Key is the secret token which your agent uses to authenticate
+          to Instana's servers.
+        displayName: Agent Key
+        path: agent.key
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1
+    - description: InstanaAgent is the Schema for the agents API
+      displayName: Instana Agent
+      kind: InstanaAgent
+      name: agents.instana.io
+      resources:
+      - kind: DaemonSet
+        name: instana-agent
+        version: v1
+      - kind: Pod
+        name: instana-agent
+        version: v1
+      - kind: Secret
+        name: instana-agent
         version: v1
       specDescriptors:
       - description: Key is the secret token which your agent uses to authenticate
@@ -134,6 +134,10 @@ spec:
     Then, ensure the `instana-agent` service account is in the privileged security context:
 
         oc adm policy add-scc-to-user privileged -z instana-agent
+
+    The `instana-agent-remote` service account must be allowed to use any userid:
+
+        oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent
 
     This service account will be created by the operator.
 
@@ -180,6 +184,29 @@ spec:
     For advanced configuration, you can edit the contents of the `configuration.yaml` file. View documentation [here](https://ibm.biz/monitoring-k8s).
 
     Apply the custom resource with `kubectl apply -f instana-agent.yaml`. After some time, you should see `instana-agent` Pods being created on each node of your cluster, and your cluster should show on the infrastructure map on your Instana Web interface.
+
+    In addition to the InstanaAgent custom resource, a remote agent can be deployed. This agent will not monitor workload running inside the cluster, but can deploy a single replica of an agent which can get an independent configuration for running remote monitoring for certain sensors.
+
+    ```yaml
+    apiVersion: instana.io/v1
+    kind: InstanaAgentRemote
+    metadata:
+      name: remote-agent
+      namespace: "instana-agent"
+    spec:
+      zone:
+        name: edited-zone # name of the zone of the host
+      hostname:
+        name: use-custom-hostname-for-remote-agent # (optional) give your remote agent pod a custom hostname
+      agent:
+        key: replace-key # replace with your Instana agent key
+        endpointHost: ingress-red-saas.instana.io
+        endpointPort: "443"
+        env: {}
+        configuration_yaml: |
+          # You can leave this empty, or use this to configure your instana agent.
+          # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
+    ```
 
     ## Uninstalling
 
