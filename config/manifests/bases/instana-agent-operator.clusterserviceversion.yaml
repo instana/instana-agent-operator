@@ -24,27 +24,6 @@ metadata:
                       "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://ibm.biz/monitoring-k8s\n"
                   }
               }
-          },
-          {
-              "apiVersion": "instana.io/v1",
-              "kind": "InstanaAgentRemote",
-              "metadata": {
-                  "name": "instana-agent",
-                  "namespace": "instana-agent"
-              },
-              "spec": {
-                  "agent.zone.name": "my-zone",
-                  "agent.key": "replace-me",
-                  "agent.endpoint.host": "ingress-red-saas.instana.io",
-                  "agent.endpoint.port": 443,
-                  "agent.env": {
-                      "INSTANA_AGENT_TAGS": "example"
-                  },
-                  "cluster.name": "replace-me",
-                  "config.files": {
-                      "configuration.yaml": "# Put your remote sensor configuration here"
-                  }
-              }
           }
       ]
     capabilities: Full Lifecycle
