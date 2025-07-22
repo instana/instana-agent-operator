@@ -428,14 +428,8 @@ jobs:
                 IMAGE_TAG=${GIT_COMMIT}
                 OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
 
-                # installing manifest-tool
-                manifest-tool \
-                  --username ${DELIVERY_INSTANA_IO_USER} \
-                  --password ${DELIVERY_INSTANA_IO_PW} \
-                  push from-args \
-                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
-                  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
-                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} | tee manifest-output.txt
+                git clone https://github.com/estesp/manifest-tool
+                cd manifest-tool && make binary 
 
                 OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
                 echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
