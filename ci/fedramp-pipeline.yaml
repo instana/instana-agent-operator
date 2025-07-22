@@ -6,43 +6,48 @@
 #
 ---
 var_sources:
-  - name: prerelease-container-registry
-    type: dummy
-    config:
-      vars: &prerelease-container-registry
-        repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/fedramp-v1.0.0/instana-agent-operator
-        tag: main
-        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-  - name: release-container-registry
+  - name: local-variables
     type: dummy
     config:
       vars:
-        repository: delivery.instana.io/int-docker-agent-fedramp-release-local/instana-agent-operator/fedramp-v1.0.0/instana-agent-operator
-  - name: release-generic-registry
-    type: dummy
-    config:
-      vars:
-        repository: https://delivery.instana.io/artifactory/int-generic-agent-fedramp-release-local/instana-agent-operator/fedramp-v1.0.0/instana-agent-operator
-  - name: e2e-test-base-image
-    type: dummy
-    config:
-      vars: &e2e-test-base-image
-        type: registry-image
-        source:
-          repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-          tag: main
-          username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-          password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+        fedramp-version: "1.0.0"
+
+var:
+  prerelease-container-registry: &prerelease-container-registry
+    repository: &prerelease-container-registry-repository delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/fedramp-v((local-variables:fedramp-version))/instana-agent-operator
+    tag: main
+    username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+    password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  release-container-registry:
+    repository: &release-container-registry-repository delivery.instana.io/int-docker-agent-fedramp-release-local/instana-agent-operator/fedramp-v((local-variables:fedramp-version))/instana-agent-operator
+  release-generic-registry:
+    repository: &release-generic-registry-repository https://delivery.instana.io/artifactory/int-generic-agent-fedramp-release-local/instana-agent-operator/fedramp-v((local-variables:fedramp-version))/instana-agent-operator
+  e2e-test-base-image: &e2e-test-base-image
+    type: registry-image
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+      tag: main
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
 resources:
+  # Pick up version from a google cloud bucket located in /fedramp/version
+  - name: fedramp-version
+    type: semver
+    icon: alpha
+    source:
+      driver: gcs
+      initial_version: ((local-variables:fedramp-version))
+      bucket: instana-agent-qa-versioning
+      key: ((local-variables:fedramp-version))/fedramp/version
+      json_key: ((project-berlin-tests-gcp-instana-qa))
   # Actual instana-agent-operator git source code
   - name: source-code
     type: git
     icon: github
     source:
       uri: https://github.com/instana/instana-agent-operator.git
-      branch: fedramp-release-v1.0.0
+      branch: fedramp-release-v((local-variables:fedramp-version))
       username: instanacd
       password: ((instanacd-github-api-token))
   # Images to be built and pushed to the prerelease registry
@@ -73,6 +78,7 @@ jobs:
     plan:
       - get: source-code
         trigger: false
+      - get: fedramp-version
       - load_var: agent-operator-version
         file: source-code/.git/ref
         reveal: true
@@ -170,7 +176,7 @@ jobs:
             GIT_COMMIT: ((.:git-commit))
             ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-            PRERELEASE_CONTAINER_REGISTRY: ((prerelease-container-registry:repository))
+            PRERELEASE_CONTAINER_REGISTRY: *prerelease-container-registry-repository
           run:
             path: bash
             args:
@@ -199,8 +205,8 @@ jobs:
           params:
             ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-            PRERELEASE_CONTAINER_REGISTRY: ((prerelease-container-registry:repository))
-            RELEASE_CONTAINER_REGISTRY: ((release-container-registry:repository))
+            PRERELEASE_CONTAINER_REGISTRY: *prerelease-container-registry-repository
+            RELEASE_CONTAINER_REGISTRY: *release-container-registry-repository
           run:
             path: bash
             args:
@@ -227,15 +233,15 @@ jobs:
           params:
             ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-            RELEASE_GENERIC_REGISTRY: ((release-generic-registry:repository))
-            RELEASE_REGISTRY: ((release-container-registry:repository))
+            RELEASE_GENERIC_REGISTRY: *release-generic-registry-repository
+            RELEASE_CONTAINER_REGISTRY: *release-container-registry-repository
           run:
             path: bash
             args:
               - -ceu
               - |
-                echo "Attempting to push Instana Agent Operator Kubernetes manifest YAML-file to ${RELEASE_GENERIC_REGISTRY} that points to ${RELEASE_REGISTRY}:latest"
+                echo "Attempting to push Instana Agent Operator Kubernetes manifest YAML-file to ${RELEASE_GENERIC_REGISTRY} that points to ${RELEASE_CONTAINER_REGISTRY}:latest"
                 cd source-code
-                make --silent IMG="${RELEASE_REGISTRY}:latest" controller-yaml > instana-agent-operator-manifest.yaml
+                make --silent IMG="${RELEASE_CONTAINER_REGISTRY}:latest" controller-yaml > instana-agent-operator-manifest.yaml
                 curl --fail --show-error -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD}  -X PUT "${RELEASE_GENERIC_REGISTRY}/instana-agent-operator-manifest.yaml" -T "./instana-agent-operator-manifest.yaml"
                 echo "Pushing of Instana Agent Operator Kubernetes manifest YAML-file successful."
