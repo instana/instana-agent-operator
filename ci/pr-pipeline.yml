@@ -431,7 +431,6 @@ jobs:
               - |
                 IMAGE_TAG=${GIT_COMMIT}
                 OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
-
                 # installing manifest-tool
                 manifest-tool \
                   --username ${DELIVERY_INSTANA_IO_USER} \
