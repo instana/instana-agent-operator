@@ -195,7 +195,7 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=policy,resources=podsecuritypolicies,verbs=use
 
 // adding role property required to manage instana-agent-k8sensor ClusterRole
-// +kubebuilder:rbac:urls=/version;/healthz;/metrics;/metrics/cadvisor;/stats/summary,verbs=get
+// +kubebuilder:rbac:urls=/version;/healthz;/metrics;/metrics/*;/metrics/cadvisor;/stats/summary,verbs=get
 // +kubebuilder:rbac:groups=extensions,resources=deployments;replicasets;ingresses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps;events;services;endpoints;namespaces;nodes;pods;pods/log;replicationcontrollers;resourcequotas;persistentvolumes;persistentvolumeclaims;nodes/metrics;nodes/stats;nodes/proxy,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments;replicasets;statefulsets,verbs=get;list;watch
