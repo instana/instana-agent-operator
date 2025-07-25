@@ -29,7 +29,7 @@ resources:
       driver: gcs
       initial_version: ((local-variables:fedramp-version-default))
       bucket: instana-agent-qa-versioning
-      key: fedramp/version
+      key: ((local-vars:fedramp-version-default))/fedramp/version
       json_key: ((project-berlin-tests-gcp-instana-qa))
 
 jobs:
