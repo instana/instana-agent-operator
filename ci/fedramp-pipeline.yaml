@@ -93,7 +93,6 @@ jobs:
             - name: variables
           outputs:
             - name: source-code
-            - name: variables
           params:
             BRANCH_NAME: ((.:release-branch))
           run:
@@ -122,13 +121,13 @@ jobs:
               - -ceu
               - |
                 cd source-code
-                echo $(git describe --tags --abbrev=0) > ../variables/operator-git-tag
-                echo $(cat .git/HEAD) > ../variables/operator-git-commit
-      - load_var: operator-git-tag
-        file: variables/operator-git-tag
+                echo $(git describe --tags --abbrev=0) > ../variables/git-tag
+                echo $(cat .git/HEAD) > ../variables/git-commit
+      - load_var: git-tag
+        file: variables/git-tag
         reveal: true
       - load_var: git-commit
-        file: variables/operator-git-commit
+        file: variables/git-commit
         reveal: true
       # Build images for all supported platforms.
       - in_parallel:
@@ -144,7 +143,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/amd64
-                version: ((.:fedramp-version))
+                version: ((.:git-tag))
                 git-commit: ((.:git-commit))
             - task: build-arm64-image
               privileged: true
@@ -156,7 +155,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/arm64
-                version: ((.:fedramp-version))
+                version: ((.:git-tag))
                 git-commit: ((.:git-commit))
             - task: build-s390x-image
               privileged: true
@@ -168,7 +167,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/s390x
-                version: ((.:fedramp-version))
+                version: ((.:git-tag))
                 git-commit: ((.:git-commit))
             - task: build-ppc64le-image
               privileged: true
@@ -180,7 +179,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/ppc64le
-                version: ((.:fedramp-version))
+                version: ((.:git-tag))
                 git-commit: ((.:git-commit))
       # Create tags for previously built images.
       - task: create-image-tags-for-built-images
@@ -303,6 +302,7 @@ jobs:
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
             PRERELEASE_CONTAINER_REPO_URL: ((.:prerelease-container-repo-url))
             RELEASE_CONTAINER_REPO_URL: ((.:release-container-repo-url))
+            GIT_TAG: ((.:git-tag))
           run:
             path: bash
             args:
@@ -310,6 +310,7 @@ jobs:
               - |
                 DIGEST=$(cat manifest-list/digest)
                 echo "Attempting to copy ${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} over to the registry ${RELEASE_CONTAINER_REPO_URL}."
+
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME} \
                   --src-password ${ARTIFACTORY_PASSWORD} \
@@ -317,7 +318,16 @@ jobs:
                   --dest-password ${ARTIFACTORY_PASSWORD} \
                   docker://${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} \
                   docker://${RELEASE_CONTAINER_REPO_URL}:latest
-                echo "${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} has been copied over to ${RELEASE_CONTAINER_REPO_URL} registry successfully."
+
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME} \
+                  --src-password ${ARTIFACTORY_PASSWORD} \
+                  --dest-username ${ARTIFACTORY_USERNAME} \
+                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  docker://${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} \
+                  docker://${RELEASE_CONTAINER_REPO_URL}:${GIT_TAG}
+
+                echo "${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} has been copied over to ${RELEASE_CONTAINER_REPO_URL}:${GIT_TAG}+latest registry successfully."
       # Release operator yaml by pushing it to the release generic repository.
       - task: push-kubernetes-manifest-file-to-release-generic-repository
         privileged: true
