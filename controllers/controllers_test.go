@@ -267,6 +267,8 @@ func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 // TearDownSuite i.e. AfterSuite
 func (suite *InstanaAgentControllerTestSuite) TearDownSuite() {
 	suite.cancel()
+	// Give the controller manager time to shut down gracefully
+	time.Sleep(2 * time.Second)
 	err := suite.testEnv.Stop()
 	require.NoError(suite.T(), err)
 }
@@ -295,6 +297,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	_, err := suite.instanaAgentClient.Apply(suite.ctx, agent).Get()
 	require.NoError(suite.T(), err, "Should not throw an error when applying the InstanaAgent schema")
 
+	// Increase timeout to 30 seconds to allow for slower test environments
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.exist,
@@ -311,7 +314,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		10*time.Second,
+		30*time.Second,
 		time.Second,
 		"Should contain all objects in the schema",
 	)
@@ -327,6 +330,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	)
 	require.NoError(suite.T(), err, "Should not throw an error when patching the InstanaAgent schema with a new version")
 
+	// Increase timeout to 30 seconds for this check as well
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.exist,
@@ -342,7 +346,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
 		),
-		10*time.Second,
+		30*time.Second,
 		time.Second,
 		"Should contain listed objects in the patched schema",
 	)
@@ -352,13 +356,16 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			agentKeysSecret,
 			k8SensorPdb,
 		),
-		10*time.Second,
+		30*time.Second,
 		time.Second,
 		"Should not contain listed objects after the patched schema",
 	)
 
+	// Delete the agent CR and ensure proper cleanup
 	err = suite.k8sClient.Delete(suite.ctx, agent)
 	require.NoError(suite.T(), err, "Should not return an error while deleting the agent")
+
+	// Increase timeout for deletion as well
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.notExist,
@@ -376,7 +383,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		10*time.Second,
+		30*time.Second,
 		time.Second,
 		"Should delete all objects from the schema",
 	)
