@@ -21,38 +21,20 @@ var:
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
 
-resources:
-  - name: fedramp-version
-    type: semver
-    icon: alpha
-    source:
-      driver: gcs
-      initial_version: ((local-variables:fedramp-version-default))
-      bucket: instana-agent-qa-versioning
-      key: ((local-vars:fedramp-version-default))/fedramp/version
-      json_key: ((project-berlin-tests-gcp-instana-qa))
-
 jobs:
   - name: build-and-push-multiarch-fedramp-image
     max_in_flight: 1
     plan:
-      # Prepare fedramp version number
-      - get: fedramp-version
-      - load_var: fedramp-version
-        file: fedramp-version/number
-        reveal: true
       # Use the filesystem to have dynamic variables that change based on the fedramp-version
       - task: determine-variables-from-fedramp-version
         config:
           platform: linux
           image_resource:
             <<: *e2e-test-base-image
-          inputs:
-            - name: fedramp-version
           outputs:
             - name: variables
           params:
-            FEDRAMP_VERSION: ((.:fedramp-version))
+            FEDRAMP_VERSION: ((local-variables:fedramp-version-default))
           run:
             path: bash
             args:
@@ -114,7 +96,6 @@ jobs:
             - name: source-code
           outputs:
             - name: variables
-          params:
           run:
             path: bash
             args:
