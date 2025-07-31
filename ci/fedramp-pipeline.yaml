@@ -283,7 +283,6 @@ jobs:
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
             PRERELEASE_CONTAINER_REPO_URL: ((.:prerelease-container-repo-url))
             RELEASE_CONTAINER_REPO_URL: ((.:release-container-repo-url))
-            GIT_TAG: ((.:git-tag))
           run:
             path: bash
             args:
@@ -300,15 +299,7 @@ jobs:
                   docker://${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} \
                   docker://${RELEASE_CONTAINER_REPO_URL}:latest
 
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME} \
-                  --src-password ${ARTIFACTORY_PASSWORD} \
-                  --dest-username ${ARTIFACTORY_USERNAME} \
-                  --dest-password ${ARTIFACTORY_PASSWORD} \
-                  docker://${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} \
-                  docker://${RELEASE_CONTAINER_REPO_URL}:${GIT_TAG}
-
-                echo "${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} has been copied over to ${RELEASE_CONTAINER_REPO_URL}:${GIT_TAG}+latest registry successfully."
+                echo "${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} has been copied over to registry successfully."
       # Release operator yaml by pushing it to the release generic repository.
       - task: push-kubernetes-manifest-file-to-release-generic-repository
         privileged: true
