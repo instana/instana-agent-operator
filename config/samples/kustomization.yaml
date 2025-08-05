@@ -2,4 +2,5 @@
 resources:
 - instana_v1beta1_instanaagent.yaml
 - instana_v1_instanaagent.yaml
+- instana_v1_instanaagent_with_dependency_urls.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

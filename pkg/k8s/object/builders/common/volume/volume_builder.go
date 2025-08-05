@@ -33,6 +33,7 @@ const (
 	TlsVolume
 	RepoVolume
 	NamespacesDetailsVolume
+	DeployVolume
 )
 
 type VolumeBuilder interface {
@@ -131,6 +132,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.tlsVolume()
 	case RepoVolume:
 		return v.repoVolume()
+	case DeployVolume:
+		return v.deployVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
@@ -234,8 +237,27 @@ func (v *volumeBuilder) tlsVolume() (*corev1.Volume, *corev1.VolumeMount) {
 		MountPath: "/opt/instana/agent/etc/certs",
 		ReadOnly:  true,
 	}
-	return &volume, &volumeMount
 
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) deployVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	if len(v.instanaAgent.Spec.Agent.DependencyURLs) == 0 {
+		return nil, nil
+	}
+	volumeName := "instanadeploy"
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: "/opt/instana/agent/deploy",
+	}
+
+	return &volume, &volumeMount
 }
 
 func (v *volumeBuilder) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {

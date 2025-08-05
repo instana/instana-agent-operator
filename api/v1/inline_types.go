@@ -164,6 +164,9 @@ type BaseAgentSpec struct {
 	// Sets the INSTANA_MVN_REPOSITORY_SHARED_PATH environment variable
 	// +kubebuilder:validation:Optional
 	MvnRepoSharedPath string `json:"instanaMvnRepoSharedPath,omitempty"`
+	// URLs to dependency files that will be fetched via an init container and shared with the agent pod
+	// +kubebuilder:validation:Optional
+	DependencyURLs []string `json:"dependencyURLs,omitempty"`
 	// Sets the AGENT_RELEASE_REPOSITORY_MIRROR_URL environment variable
 	// +kubebuilder:validation:Optional
 	MirrorReleaseRepoUrl string `json:"agentReleaseRepoMirrorUrl,omitempty"`
