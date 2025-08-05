@@ -314,6 +314,7 @@ jobs:
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
             RELEASE_GENERIC_REPO_URL: ((.:release-generic-repo-url))
             RELEASE_CONTAINER_REPO_URL: ((.:release-container-repo-url))
+            GIT_TAG: ((.:git-tag))
           run:
             path: bash
             args:
@@ -322,5 +323,5 @@ jobs:
                 echo "Attempting to push Instana Agent Operator Kubernetes manifest YAML-file to ${RELEASE_GENERIC_REPO_URL} that points to ${RELEASE_CONTAINER_REPO_URL}:latest"
                 cd source-code
                 make --silent IMG="${RELEASE_CONTAINER_REPO_URL}:latest" controller-yaml > instana-agent-operator-manifest.yaml
-                curl --fail --show-error -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD}  -X PUT "${RELEASE_GENERIC_REPO_URL}/instana-agent-operator-manifest.yaml" -T "./instana-agent-operator-manifest.yaml"
+                curl --fail --show-error -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD}  -X PUT "${RELEASE_GENERIC_REPO_URL}/instana-agent-operator-manifest-${GIT_TAG}.yaml" -T "./instana-agent-operator-manifest.yaml"
                 echo "Pushing of Instana Agent Operator Kubernetes manifest YAML-file successful."
