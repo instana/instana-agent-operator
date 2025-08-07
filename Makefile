@@ -12,6 +12,16 @@ ifeq ($(ARCH),aarch64)
 	ARCH := arm64
 endif
 
+# Tools installation directory and shortcuts
+export GOBIN=$(shell pwd)/bin
+CONTROLLER_GEN = ${GOBIN}/controller-gen
+KUSTOMIZE = ${GOBIN}/kustomize
+ENVTEST = ${GOBIN}/setup-envtest
+GOLANGCI_LINT = ${GOBIN}/golangci-lint
+OPERATOR_SDK = ${GOBIN}/operator-sdk
+BUILDCTL =  ${GOBIN}/buildctl
+MOCKGEN = ${GOBIN}/mockgen
+
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
 VERSION ?= 0.0.1
 
@@ -43,15 +53,6 @@ AGENT_IMG ?= icr.io/instana/agent:latest
 CRD_OPTIONS ?= "crd"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.32
-
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
-
-GOPATH=$(shell go env GOPATH)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
@@ -208,90 +209,6 @@ deploy-minikube: manifests kustomize ## Convenience target to push the docker im
 undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0)
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.5)
-
-ENVTEST = $(shell pwd)/bin/setup-envtest
-envtest: ## Download envtest-setup locally if necessary.
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
-
-GOLANGCI_LINT = $(shell go env GOPATH)/bin/golangci-lint
-# Test if golangci-lint is available in the GOPATH, if not, set to local and download if needed
-ifneq ($(shell test -f $(GOLANGCI_LINT) && echo -n yes),yes)
-GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-endif
-golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.4)
-
-OPERATOR_SDK = $(shell command -v operator-sdk 2>/dev/null || echo "operator-sdk")
-# Test if operator-sdk is available on the system, otherwise download locally
-ifneq ($(shell test -f $(OPERATOR_SDK) && echo -n yes),yes)
-OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
-endif
-operator-sdk: ## Download the Operator SDK binary locally if necessary.
-	$(call curl-get-tool,$(OPERATOR_SDK),https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0,operator-sdk_$${OS}_$${ARCH})
-
-BUILDCTL = $(shell pwd)/bin/buildctl
-BUILDKITD_CONTAINER_NAME = buildkitd
-# Test if buildctl is available in the GOPATH, if not, set to local and download if needed
-buildctl: ## Download the buildctl cli locally if necessary.
-	@if [ "`podman ps -a -q -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
-		if [ "`podman ps -aq -f status=exited -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
-			echo "Starting buildkitd container $(BUILDKITD_CONTAINER_NAME)"; \
-			$(CONTAINER_CMD) start $(BUILDKITD_CONTAINER_NAME) || true; \
-			echo "Allowing 5 seconds to bootup"; \
-			sleep 5; \
-		else \
-			echo "Buildkit daemon is already running, skip container creation"; \
-		fi \
-	else \
-		echo "$(BUILDKITD_CONTAINER_NAME) container is not present, launching it now"; \
-		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:v0.16.0; \
-		echo "Allowing 5 seconds to bootup"; \
-		sleep 5; \
-	fi
-	$(call go-install-tool,$(BUILDCTL),github.com/moby/buildkit/cmd/buildctl@v0.16)
-
-# go-install-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-install-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
-
-# curl-get-tool will download the package $3 from $2 and install it to $1.
-# The package name can use $${OS} and $${ARCH} to fetch the specific version (double $$ for escaping)
-define curl-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-ARCH=`case $$(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $$(uname -m) ;; esac` ;\
-OS=$$(uname | awk '{print tolower($$0)}') ;\
-echo "Downloading $(2)/$(3)" ;\
-curl -LO $(2)/$(3) ;\
-curl -LO $(2)/checksums.txt ;\
-grep $(3) checksums.txt | sha256sum -c - ;\
-chmod +x $(3) ;\
-mkdir -p $$(dirname $(1)) ;\
-mv $(3) $(1) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
-
 .PHONY: namespace
 namespace: ## Generate namespace instana-agent on OCP for manual testing
 	oc new-project instana-agent || true
@@ -399,25 +316,75 @@ controller-yaml: manifests kustomize ## Output the YAML for deployment, so it ca
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/default
 
-get-mockgen:
+CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
+gen-mocks: mockgen  ## Generate mocks for tests
+	${MOCKGEN} --source $(shell go env GOPATH)/pkg/mod/sigs.k8s.io/controller-runtime@$(CONTROLLER_RUNTIME_VERSION)/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
+	${MOCKGEN} --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
+	${MOCKGEN} --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
+	${MOCKGEN} --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/transformations/transformations.go --destination ./mocks/transformations_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/ports/ports_builder.go --destination ./mocks/ports_builder_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/env/env_builder.go --destination ./mocks/env_builder_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/volume/volume_builder.go --destination ./mocks/volume_builder_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./mocks/helpers_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./mocks/builder_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/env/remote_env_builder.go --destination ./mocks/remote_env_builder_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/volume/remote_volume_builder.go --destination ./mocks/remote_volume_builder_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/object/builders/common/helpers/remote_helpers.go --destination ./mocks/remote_helpers_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/operator/status/remote_agent_status_manager.go --destination ./mocks/remote_agent_status_manager_mock.go --package mocks 
+	${MOCKGEN} --source ./pkg/k8s/operator/lifecycle/remote_dependent_lifecycle_manager.go --destination ./mocks/remote_dependent_lifecycle_manager_mock.go --package mocks
+
+##@ Individual install targets to download binaries to ./bin-folder
+
+.PHONY: controller-gen
+controller-gen: ## Download controller-gen locally if necessary.
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
+
+.PHONY: kustomize
+kustomize: ## Download kustomize locally if necessary.
+	go install sigs.k8s.io/kustomize/kustomize/v4@v4.5.5
+
+.PHONY: envtest
+envtest: ## Download envtest-setup locally if necessary.
+	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: golanci-lint
+golangci-lint: ## Download the golangci-lint linter locally if necessary.
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.4
+
+.PHONY: operator-sdk
+operator-sdk: ## Download the Operator SDK binary locally if necessary.
+	@if [ -f $(OPERATOR_SDK) ]; then \
+		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
+	else \
+		echo "DOwnload Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.23.0/operator-sdk_${OS}_${ARCH}; \
+		chmod +x $(OPERATOR_SDK); \
+	fi
+
+.PHONY: mockgen
+mockgen: ## Download the mockgen binary locally if necessary.
 	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
 
-gen-mocks: get-mockgen
-	${GOBIN}/mockgen --source ${GOPATH}/pkg/mod/sigs.k8s.io/controller-runtime@v0.20.4/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
-	${GOBIN}/mockgen --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
-	${GOBIN}/mockgen --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
-	${GOBIN}/mockgen --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/transformations/transformations.go --destination ./mocks/transformations_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/ports/ports_builder.go --destination ./mocks/ports_builder_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/env/env_builder.go --destination ./mocks/env_builder_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/volume/volume_builder.go --destination ./mocks/volume_builder_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./mocks/helpers_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./mocks/builder_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/env/remote_env_builder.go --destination ./mocks/remote_env_builder_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/volume/remote_volume_builder.go --destination ./mocks/remote_volume_builder_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/object/builders/common/helpers/remote_helpers.go --destination ./mocks/remote_helpers_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/operator/status/remote_agent_status_manager.go --destination ./mocks/remote_agent_status_manager_mock.go --package mocks 
-	${GOBIN}/mockgen --source ./pkg/k8s/operator/lifecycle/remote_dependent_lifecycle_manager.go --destination ./mocks/remote_dependent_lifecycle_manager_mock.go --package mocks
+.PHONY: buildctl
+BUILDKITD_CONTAINER_NAME = buildkitd
+buildctl: ## Download the buildctl binary locally if necessary and prepare the container for running builds.
+	go install github.com/moby/buildkit/cmd/buildctl@v0.16
+	@if [ "`podman ps -a -q -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
+		if [ "`podman ps -aq -f status=exited -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
+			echo "Starting buildkitd container $(BUILDKITD_CONTAINER_NAME)"; \
+			$(CONTAINER_CMD) start $(BUILDKITD_CONTAINER_NAME) || true; \
+			echo "Allowing 5 seconds to bootup"; \
+			sleep 5; \
+		else \
+			echo "Buildkit daemon is already running, skip container creation"; \
+		fi \
+	else \
+		echo "$(BUILDKITD_CONTAINER_NAME) container is not present, launching it now"; \
+		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:v0.16.0; \
+		echo "Allowing 5 seconds to bootup"; \
+		sleep 5; \
+	fi
