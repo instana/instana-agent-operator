@@ -9,10 +9,10 @@ echo "===== setup.sh - start ====="
 echo "Installing dependencies"
 dnf -y install rsync
 echo "Installing helm"
-curl -L --silent --fail --show-error https://get.helm.sh/helm-v3.17.1-linux-amd64.tar.gz | tar -zx linux-amd64/helm
+curl -L --silent --fail --show-error https://get.helm.sh/helm-v3.17.3-linux-amd64.tar.gz | tar -zx linux-amd64/helm
 mv linux-amd64/helm /bin/helm
 
-GO_VERSION=1.24.1
+GO_VERSION=1.24.3
 echo "=== Installing Golang ${GO_VERSION} ==="
 echo "Downloading golang binaries"
 curl -sLo "go${GO_VERSION}.linux-amd64.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
