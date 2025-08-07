@@ -68,14 +68,35 @@ fi
 echo "Creating manifest list..."
 mkdir -p manifest-list
 
+# Create a temporary YAML file for manifest-tool
+cat > manifest-config.yaml << EOF
+image: ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}
+manifests:
+  - image: ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-x86_64
+    platform:
+      architecture: amd64
+      os: linux
+  - image: ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-aarch64
+    platform:
+      architecture: arm64
+      os: linux
+  - image: ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ppc64le
+    platform:
+      architecture: ppc64le
+      os: linux
+  - image: ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-s390x
+    platform:
+      architecture: s390x
+      os: linux
+EOF
+
 manifest-tool \
   --username ${ARTIFACTORY_INTERNAL_USERNAME} \
   --password ${ARTIFACTORY_INTERNAL_PASSWORD} \
-  push from-args \
-  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
-  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} \
-  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
-  --template-arch amd64=x86_64,arm64=aarch64,ppc64le=ppc64le,s390x=s390x | tee manifest-output.txt
+  push from-spec manifest-config.yaml | tee manifest-output.txt
+
+# Clean up the temporary file
+rm manifest-config.yaml
 
 # Extract and save the digest
 OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
