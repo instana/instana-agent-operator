@@ -69,6 +69,10 @@ var agent = &instanav1.InstanaAgent{
 		},
 		K8sSensor: instanav1.K8sSpec{
 			PodDisruptionBudget: instanav1.Enabled{Enabled: pointer.To(true)},
+			DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+				Enabled:  instanav1.Enabled{Enabled: pointer.To(true)},
+				Replicas: 1,
+			},
 		},
 	},
 }
@@ -350,12 +354,6 @@ func (suite *InstanaAgentControllerTestSuite) notExist(obj object) bool {
 
 // TestInstanaAgentCR is the test method to verify the whole lifecycle of the Instana Agent custom resource from start to deletion against the EnvTest
 func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
-	// Print agent details for debugging
-	suite.T().Logf("Agent CR details - Zone: %s, Cluster: %s, Key: %s",
-		agent.Spec.Zone.Name,
-		agent.Spec.Cluster.Name,
-		agent.Spec.Agent.Key)
-
 	_, err := suite.instanaAgentClient.Apply(suite.ctx, agent).Get()
 	require.NoError(suite.T(), err, "Should not throw an error when applying the InstanaAgent schema")
 
@@ -363,40 +361,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	createdAgent := &instanav1.InstanaAgent{}
 	err = suite.k8sClient.Get(suite.ctx, client.ObjectKey{Name: agent.Name, Namespace: agent.Namespace}, createdAgent)
 	require.NoError(suite.T(), err, "Should be able to get the created InstanaAgent")
-	suite.T().Logf("Created Agent CR - Zone: %s, Cluster: %s, Key: %s",
-		createdAgent.Spec.Zone.Name,
-		createdAgent.Spec.Cluster.Name,
-		createdAgent.Spec.Agent.Key)
 
-	// Add debug logging to help diagnose the issue
-	suite.T().Log("Waiting for resources to be created...")
-
-	// Check each resource individually with periodic logging
-	startTime := time.Now()
-	checkInterval := 10 * time.Second
-	timeout := 120 * time.Second
-
-	for time.Since(startTime) < timeout {
-		// Check DaemonSet specifically since it's failing
-		exists, err := suite.instanaAgentClient.Exists(suite.ctx, agentDaemonset.gvk, agentDaemonset.key).Get()
-		suite.T().Logf("DaemonSet exists: %v, error: %v", exists, err)
-
-		if exists {
-			suite.T().Log("DaemonSet was created successfully!")
-			break
-		}
-
-		// Add more detailed logging about the agent CR
-		suite.T().Logf("Agent CR check - Key: '%s', KeysSecret: '%s', Zone.Name: '%s', Cluster.Name: '%s'",
-			createdAgent.Spec.Agent.Key,
-			createdAgent.Spec.Agent.KeysSecret,
-			createdAgent.Spec.Zone.Name,
-			createdAgent.Spec.Cluster.Name)
-
-		time.Sleep(checkInterval)
-	}
-
-	// Increase timeout for CI environment
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.exist,
@@ -413,7 +378,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		120*time.Second, // Doubled timeout for CI environment
+		120*time.Second,
 		time.Second,
 		"Should contain all objects in the schema",
 	)
@@ -444,7 +409,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
 		),
-		60*time.Second, // Increased timeout for CI environment
+		60*time.Second,
 		time.Second,
 		"Should contain listed objects in the patched schema",
 	)
@@ -454,7 +419,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			agentKeysSecret,
 			k8SensorPdb,
 		),
-		60*time.Second, // Increased timeout for CI environment
+		60*time.Second,
 		time.Second,
 		"Should not contain listed objects after the patched schema",
 	)
@@ -478,10 +443,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		30*time.Second, // Increased timeout for CI environment
+		30*time.Second,
 		time.Second,
 		"Should delete all objects from the schema",
 	)
 }
-
-// Made with Bob
