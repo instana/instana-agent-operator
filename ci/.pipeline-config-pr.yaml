@@ -1,108 +1,8 @@
 version: "2"
 
 tasks:
-  pr-code-checks:
-    displayName: "Build amd64 image"
-    runtimeClassName: large
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/amd64
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-2:
-    from: pr-code-checks
-    displayName: "Build arm64 image"
-    runtimeClassName: large
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/arm64
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-3:
-    from: pr-code-checks
-    displayName: "Build s390x image"
-    runtimeClassName: large
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/s390x
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-4:
-    from: pr-code-checks
-    displayName: "Build ppc64le image"
-    runtimeClassName: large
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-container-image-task.sh linux/ppc64le
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-5:
-    from: pr-code-checks
-    displayName: "Build and test agent operator"
-    runtimeClassName: large
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          pwd
-          dnf -y install microdnf
-          source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
-          export PATH=$PATH:/usr/local/go/bin
-          go install
-          make build
-      - name: detect-secrets
-        include:
-          - docker-socket
-    
-  # pr-code-checks-6:
-  #   from: pr-code-checks
-  #   displayName: "Unit test"
+  # pr-code-checks:
+  #   displayName: "Build  amd64 arm64 s390x and ppc64le images"
   #   runtimeClassName: large
   #   onError: stopAndFail
   #   include:
@@ -114,30 +14,16 @@ tasks:
   #         - docker-socket
   #       script: |
   #         #!/usr/bin/env bash
-  #         if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-  #             trap env EXIT
-  #             env
-  #             set -x
-  #         fi
-  #         pwd
-  #         dnf -y install microdnf
-  #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
-  #         export PATH=$PATH:/usr/local/go/bin
-        
-  #         go install
-          
-  #         # Setup kubebuilder assets for envtest
-  #         export PATH=$PATH:$(go env GOPATH)/bin
-          
-  #         make envtest gen-mocks lint test
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
   #     - name: detect-secrets
   #       include:
   #         - docker-socket
 
-  # pr-code-checks-7:
+  # pr-code-checks-2:
   #   from: pr-code-checks
-  #   displayName: operator-olm-build
+  #   displayName: "Build and test agent operator"
   #   runtimeClassName: large
+  #   onError: stopAndFail
   #   include:
   #     - dind
   #   steps:
@@ -147,93 +33,19 @@ tasks:
   #         - docker-socket
   #       script: |
   #         #!/usr/bin/env bash
-  #         set -ceu
-  #         if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-  #           trap env EXIT
-  #           env
-  #           set -x
-  #         fi
-  #         export GIT_COMMIT="$(get_env branch || echo "latest")"
-  #         export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
-  #         export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
-
+  #         pwd
   #         dnf -y install microdnf
   #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
   #         export PATH=$PATH:/usr/local/go/bin
-
-  #         IMAGE_TAG=${GIT_COMMIT}
-  #         echo "Using IMAGE_TAG=${IMAGE_TAG}"
-  #         unset HISTFILE
-  #         skopeo login -u ${ARTIFACTORY_INTERNAL_USERNAME} -p ${ARTIFACTORY_INTERNAL_PASSWORD} delivery.instana.io
-
-  #         OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
-  #         OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
-  #         echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
- 
-  #         mkdir -p target
-  #         mkdir -p bundle
-  #         mkdir -p ../docker-input
-
-  #         export PREFIX="v"
-          
-  #         echo "==== Bump versions/INSTANA_AGENT_CHART_VERSION with "[skip ci]" commit message and push to GitHub Enterprise ===="
-  #         NEW_VERSION=$(awk -F. '{$NF = $NF + 1;} 1' OFS=. ./version/AGENT_OPERATOR_VERSION) && echo "${NEW_VERSION}" > ./version/AGENT_OPERATOR_VERSION
-  #         git config --global "user.email" "instana.ibm.github.enterprise@ibm.com"
-  #         git config --global "user.name" "Instana-IBM-GitHub-Enterprise"
-  #         git add ./version/AGENT_OPERATOR_VERSION
-  #         git commit -m "[skip ci] Bump the instana-agent chart version to ${NEW_VERSION}"
-  #         git push origin "${BRANCH}"
-
-  #         export VERSION="$(cat ./version/AGENT_OPERATOR_VERSION)"
-  #         export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
-
-  #         # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
-  #         # Uses jq to filter out non-release versions
-  #         export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
-  #           | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
-  #           | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-
-  #         if [[ "x${PREV_VERSION}" = "x" ]]; then
-  #             echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
-  #             exit 1
-  #         fi
-
-  #         echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
-  #         export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
-
-  #         # Get the digest for the agent image
-  #         AGENT_IMAGE_NAME="icr.io/instana/agent"
-  #         AGENT_IMAGE_TAG="latest"
-  #         echo "Fetching digest for ${AGENT_IMAGE_NAME}:${AGENT_IMAGE_TAG}"
-  #         export AGENT_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${AGENT_IMAGE_NAME}:${AGENT_IMAGE_TAG})
-  #         echo "AGENT_IMG_DIGEST=$AGENT_IMG_DIGEST"
-
-
-  #         # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
-  #         make IMG="${OPERATOR_IMAGE}" \
-  #           VERSION="${OLM_RELEASE_VERSION}" \
-  #           PREV_VERSION="${PREV_VERSION}" \
-  #           AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
-  #           bundle
-
-  #         cp bundle.Dockerfile ../docker-input/
-  #         cp -R bundle ../docker-input/
-  #         pushd bundle
-  #         zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
-  #         popd
-
-  #         # Create the YAML for installing the Agent Operator, which we want to package with the release
-  #         make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > ../target/instana-agent-operator.yaml
-
-  #         echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
-  #         cat ../target/instana-agent-operator.yaml
+  #         go install
+  #         make build
   #     - name: detect-secrets
   #       include:
   #         - docker-socket
-
-  pr-code-checks-8:
+    
+  pr-code-checks-3:
     from: pr-code-checks
-    displayName: build-e2e-operator-base-image
+    displayName: "Unit test"
     runtimeClassName: large
     onError: stopAndFail
     include:
@@ -245,61 +57,30 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-9:
-    from: pr-code-checks
-    displayName: e2e-ocp-latest
-    runtimeClassName: large
-    runAfter:
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-3
-      - pr-code-checks-4
-      - pr-code-checks-5
-      # - pr-code-checks-6
-      # - pr-code-checks-7
-      - pr-code-checks-8
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          if [[ "$(get_env run-ocp-fyre-latest)" == "false" ]]; then
-              echo "skipping tests due to run-ocp-fyre-latest being false"
-              exit 0
+          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
+              trap env EXIT
+              env
+              set -x
           fi
+          pwd
           dnf -y install microdnf
           source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
           export PATH=$PATH:/usr/local/go/bin
+        
           go install
-          export CLUSTER_ID="ocp-fyre-latest"
-          export TASK_NAME="pr-code-checks-9"
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+          
+          # Setup kubebuilder assets for envtest
+          export PATH=$PATH:$(go env GOPATH)/bin
+          
+          make envtest gen-mocks lint test
       - name: detect-secrets
         include:
           - docker-socket
 
-  pr-code-checks-10:
+  pr-code-checks-4:
     from: pr-code-checks
-    displayName: e2e-gke-latest
+    displayName: operator-olm-build
     runtimeClassName: large
-    runAfter:
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-3
-      - pr-code-checks-4
-      - pr-code-checks-5
-      # - pr-code-checks-6
-      # - pr-code-checks-7
-      - pr-code-checks-8
     include:
       - dind
     steps:
@@ -309,54 +90,166 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          dnf -y install microdnf
-          source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
-          export PATH=$PATH:/usr/local/go/bin
-          go install
-          export CLUSTER_ID="gke-latest"
-          export TASK_NAME="pr-code-checks-10"
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-  
-  pr-code-checks-11:
-    from: pr-code-checks
-    displayName: publish-manifest-list
-    runtimeClassName: large
-    runAfter:
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-3
-      - pr-code-checks-4
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
+          if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+            trap env EXIT
+            env
+            set -x
+          fi
+          export GIT_COMMIT="$(get_env branch || echo "latest")"
           export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
           export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
-          export GIT_COMMIT="$(get_env branch || echo "latest")"
-          export IMAGE_TAG=${GIT_COMMIT}
-
-          mkdir -p manifest-list
-          
-          OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
 
           dnf -y install microdnf
           source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
           export PATH=$PATH:/usr/local/go/bin
 
-          # Install skopeo for image inspection
-          dnf -y install skopeo
+          IMAGE_TAG=${GIT_COMMIT}
+          echo "Using IMAGE_TAG=${IMAGE_TAG}"
+          unset HISTFILE
+          skopeo login -u ${ARTIFACTORY_INTERNAL_USERNAME} -p ${ARTIFACTORY_INTERNAL_PASSWORD} delivery.instana.io
 
-          # Use the new script that checks if images exist before creating the manifest
-          chmod +x $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/check-and-create-manifest.sh
-          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/check-and-create-manifest.sh
+          OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+          OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
+          echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+ 
+          mkdir -p target
+          mkdir -p bundle
+          mkdir -p ../docker-input
+
+          export PREFIX="v"
+          
+          echo "==== Bump versions/INSTANA_AGENT_CHART_VERSION with "[skip ci]" commit message and push to GitHub Enterprise ===="
+          NEW_VERSION=$(awk -F. '{$NF = $NF + 1;} 1' OFS=. ./version/AGENT_OPERATOR_VERSION) && echo "${NEW_VERSION}" > ./version/AGENT_OPERATOR_VERSION
+          git config --global "user.email" "instana.ibm.github.enterprise@ibm.com"
+          git config --global "user.name" "Instana-IBM-GitHub-Enterprise"
+          git add ./version/AGENT_OPERATOR_VERSION
+          git commit -m "[skip ci] Bump the instana-agent chart version to ${NEW_VERSION}"
+          git push origin "${BRANCH}"
+
+          export VERSION="$(cat ./version/AGENT_OPERATOR_VERSION)"
+          export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
+
+          # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
+          # Uses jq to filter out non-release versions
+          export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags \
+            | jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' \
+            | sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+          if [[ "x${PREV_VERSION}" = "x" ]]; then
+              echo "!! Could not determine previous released version. Fix either pipeline or tag history !!"
+              exit 1
+          fi
+
+          echo "Operator manifest SHA found, using digest ${OPERATOR_IMG_DIGEST} for Operator image"
+          export OPERATOR_IMAGE="${OPERATOR_IMAGE_NAME}@${OPERATOR_IMG_DIGEST}"
+
+          # Get the digest for the agent image
+          AGENT_IMAGE_NAME="icr.io/instana/agent"
+          AGENT_IMAGE_TAG="latest"
+          echo "Fetching digest for ${AGENT_IMAGE_NAME}:${AGENT_IMAGE_TAG}"
+          export AGENT_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${AGENT_IMAGE_NAME}:${AGENT_IMAGE_TAG})
+          echo "AGENT_IMG_DIGEST=$AGENT_IMG_DIGEST"
+
+
+          # Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
+          make IMG="${OPERATOR_IMAGE}" \
+            VERSION="${OLM_RELEASE_VERSION}" \
+            PREV_VERSION="${PREV_VERSION}" \
+            AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
+            bundle
+
+          cp bundle.Dockerfile ../docker-input/
+          cp -R bundle ../docker-input/
+          pushd bundle
+          zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
+          popd
+
+          # Create the YAML for installing the Agent Operator, which we want to package with the release
+          make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+
+          echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
+          cat target/instana-agent-operator.yaml
       - name: detect-secrets
         include:
           - docker-socket
+
+  # pr-code-checks-5:
+  #   from: pr-code-checks
+  #   displayName: build-e2e-operator-base-image
+  #   runtimeClassName: large
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+
+  # pr-code-checks-6:
+  #   from: pr-code-checks
+  #   displayName: e2e-ocp-latest
+  #   runtimeClassName: large
+  #   runAfter: 
+  #     - pr-code-checks
+  #     - pr-code-checks-2
+  #     - pr-code-checks-5
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         if [[ "$(get_env run-ocp-fyre-latest)" == "false" ]]; then
+  #             echo "skipping tests due to run-ocp-fyre-latest being false"
+  #             exit 0
+  #         fi
+  #         dnf -y install microdnf
+  #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+  #         export PATH=$PATH:/usr/local/go/bin
+  #         export INSTANA_API_KEY=$(get_env INSTANA_API_KEY)
+  #         go install
+  #         export CLUSTER_ID="ocp-fyre-latest"
+  #         export TASK_NAME="pr-code-checks-6"
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+
+  # pr-code-checks-7:
+  #   from: pr-code-checks
+  #   displayName: e2e-gke-latest
+  #   runtimeClassName: large
+  #   runAfter: 
+  #     - pr-code-checks
+  #     - pr-code-checks-2
+  #     - pr-code-checks-5
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         dnf -y install microdnf
+  #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+  #         export PATH=$PATH:/usr/local/go/bin
+  #         go install
+  #         export INSTANA_API_KEY=$(get_env INSTANA_API_KEY)
+  #         export CLUSTER_ID="gke-latest"
+  #         export TASK_NAME="pr-code-checks-7"
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
