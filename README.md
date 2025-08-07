@@ -147,32 +147,35 @@ To remove the Operator again, run:
 
 If you want to wipe all cluster-wide resources or a broken installation, use `make purge`.
 
-### Running tests
+### Testing and linting
 
-Unit tests can be executed by running `make test` without adjustments of the local environment.
+#### Linter
 
-For end-to-end testing, it is necessary to have a valid kubeconfig in the default location and to export variables before starting the test.
-An example template file is available in [e2e/.env.template](./e2e/.env.template), copy it to `./e2e/.env` and adjust it accordingly.
+Run `make lint` to get print a report of the linting issues in the changes.
 
-The test can be executed by sourcing the config `source ./e2e/.env` and running `make e2e` or by using the VSCode.
+#### Unit tests
 
-For VSCode, ensure to have a valid `.vscode/settings.json` in your root folder.
+Run `make test` to run unit tests.
 
-Example:
+#### End-to-end tests
 
+To run end-to-end tests on a local environment, you'll only need a 
+
+1. Create a copy of dotenv file from the [e2e/.env.example](./e2e/.env.example) as `./e2e/.env`.
+2. Adjust the fields in the file accordingly
+3. Execute by running `make e2e` or using your IDE
+
+### Troubleshooting
+
+#### Timeout is too fast on VSCode with timeout 30s
+
+In some situations, like running a slow e2e test, one might want to extend the timeout time. Extending your settings.json in your workspace will give you the ability to extend it as needed.
+
+`.vscode/settings.json`:
 ```json
 {
-    "wcaForGP.enable": true,
-    "go.testEnvVars": {
-        "KUBEBUILDER_ASSETS": "~/.local/share/kubebuilder-envtest/k8s/1.32.0-linux-amd64",
-        "INSTANA_API_KEY": "xxx",
-        "ARTIFACTORY_USERNAME": "xxx",
-        "ARTIFACTORY_PASSWORD": "xxx",
-        "OPERATOR_IMAGE_NAME": "xxx",
-        "OPERATOR_IMAGE_TAG": "xxx"
-    },
-    "wca.enable": false,
-    "go.testTimeout": "900s",
-    "go.testFlags": ["-v"]
+   "go.testFlags": [
+      "-timeout=2m"
+   ]
 }
 ```

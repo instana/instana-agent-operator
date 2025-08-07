@@ -8,6 +8,7 @@ package e2e
 import (
 	"os"
 
+	"github.com/joho/godotenv"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/e2e-framework/support/utils"
 )
@@ -51,6 +52,11 @@ const InstanaAgentConfigSecretName string = "instana-agent-config"
 func init() {
 	var instanaApiKey, containerRegistryUser, containerRegistryPassword, containerRegistryHost, endpointHost, operatorImageName, operatorImageTag string
 	var found, fatal bool
+
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Warningln("Warning: error occurred while attempting to load the dotenv-file (expected to location: ./e2e/.env)", err)
+	}
 
 	instanaApiKey, found = os.LookupEnv("INSTANA_API_KEY")
 	if !found {
