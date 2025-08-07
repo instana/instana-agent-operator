@@ -95,8 +95,8 @@ all: build
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-setup: ## Basic project setup, e.g. installing GitHook for checking license headers
-	cd .git/hooks && ln -fs ../../.githooks/* .
+setup: ## sets git hooks path to .githook
+	git config core.hooksPath .githooks
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
@@ -111,7 +111,7 @@ vet: ## Run go vet against code
 	go vet ./...
 
 lint: golangci-lint ## Run the golang-ci linter
-	$(GOLANGCI_LINT) run --timeout 5m
+	$(GOLANGCI_LINT) run --new-from-rev=HEAD --timeout 5m
 
 EXCLUDED_TEST_DIRS = mocks e2e
 EXCLUDE_PATTERN = $(shell echo $(EXCLUDED_TEST_DIRS) | sed 's/ /|/g')
@@ -353,7 +353,7 @@ envtest: ## Download envtest-setup locally if necessary.
 
 .PHONY: golanci-lint
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.4
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 
 .PHONY: operator-sdk
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
