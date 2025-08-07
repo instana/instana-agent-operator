@@ -33,27 +33,6 @@ source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
 make build
 
 export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
-echo "Running e2e chart tests for ${CLUSTER_ID}"
-
-if [[ "$(get_env pipeline_namespace)" == *"pr"* ]]; then
-    set-commit-status \
-        --repository "$(load_repo app-repo url)" \
-        --commit-sha "$(load_repo app-repo commit)" \
-        --state "pending" \
-        --description "OCP e2e test" \
-        --context "tekton/e2e-${CLUSTER_ID}" \
-        --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
-else
-    set-commit-status \
-        --repository "$(load_repo app-repo url)" \
-        --commit-sha "$(load_repo app-repo commit)" \
-        --state "pending" \
-        --description "OCP e2e test" \
-        --context "tekton/e2e-${CLUSTER_ID}" \
-        --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
-fi
-
-COMMIT_STATUS="error"
 
 if [ "${CLUSTER_TYPE}" == "fyre-ocp" ]; then
     echo "Fyre OCP Cluster detected"
@@ -120,6 +99,16 @@ echo "=== Claim cluster lock ==="
 
 bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
 
+echo "=== Pre-pulling images ==="
+make pre-pull-images
+
+echo "=== Running e2e tests ==="
+make e2e
+
+if [ $? -eq 0 ]; then
+    COMMIT_STATUS="success"
+fi
+
 # Ensure that cluster is released after a successful claim, even if tests fail
 cleanup() {
     set-commit-status \
@@ -151,24 +140,5 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
 echo
-
-echo "=== Showing versions ==="
-oc version
-kubectl version
-helm version
-echo
-
-echo "Showing available helm charts"
-ls -lah artefacts
-
-echo "=== Running e2e tests ==="
-INSTANA_AGENT_HELM_CHART_LOCATION="$(ls artefacts/instana-agent-*.tgz)"
-export INSTANA_AGENT_HELM_CHART_LOCATION
-echo "INSTANA_AGENT_HELM_CHART_LOCATION=${INSTANA_AGENT_HELM_CHART_LOCATION}"
-helm version
-echo "Running e2e tests in directory: $(pwd)"
-make e2e
-echo "Tests finished"
-# trap handler will automatically report status
-COMMIT_STATUS="success"
