@@ -1,62 +1,141 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-echo "Building instana-agent helm chart..."
+echo "===== build.sh - start ====="
 
-# Previously we build rancher charts and vanilla helm charts, but rancher
-# switched their approaches and instead of allowing pushes of special charts
-# is hosting their own overlay files now in https://github.com/rancher/partner-charts/tree/main-source/packages/instana/instana-agent/overlay
+if [[ "${PIPELINE_DEBUG}" == 1 ]]; then
+  trap env EXIT
+  env
+  set -x
+fi
+
+# shellcheck disable=SC1090
+source "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/setup.sh"
+make build
+
+if [[ "${SKIP_RELEASE}" == "true" ]]; then
+    echo "skipping release due to SKIP_RELEASE being false"
+    exit 0
+fi
+
+if [[ "$(get_env run-publish-release)" == "false" ]]; then
+    echo "skipping release due to run-publish-release being false"
+    exit 0
+fi
+
+echo "==== Step 1: Creating release page in IBM GitHub Enterprise ===="
 
 SOURCE_DIRECTORY=$(git rev-parse --show-toplevel)
-TARGET_DIRECTORY=artefacts
-NEW_CHART_VERSION=$(cat "$WORKSPACE/$APP_REPO_FOLDER/versions/INSTANA_AGENT_CHART_VERSION")
-HELM_APP_VERSION=$(cat "$WORKSPACE/$APP_REPO_FOLDER/versions/INSTANA_AGENT_APP_VERSION")
+NEW_CHART_VERSION=$(cat "${SOURCE_DIRECTORY}/versions/INSTANA_AGENT_CHART_VERSION")
 
-cd "$WORKSPACE/$APP_REPO_FOLDER/"
-rm -rf "${TARGET_DIRECTORY}"
-mkdir -p "${TARGET_DIRECTORY}"
+GITHUB_API_URL="https://github.ibm.com/api/v3"
+GITHUB_TOKEN=$(get_env release-github-enterprise-token)
+REPO_OWNER="instana"
+REPO_NAME="instana-agent-charts"
+TAG_NAME="${NEW_CHART_VERSION}"
+RELEASE_NAME="${NEW_CHART_VERSION}"
+TARBALL_PATH="$(ls artefacts/instana-agent-*.tgz)"
+TARGET_COMMIT=$(git rev-parse HEAD)
 
-CHART_TARGET_DIRECTORY="${TARGET_DIRECTORY}/helm-charts"
+# see: https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28
+# create the release
+RELEASE_RESPONSE=$(curl -s -L -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  -d "{\"tag_name\":\"${TAG_NAME}\",\"target_commitish\":\"${TARGET_COMMIT}\", \"name\":\"${RELEASE_NAME}\",\"generate_release_notes\": true,\"draft\":false,\"prerelease\":false}" \
+  "${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/releases")
 
-echo "Copying changes from canonical to ${CHART_TARGET_DIRECTORY}"
-rsync -avr "$WORKSPACE/$APP_REPO_FOLDER/canonical/." "${CHART_TARGET_DIRECTORY}"
+# extract the upload url from the response
+UPLOAD_URL=$(echo "${RELEASE_RESPONSE}" | jq -r ".upload_url")
+UPLOAD_URL=${UPLOAD_URL%\{?name,label\}}
 
-echo "Injecting versions in Chart.yaml"
-yq eval -i ".appVersion = \"${HELM_APP_VERSION}\"" "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/Chart.yaml"
-yq eval -i ".version = \"${NEW_CHART_VERSION}\"" "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/Chart.yaml"
+# upload helm chart
+FILENAME=$(basename "${TARBALL_PATH}")
+curl -s -L -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @"${TARBALL_PATH}" \
+  "${UPLOAD_URL}?name=${FILENAME}"
 
+echo
+echo "Release created and file uploaded successfully!"
 
-echo "Downloading operator release yaml"
-rm -rf operator-download
-mkdir -p operator-download
-pushd operator-download
-curl -L https://github.com/instana/instana-agent-operator/releases/latest/download/instana-agent-operator.yaml | yq  -s '"operator_" + .kind + "_" + .metadata.name'
-echo "Extracting CRD"
-mkdir -p "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/crds"
-# ensure to use lowercase letters for all filenames
-for file in *; do
-  mv "$file" "$(echo "$file" | tr '[:upper:]' '[:lower:]')"
-done
-mv ./*customresourcedefinition* "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/crds/operator_customresourcedefinition_agents_instana_io.yml"
+echo "==== Step 2: Publish new helm chart to public GitHub repo ===="
 
-# fetch current value of container image from the operator release and use it for default values.yaml
-OPERARTOR_IMAGE=$(yq ".spec.template.spec.containers[0].image" "./operator_deployment_instana-agent-controller-manager.yml")
-echo "OPERARTOR_IMAGE=${OPERARTOR_IMAGE}"
-OPERARTOR_REPO=$(echo "${OPERARTOR_IMAGE}" | awk -F '[:]' '{print $1}')
-echo "OPERARTOR_REPO=${OPERARTOR_REPO}"
-OPERARTOR_TAG=$(echo "${OPERARTOR_IMAGE}" | awk -F '[:]' '{print $2}')
-echo "OPERARTOR_TAG=${OPERARTOR_TAG}"
-yq eval -i ".controllerManager.image.name = \"${OPERARTOR_REPO}\"" "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/values.yaml"
-yq eval -i ".controllerManager.image.tag = \"${OPERARTOR_TAG}\"" "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/values.yaml"
-sed -i "s/instana-agent-operator:latest/instana-agent-operator:${OPERARTOR_TAG}/g" "$WORKSPACE/$APP_REPO_FOLDER/${CHART_TARGET_DIRECTORY}/templates/operator_deployment_instana-agent-controller-manager.yml"
+PUBLIC_GITHUB_CREDENTIALS=$(get_env github-instana-agent-build)
+PUBLIC_GITHUB_USERNAME=$(echo "${PUBLIC_GITHUB_CREDENTIALS}" | jq -r ".username")
+PUBLIC_GITHUB_EMAIL=$(echo "${PUBLIC_GITHUB_CREDENTIALS}" | jq -r ".email")
+PUBLIC_GITHUB_TOKEN=$(echo "${PUBLIC_GITHUB_CREDENTIALS}" | jq -r ".token")
 
-popd
-rm -rf operator-download
+rm -rf helm-charts
+git clone --depth=1 "https://${PUBLIC_GITHUB_TOKEN}@github.com/instana/helm-charts.git" helm-charts
+rm -rf "${SOURCE_DIRECTORY}/helm-charts/instana-agent"
+mkdir "${SOURCE_DIRECTORY}/helm-charts/instana-agent"
+tar -xzvf "${SOURCE_DIRECTORY}"/artefacts/instana-agent-*.tgz -C "${SOURCE_DIRECTORY}/helm-charts/instana-agent" --strip-components=1
+cd "${SOURCE_DIRECTORY}/helm-charts"
+if git diff --quiet; then
+  echo "No changes detected. Exiting."
+else
+  echo "Changes detected, continue to commit and push them"
+  git config --global "user.email" "${PUBLIC_GITHUB_EMAIL}"
+  git config --global "user.name" "${PUBLIC_GITHUB_USERNAME}"
+  git add .
+  git commit -m "Instana-agent chart version ${NEW_CHART_VERSION}"
+  git push origin main
+fi
 
-helm package "${CHART_TARGET_DIRECTORY}/." \
-    --version "${NEW_CHART_VERSION}" \
-    --app-version "${HELM_APP_VERSION}" \
-    --destination "${TARGET_DIRECTORY}/"
+echo "==== Step 3: Push update to GCP bucket: gs://agents.instana.io/helm/index.yaml ===="
+cd "${SOURCE_DIRECTORY}"
+echo "Authenticating with gcloud"
+# Note, this is a dedicated secret and not the same as used to execute tests
+get_env gcp-bucket-write-agents-io-service-key > keyfile.json
+gcloud auth activate-service-account --key-file keyfile.json
+BUCKET="agents.instana.io"
+echo "Retrieving current helm repository index from bucket ${BUCKET}"
+gsutil cp "gs://${BUCKET}/helm/index.yaml" index-current.yaml
 
-helm lint ${TARGET_DIRECTORY}/instana-agent-*.tgz
+echo "Updating the repository index"
+rm -rf repository-packaged-charts
+mkdir repository-packaged-charts
 
-echo "Bundled operator version: ${OPERARTOR_IMAGE}"
+cp artefacts/instana-agent-*.tgz repository-packaged-charts/
+helm repo index repository-packaged-charts/ --url "https://agents.instana.io/helm/" --merge index-current.yaml
+
+echo "Uploading the repository in gs://${BUCKET}/helm/ ... "
+gsutil cp repository-packaged-charts/* "gs://${BUCKET}/helm/"
+
+echo "==== Step 4: Push update to Artifactory https://delivery.instana.io/artifactory/rel-helm-agent-local/instana-agent-${NEW_CHART_VERSION}.tgz ===="
+ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
+DELIVERY_RELEASE_ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
+DELIVERY_RELEASE_ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
+helm repo add helm-agent https://delivery.instana.io/artifactory/rel-helm-agent-local --username "$DELIVERY_RELEASE_ARTIFACTORY_USERNAME" --password "$DELIVERY_RELEASE_ARTIFACTORY_PASSWORD"
+helm repo update
+helm search repo helm-agent
+
+curl_fail_with_body() {
+  curl -o - -w "\n%{http_code}\n" "$@" | awk '{l[NR] = $0} END {for (i=1; i<=NR-1; i++) print l[i]}; END{ if ($0<200||$0>299) exit 1 }'
+}
+
+curl_fail_with_body -u "${DELIVERY_RELEASE_ARTIFACTORY_USERNAME}:${DELIVERY_RELEASE_ARTIFACTORY_PASSWORD}" -T "${SOURCE_DIRECTORY}"/artefacts/instana-agent-"${NEW_CHART_VERSION}".tgz "https://delivery.instana.io/artifactory/rel-helm-agent-local/instana-agent-${NEW_CHART_VERSION}.tgz"
+
+# reindex requires higher privileges, accepting delay for now
+# curl -X POST \
+#      -u "${DELIVERY_RELEASE_ARTIFACTORY_USERNAME}:${DELIVERY_RELEASE_ARTIFACTORY_PASSWORD}" \
+#      "https://delivery.instana.io/artifactory/api/helm/rel-helm-agent-local/reindex"
+
+echo "Reindexing might happen asynchronously, check back the result later"
+helm repo update
+helm search repo helm-agent
+
+echo "==== Step 5: Bump versions/INSTANA_AGENT_CHART_VERSION with "[skip ci]" commit message and push to GitHub Enterprise ===="
+cd "${SOURCE_DIRECTORY}"
+NEW_VERSION=$(awk -F. '{$NF = $NF + 1;} 1' OFS=. versions/INSTANA_AGENT_CHART_VERSION) && echo "${NEW_VERSION}" > versions/INSTANA_AGENT_CHART_VERSION
+git config --global "user.email" "instana.ibm.github.enterprise@ibm.com"
+git config --global "user.name" "Instana-IBM-GitHub-Enterprise"
+git add versions/INSTANA_AGENT_CHART_VERSION
+git commit -m "[skip ci] Bump the instana-agent chart version to ${NEW_VERSION}"
+git push origin "${BRANCH}"
+
+echo "===== build.sh - end ====="

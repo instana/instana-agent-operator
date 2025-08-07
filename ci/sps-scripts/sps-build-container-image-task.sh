@@ -6,6 +6,7 @@ export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
 export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 export QA_AGENT_DOWNLOAD_KEY=$(get_env QA_AGENT_DOWNLOAD_KEY)
 export INSTANA_TWISTCLI_VERSION=$(get_env INSTANA_TWISTCLI_VERSION)
+export GIT_COMMIT=$(get_env branch || echo "latest")
 
 # Authenticate with the private registry
 echo "[INFO] Authenticating with the private Docker registry..."
@@ -38,10 +39,19 @@ echo "[INFO] Verifying script arguments..."
 echo "TARGETPLATFORM: $1"
 echo "ARCHITECTURE: $arch"
 echo "Version: $INSTANA_TWISTCLI_VERSION"
+echo "GIT_COMMIT: $GIT_COMMIT"
 
-# Construct the image tag
-IMAGE_TAG="instana-agent-docker-$arch:$INSTANA_TWISTCLI_VERSION"
-echo "IMAGE TAG: $IMAGE_TAG"
+# Define registry and image names
+REGISTRY="delivery.instana.io"
+REPO_PATH="int-docker-agent-local/instana-agent-operator/dev-build"
+FULL_REPO_PATH="${REGISTRY}/${REPO_PATH}"
+
+# Construct the image tags
+LOCAL_IMAGE_TAG="instana-agent-docker-$arch:$INSTANA_TWISTCLI_VERSION"
+REGISTRY_IMAGE_TAG="${FULL_REPO_PATH}:${GIT_COMMIT}-${arch}"
+
+echo "[INFO] LOCAL IMAGE TAG: $LOCAL_IMAGE_TAG"
+echo "[INFO] REGISTRY IMAGE TAG: $REGISTRY_IMAGE_TAG"
 
 # Build the container image
 echo "[INFO] Building the container image..."
@@ -50,16 +60,22 @@ docker buildx build \
     --platform "$1" \
     --build-arg TARGETPLATFORM="$1" \
     --secret id=DOWNLOAD_KEY,src=$SECRET_FILE \
-    -t $IMAGE_TAG \
+    -t $LOCAL_IMAGE_TAG \
+    -t $REGISTRY_IMAGE_TAG \
     --load \
     --progress=plain \
-    --no-cache \
-    --output type=oci,dest=$WORKSPACE/$APP_REPO_FOLDER/image.tar \
+    --no-cache
 
 echo "[INFO] Build process completed successfully."
 
 echo "[INFO] Saving the built image to the output location..."
 docker images
-docker save -o "$WORKSPACE/$APP_REPO_FOLDER/image.tar" "$IMAGE_TAG"
+docker save -o "$WORKSPACE/$APP_REPO_FOLDER/image.tar" "$LOCAL_IMAGE_TAG"
 
 echo "[INFO] Docker image saved successfully to $WORKSPACE/$APP_REPO_FOLDER/image.tar"
+
+# Push the image to the registry with the architecture-specific tag
+echo "[INFO] Pushing image to registry with tag: $REGISTRY_IMAGE_TAG"
+docker push $REGISTRY_IMAGE_TAG
+
+echo "[INFO] Image successfully pushed to registry: $REGISTRY_IMAGE_TAG"
