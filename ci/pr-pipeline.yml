@@ -552,6 +552,7 @@ jobs:
         vars:
           dockerfile: bundle.Dockerfile
           target-platform: linux/amd64
+          build-platform: linux/amd64
           version: ((.:agent-operator-version))
           git-commit: ((.:git-commit))
       - task: create-tag-files
