@@ -1,13 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# note: PIPELINE_CONFIG_REPO_PATH will point to config, not to the app folder with the current branch, use APP_REPO_FOLDER instead
+if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+    trap env EXIT
+    env
+    set -x
+fi
 echo "===== e2e.sh - start ====="
+
+echo "CLUSTER_ID=${CLUSTER_ID}, TASK_NAME=${TASK_NAME}"
+cd "${WORKSPACE}/${APP_REPO_FOLDER}"
 pwd
+if [[ $(get_env run-"${CLUSTER_ID}") == "false" ]]; then
+    echo "skipping tests due to run-${CLUSTER_ID} being false"
+    exit 0
+fi
+
+CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
+CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
+CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
+# required in e2e test, therefore exporting variable
+export CLUSTER_NAME
+
+if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
+    echo "Setting SKIP_INSTALL_GCLOUD=true, becuase CLUSTER_TYPE is ${CLUSTER_TYPE}"
+    # shellcheck disable=SC2034
+    SKIP_INSTALL_GCLOUD=true # used in setup.sh
+fi
+
+# shellcheck disable=SC1090
+source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
+make build
+
 export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
-echo "${SOURCE_DIRECTORY}"
-ls "${SOURCE_DIRECTORY}"
-CLUSTER_ID=$1
 echo "Running e2e chart tests for ${CLUSTER_ID}"
-TASK_NAME=$2
 
 if [[ "$(get_env pipeline_namespace)" == *"pr"* ]]; then
     set-commit-status \
@@ -29,42 +55,36 @@ fi
 
 COMMIT_STATUS="error"
 
-CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
-CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
-CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
-# required in e2e test
-export CLUSTER_NAME
-
 if [ "${CLUSTER_TYPE}" == "fyre-ocp" ]; then
     echo "Fyre OCP Cluster detected"
     CLUSTER_SERVER=$(echo "${CLUSTER_DETAILS}" | jq -r ".server")
     CLUSTER_USERNAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".username")
     CLUSTER_PASSWORD=$(echo "${CLUSTER_DETAILS}" | jq -r ".password")
+    # channel is part of the secret in Secrets Manager and should be e.g. "channel": "stable-4.18"
+    CLUSTER_CHANNEL=$(echo "${CLUSTER_DETAILS}" | jq -r ".channel")
     mkdir -p bin
     cd bin
-    # late install, as the oc cli is fetched from the target cluster to ensure proper versions
     echo "=== Installing oc cli ==="
-    echo "trying to download oc from https://downloads-openshift-console.apps.${CLUSTER_NAME}.cp.fyre.ibm.com/amd64/linux/oc.tar"
-    curl -sk "https://downloads-openshift-console.apps.${CLUSTER_NAME}.cp.fyre.ibm.com/amd64/linux/oc.tar" -o oc.tar
-    ls -lah oc.tar
-    tar -xf oc.tar
-    rm -f oc.tar
+    echo "trying to download oc from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${CLUSTER_CHANNEL}/openshift-client-linux.tar.gz"
+    curl -sk "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${CLUSTER_CHANNEL}/openshift-client-linux.tar.gz" -o openshift-client-linux.tar.gz
+    ls -lah openshift-client-linux.tar.gz
+    tar -xf openshift-client-linux.tar.gz
+    rm -f openshift-client-linux.tar.gz README.md
 
-    PATH=$(pwd):$PATH
+    PATH=$(pwd):${PATH}
     export PATH
 
     # ensure that debug will not print cluster credentials to the log
-    if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+    if [[ "${PIPELINE_DEBUG}" == 1 ]]; then
         set +x
     fi
 
     echo "Logging into ${CLUSTER_SERVER}"
     oc login --insecure-skip-tls-verify=true -u "${CLUSTER_USERNAME}" -p "${CLUSTER_PASSWORD}" --server="${CLUSTER_SERVER}"
 
-    if [[ "$PIPELINE_DEBUG" == 1 ]]; then
+    if [[ "${PIPELINE_DEBUG}" == 1 ]]; then
         set -x
     fi
-
 elif [ "${CLUSTER_TYPE}" == "gke" ]; then
     echo "GKE Cluster detected"
     CLUSTER_ZONE=$(echo "${CLUSTER_DETAILS}" | jq -r ".zone")
@@ -83,7 +103,7 @@ cd "${SOURCE_DIRECTORY}"
 echo "Showing connected cluster nodes"
 kubectl get nodes -o wide
 
-export PATH=$PATH:/usr/local/go/bin:/usr/local/bin
+export PATH=${PATH}:/usr/local/go/bin:/usr/local/bin
 go version
 
 # fetching e2e test backend details
@@ -98,7 +118,7 @@ export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_AGENT_KEY INSTANA_API
 
 echo "=== Claim cluster lock ==="
 
-bash "${SOURCE_DIRECTORY}/ci/sps/reslock.sh" claim "${CLUSTER_ID}"
+bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
 
 # Ensure that cluster is released after a successful claim, even if tests fail
 cleanup() {
@@ -126,7 +146,7 @@ cleanup() {
             --context "tekton/e2e-${CLUSTER_ID}" \
             --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
     fi
-    bash "${SOURCE_DIRECTORY}/ci/sps/reslock.sh" release "${CLUSTER_ID}"
+    bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}"
     echo "===== e2e.sh - end ====="
 }
 
@@ -145,8 +165,9 @@ ls -lah artefacts
 echo "=== Running e2e tests ==="
 INSTANA_AGENT_HELM_CHART_LOCATION="$(ls artefacts/instana-agent-*.tgz)"
 export INSTANA_AGENT_HELM_CHART_LOCATION
-echo "INSTANA_AGENT_HELM_CHART_LOCATION=$INSTANA_AGENT_HELM_CHART_LOCATION"
+echo "INSTANA_AGENT_HELM_CHART_LOCATION=${INSTANA_AGENT_HELM_CHART_LOCATION}"
 helm version
+echo "Running e2e tests in directory: $(pwd)"
 make e2e
 echo "Tests finished"
 # trap handler will automatically report status
