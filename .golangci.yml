@@ -1,19 +1,23 @@
-linters-settings:
-  misspell:
-    locale: US
+#
+# (c) Copyright IBM Corp. 2025
+#
 
-linters:
-  disable-all: true
+version: "2"
+formatters:
   enable:
+    - gofmt
     - goimports
-    - gosimple
+    - golines
+linters:
+  default: none
+  settings:
+    lll:
+      line-length: 120
+  enable:
     - govet
     - ineffassign
     - unused
     - misspell
     - exhaustive
     - errcheck
-
-service:
-  golangci-lint-version: 1.56.2 # use the fixed version to not introduce new linters unexpectedly
-
+    - lll
