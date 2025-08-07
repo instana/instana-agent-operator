@@ -1,6 +1,5 @@
 #
-# (c) Copyright IBM Corp. 2024
-# (c) Copyright Instana Inc.
+# (c) Copyright IBM Corp. 2024, 2025
 #
 
 ---
@@ -338,6 +337,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/amd64
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-arm64
@@ -350,6 +350,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/arm64
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-s390x
@@ -362,6 +363,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/s390x
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
@@ -374,6 +376,7 @@ jobs:
               vars:
                 dockerfile: Dockerfile
                 target-platform: linux/ppc64le
+                build-platform: linux/amd64
                 version: ((.:agent-operator-version))
                 git-commit: ((.:git-commit))
       - task: create-tag-files

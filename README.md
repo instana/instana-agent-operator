@@ -147,6 +147,19 @@ To remove the Operator again, run:
 
 If you want to wipe all cluster-wide resources or a broken installation, use `make purge`.
 
+### Docker and Podman usage
+
+To be able to run [./Dockerfile](./Dockerfile) with Docker or Podman, it's necessary to include what platforms are used:
+- Specify `--build-arg=TARGETPLATFORM` with the compilation target
+- Specify `--build-arg=BUILDPLATFORM` with the build architecture
+
+Examples:
+```shell
+docker build --build-arg=TARGETPLATFORM=linux/TARGET_ARCHITECTURE --build-arg=BUILDPLATFORM=linux/YOUR_ARCHITECTURE -t instana-agent-operator:latest .
+...
+podman build --build-arg=TARGETPLATFORM=linux/TARGET_ARCHITECTURE --build-arg=BUILDPLATFORM=linux/YOUR_ARCHITECTURE -t instana-agent-operator:latest .
+```
+
 ### Testing and linting
 
 #### Linter
