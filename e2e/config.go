@@ -55,7 +55,7 @@ func init() {
 
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Warningln("Warning: error occurred while attempting to load the dotenv-file (expected to location: ./e2e/.env)", err)
+		log.Warningln("Warning: an error occurred while attempting to load dotenv-file expected in location: BASE_DIR/e2e/.env", err)
 	}
 
 	instanaApiKey, found = os.LookupEnv("INSTANA_API_KEY")
