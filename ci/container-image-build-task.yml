@@ -25,7 +25,8 @@ params:
   CONTEXT: source
   DOCKERFILE: source/((dockerfile))
   IMAGE_PLATFORM: ((target-platform)) # This param tells the `concourse-oci-build-task` task which architecture to build the image for.
-  BUILD_ARG_TARGETPLATFORM: ((target-platform)) # the instana-agent-operator Dockerfile requires a TARGETPLATFORM build arg.
+  BUILD_ARG_TARGETPLATFORM: ((target-platform)) # target platform is the environment for which the the builder builds an image for.
+  BUILD_ARG_BUILDPLATFORM: ((build-platform)) # the platform in which the target will be compiled in.
   BUILD_ARG_VERSION: ((version)) # required by the instana-agent-operator Dockerfile
   BUILD_ARG_GIT_COMMIT: ((git-commit)) # required by the instana-agent-operator Dockerfile
 run:

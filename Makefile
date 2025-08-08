@@ -1,15 +1,22 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+
+# Detect operating system and architecture
+OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),x86_64)
+	ARCH := amd64
+endif
+ifeq ($(ARCH),aarch64)
+	ARCH := arm64
+endif
+
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
 VERSION ?= 0.0.1
 
 # Previous version, will only be used for updating the "replaces" field in the ClusterServiceVersion when defined command-line
 PREV_VERSION ?= 0.0.0
-
-# BUNDLE_IMG defines the image:tag used for the bundle.
-# You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
-BUNDLE_IMG ?= instana-agent-operator-bundle:$(VERSION)
-
-# Include the latest Git commit SHA, gets injected in code via Docker build (just like VERSION)
-GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -130,8 +137,20 @@ docker-build: test container-build ## Build docker image with the manager.
 docker-push: ## Push the docker image with the manager.
 	${CONTAINER_CMD} push ${IMG}
 
+BUILDPLATFORM ?= linux/${ARCH}
+BUILDTARGET ?= linux/${ARCH}
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 container-build: buildctl
-	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build --frontend=dockerfile.v0 --local context=. --local dockerfile=. --output type=oci,name=${IMG} --opt build-arg:VERSION=0.0.1 --opt build-arg:GIT_COMMIT=${GIT_COMMIT}  --opt build-arg:DATE="$$(date)" | $(CONTAINER_CMD) load
+	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build \
+	  --frontend=dockerfile.v0 \
+	  --local context=. \
+	  --local dockerfile=. \
+	  --output type=oci,name=${IMG} \
+	  --opt build-arg:VERSION=0.0.1 \
+	  --opt build-arg:GIT_COMMIT=${GIT_COMMIT} \
+	  --opt build-arg:BUILDPLATFORM=${BUILDPLATFORM} \
+	  --opt build-arg:TARGETPLATFORM=${TARGETPLATFORM} \
+	  --opt build-arg:DATE="$$(date)" | $(CONTAINER_CMD) load
 
 ##@ Deployment
 
