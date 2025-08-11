@@ -102,7 +102,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object paths="./..."
 
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -121,7 +121,7 @@ test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore 
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 .PHONY: e2e
-e2e: ## Run end-to-end tests
+e2e: gen-mocks manifests generate envtest ## Run end-to-end tests
 	go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
