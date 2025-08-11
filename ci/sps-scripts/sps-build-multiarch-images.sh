@@ -2,8 +2,9 @@
 set -e
 
 # Load environment variables
-export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
-export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
+ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
+export ARTIFACTORY_INTERNAL_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
+export ARTIFACTORY_INTERNAL_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
 export QA_AGENT_DOWNLOAD_KEY=$(get_env QA_AGENT_DOWNLOAD_KEY)
 export INSTANA_TWISTCLI_VERSION=$(get_env INSTANA_TWISTCLI_VERSION)
 export GIT_COMMIT=$(get_env branch || echo "latest")
@@ -81,7 +82,7 @@ echo "[INFO] All architecture builds completed successfully."
 # Now create the manifest list
 echo "[INFO] Creating manifest list for all architectures..."
 dnf -y install microdnf
-source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4 amd64
 export PATH=$PATH:/usr/local/go/bin
 source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/check-and-create-manifest.sh
 
