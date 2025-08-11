@@ -1,47 +1,45 @@
 version: "2"
 
 tasks:
-  # pr-code-checks:
-  #   displayName: "Build  amd64 arm64 s390x and ppc64le images"
-  #   runtimeClassName: large
-  #   onError: stopAndFail
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks:
+    displayName: "Build  amd64 arm64 s390x and ppc64le images"
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
 
-  # pr-code-checks-2:
-  #   from: pr-code-checks
-  #   displayName: "Build and test agent operator"
-  #   runtimeClassName: large
-  #   onError: stopAndFail
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         pwd
-  #         dnf -y install microdnf
-  #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
-  #         export PATH=$PATH:/usr/local/go/bin
-  #         go install
-  #         make build
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks-2:
+    from: pr-code-checks
+    displayName: "Build and test agent operator"
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          ./installGolang.sh 1.24.4 amd64
+          export PATH=$PATH:/usr/local/go/bin
+          go install
+          make build
+      - name: detect-secrets
+        include:
+          - docker-socket
     
   pr-code-checks-3:
     from: pr-code-checks
@@ -57,26 +55,16 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          if [[ "\$PIPELINE_DEBUG" == 1 ]]; then
-              trap env EXIT
-              env
-              set -x
-          fi
-          pwd
-          dnf -y install microdnf
-          source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+          ./installGolang.sh 1.24.4 amd64
           export PATH=$PATH:/usr/local/go/bin
+          make generate
         
           go install
-          
-          # Setup kubebuilder assets for envtest
-          export PATH=$PATH:$(go env GOPATH)/bin
-          
-          make envtest gen-mocks lint test
+
+          make test
       - name: detect-secrets
         include:
           - docker-socket
-
   pr-code-checks-4:
     from: pr-code-checks
     displayName: operator-olm-build
@@ -100,7 +88,7 @@ tasks:
           export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 
           dnf -y install microdnf
-          source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+          ./installGolang.sh 1.24.4 amd64
           export PATH=$PATH:/usr/local/go/bin
 
           IMAGE_TAG=${GIT_COMMIT}
@@ -117,15 +105,6 @@ tasks:
           mkdir -p ../docker-input
 
           export PREFIX="v"
-          
-          echo "==== Bump versions/INSTANA_AGENT_CHART_VERSION with "[skip ci]" commit message and push to GitHub Enterprise ===="
-          NEW_VERSION=$(awk -F. '{$NF = $NF + 1;} 1' OFS=. ./version/AGENT_OPERATOR_VERSION) && echo "${NEW_VERSION}" > ./version/AGENT_OPERATOR_VERSION
-          git config --global "user.email" "instana.ibm.github.enterprise@ibm.com"
-          git config --global "user.name" "Instana-IBM-GitHub-Enterprise"
-          git add ./version/AGENT_OPERATOR_VERSION
-          git commit -m "[skip ci] Bump the instana-agent chart version to ${NEW_VERSION}"
-          git push origin "${BRANCH}"
-
           export VERSION="$(cat ./version/AGENT_OPERATOR_VERSION)"
           export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
@@ -173,83 +152,72 @@ tasks:
         include:
           - docker-socket
 
-  # pr-code-checks-5:
-  #   from: pr-code-checks
-  #   displayName: build-e2e-operator-base-image
-  #   runtimeClassName: large
-  #   onError: stopAndFail
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks-5:
+    from: pr-code-checks
+    displayName: publish-e2e-operator-base-image
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
 
-  # pr-code-checks-6:
-  #   from: pr-code-checks
-  #   displayName: e2e-ocp-latest
-  #   runtimeClassName: large
-  #   runAfter: 
-  #     - pr-code-checks
-  #     - pr-code-checks-2
-  #     - pr-code-checks-5
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         if [[ "$(get_env run-ocp-fyre-latest)" == "false" ]]; then
-  #             echo "skipping tests due to run-ocp-fyre-latest being false"
-  #             exit 0
-  #         fi
-  #         dnf -y install microdnf
-  #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
-  #         export PATH=$PATH:/usr/local/go/bin
-  #         export INSTANA_API_KEY=$(get_env INSTANA_API_KEY)
-  #         go install
-  #         export CLUSTER_ID="ocp-fyre-latest"
-  #         export TASK_NAME="pr-code-checks-6"
-  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks-6:
+    from: pr-code-checks
+    displayName: e2e-ocp-latest
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+      - pr-code-checks-2
+      - pr-code-checks-5
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export GIT_COMMIT="$(get_env branch || echo "latest")"
+          export CLUSTER_ID="ocp-fyre-latest"
+          export TASK_NAME="pr-code-checks-6"
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
 
-  # pr-code-checks-7:
-  #   from: pr-code-checks
-  #   displayName: e2e-gke-latest
-  #   runtimeClassName: large
-  #   runAfter: 
-  #     - pr-code-checks
-  #     - pr-code-checks-2
-  #     - pr-code-checks-5
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         dnf -y install microdnf
-  #         source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
-  #         export PATH=$PATH:/usr/local/go/bin
-  #         go install
-  #         export INSTANA_API_KEY=$(get_env INSTANA_API_KEY)
-  #         export CLUSTER_ID="gke-latest"
-  #         export TASK_NAME="pr-code-checks-7"
-  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks-7:
+    from: pr-code-checks
+    displayName: e2e-gke-latest
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+      - pr-code-checks-2
+      - pr-code-checks-5
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export GIT_COMMIT="$(get_env branch || echo "latest")"
+          export CLUSTER_ID="gke-latest"
+          export SKIP_INSTALL_GCLOUD="false"
+          export TASK_NAME="pr-code-checks-7"
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+      - name: detect-secrets
+        include:
+          - docker-socket

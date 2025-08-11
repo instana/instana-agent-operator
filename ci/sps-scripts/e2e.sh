@@ -19,6 +19,9 @@ fi
 CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
 CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
 CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
+ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
+export ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
+export ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
 # required in e2e test, therefore exporting variable
 export CLUSTER_NAME
 
@@ -30,6 +33,8 @@ fi
 
 # shellcheck disable=SC1090
 source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
+make generate
+go install
 make build
 
 export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
@@ -89,18 +94,15 @@ go version
 INSTANA_E2E_BACKEND_DETAILS=$(get_env instana-e2e-backend-details)
 INSTANA_ENDPOINT_HOST=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".endpoint_host")
 INSTANA_ENDPOINT_PORT=443
-INSTANA_AGENT_KEY=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".agent_key")
+INSTANA_API_KEY=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".agent_key")
 INSTANA_API_URL=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_url")
 INSTANA_API_TOKEN=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_token")
 
-export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_AGENT_KEY INSTANA_API_URL INSTANA_API_TOKEN
+export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_API_KEY INSTANA_API_URL INSTANA_API_TOKEN
 
 echo "=== Claim cluster lock ==="
 
 bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
-
-echo "=== Pre-pulling images ==="
-make pre-pull-images
 
 echo "=== Running e2e tests ==="
 make e2e
