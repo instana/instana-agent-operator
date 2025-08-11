@@ -366,7 +366,7 @@ jobs:
           steps:
             - task: build-amd64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
               output_mapping: 
@@ -379,7 +379,7 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-arm64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
               output_mapping: 
@@ -392,7 +392,7 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-s390x
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
               output_mapping: 
@@ -405,7 +405,7 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-release-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: agent-operator-release-source
               output_mapping: 
@@ -418,7 +418,7 @@ jobs:
                 git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: agent-operator-release-source/ci/create-tag-file.yml
+        file: agent-operator-release-source/ci/create-tag-file.yaml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))

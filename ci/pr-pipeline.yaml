@@ -193,7 +193,7 @@ jobs:
       - <<: *gh-status-set-pending-unit-test
       - <<: *gh-status-set-pending-docker-build
       - set_pipeline: self
-        file: pipeline-source/ci/pr-pipeline.yml
+        file: pipeline-source/ci/pr-pipeline.yaml
         vars:
           branch: *build-branch
           project-berlin-gh-token: ((project-berlin-gh-token))
@@ -330,7 +330,7 @@ jobs:
           steps:
             - task: build-amd64
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
@@ -343,7 +343,7 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-arm64
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
@@ -356,7 +356,7 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-s390x
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
@@ -369,7 +369,7 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
               privileged: true
-              file: pipeline-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yaml
               input_mapping:
                 source: pipeline-source
               output_mapping:
@@ -382,7 +382,7 @@ jobs:
                 git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: pipeline-source/ci/create-tag-file.yml
+        file: pipeline-source/ci/create-tag-file.yaml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
@@ -545,7 +545,7 @@ jobs:
                 cat ../target/instana-agent-operator.yaml
       - task: build-bundle-docker
         privileged: true
-        file: pipeline-source/ci/container-image-build-task.yml
+        file: pipeline-source/ci/container-image-build-task.yaml
         input_mapping:
           source: docker-input
         output_mapping:
@@ -558,7 +558,7 @@ jobs:
           git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: pipeline-source/ci/create-tag-file.yml
+        file: pipeline-source/ci/create-tag-file.yaml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
