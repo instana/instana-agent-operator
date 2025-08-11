@@ -29,6 +29,7 @@ testbin/
 *.so
 *.dylib
 bin/**
+!bin/.gitkeep
 
 # Tests, debugging, coverage etc
 *.test
