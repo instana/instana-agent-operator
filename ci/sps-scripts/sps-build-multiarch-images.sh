@@ -81,7 +81,7 @@ echo "[INFO] All architecture builds completed successfully."
 # Now create the manifest list
 echo "[INFO] Creating manifest list for all architectures..."
 dnf -y install microdnf
-source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4
+source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh 1.24.4 amd64
 export PATH=$PATH:/usr/local/go/bin
 source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/check-and-create-manifest.sh
 
