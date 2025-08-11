@@ -121,7 +121,7 @@ test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore 
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 .PHONY: e2e
-e2e: gen-mocks manifests generate envtest ## Run end-to-end tests
+e2e: ## Run end-to-end tests
 	go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
