@@ -19,7 +19,6 @@ package controllers
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,10 +68,6 @@ var agent = &instanav1.InstanaAgent{
 		},
 		K8sSensor: instanav1.K8sSpec{
 			PodDisruptionBudget: instanav1.Enabled{Enabled: pointer.To(true)},
-			DeploymentSpec: instanav1.KubernetesDeploymentSpec{
-				Enabled:  instanav1.Enabled{Enabled: pointer.To(true)},
-				Replicas: 1,
-			},
 		},
 	},
 }
@@ -215,18 +210,6 @@ var (
 
 // TestInstanaAgentControllerTestSuite is the method that is called to run InstanaAgentControllerTestSuite
 func TestInstanaAgentControllerTestSuite(t *testing.T) {
-	// Set up the logger for controller-runtime before running the test suite
-	logf.SetLogger(zap.New(zap.WriteTo(os.Stdout), zap.UseDevMode(true)))
-
-	// Check if KUBEBUILDER_ASSETS environment variable is set
-	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
-		// Check if we're running in an environment where we can't access the kubebuilder assets
-		if _, err := os.Stat("/root/.local/share/kubebuilder-envtest/k8s/1.32.0-linux-amd64/etcd"); err != nil {
-			t.Skip("Skipping test due to environment setup issues: kubebuilder assets not found")
-			return
-		}
-	}
-
 	suite.Run(t, new(InstanaAgentControllerTestSuite))
 }
 
@@ -243,6 +226,9 @@ type InstanaAgentControllerTestSuite struct {
 // SetupSuite prepares the controller package for testing i.e. BeforeSuite
 func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 	suite.ctx, suite.cancel = context.WithCancel(context.Background())
+
+	// Set up the logger for controller-runtime
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Prepare scheme with instana scheme
 	suite.scheme = runtime.NewScheme()
@@ -272,52 +258,22 @@ func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 	suite.instanaAgentClient = instanaclient.NewInstanaAgentClient(suite.k8sClient)
 
 	// Start the manager and controller
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: suite.scheme,
-	})
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: suite.scheme})
 	require.NoError(suite.T(), err)
 	err = Add(mgr)
 	require.NoError(suite.T(), err)
 
-	// Start the controller in a goroutine
 	go func() {
-		suite.T().Log("Starting controller manager")
-		if err := mgr.Start(suite.ctx); err != nil {
-			suite.T().Logf("Error starting manager: %v", err)
-		}
+		err = mgr.Start(suite.ctx)
+		require.NoError(suite.T(), err)
 	}()
-
-	// Give the manager a moment to start
-	time.Sleep(5 * time.Second)
-	suite.T().Log("Controller manager should be running now")
 }
 
 // TearDownSuite i.e. AfterSuite
 func (suite *InstanaAgentControllerTestSuite) TearDownSuite() {
 	suite.cancel()
-
-	// Add a longer delay to ensure all operations complete before stopping the environment
-	time.Sleep(5 * time.Second)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	stopCh := make(chan struct{})
-	go func() {
-		err := suite.testEnv.Stop()
-		if err != nil {
-			// Log the error but don't fail the test
-			suite.T().Logf("Error stopping test environment: %v", err)
-		}
-		close(stopCh)
-	}()
-
-	select {
-	case <-stopCh:
-		suite.T().Log("Test environment stopped successfully")
-	case <-ctx.Done():
-		suite.T().Log("Timed out waiting for test environment to stop")
-	}
+	err := suite.testEnv.Stop()
+	require.NoError(suite.T(), err)
 }
 
 // all is a utility method to iterate through objects and use the user defined validation function to verify validity
@@ -329,26 +285,13 @@ func (suite *InstanaAgentControllerTestSuite) all(validatorFunc func(object) boo
 
 // exist is a utility method to unwrap the result struct of InstanaAgentClient and return whether the obj existed
 func (suite *InstanaAgentControllerTestSuite) exist(obj object) bool {
-	exists, err := suite.instanaAgentClient.Exists(suite.ctx, obj.gvk, obj.key).Get()
-	if err != nil {
-		// Log the error but continue with the test
-		suite.T().Logf("Error checking if object exists - GVK: %v, Key: %v, Error: %v",
-			obj.gvk, obj.key, err)
-	}
-	if !exists {
-		suite.T().Logf("Object does not exist yet - GVK: %v, Key: %v", obj.gvk, obj.key)
-	}
+	exists, _ := suite.instanaAgentClient.Exists(suite.ctx, obj.gvk, obj.key).Get()
 	return exists
 }
 
 // notExist is a utility method to unwrap the result struct of InstanaAgentClient and return whether the obj didn't exist
 func (suite *InstanaAgentControllerTestSuite) notExist(obj object) bool {
-	exists, err := suite.instanaAgentClient.Exists(suite.ctx, obj.gvk, obj.key).Get()
-	if err != nil {
-		// Log the error but continue with the test
-		suite.T().Logf("Error checking if object doesn't exist - GVK: %v, Key: %v, Error: %v",
-			obj.gvk, obj.key, err)
-	}
+	exists, _ := suite.instanaAgentClient.Exists(suite.ctx, obj.gvk, obj.key).Get()
 	return !exists
 }
 
@@ -356,11 +299,6 @@ func (suite *InstanaAgentControllerTestSuite) notExist(obj object) bool {
 func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	_, err := suite.instanaAgentClient.Apply(suite.ctx, agent).Get()
 	require.NoError(suite.T(), err, "Should not throw an error when applying the InstanaAgent schema")
-
-	// Verify the agent was created correctly
-	createdAgent := &instanav1.InstanaAgent{}
-	err = suite.k8sClient.Get(suite.ctx, client.ObjectKey{Name: agent.Name, Namespace: agent.Namespace}, createdAgent)
-	require.NoError(suite.T(), err, "Should be able to get the created InstanaAgent")
 
 	require.Eventually(suite.T(),
 		suite.all(
@@ -378,7 +316,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		120*time.Second,
+		10*time.Second,
 		time.Second,
 		"Should contain all objects in the schema",
 	)
@@ -409,7 +347,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
 		),
-		60*time.Second,
+		10*time.Second,
 		time.Second,
 		"Should contain listed objects in the patched schema",
 	)
@@ -419,7 +357,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			agentKeysSecret,
 			k8SensorPdb,
 		),
-		60*time.Second,
+		10*time.Second,
 		time.Second,
 		"Should not contain listed objects after the patched schema",
 	)
@@ -443,7 +381,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		30*time.Second,
+		10*time.Second,
 		time.Second,
 		"Should delete all objects from the schema",
 	)
