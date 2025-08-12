@@ -135,7 +135,7 @@ run: gen-mocks generate fmt vet manifests ## Run against the configured Kubernet
 
 docker-build: test container-build ## Build docker image with the manager.
 
-docker-push: ## Push the docker image with the manager.
+docker-push: ## Pushes the docker image with the manager.
 	${CONTAINER_CMD} push ${IMG}
 
 BUILDPLATFORM ?= linux/${ARCH}
