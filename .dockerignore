@@ -13,10 +13,12 @@
 !logger/
 !pkg/
 !version/
+!bin/
 
 # Other files not to ignore
 !bundle/
 !LICENSE
 
-# Don't ignore scripts
+# Don't ignore scripts or make
 !*.sh
+!Makefile

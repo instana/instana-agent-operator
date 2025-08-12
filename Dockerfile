@@ -35,6 +35,10 @@ COPY api/ api/
 COPY controllers/ controllers/
 COPY version/ version/
 COPY pkg/ pkg/
+COPY bin/ bin/
+COPY Makefile Makefile
+
+RUN make generate
 
 # Build, injecting VERSION and GIT_COMMIT directly in the code
 RUN export TARGET_ARCHITECTURE="$(echo ${TARGETPLATFORM} | cut -d'/' -f2)" \

@@ -226,6 +226,7 @@ jobs:
                 cd pipeline-source
                 pwd
                 go version
+                make generate
                 go install
                 make build
         on_success:
@@ -273,8 +274,8 @@ jobs:
                   LINTER_RPM=$(ls golangci-lint-*-linux-amd64.rpm)
                   rpm -i $LINTER_RPM
                 popd
-
                 cd pipeline-source
+                make generate
                 go install
                 make gen-mocks lint test
         on_success:
@@ -630,8 +631,7 @@ jobs:
                       - |
                         cd pipeline-source
                         bash ./ci/scripts/cluster-authentication.sh
-                        make pre-pull-images
-                        make e2e
+                        make pre-pull-images generate e2e
                 on_success:
                   put: gh-status
                   inputs: [pipeline-source]
@@ -744,8 +744,7 @@ jobs:
                       - |
                         cd pipeline-source
                         bash ./ci/scripts/cluster-authentication.sh
-                        make pre-pull-images
-                        make e2e
+                        make pre-pull-images generate e2e
                 on_success:
                   put: gh-status
                   inputs: [pipeline-source]
