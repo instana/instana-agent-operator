@@ -81,7 +81,13 @@ func DeployJavaDemoAppInNamespaces() features.Func {
 }
 
 // deployJavaDemoApp deploys the Java demo app in the specified namespace with the specified label.
-func deployJavaDemoApp(ctx context.Context, t *testing.T, namespace string, addLabel bool, labelValue string) {
+func deployJavaDemoApp(
+	ctx context.Context,
+	t *testing.T,
+	namespace string,
+	addLabel bool,
+	labelValue string,
+) {
 	// Create namespace
 	p := utils.RunCommand(fmt.Sprintf("kubectl create ns %s", namespace))
 	if p.Err() != nil {
@@ -90,7 +96,13 @@ func deployJavaDemoApp(ctx context.Context, t *testing.T, namespace string, addL
 
 	// Add label if needed
 	if addLabel {
-		p = utils.RunCommand(fmt.Sprintf("kubectl label ns %s instana-workload-monitoring=%s", namespace, labelValue))
+		p = utils.RunCommand(
+			fmt.Sprintf(
+				"kubectl label ns %s instana-workload-monitoring=%s",
+				namespace,
+				labelValue,
+			),
+		)
 		if p.Err() != nil {
 			t.Fatal("Error labeling namespace:", p.Err())
 		}
@@ -127,21 +139,46 @@ func deployJavaDemoApp(ctx context.Context, t *testing.T, namespace string, addL
 		InstanaTestCfg.ContainerRegistry.Host,
 		InstanaTestCfg.ContainerRegistry.User,
 		InstanaTestCfg.ContainerRegistry.Password,
-		namespace))
+		namespace,
+	))
 	if p.Err() != nil {
 		t.Fatal("Error creating pull secret:", p.Err())
 	}
 
 	// Apply deployment
-	deploymentPath := "e2e/java-demo-app/deployment.yaml"
-	p = utils.RunCommand(fmt.Sprintf("kubectl apply -f %s -n %s", deploymentPath, namespace))
-	if p.Err() != nil {
-		t.Fatal("Error applying deployment:", p.Err())
+	// Now that we know we're already in the e2e directory, use the correct relative path
+	deploymentPath := "java-demo-app/deployment.yaml"
+	t.Logf("Applying deployment from path: %s to namespace: %s", deploymentPath, namespace)
+
+	// Verify the file exists before applying
+	fileCheckCmd := fmt.Sprintf("ls -la %s", deploymentPath)
+	fileCheck := utils.RunCommand(fileCheckCmd)
+	t.Logf("File check result: %s", fileCheck.Out())
+
+	if fileCheck.Err() != nil {
+		t.Fatalf("Deployment file not found at path: %s", deploymentPath)
 	}
+
+	// Apply the deployment with the correct path
+	applyCmd := fmt.Sprintf("kubectl apply -f %s -n %s", deploymentPath, namespace)
+	t.Logf("Applying deployment with command: %s", applyCmd)
+	p = utils.RunCommand(applyCmd)
+	if p.Err() != nil {
+		t.Fatalf(
+			"Error applying deployment from %s to namespace %s: %v",
+			deploymentPath,
+			namespace,
+			p.Err(),
+		)
+	}
+	t.Logf("Successfully applied deployment to namespace %s", namespace)
 
 	// Wait for deployment to be ready
 	p = utils.RunCommand(
-		fmt.Sprintf("kubectl wait --for=condition=available e2e/deployment/java-demo-app -n %s --timeout=120s", namespace),
+		fmt.Sprintf(
+			"kubectl wait --for=condition=available deployment/java-demo-app -n %s --timeout=120s",
+			namespace,
+		),
 	)
 	if p.Err() != nil {
 		t.Fatal("Error waiting for Java demo app deployment:", p.Err())
@@ -154,6 +191,7 @@ func deployJavaDemoApp(ctx context.Context, t *testing.T, namespace string, addL
 func VerifySelectiveMonitoring() features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Verifying selective monitoring...")
+		// TODO: Needs redefinement, the agent pod must run on the same worker node as the demo app to be monitored
 
 		// Get agent pods
 		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
@@ -178,7 +216,9 @@ func VerifySelectiveMonitoring() features.Func {
 
 		// Check logs for JVM attachment
 		var buf bytes.Buffer
-		logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
+		logReq := clientSet.CoreV1().
+			Pods(cfg.Namespace()).
+			GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 		podLogs, err := logReq.Stream(ctx)
 		if err != nil {
 			t.Fatal("Could not stream logs", err)
@@ -209,19 +249,25 @@ func VerifySelectiveMonitoring() features.Func {
 
 		// Verify expectations
 		if !optInAttached {
-			t.Error("JVM in opt-in namespace should be monitored, but no attachment was found in logs")
+			t.Error(
+				"JVM in opt-in namespace should be monitored, but no attachment was found in logs",
+			)
 		} else {
 			t.Log("JVM in opt-in namespace is correctly monitored")
 		}
 
 		if noLabelAttached {
-			t.Error("JVM in no-label namespace should not be monitored, but attachment was found in logs")
+			t.Error(
+				"JVM in no-label namespace should not be monitored, but attachment was found in logs",
+			)
 		} else {
 			t.Log("JVM in no-label namespace is correctly not monitored")
 		}
 
 		if optOutAttached {
-			t.Error("JVM in opt-out namespace should not be monitored, but attachment was found in logs")
+			t.Error(
+				"JVM in opt-out namespace should not be monitored, but attachment was found in logs",
+			)
 		} else {
 			t.Log("JVM in opt-out namespace is correctly not monitored")
 		}
