@@ -245,7 +245,7 @@ jobs:
           image_resource:
             type: registry-image
             source: &e2e-test-base-image
-              repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
               password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -483,6 +483,9 @@ jobs:
       - load_var: git-commit
         file: agent-operator-release-source/.git/HEAD
         reveal: true
+      - load_var: fedramp-version
+        file: fedramp-version/number
+        reveal: true
       - task: build-multiarch-manifest
         privileged: true
         config:
@@ -499,13 +502,9 @@ jobs:
           params:
             GIT_COMMIT: ((.:git-commit))
             VERSION: ((.:operator-version))
-            RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
-            RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
-            ICR_PASSWORD: ((concourse-icr-containers-public.password))
-            ICR_USERNAME: iamapikey
+            FEDRAMP_VERSION: ((.:fedramp-version))
             ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-            ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
             ARTIFACTORY_CONTAINER_DOCKER_URL: delivery.instana.io/int-docker-agent-fedramp-release-local
           run:
             path: bash
@@ -513,7 +512,7 @@ jobs:
               - -ceu
               - |
                 DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
-                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
+                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator/fedramp-${FEDRAMP_VERSION}/instana-agent-operator"
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
                 echo ${DIGEST}
@@ -537,3 +536,5 @@ jobs:
                   --dest-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
+
+                  #TODO: push yaml 
