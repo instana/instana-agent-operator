@@ -69,7 +69,7 @@ resources:
     icon: github
     source:
       uri: https://github.com/instana/instana-agent-operator.git
-      branch: main
+      branch: add-fedramp-pipeline #TODO revert to main
       username: instanacd
       password: ((instanacd-github-api-token))
 
@@ -129,7 +129,7 @@ jobs:
       - get: pipeline-source
         trigger: true
       - set_pipeline: self
-        file: pipeline-source/ci/pipeline.yaml
+        file: pipeline-source/ci/fedramp/pipeline.yaml
 
   - name: manual-trigger
     max_in_flight: 1
