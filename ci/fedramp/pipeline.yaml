@@ -6,9 +6,17 @@ groups:
   - name: test
     jobs:
     - self-update
+    - manual-trigger
     - docker-build
     - end-to-end-tests
     - multiarch-operator-manifest-promotion
+
+var_sources:
+  - name: local-vars
+    type: dummy
+    config:
+      vars:
+        fedramp-version-static: '1.0.0'
 
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
@@ -45,58 +53,36 @@ resource_types:
 
 
 resources:
-  - name: slack-alert
-    type: slack-notification
+
+  - name: fedramp-version
+    type: semver
+    icon: alpha
     source:
-      url: ((tech-agent-delivery-notifications-slack-hook))
+      driver: gcs
+      initial_version: ((local-vars:fedramp-version-static))
+      bucket: instana-agent-qa-versioning
+      key: ((local-vars:fedramp-version-static))/fedramp/version
+      json_key: ((project-berlin-tests-gcp-instana-qa))
 
   - name: pipeline-source
     type: git
     icon: github
     source:
-      <<: *instana-operator-git-repo-config
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: main
+      username: instanacd
+      password: ((instanacd-github-api-token))
 
   - name: agent-operator-git-source
     type: git
     icon: github
     source:
-      <<: *instana-operator-git-repo-config
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: fedramp-release-v((local-vars:fedramp-version-static))
+      username: instanacd
+      password: ((instanacd-github-api-token))
       ignore_paths:
         - ci/
-
-  - name: agent-operator-release-source
-    type: git
-    icon: github
-    source:
-      <<: *instana-operator-git-repo-config
-      fetch_tags: true
-      #  match release tags like "v1.12.99"
-      #  match pre-release tags like "v1.12.100-pre"
-      tag_regex: '^v\d+\.\d+\.\d+.*$'
-      #          ^ beginning of the tag string
-      #           ^ all tags start with "v"
-      #            ^ ^ any number of digits
-      #               ^ the "." character
-      #                 ^ ^ any number of digits
-      #                    ^ the "." character
-      #                      ^ ^ any number of digits
-      #                         ^^ any prefix (denoting a non-release tag)
-      #                           ^ end of the tag string
-
-  - name: instana-agent-operator-release
-    type: github-release
-    source:
-      owner: instana
-      repository: instana-agent-operator
-
-  - name: gh-status
-    type: cogito
-    source:
-      owner: instana
-      repo: instana-agent-operator
-      access_token: ((instanacd-github-api-token))
-      context_prefix: concourse
-      github_host: github.com
 
   - name: agent-operator-image-amd64
     type: registry-image
@@ -130,177 +116,56 @@ resources:
       tag: main
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-  - name: latest-agent-image-manifest
-    type: registry-image
-    icon: docker
-    source:
-      repository: icr.io/instana/agent
-      tag: latest
-      username: iamapikey
-      password: ((concourse-icr-containers-public.password))
   - name: agent-operator-image-manifest-sha
     type: key-value
     icon: zip-disk
-
-  - name: preflight
-    type: github-release
-    source:
-      owner: redhat-openshift-ecosystem
-      repository: openshift-preflight
-
-  - name: e2e-test-base-image
-    type: registry-image
-    icon: cube
-    source: &e2e-test-base-image
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-      tag: main
-
-  - name: community-operators-repo
-    type: git
-    icon: github
-    source:
-      uri: https://github.com/instana/community-operators.git
-      branch: main
-      username: instanacd
-      password: ((instanacd-github-api-token))
-
-  - name: certified-operators-repo
-    type: git
-    icon: github
-    source:
-      uri: https://github.com/instana/certified-operators.git
-      branch: main
-      username: instanacd
-      password: ((instanacd-github-api-token))
-
-  - name: redhat-marketplace-operators-repo
-    type: git
-    icon: github
-    source:
-      uri: https://github.com/instana/redhat-marketplace-operators.git
-      branch: main
-      username: instanacd
-      password: ((instanacd-github-api-token))
-
-  - name: every-tuesday
-    type: time
-    icon: clock-outline
-    source:
-      days: [Tuesday]
-      start: 9:00 AM #UTC
-      stop: 10:00 AM
 
   - name: metadata
     type: metadata
 
 jobs:
   - name: self-update
-    on_success:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: success, context: self-update }
-    on_failure:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: failure, context: self-update }
-    on_error:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: self-update }
-    on_abort:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: error, context: self-update }
     plan:
       - get: pipeline-source
         trigger: true
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: self-update }
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: build/docker }
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest }
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest }
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
-      - put: gh-status
-        inputs: [ pipeline-source ]
-        params: { state: pending, context: operator-olm-github-release/build }
       - set_pipeline: self
         file: pipeline-source/ci/pipeline.yaml
 
-  - name: docker-build
+  - name: manual-trigger
     max_in_flight: 1
-    on_success:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: success, context: build/docker }
-    on_failure:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: failure, context: build/docker }
-    on_error:
-        do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: build/docker }
-    on_abort:
-      put: gh-status
-      inputs: [ pipeline-source ]
-      params: { state: error, context: build/docker }
     plan:
       - get: pipeline-source
-        passed: [self-update]
-      - get: agent-operator-release-source
+      - get: agent-operator-git-source
+      - get: fedramp-version
+        params:
+          get_latest: true
+
+  - name: docker-build
+    max_in_flight: 1
+    plan:
+      - get: fedramp-version
+        passed: [manual-trigger]
+        trigger: true
+      - get: pipeline-source
+        passed: [manual-trigger]
+        trigger: true
+      - get: agent-operator-git-source
+        passed: [manual-trigger]
         trigger: true
       - load_var: agent-operator-version
-        file: agent-operator-release-source/.git/ref
+        file: agent-operator-git-source/.git/ref
         reveal: true
       - load_var: git-commit
-        file: agent-operator-release-source/.git/HEAD
+        file: agent-operator-git-source/.git/HEAD
         reveal: true
       - in_parallel:
           fail_fast: true
           steps:
             - task: build-amd64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-amd64
               vars:
@@ -311,9 +176,9 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-arm64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-arm64
               vars:
@@ -324,9 +189,9 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-s390x
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-s390x
               vars:
@@ -337,9 +202,9 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: pipeline-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-ppc64le
               vars:
@@ -350,7 +215,7 @@ jobs:
                 git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: agent-operator-release-source/ci/create-tag-file.yml
+        file: agent-operator-git-source/ci/create-tag-file.yml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
@@ -379,7 +244,7 @@ jobs:
           platform: linux
           image_resource:
             type: registry-image
-            source:
+            source: &e2e-test-base-image
               repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
@@ -417,11 +282,11 @@ jobs:
   - name: end-to-end-tests
     max_in_flight: 1
     plan:
-      - get: agent-operator-release-source
+      - get: agent-operator-git-source
         trigger: true
         passed: [docker-build]
       - load_var: git-commit
-        file: agent-operator-release-source/.git/HEAD
+        file: agent-operator-git-source/.git/HEAD
       - get: pipeline-source
         passed: [docker-build]
       - get: agent-operator-image-manifest-sha
@@ -479,34 +344,6 @@ jobs:
                     cd pipeline-source
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            on_failure:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            on_error:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
             ensure:
               do:
               - task: cleanup-resources
@@ -588,34 +425,6 @@ jobs:
                     cd pipeline-source
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
-            on_success:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-latest }
-            on_failure:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-latest }
-            on_error:
-              do:
-              - put: slack-alert
-                params:
-                  channel: '#tech-agent-delivery-notifications'
-                  text: |
-                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ pipeline-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
-            on_abort:
-              put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
             ensure:
               do:
               - task: cleanup-resources
@@ -723,7 +532,7 @@ jobs:
   - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
     plan:
-      - get: agent-operator-release-source
+      - get: agent-operator-git-source
         trigger: true
         passed: [end-to-end-tests]
       - get: agent-operator-image-manifest-sha
@@ -731,7 +540,7 @@ jobs:
       - get: pipeline-source
         passed: [end-to-end-tests]
       - load_var: operator-version
-        file: agent-operator-release-source/.git/ref
+        file: agent-operator-git-source/.git/ref
         #file: agent-operator-release-source/version
         reveal: true
       - load_var: git-commit
@@ -831,78 +640,3 @@ jobs:
                   --dest-password ${RED_HAT_REGISTRY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${RED_HAT_REGISTRY}:${OPERATOR_DOCKER_VERSION}
-        on_success:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
-        on_failure:
-          do:
-            - put: slack-alert
-              params:
-                channel: '#tech-agent-delivery-notifications'
-                text: |
-                  :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-            - put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
-        on_error:
-          do:
-            - put: slack-alert
-              params:
-                channel: '#tech-agent-delivery-notifications'
-                text: |
-                  :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-            - put: gh-status
-              inputs: [ pipeline-source ]
-              params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
-        on_abort:
-          put: gh-status
-          inputs: [ pipeline-source ]
-          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
-      - get: preflight
-        version:
-          tag: 1.12.1
-        params:
-          globs:
-            - preflight-linux-amd64
-      - task: redhat-preflight-scans
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-              tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-          inputs:
-            - name: preflight
-          params:
-            VERSION: ((.:operator-version))
-            RED_HAT_API_TOKEN: ((redhat-container-registry-5e9612d87512796c24e4aeef.api-token))
-            RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
-            RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
-          run:
-            path: bash
-            args:
-              - -ce
-              - |
-                # strip the leading "v" from the operator version for release:
-
-                export PREFIX="v"
-                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
-
-                # Run Preflight Image Scans for RH Marketplace
-
-                export RED_HAT_PROJECT_ID=5e961c2c93604e02afa9ebdf
-                export RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
-                skopeo login -u ${RED_HAT_REGISTRY_USERNAME} -p ${RED_HAT_REGISTRY_PASSWORD} --authfile $(pwd)/auth.json quay.io
-                export DOCKER_CFG_FILE="$(pwd)/auth.json"
-
-                pushd preflight
-
-                chmod +x preflight-linux-amd64
-
-                ./preflight-linux-amd64 check container --artifacts preflight-output "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
-
-                popd
