@@ -6,6 +6,7 @@ package daemonset
 
 import (
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -167,6 +168,7 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.TlsVolume,
 		volume.RepoVolume,
 		volume.NamespacesDetailsVolume,
+		volume.DeployVolume,
 	)
 }
 
@@ -212,6 +214,45 @@ func (d *daemonSetBuilder) getTolerations() []corev1.Toleration {
 	}
 }
 
+func (d *daemonSetBuilder) getInitContainers() []corev1.Container {
+	if len(d.InstanaAgent.Spec.Agent.DependencyURLs) == 0 {
+		return nil
+	}
+
+	// Build the curl commands for each URL
+	commands := []string{}
+	for i, url := range d.InstanaAgent.Spec.Agent.DependencyURLs {
+		// Extract filename from URL
+		filename := fmt.Sprintf("dependency-%d", i)
+		if lastSlashIndex := strings.LastIndex(url, "/"); lastSlashIndex != -1 && lastSlashIndex < len(url)-1 {
+			filename = url[lastSlashIndex+1:]
+		}
+		commands = append(commands, fmt.Sprintf("curl %s --output /instana/%s", url, filename))
+	}
+
+	// Join all commands with && to execute them sequentially
+	commandString := strings.Join(commands, " && ")
+
+	// Create an init container to download the files from the URLs
+	return []corev1.Container{
+		{
+			Name:  "init-dependency-downloader",
+			Image: "registry.access.redhat.com/ubi8/ubi:latest",
+			Command: []string{
+				"sh",
+				"-c",
+				commandString,
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "instanadeploy",
+					MountPath: "/instana",
+				},
+			},
+		},
+	}
+}
+
 func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
@@ -245,6 +286,7 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
 					ImagePullSecrets:   d.ImagePullSecrets(),
+					InitContainers:     d.getInitContainers(),
 					Containers: []corev1.Container{
 						{
 							Name:            "instana-agent",
