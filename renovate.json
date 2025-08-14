@@ -2,5 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
-  ]
+  ],
+  "branchPrefix": "renovate_",
+  "reviewers": [
+    "team:eng-agent"
+  ],
+  "prConcurrentLimit": 2,
+  "rebaseWhen": "behind-base-branch",
+  "dependencyDashboard": true
 }
