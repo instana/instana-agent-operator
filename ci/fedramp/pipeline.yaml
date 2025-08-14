@@ -517,22 +517,13 @@ jobs:
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
                 echo ${DIGEST}
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --dest-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${DEV_BUILD_IMAGE}:main
-
-                # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
                 if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
                   echo "---> **** Internal release, publishing to icr.io & Red Hat container registry skipped. ****"
                   exit 0
                 fi
 
-                echo "---> **** Public release, publishing to icr.io & Red Hat container registry. ****"
+                echo "---> **** Public release, publishing to delivery.instana.io. ****"
 
                 # strip the leading "v" from the operator version for release:
                 export PREFIX="v"
