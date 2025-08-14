@@ -478,10 +478,9 @@ jobs:
         passed: [end-to-end-tests]
       - load_var: operator-version
         file: agent-operator-git-source/.git/ref
-        #file: agent-operator-release-source/version
         reveal: true
       - load_var: git-commit
-        file: agent-operator-release-source/.git/HEAD
+        file: agent-operator-git-source/.git/HEAD
         reveal: true
       - load_var: fedramp-version
         file: fedramp-version/number
@@ -537,4 +536,98 @@ jobs:
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
-                  #TODO: push yaml 
+  # - name: operator-olm-github-release
+  #   max_in_flight: 1
+  #   plan:
+  #     - get: agent-operator-git-source
+  #       trigger: true
+  #       passed: [multiarch-operator-manifest-promotion]
+  #     - get: fedramp-version
+  #       passed: [multiarch-operator-manifest-promotion]
+  #       trigger: true
+  #     - get: agent-operator-image-manifest-sha
+  #       passed: [multiarch-operator-manifest-promotion]
+  #     - get: pipeline-source
+  #       passed: [multiarch-operator-manifest-promotion]
+  #     - load_var: operator-version
+  #       file: agent-operator-git-source/.git/ref
+  #       reveal: true
+  #     - load_var: agent-image-digest
+  #       file: latest-agent-image-manifest/digest
+  #       reveal: true
+  #     - load_var: fedramp-version
+  #       file: fedramp-version/number
+  #       reveal: true
+  #     - task: build
+  #       privileged: true
+  #       config:
+  #         platform: linux
+  #         image_resource:
+  #           type: registry-image
+  #           source:
+  #             repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+  #             tag: main
+  #             username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+  #             password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  #         inputs:
+  #           - name: agent-operator-git-source
+  #           - name: agent-operator-image-manifest-sha
+  #         outputs:
+  #           - name: build
+  #         params:
+  #           VERSION: ((.:operator-version))
+  #           AGENT_IMG_DIGEST: ((.:agent-image-digest))
+  #           GH_API_TOKEN: ((instanacd-github-api-token))
+  #           FEDRAMP_VERSION: ((.:fedramp-version))
+  #         run:
+  #           path: bash
+  #           args:
+  #             - -ceu
+  #             - |
+
+  #               if [[ -f "agent-operator-image-manifest-sha/digest" ]]; then
+  #                 export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "agent-operator-image-manifest-sha/digest")
+  #                 echo "Found SHA for latest Operator Manifest: ${OPERATOR_IMAGE_MANIFEST_SHA}"
+  #               else
+  #                 echo "No SHA found for latest Operator Manifest. Might be pre-release version"
+  #                 ls -la agent-operator-image-manifest-sha/
+  #                 exit 1
+  #               fi
+
+  #               pushd agent-operator-git-source
+
+  #               # Create a place to store our output for packaging up
+  #               mkdir -p target
+  #               export TARGET_DIR=$(pwd)/target
+
+  #               # strip the leading "v" from the operator version for github artefacts and release:
+  #               export PREFIX="v"
+  #               export RELEASE_VERSION=${VERSION#"$PREFIX"}
+
+  #               export OPERATOR_IMAGE=" delivery.instana.io/int-docker-agent-fedramp-release-local/instana-agent-operator/fedramp-${FEDRAMP_VERSION}/instana-agent-operator:${RELEASE_VERSION}"
+  #               export AGENT_IMAGE="delivery.instana.io/int-docker-agent-fedramp-release-local/agent/static/fedramp-${FEDRAMP_VERSION}/agent:latest"
+  #               # check that the operator image is really present before creating a release
+  #               OPERATOR_IMAGE_TRIMMED=$(echo "$OPERATOR_IMAGE" | xargs)
+  #               skopeo inspect docker://${OPERATOR_IMAGE_TRIMMED}
+                
+  #               # # Create bundle for public operator with delivery.instana.io fedramp release image 
+  #               # make IMG="${OPERATOR_IMAGE}" \
+  #               #   VERSION="${RELEASE_VERSION}" \
+  #               #   AGENT_IMG="${AGENT_IMAGE}" \
+  #               #   bundle
+
+
+  #               # Create the YAML for installing the Agent Operator, which we want to package with the release
+  #               make --silent IMG=" icr.io/instana/instana-agent-operator:${RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+
+  #               echo "delivery.instana.io/rel-docker-agent-local/instana-agent-operator:${RELEASE_VERSION}" > target/images.txt
+  #               echo "icr.io/instana/instana-agent-operator:${RELEASE_VERSION}" >> target/images.txt
+  #               echo "icr.io/instana/instana-agent-operator:latest" >> target/images.txt
+  #               cat target/images.txt
+
+  #               # For public releases, also create the appropriate github release:
+  #               export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
+  #               if ! [[ $VERSION =~ $RELEASE_REGEX ]]; then
+  #                 echo "---> **** Internal release, GitHub release creation skipped. ****"
+  #                 exit 0
+  #               fi
