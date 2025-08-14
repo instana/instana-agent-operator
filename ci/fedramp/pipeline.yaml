@@ -288,13 +288,11 @@ jobs:
       - get: fedramp-version
         passed: [docker-build]
         trigger: true
-      - get: pipeline-source
-        passed: [manual-trigger]
-        trigger: true
       - load_var: git-commit
         file: agent-operator-git-source/.git/HEAD
       - get: pipeline-source
         passed: [docker-build]
+        trigger: true
       - get: agent-operator-image-manifest-sha
         passed: [docker-build]
       - in_parallel:
