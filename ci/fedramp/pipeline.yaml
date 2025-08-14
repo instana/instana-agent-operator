@@ -88,7 +88,7 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
       tag: main
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -96,7 +96,7 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
       tag: main
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -104,7 +104,7 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
       tag: main
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -112,7 +112,7 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
       tag: main
       username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
       password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -245,7 +245,7 @@ jobs:
           image_resource:
             type: registry-image
             source: &e2e-test-base-image
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
               password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -261,7 +261,7 @@ jobs:
               - -ceu
               - |
                 IMAGE_TAG=${GIT_COMMIT}
-                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
 
                 manifest-tool \
                   --username ${ARTIFACTORY_USERNAME_INTERNAL} \
@@ -318,7 +318,7 @@ jobs:
               image_resource: &e2e-test-image-resource
                 type: registry-image
                 source:
-                  repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                  repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/e2e-test-base-image
                   tag: main
                   username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                   password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -553,7 +553,7 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
               password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -577,7 +577,7 @@ jobs:
             args:
               - -ceu
               - |
-                DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
                 ICR_REPOSITORY=icr.io/instana/instana-agent-operator
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
