@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/go-errors/errors v1.4.2
 	github.com/go-logr/logr v1.4.2
-	github.com/openshift/client-go v0.0.0-20240906181530-b2f7c4ab0984
+	github.com/openshift/client-go 6193816ae379
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/mock v0.4.0
