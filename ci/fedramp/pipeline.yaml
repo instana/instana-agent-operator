@@ -285,6 +285,12 @@ jobs:
       - get: agent-operator-git-source
         trigger: true
         passed: [docker-build]
+      - get: fedramp-version
+        passed: [docker-build]
+        trigger: true
+      - get: pipeline-source
+        passed: [manual-trigger]
+        trigger: true
       - load_var: git-commit
         file: agent-operator-git-source/.git/HEAD
       - get: pipeline-source
@@ -458,76 +464,6 @@ jobs:
                     - name: metadata
                   run:
                     path: pipeline-source/ci/scripts/reslock.sh
-        # - do:
-        #   - put: openshift-4.11
-        #     inputs: detect
-        #     resource: test-clusters
-        #     params:
-        #       claim: openshift-4.11
-        #   - task: run-e2e-test-openshift-4.11
-        #     timeout: 55m
-        #     attempts: 1
-        #     config:
-        #       <<: *gke-e2e-test-config
-        #       params:
-        #         GIT_COMMIT: ((.:git-commit))
-        #         CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-10-qa" }'
-        #         CLUSTER_TYPE: openshift
-        #         KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-        #         NAME: openshift-4.11
-
-        #         GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-        #         INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-        #         INSTANA_ENDPOINT_PORT: 443
-        #         INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-        #         INSTANA_API_URL: ((instana-qa.api_url))
-        #         INSTANA_API_TOKEN: ((instana-qa.api_token))
-        #         BUILD_BRANCH: main
-        #         INSTANA_API_KEY: ((qa-instana-agent-key))
-        #         ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-        #         ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-        #       inputs:
-        #         - name: pipeline-source
-        #       run:
-        #         path: pipeline-source/ci/scripts/end-to-end-test.sh
-        #     on_success:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: success, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     on_failure:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: failure, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     on_error:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     on_abort:
-        #       put: gh-status
-        #       inputs: [ pipeline-source ]
-        #       params: { state: error, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-        #     ensure:
-        #       do:
-        #       - task: cleanup-resources
-        #         timeout: 10m
-        #         config:
-        #           platform: linux
-        #           image_resource: *e2e-test-image-resource
-        #           params:
-        #             CLUSTER_INFO: '{ "name": "project-berlin-openshift-4-11-qa" }'
-        #             CLUSTER_TYPE: openshift
-        #             KUBECONFIG_SOURCE: ((project-berlin-test-kubeconfig-openshift4))
-        #             NAME: openshift-4.11
-
-        #             GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-        #           inputs:
-        #             - name: pipeline-source
-        #           run:
-        #             path: pipeline-source/ci/scripts/cleanup-resources.sh
-        #       - put: test-clusters
-        #         inputs: detect
-        #         params:
-        #           release: openshift-4.11
 
   - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
@@ -535,6 +471,9 @@ jobs:
       - get: agent-operator-git-source
         trigger: true
         passed: [end-to-end-tests]
+      - get: fedramp-version
+        passed: [end-to-end-tests]
+        trigger: true
       - get: agent-operator-image-manifest-sha
         passed: [end-to-end-tests]
       - get: pipeline-source
@@ -568,27 +507,23 @@ jobs:
             ICR_USERNAME: iamapikey
             ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-            ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
-            ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
             ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
-            ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
+            ARTIFACTORY_CONTAINER_DOCKER_URL: delivery.instana.io/int-docker-agent-fedramp-release-local
           run:
             path: bash
             args:
               - -ceu
               - |
                 DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
-                ICR_REPOSITORY=icr.io/instana/instana-agent-operator
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
-                RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
                 echo ${DIGEST}
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
                   --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ARTIFACTORY_USERNAME} \
-                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  --dest-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --dest-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${DEV_BUILD_IMAGE}:main
 
@@ -605,38 +540,11 @@ jobs:
                 export PREFIX="v"
                 export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
 
-                echo "---> Pushing multi-architectural manifest to icr.io with version tag"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ICR_USERNAME} \
-                  --dest-password ${ICR_PASSWORD} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
-
-                echo "---> Pushing multi-architectural manifest to icr.io with the latest tag"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ICR_USERNAME} \
-                  --dest-password ${ICR_PASSWORD} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${ICR_REPOSITORY}:latest
-
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
                   --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ARTIFACTORY_USERNAME} \
-                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  --dest-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --dest-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
-
-                echo "---> pushing images to Red Hat Container Registry"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${RED_HAT_REGISTRY_USERNAME} \
-                  --dest-password ${RED_HAT_REGISTRY_PASSWORD} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${RED_HAT_REGISTRY}:${OPERATOR_DOCKER_VERSION}
