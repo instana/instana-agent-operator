@@ -492,7 +492,7 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
               password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
