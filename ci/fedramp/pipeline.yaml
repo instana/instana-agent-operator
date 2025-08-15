@@ -339,13 +339,13 @@ jobs:
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               inputs:
-                - name: pipeline-source
+                - name: agent-operator-git-source
               run:
                 path: bash
                 args:
                   - -ceu
                   - |
-                    cd pipeline-source
+                    cd agent-operator-git-source
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             ensure:
@@ -420,13 +420,13 @@ jobs:
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
               inputs:
-                - name: pipeline-source
+                - name: agent-operator-git-source
               run:
                 path: bash
                 args:
                   - -ceu
                   - |
-                    cd pipeline-source
+                    cd agent-operator-git-source
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             ensure:
