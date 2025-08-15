@@ -476,6 +476,7 @@ jobs:
         passed: [end-to-end-tests]
       - get: pipeline-source
         passed: [end-to-end-tests]
+        trigger: true
       - load_var: operator-version
         file: agent-operator-git-source/.git/ref
         reveal: true
