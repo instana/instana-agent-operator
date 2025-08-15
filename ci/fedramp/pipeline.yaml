@@ -347,6 +347,7 @@ jobs:
                   - |
                     cd agent-operator-git-source
                     bash ./ci/scripts/cluster-authentication.sh
+                    export OPERATOR_IMAGE_NAME="delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build"
                     make pre-pull-images generate e2e
             ensure:
               do:
@@ -428,6 +429,7 @@ jobs:
                   - |
                     cd agent-operator-git-source
                     bash ./ci/scripts/cluster-authentication.sh
+                    export OPERATOR_IMAGE_NAME="delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build"
                     make pre-pull-images generate e2e
             ensure:
               do:
