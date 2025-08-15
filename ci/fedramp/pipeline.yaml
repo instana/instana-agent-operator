@@ -526,7 +526,8 @@ jobs:
                 export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
 
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
-                skopeo copy -a --preserve-digests \
+                echo "---> Copying docker://${DEV_BUILD_IMAGE}@${DIGEST} to ${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}"
+                skopeo copy --multi-arch=all --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
                   --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
                   --dest-username ${ARTIFACTORY_USERNAME_INTERNAL} \
