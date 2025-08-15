@@ -6,7 +6,7 @@
 
 set -e
 
-echo "Running pre-commit hook...\n"
+echo "Running pre-commit hook..."
 
 # Get list of staged .go files
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
@@ -38,7 +38,7 @@ for FILE in $FILES; do
   git add "$FILE"
 done
 
-echo "✅ Linted successfully.\n"
+echo "✅ Linted successfully."
 
 # Run copyright check on all staged files (not only .go files)
 ALL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(go|sh|yml|yaml)$' || true)
@@ -49,7 +49,7 @@ for FILE in $ALL_FILES; do
 	exit 1
   fi
 done
-echo "✅ No missing copyrights.\n"
+echo "✅ No missing copyrights."
 
 
 
