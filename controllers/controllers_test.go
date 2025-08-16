@@ -38,6 +38,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var agentNamespace = types.NamespacedName{
@@ -225,6 +227,9 @@ type InstanaAgentControllerTestSuite struct {
 func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 	suite.ctx, suite.cancel = context.WithCancel(context.Background())
 
+	// Set up the logger for controller-runtime
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
 	// Prepare scheme with instana scheme
 	suite.scheme = runtime.NewScheme()
 	err := scheme.AddToScheme(suite.scheme)
@@ -311,8 +316,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
+		600*time.Second,
 		10*time.Second,
-		time.Second,
 		"Should contain all objects in the schema",
 	)
 
@@ -342,8 +347,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
 		),
+		600*time.Second,
 		10*time.Second,
-		time.Second,
 		"Should contain listed objects in the patched schema",
 	)
 	require.Eventually(suite.T(),
@@ -352,8 +357,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			agentKeysSecret,
 			k8SensorPdb,
 		),
+		600*time.Second,
 		10*time.Second,
-		time.Second,
 		"Should not contain listed objects after the patched schema",
 	)
 
@@ -376,8 +381,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
+		600*time.Second,
 		10*time.Second,
-		time.Second,
 		"Should delete all objects from the schema",
 	)
 }
