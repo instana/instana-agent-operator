@@ -1,3 +1,7 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,6 +24,15 @@ spec:
       - name: java-demo-app
         image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest
         imagePullPolicy: IfNotPresent
+        env:
+        - name: INSTANA_TEST_NAMESPACE_TYPE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: INSTANA_TEST_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
