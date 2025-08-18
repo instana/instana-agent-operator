@@ -23,7 +23,7 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
+func TestUpdateAgentStatusReturnsErrorOnPatchFailure_Fixed(t *testing.T) {
 	assertions := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -68,7 +68,7 @@ func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 	instanaAgentClient.AssertExpectations(t)
 }
 
-func TestUpdateAgentStatus(t *testing.T) {
+func TestUpdateAgentStatus_Fixed(t *testing.T) {
 	instanaAgent := instanav1.InstanaAgent{}
 	configSecret := types.NamespacedName{
 		Name:      "SetAgentSecretConfigName",
@@ -78,8 +78,14 @@ func TestUpdateAgentStatus(t *testing.T) {
 		Name:      "AddAgentDaemonsetName",
 		Namespace: "AddAgentDaemonsetNamespace",
 	}}
-	k8sSensorDeployment := &types.NamespacedName{Name: "test_name_deployment", Namespace: "test_namespace_deployment"}
-	namespacesConfigmap := &types.NamespacedName{Name: "test_name_namespaces_configmap", Namespace: "test_name_namespaces_configmap"}
+	k8sSensorDeployment := &types.NamespacedName{
+		Name:      "test_name_deployment",
+		Namespace: "test_namespace_deployment",
+	}
+	namespacesConfigmap := &types.NamespacedName{
+		Name:      "test_name_namespaces_configmap",
+		Namespace: "test_name_namespaces_configmap",
+	}
 
 	num := int64(1)
 	semVer := instanav1.SemanticVersion{}
@@ -299,9 +305,13 @@ func TestUpdateAgentStatus(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				if test.envVarOperatorVersion != nil {
-					os.Setenv("OPERATOR_VERSION", *test.envVarOperatorVersion)
+					if err := os.Setenv("OPERATOR_VERSION", *test.envVarOperatorVersion); err != nil {
+						t.Fatalf("Failed to set environment variable: %v", err)
+					}
 					defer func() {
-						os.Setenv("OPERATOR_VERSION", "")
+						if err := os.Setenv("OPERATOR_VERSION", ""); err != nil {
+							t.Fatalf("Failed to reset environment variable: %v", err)
+						}
 					}()
 				}
 
@@ -335,7 +345,10 @@ func TestUpdateAgentStatus(t *testing.T) {
 					instanaAgentClient.On("Status").Return(writer)
 				}
 
-				agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
+				agentStatusManager := NewAgentStatusManager(
+					instanaAgentClient,
+					record.NewFakeRecorder(10),
+				)
 
 				if test.agent != nil {
 					agentStatusManager.SetAgentOld(test.agent)

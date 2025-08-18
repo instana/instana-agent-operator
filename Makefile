@@ -20,7 +20,6 @@ ENVTEST = ${GOBIN}/setup-envtest
 GOLANGCI_LINT = ${GOBIN}/golangci-lint
 OPERATOR_SDK = ${GOBIN}/operator-sdk
 BUILDCTL =  ${GOBIN}/buildctl
-MOCKGEN = ${GOBIN}/mockgen
 
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
 VERSION ?= 0.0.1
@@ -113,11 +112,11 @@ vet: ## Run go vet against code
 lint: golangci-lint ## Run the golang-ci linter
 	$(GOLANGCI_LINT) run --new-from-rev=HEAD --timeout 5m
 
-EXCLUDED_TEST_DIRS = mocks e2e
+EXCLUDED_TEST_DIRS = mocks e2e internal/testmocks
 EXCLUDE_PATTERN = $(shell echo $(EXCLUDED_TEST_DIRS) | sed 's/ /|/g')
 PACKAGES = $(shell go list ./... | grep -vE "$(EXCLUDE_PATTERN)" | tr '\n' ' ')
 KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
-test: gen-mocks manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
+test: manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
 .PHONY: e2e
@@ -126,11 +125,11 @@ e2e: ## Run end-to-end tests
 
 ##@ Build
 
-build: gen-mocks setup generate fmt vet ## Build manager binary.
+build: setup generate fmt vet ## Build manager binary.
 	go build -o bin/manager *.go
 
 run: export DEBUG_MODE=true
-run: gen-mocks generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
+run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
 	go run ./
 
 docker-build: test container-build ## Build docker image with the manager.
@@ -316,26 +315,8 @@ controller-yaml: manifests kustomize ## Output the YAML for deployment, so it ca
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/default
 
-CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
-gen-mocks: mockgen  ## Generate mocks for tests
-	${MOCKGEN} --source $(shell go env GOPATH)/pkg/mod/sigs.k8s.io/controller-runtime@$(CONTROLLER_RUNTIME_VERSION)/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
-	${MOCKGEN} --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
-	${MOCKGEN} --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks
-	${MOCKGEN} --source ./pkg/k8s/object/transformations/pod_selector.go --destination ./mocks/pod_selector_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/transformations/transformations.go --destination ./mocks/transformations_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/ports/ports_builder.go --destination ./mocks/ports_builder_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/env/env_builder.go --destination ./mocks/env_builder_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/volume/volume_builder.go --destination ./mocks/volume_builder_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/helpers/helpers.go --destination ./mocks/helpers_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/builder/builder.go --destination ./mocks/builder_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/json_or_die/json.go --destination ./mocks/json_or_die_marshaler_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/operator/status/agent_status_manager.go --destination ./mocks/agent_status_manager_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/operator/lifecycle/dependent_lifecycle_manager.go --destination ./mocks/dependent_lifecycle_manager_mock.go --package mocks
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/env/remote_env_builder.go --destination ./mocks/remote_env_builder_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/volume/remote_volume_builder.go --destination ./mocks/remote_volume_builder_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/object/builders/common/helpers/remote_helpers.go --destination ./mocks/remote_helpers_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/operator/status/remote_agent_status_manager.go --destination ./mocks/remote_agent_status_manager_mock.go --package mocks 
-	${MOCKGEN} --source ./pkg/k8s/operator/lifecycle/remote_dependent_lifecycle_manager.go --destination ./mocks/remote_dependent_lifecycle_manager_mock.go --package mocks
+# This section previously contained the gen-mocks target which has been removed
+# as part of the migration from mockgen to testify/mock. Have a look into internal/testmocks to find the testify mock implementations
 
 ##@ Individual install targets to download binaries to ./bin-folder
 
@@ -365,9 +346,7 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
-.PHONY: mockgen
-mockgen: ## Download the mockgen binary locally if necessary.
-	go install go.uber.org/mock/mockgen@74a29c6e6c2cbb8ccee94db061c1604ff33fd188
+# mockgen target has been removed as part of the migration to testify/mock
 
 .PHONY: buildctl
 BUILDKITD_CONTAINER_NAME = buildkitd

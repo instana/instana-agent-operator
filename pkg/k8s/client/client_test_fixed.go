@@ -36,7 +36,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
-func TestInstanaAgentClientApply(t *testing.T) {
+func TestInstanaAgentClientApply_Fixed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cm := corev1.ConfigMap{}
@@ -53,7 +53,7 @@ func TestInstanaAgentClientApply(t *testing.T) {
 		mock.Anything,                        // opts - match any options
 	).Return(expectedErr)
 
-	client := instanaAgentClient{
+	client := &instanaAgentClient{
 		k8sClient: mockK8sClient,
 	}
 
@@ -66,7 +66,7 @@ func TestInstanaAgentClientApply(t *testing.T) {
 	mockK8sClient.AssertExpectations(t)
 }
 
-func TestInstanaAgentClientGetAsResult(t *testing.T) {
+func TestInstanaAgentClientGetAsResult_Fixed(t *testing.T) {
 	assertions := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -96,16 +96,16 @@ func TestInstanaAgentClientGetAsResult(t *testing.T) {
 		mock.Anything, // opts
 	).Return(errors.New("foo"))
 
-	instanaAgentClient := instanaAgentClient{
+	client := &instanaAgentClient{
 		k8sClient: mockK8sClient,
 	}
 
-	actual := instanaAgentClient.GetAsResult(ctx, key, obj, opts, opts)
+	actual := client.GetAsResult(ctx, key, obj, opts, opts)
 	assertions.Equal(result.Of[k8sclient.Object](obj, errors.New("foo")), actual)
 	mockK8sClient.AssertExpectations(t)
 }
 
-func TestInstanaAgentClientExists(t *testing.T) {
+func TestInstanaAgentClientExists_Fixed(t *testing.T) {
 	for _, test := range []struct {
 		name     string
 		errOfGet error
@@ -161,9 +161,9 @@ func TestInstanaAgentClientExists(t *testing.T) {
 					mock.Anything, // opts - include this to match the actual call
 				).Return(test.errOfGet)
 
-				instanaAgentClient := NewInstanaAgentClient(mockK8sClient)
+				client := NewInstanaAgentClient(mockK8sClient)
 
-				actual := instanaAgentClient.Exists(ctx, gvk, key)
+				actual := client.Exists(ctx, gvk, key)
 				assertions.Equal(test.expected, actual)
 				mockK8sClient.AssertExpectations(t)
 			},

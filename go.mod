@@ -7,10 +7,11 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/go-errors/errors v1.4.2
 	github.com/go-logr/logr v1.4.2
+	github.com/joho/godotenv v1.5.1
 	github.com/openshift/client-go v0.0.0-20240906181530-b2f7c4ab0984
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/mock v0.4.0
+	go.uber.org/mock v0.5.2
 	golang.org/x/net v0.39.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.17.4
@@ -20,7 +21,6 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/e2e-framework v0.4.0
-	github.com/joho/godotenv v1.5.1
 )
 
 require (
@@ -119,6 +119,7 @@ require (
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/cobra v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/vladimirvivien/gexe v0.2.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
