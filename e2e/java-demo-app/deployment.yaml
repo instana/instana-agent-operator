@@ -17,7 +17,7 @@ spec:
     metadata:
       labels:
         app: java-demo-app
-        e2etest: seletctive-monitoring
+        e2etest: selective-monitoring
     spec:
       imagePullSecrets:
         - name: delivery-instana-io-pull-secret

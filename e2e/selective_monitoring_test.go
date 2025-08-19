@@ -280,7 +280,7 @@ func VerifySelectiveMonitoring() features.Func {
 			podList, err := clientSet.CoreV1().Pods(ns).List(
 				ctx,
 				metav1.ListOptions{
-					LabelSelector: "app=java-demo-app,e2etest=seletctive-monitoring",
+					LabelSelector: "app=java-demo-app,e2etest=selective-monitoring",
 				},
 			)
 			if err != nil {
