@@ -245,15 +245,8 @@ func deployJavaDemoApp(
 func VerifySelectiveMonitoring() features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Verifying selective monitoring...")
-		// TODO: Needs redefinement, the agent pod must run on the same worker node as the demo app to be monitored
-		// First notes: Selective monitoring is set to OPT_IN in the agent log
-		// 2025-08-18T14:04:59.606+00:00 | INFO  | instana-executor-thread-2-3      | lMachineUtilImpl | com.instana.agent-util - 1.0.12 | addToVmMapWithLogAndRequestDiscovery | adding new VM with PID 3537885, ContainerizedVirtualMachineImpl [pid=3537885, inContainerPid=1, containerFileSystem=/proc/3537885/root, parentPid=3537885, attachType=HOTSPOT_MODULAR, hasAttachFile=false, commandLine=HelloWorldServer, vmArgs=, name=OpenJDK 64-Bit Server VM (Red_Hat-21.0.8.0.9-1), vendor=OpenJDK, version=21.0.8, build=21.0.8+9-LTS, heapCapacity=-1, process=CrioProcessImpl [pid=3537885, parentPid=3537883, inContainerPid=1, containerId=3d9cc71389d96e80221057c69022b13eaa74b7dbb5e657846573086c0363b424, containerFileSystem=/proc/3537885/root, startTime=0, name=java, gatewayAddress='<lazy>, anyListenAddress='<lazy>, directory=/app, executable=/usr/lib/jvm/java-21-openjdk-21.0.8.0.9-1.el9.x86_64/bin/java, arguments=[HelloWorldServer], userName=<lazy>, groupName=<lazy>, procCred=null, environmentVariables={PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin, KUBERNETES_PORT_443_TCP=tcp://172.30.0.1:443, container=oci, KUBERNETES_PORT_443_TCP_ADDR=172.30.0.1, KUBERNETES_PORT=tcp://172.30.0.1:443, KUBERNETES_PORT_443_TCP_PROTO=tcp, TERM=xterm, USER_UID=1001, KUBERNETES_SERVICE_HOST=172.30.0.1, KUBERNETES_SERVICE_PORT=443, HOSTNAME=java-demo-app-79bcdf6476-wdtff, NSS_SDB_USE_CACHE=no, KUBERNETES_PORT_443_TCP_PORT=443, KUBERNETES_SERVICE_PORT_HTTPS=443, HOME=/}, stable=true]] //nolint:lll
-		// Grep for the agent logs:
-		// "HelloWorldServer" and "adding new VM with PID xxx". Isolate the used PID which is required for the next request.
-		// With the PID, check if the agent log contains a successful attachment for it.
-		// The log would be "Initial attach to JVM with PID xxx successful".
 
-		// Get agent pods
+		// Get Kubernetes client
 		clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		if err != nil {
 			t.Fatal(err)
@@ -263,49 +256,131 @@ func VerifySelectiveMonitoring() features.Func {
 		t.Log("Waiting for agent to discover and attach to JVMs...")
 		time.Sleep(60 * time.Second)
 
-		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(
+		// Define the namespaces where our demo apps are running
+		namespaces := []string{
+			"selective-monitoring-no-label",
+			"selective-monitoring-opt-out",
+			"selective-monitoring-opt-in",
+		}
+
+		// Find all demo app pods across all namespaces
+		t.Log("Finding all demo app pods...")
+		var demoAppPods []corev1.Pod
+		var demoAppNodes = make(map[string]bool)
+
+		for _, ns := range namespaces {
+			podList, err := clientSet.CoreV1().Pods(ns).List(
+				ctx,
+				metav1.ListOptions{
+					LabelSelector: "app=java-demo-app,e2etest=seletctive-monitoring",
+				},
+			)
+			if err != nil {
+				t.Logf("Error listing pods in namespace %s: %v", ns, err)
+				continue
+			}
+
+			for _, pod := range podList.Items {
+				demoAppPods = append(demoAppPods, pod)
+				demoAppNodes[pod.Spec.NodeName] = true
+				t.Logf("Found demo app pod %s in namespace %s on node %s",
+					pod.Name, pod.Namespace, pod.Spec.NodeName)
+			}
+		}
+
+		if len(demoAppPods) == 0 {
+			t.Fatal("No demo app pods found in any namespace")
+		}
+
+		// Get all agent pods
+		agentPodList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(
 			ctx,
 			metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"},
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(podList.Items) == 0 {
+		if len(agentPodList.Items) == 0 {
 			t.Fatal("No agent pods found")
 		}
 
-		// Check logs for JVM attachment
-		var buf bytes.Buffer
-		logReq := clientSet.CoreV1().
-			Pods(cfg.Namespace()).
-			GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
-		podLogs, err := logReq.Stream(ctx)
-		if err != nil {
-			t.Fatal("Could not stream logs", err)
-		}
-		defer podLogs.Close()
-
-		_, err = io.Copy(&buf, podLogs)
-		if err != nil {
-			t.Fatal(err)
+		// Find agent pods running on the same nodes as our demo apps
+		var relevantAgentPods []corev1.Pod
+		for _, agentPod := range agentPodList.Items {
+			if demoAppNodes[agentPod.Spec.NodeName] {
+				relevantAgentPods = append(relevantAgentPods, agentPod)
+				t.Logf("Found agent pod %s on node %s that has demo app pods",
+					agentPod.Name, agentPod.Spec.NodeName)
+			}
 		}
 
-		logs := buf.String()
-		t.Logf("Agent logs retrieved, checking for JVM attachment...")
+		if len(relevantAgentPods) == 0 {
+			t.Fatal("No agent pods found on nodes where demo apps are running")
+		}
 
-		// Check for successful JVM attachment in the opt-in namespace
-		optInAttached := strings.Contains(logs, "Initial attach to JVM") &&
-			strings.Contains(logs, "successful") &&
-			strings.Contains(logs, "selective-monitoring-opt-in")
+		// Check logs from all relevant agent pods
+		var optInAttached, noLabelAttached, optOutAttached bool
+		for _, agentPod := range relevantAgentPods {
+			t.Logf(
+				"Checking logs from agent pod %s on node %s",
+				agentPod.Name,
+				agentPod.Spec.NodeName,
+			)
 
-		// Check for absence of JVM attachment in the other namespaces
-		noLabelAttached := strings.Contains(logs, "Initial attach to JVM") &&
-			strings.Contains(logs, "successful") &&
-			strings.Contains(logs, "selective-monitoring-no-label")
+			var buf bytes.Buffer
+			logReq := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				GetLogs(agentPod.Name, &corev1.PodLogOptions{})
+			podLogs, err := logReq.Stream(ctx)
+			if err != nil {
+				t.Logf("Could not stream logs from pod %s: %v", agentPod.Name, err)
+				continue
+			}
 
-		optOutAttached := strings.Contains(logs, "Initial attach to JVM") &&
-			strings.Contains(logs, "successful") &&
-			strings.Contains(logs, "selective-monitoring-opt-out")
+			_, err = io.Copy(&buf, podLogs)
+			if err != nil {
+				t.Logf("Error reading logs from pod %s: %v", agentPod.Name, err)
+				continue
+			}
+			err = podLogs.Close()
+			if err != nil {
+				t.Logf("Error closing from pod logs reader for %s: %v", agentPod.Name, err)
+				continue
+			}
+
+			logs := buf.String()
+			t.Logf(
+				"Agent logs retrieved from pod %s, checking for JVM attachment...",
+				agentPod.Name,
+			)
+
+			// Check for successful JVM attachment in the opt-in namespace
+			if strings.Contains(logs, "Initial attach to JVM") &&
+				strings.Contains(logs, "successful") &&
+				strings.Contains(logs, "selective-monitoring-opt-in") {
+				optInAttached = true
+				t.Logf(
+					"Found successful JVM attachment for opt-in namespace in pod %s",
+					agentPod.Name,
+				)
+			}
+
+			// Check for JVM attachment in the no-label namespace
+			if strings.Contains(logs, "Initial attach to JVM") &&
+				strings.Contains(logs, "successful") &&
+				strings.Contains(logs, "selective-monitoring-no-label") {
+				noLabelAttached = true
+				t.Logf("Found JVM attachment for no-label namespace in pod %s", agentPod.Name)
+			}
+
+			// Check for JVM attachment in the opt-out namespace
+			if strings.Contains(logs, "Initial attach to JVM") &&
+				strings.Contains(logs, "successful") &&
+				strings.Contains(logs, "selective-monitoring-opt-out") {
+				optOutAttached = true
+				t.Logf("Found JVM attachment for opt-out namespace in pod %s", agentPod.Name)
+			}
+		}
 
 		// Verify expectations
 		if !optInAttached {
@@ -357,5 +432,3 @@ func CleanupNamespaces() features.Func {
 		return ctx
 	}
 }
-
-// Made with Bob
