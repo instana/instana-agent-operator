@@ -20,7 +20,7 @@ spec:
         e2etest: selective-monitoring
     spec:
       imagePullSecrets:
-        - name: delivery-instana-io-pull-secret
+        - name: delivery-instana
       containers:
       - name: java-demo-app
         image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest
