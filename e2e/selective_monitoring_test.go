@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -62,6 +63,9 @@ func NewAgentCrWithSelectiveMonitoring() v1.InstanaAgent {
 		Name:  "INSTANA_SELECTIVE_MONITORING",
 		Value: "OPT_IN",
 	})
+
+	// Use a static agent image to have faster startup times
+	agent.Spec.Agent.ImageSpec.Name = InstanaAgentStaticImage
 
 	return agent
 }
@@ -252,10 +256,6 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Fatal(err)
 		}
 
-		// Wait for the agent to have time to discover and attach to JVMs
-		t.Log("Waiting for agent to discover and attach to JVMs...")
-		time.Sleep(60 * time.Second)
-
 		// Define the namespaces where our demo apps are running
 		namespaces := []string{
 			"selective-monitoring-no-label",
@@ -267,6 +267,7 @@ func VerifySelectiveMonitoring() features.Func {
 		t.Log("Finding all demo app pods...")
 		var demoAppPods []corev1.Pod
 		var demoAppNodes = make(map[string]bool)
+		var podsByNamespace = make(map[string][]corev1.Pod)
 
 		for _, ns := range namespaces {
 			podList, err := clientSet.CoreV1().Pods(ns).List(
@@ -280,6 +281,7 @@ func VerifySelectiveMonitoring() features.Func {
 				continue
 			}
 
+			podsByNamespace[ns] = podList.Items
 			for _, pod := range podList.Items {
 				demoAppPods = append(demoAppPods, pod)
 				demoAppNodes[pod.Spec.NodeName] = true
@@ -318,72 +320,135 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Fatal("No agent pods found on nodes where demo apps are running")
 		}
 
-		// Check logs from all relevant agent pods
-		var optInAttached, noLabelAttached, optOutAttached bool
-		for _, agentPod := range relevantAgentPods {
-			t.Logf(
-				"Checking logs from agent pod %s on node %s",
-				agentPod.Name,
-				agentPod.Spec.NodeName,
-			)
+		// Define regex patterns for finding PIDs and attachment logs
+		vmDiscoveryRegex := regexp.MustCompile(
+			`adding new VM with PID (\d+).*INSTANA_TEST_POD_NAME=([^,\s]+)`,
+		)
 
-			var buf bytes.Buffer
-			logReq := clientSet.CoreV1().
-				Pods(cfg.Namespace()).
-				GetLogs(agentPod.Name, &corev1.PodLogOptions{})
-			podLogs, err := logReq.Stream(ctx)
-			if err != nil {
-				t.Logf("Could not stream logs from pod %s: %v", agentPod.Name, err)
-				continue
+		// Track attachment status for each namespace
+		attachmentStatus := map[string]bool{
+			"selective-monitoring-no-label": false,
+			"selective-monitoring-opt-out":  false,
+			"selective-monitoring-opt-in":   false,
+		}
+
+		// Set up polling parameters
+		pollInterval := 10 * time.Second
+		maxPollTime := 5 * time.Minute
+		startTime := time.Now()
+		deadline := startTime.Add(maxPollTime)
+
+		// Poll until we find the expected attachment pattern or timeout
+		t.Log("Starting to poll agent logs for JVM attachment (up to 5 minutes)...")
+
+		for time.Now().Before(deadline) {
+			// Check if we've already found attachments that shouldn't happen
+			if attachmentStatus["selective-monitoring-no-label"] ||
+				attachmentStatus["selective-monitoring-opt-out"] {
+				t.Error("Found JVM attachment in namespace that should not be monitored")
+				break
 			}
 
-			_, err = io.Copy(&buf, podLogs)
-			if err != nil {
-				t.Logf("Error reading logs from pod %s: %v", agentPod.Name, err)
-				continue
-			}
-			err = podLogs.Close()
-			if err != nil {
-				t.Logf("Error closing from pod logs reader for %s: %v", agentPod.Name, err)
-				continue
+			// Check if we've found the expected attachment
+			if attachmentStatus["selective-monitoring-opt-in"] {
+				t.Log("Found expected JVM attachment in opt-in namespace")
+				break
 			}
 
-			logs := buf.String()
-			t.Logf(
-				"Agent logs retrieved from pod %s, checking for JVM attachment...",
-				agentPod.Name,
-			)
+			// Check logs from all relevant agent pods
+			for _, agentPod := range relevantAgentPods {
+				t.Logf("Checking logs from agent pod %s on node %s",
+					agentPod.Name, agentPod.Spec.NodeName)
 
-			// Check for successful JVM attachment in the opt-in namespace
-			if strings.Contains(logs, "Initial attach to JVM") &&
-				strings.Contains(logs, "successful") &&
-				strings.Contains(logs, "selective-monitoring-opt-in") {
-				optInAttached = true
-				t.Logf(
-					"Found successful JVM attachment for opt-in namespace in pod %s",
-					agentPod.Name,
-				)
+				var buf bytes.Buffer
+				logReq := clientSet.CoreV1().
+					Pods(cfg.Namespace()).
+					GetLogs(agentPod.Name, &corev1.PodLogOptions{})
+				podLogs, err := logReq.Stream(ctx)
+				if err != nil {
+					t.Logf("Could not stream logs from pod %s: %v", agentPod.Name, err)
+					continue
+				}
+
+				_, copyErr := io.Copy(&buf, podLogs)
+				if err := podLogs.Close(); err != nil {
+					t.Logf("Error closing log stream for pod %s: %v", agentPod.Name, err)
+				}
+				if copyErr != nil {
+					t.Logf("Error reading logs from pod %s: %v", agentPod.Name, err)
+					continue
+				}
+
+				logs := buf.String()
+				t.Logf("Agent logs retrieved from pod %s, checking for JVM attachment...",
+					agentPod.Name)
+
+				// For each namespace, check if its pods are being monitored
+				for ns, pods := range podsByNamespace {
+					for _, pod := range pods {
+						podName := pod.Name
+
+						// Look for VM discovery log entries for this pod
+						matches := vmDiscoveryRegex.FindAllStringSubmatch(logs, -1)
+						for _, match := range matches {
+							if len(match) >= 3 && strings.Contains(match[2], podName) {
+								// Found a VM discovery log for this pod
+								pid := match[1]
+								t.Logf("Found VM discovery for pod %s in namespace %s with PID %s",
+									podName, ns, pid)
+
+								// Check if there's an initial attach attempt
+								attachAttemptPattern := fmt.Sprintf(
+									"Performing initial attach to JVM with PID %s",
+									pid,
+								)
+								if strings.Contains(logs, attachAttemptPattern) {
+									t.Logf(
+										"Found attach attempt for pod %s (PID %s) in namespace %s",
+										podName,
+										pid,
+										ns,
+									)
+
+									// Check if the attachment was successful
+									attachSuccessPattern := fmt.Sprintf(
+										"Initial attach to JVM with PID %s successful",
+										pid,
+									)
+									if strings.Contains(logs, attachSuccessPattern) {
+										t.Logf(
+											"Found successful attachment for pod %s (PID %s) in namespace %s",
+											podName,
+											pid,
+											ns,
+										)
+										attachmentStatus[ns] = true
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 
-			// Check for JVM attachment in the no-label namespace
-			if strings.Contains(logs, "Initial attach to JVM") &&
-				strings.Contains(logs, "successful") &&
-				strings.Contains(logs, "selective-monitoring-no-label") {
-				noLabelAttached = true
-				t.Logf("Found JVM attachment for no-label namespace in pod %s", agentPod.Name)
-			}
-
-			// Check for JVM attachment in the opt-out namespace
-			if strings.Contains(logs, "Initial attach to JVM") &&
-				strings.Contains(logs, "successful") &&
-				strings.Contains(logs, "selective-monitoring-opt-out") {
-				optOutAttached = true
-				t.Logf("Found JVM attachment for opt-out namespace in pod %s", agentPod.Name)
+			// If we haven't found what we're looking for, wait before checking again
+			if !attachmentStatus["selective-monitoring-opt-in"] &&
+				!attachmentStatus["selective-monitoring-no-label"] &&
+				!attachmentStatus["selective-monitoring-opt-out"] {
+				t.Logf("No definitive attachment status found yet, polling again in %v...",
+					pollInterval)
+				time.Sleep(pollInterval)
+			} else {
+				break
 			}
 		}
 
+		// Log polling duration
+		pollDuration := time.Since(startTime)
+		t.Logf("Finished polling after %v", pollDuration)
+
 		// Verify expectations
-		if !optInAttached {
+		if !attachmentStatus["selective-monitoring-opt-in"] {
 			t.Error(
 				"JVM in opt-in namespace should be monitored, but no attachment was found in logs",
 			)
@@ -391,7 +456,7 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Log("JVM in opt-in namespace is correctly monitored")
 		}
 
-		if noLabelAttached {
+		if attachmentStatus["selective-monitoring-no-label"] {
 			t.Error(
 				"JVM in no-label namespace should not be monitored, but attachment was found in logs",
 			)
@@ -399,7 +464,7 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Log("JVM in no-label namespace is correctly not monitored")
 		}
 
-		if optOutAttached {
+		if attachmentStatus["selective-monitoring-opt-out"] {
 			t.Error(
 				"JVM in opt-out namespace should not be monitored, but attachment was found in logs",
 			)
@@ -432,3 +497,5 @@ func CleanupNamespaces() features.Func {
 		return ctx
 	}
 }
+
+// Made with Bob
