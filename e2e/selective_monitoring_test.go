@@ -27,6 +27,13 @@ import (
 	"sigs.k8s.io/e2e-framework/support/utils"
 )
 
+// Constants for namespace names used in selective monitoring tests
+const (
+	NamespaceNoLabel = "selective-monitoring-no-label"
+	NamespaceOptOut  = "selective-monitoring-opt-out"
+	NamespaceOptIn   = "selective-monitoring-opt-in"
+)
+
 // TestSelectiveMonitoring tests the selective monitoring feature of the Instana agent operator.
 // It deploys the agent in opt-in mode and verifies that only JVMs in namespaces with the
 // instana-workload-monitoring=true label are monitored.
@@ -79,9 +86,9 @@ func DeployJavaDemoAppInNamespaces() features.Func {
 			addLabel bool
 			value    string
 		}{
-			{"selective-monitoring-no-label", false, ""},
-			{"selective-monitoring-opt-out", true, "false"},
-			{"selective-monitoring-opt-in", true, "true"},
+			{NamespaceNoLabel, false, ""},
+			{NamespaceOptOut, true, "false"},
+			{NamespaceOptIn, true, "true"},
 		}
 
 		// Use a wait group to deploy all apps concurrently
@@ -258,9 +265,9 @@ func VerifySelectiveMonitoring() features.Func {
 
 		// Define the namespaces where our demo apps are running
 		namespaces := []string{
-			"selective-monitoring-no-label",
-			"selective-monitoring-opt-out",
-			"selective-monitoring-opt-in",
+			NamespaceNoLabel,
+			NamespaceOptOut,
+			NamespaceOptIn,
 		}
 
 		// Find all demo app pods across all namespaces
@@ -327,9 +334,9 @@ func VerifySelectiveMonitoring() features.Func {
 
 		// Track attachment status for each namespace
 		attachmentStatus := map[string]bool{
-			"selective-monitoring-no-label": false,
-			"selective-monitoring-opt-out":  false,
-			"selective-monitoring-opt-in":   false,
+			NamespaceNoLabel: false,
+			NamespaceOptOut:  false,
+			NamespaceOptIn:   false,
 		}
 
 		// Set up polling parameters
@@ -343,14 +350,14 @@ func VerifySelectiveMonitoring() features.Func {
 
 		for time.Now().Before(deadline) {
 			// Check if we've already found attachments that shouldn't happen
-			if attachmentStatus["selective-monitoring-no-label"] ||
-				attachmentStatus["selective-monitoring-opt-out"] {
+			if attachmentStatus[NamespaceNoLabel] ||
+				attachmentStatus[NamespaceOptOut] {
 				t.Error("Found JVM attachment in namespace that should not be monitored")
 				break
 			}
 
 			// Check if we've found the expected attachment
-			if attachmentStatus["selective-monitoring-opt-in"] {
+			if attachmentStatus[NamespaceOptIn] {
 				t.Log("Found expected JVM attachment in opt-in namespace")
 				break
 			}
@@ -432,9 +439,9 @@ func VerifySelectiveMonitoring() features.Func {
 			}
 
 			// If we haven't found what we're looking for, wait before checking again
-			if !attachmentStatus["selective-monitoring-opt-in"] &&
-				!attachmentStatus["selective-monitoring-no-label"] &&
-				!attachmentStatus["selective-monitoring-opt-out"] {
+			if !attachmentStatus[NamespaceOptIn] &&
+				!attachmentStatus[NamespaceNoLabel] &&
+				!attachmentStatus[NamespaceOptOut] {
 				t.Logf("No definitive attachment status found yet, polling again in %v...",
 					pollInterval)
 				time.Sleep(pollInterval)
@@ -448,7 +455,7 @@ func VerifySelectiveMonitoring() features.Func {
 		t.Logf("Finished polling after %v", pollDuration)
 
 		// Verify expectations
-		if !attachmentStatus["selective-monitoring-opt-in"] {
+		if !attachmentStatus[NamespaceOptIn] {
 			t.Error(
 				"JVM in opt-in namespace should be monitored, but no attachment was found in logs",
 			)
@@ -456,7 +463,7 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Log("JVM in opt-in namespace is correctly monitored")
 		}
 
-		if attachmentStatus["selective-monitoring-no-label"] {
+		if attachmentStatus[NamespaceNoLabel] {
 			t.Error(
 				"JVM in no-label namespace should not be monitored, but attachment was found in logs",
 			)
@@ -464,7 +471,7 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Log("JVM in no-label namespace is correctly not monitored")
 		}
 
-		if attachmentStatus["selective-monitoring-opt-out"] {
+		if attachmentStatus[NamespaceOptOut] {
 			t.Error(
 				"JVM in opt-out namespace should not be monitored, but attachment was found in logs",
 			)
@@ -480,9 +487,9 @@ func VerifySelectiveMonitoring() features.Func {
 func CleanupNamespaces() features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		namespaces := []string{
-			"selective-monitoring-no-label",
-			"selective-monitoring-opt-out",
-			"selective-monitoring-opt-in",
+			NamespaceNoLabel,
+			NamespaceOptOut,
+			NamespaceOptIn,
 		}
 
 		for _, ns := range namespaces {
@@ -497,5 +504,3 @@ func CleanupNamespaces() features.Func {
 		return ctx
 	}
 }
-
-// Made with Bob
