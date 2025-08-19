@@ -9,5 +9,6 @@
   ],
   "prConcurrentLimit": 2,
   "rebaseWhen": "behind-base-branch",
-  "dependencyDashboard": true
+  "dependencyDashboard": true,
+  "postUpdateOptions": ["gomodTidy"]
 }

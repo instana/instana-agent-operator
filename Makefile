@@ -318,6 +318,8 @@ controller-yaml: manifests kustomize ## Output the YAML for deployment, so it ca
 
 CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
 gen-mocks: mockgen  ## Generate mocks for tests
+	@echo "Removing stub file to avoid conflicts..."
+	@rm -f ./mocks/stub.go
 	${MOCKGEN} --source $(shell go env GOPATH)/pkg/mod/sigs.k8s.io/controller-runtime@$(CONTROLLER_RUNTIME_VERSION)/pkg/client/interfaces.go --destination ./mocks/k8s_client_mock.go --package mocks
 	${MOCKGEN} --source ./pkg/hash/hash.go --destination ./mocks/hash_mock.go --package mocks
 	${MOCKGEN} --source ./pkg/k8s/client/client.go --destination ./mocks/instana_agent_client_mock.go --package mocks

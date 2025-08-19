@@ -5,7 +5,8 @@
 
 # Generated files
 config/crd/bases/instana.io_agents.yaml
-mocks/
+mocks/*
+!mocks/stub.go
 api/v1/zz_generated.deepcopy.go
 
 # Local development files
