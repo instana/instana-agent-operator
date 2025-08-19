@@ -2,7 +2,7 @@ version: "2"
 
 tasks:
   pr-code-checks:
-    displayName: "Build  amd64 arm64 s390x and ppc64le images"
+    displayName: build-amd64-arm64-s390x-and-ppc64le-images
     runtimeClassName: large
     onError: stopAndFail
     include:
@@ -21,7 +21,7 @@ tasks:
 
   pr-code-checks-2:
     from: pr-code-checks
-    displayName: "Build and test agent operator"
+    displayName: build-and-test-agent-operator
     runtimeClassName: large
     onError: stopAndFail
     include:
@@ -43,11 +43,12 @@ tasks:
     
   pr-code-checks-3:
     from: pr-code-checks
-    displayName: "Unit test"
+    displayName: go-lang-unit-test
     runtimeClassName: large
     onError: stopAndFail
     include:
       - dind
+      - memdisk-monitor
     steps:
       - name: unit-test
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
@@ -57,11 +58,11 @@ tasks:
           #!/usr/bin/env bash
           ./installGolang.sh 1.24.4 amd64
           export PATH=$PATH:/usr/local/go/bin
-          make generate
+          time make generate
         
-          go install
+          time go install
 
-          make test
+          time make test
       - name: detect-secrets
         include:
           - docker-socket
@@ -154,31 +155,11 @@ tasks:
 
   pr-code-checks-5:
     from: pr-code-checks
-    displayName: publish-e2e-operator-base-image
-    runtimeClassName: large
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-operator-image.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-6:
-    from: pr-code-checks
     displayName: e2e-ocp-latest
     runtimeClassName: large
     runAfter: 
       - pr-code-checks
       - pr-code-checks-2
-      - pr-code-checks-5
     include:
       - dind
     steps:
@@ -190,20 +171,19 @@ tasks:
           #!/usr/bin/env bash
           export GIT_COMMIT="$(get_env branch || echo "latest")"
           export CLUSTER_ID="ocp-fyre-latest"
-          export TASK_NAME="pr-code-checks-6"
+          export TASK_NAME="pr-code-checks-5"
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
       - name: detect-secrets
         include:
           - docker-socket
 
-  pr-code-checks-7:
+  pr-code-checks-6:
     from: pr-code-checks
     displayName: e2e-gke-latest
     runtimeClassName: large
     runAfter: 
       - pr-code-checks
       - pr-code-checks-2
-      - pr-code-checks-5
     include:
       - dind
     steps:
@@ -216,7 +196,7 @@ tasks:
           export GIT_COMMIT="$(get_env branch || echo "latest")"
           export CLUSTER_ID="gke-latest"
           export SKIP_INSTALL_GCLOUD="false"
-          export TASK_NAME="pr-code-checks-7"
+          export TASK_NAME="pr-code-checks-6"
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
       - name: detect-secrets
         include:
