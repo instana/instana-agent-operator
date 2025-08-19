@@ -137,7 +137,7 @@ func DeployJavaDemoAppInNamespaces() features.Func {
 					wait.WithTimeout(time.Minute*2),
 				)
 				if err != nil {
-					t.Logf(
+					t.Fatalf(
 						"Error waiting for deployment %s in namespace %s: %v",
 						deploymentName,
 						namespace,
