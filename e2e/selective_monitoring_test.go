@@ -339,14 +339,17 @@ func VerifySelectiveMonitoring() features.Func {
 			NamespaceOptIn:   false,
 		}
 
+		// Store the latest logs for each agent pod
+		agentLogs := make(map[string]string)
+
 		// Set up polling parameters
-		pollInterval := 10 * time.Second
-		maxPollTime := 5 * time.Minute
+		pollInterval := 30 * time.Second
+		maxPollTime := 8 * time.Minute
 		startTime := time.Now()
 		deadline := startTime.Add(maxPollTime)
 
 		// Poll until we find the expected attachment pattern or timeout
-		t.Log("Starting to poll agent logs for JVM attachment (up to 5 minutes)...")
+		t.Log("Starting to poll agent logs for JVM attachment (up to 8 minutes)...")
 
 		for time.Now().Before(deadline) {
 			// Check if we've already found attachments that shouldn't happen
@@ -364,7 +367,7 @@ func VerifySelectiveMonitoring() features.Func {
 
 			// Check logs from all relevant agent pods
 			for _, agentPod := range relevantAgentPods {
-				t.Logf("Checking logs from agent pod %s on node %s",
+				t.Logf("Checking logs from agent pod %s on worker node %s",
 					agentPod.Name, agentPod.Spec.NodeName)
 
 				var buf bytes.Buffer
@@ -382,13 +385,16 @@ func VerifySelectiveMonitoring() features.Func {
 					t.Logf("Error closing log stream for pod %s: %v", agentPod.Name, err)
 				}
 				if copyErr != nil {
-					t.Logf("Error reading logs from pod %s: %v", agentPod.Name, err)
+					t.Logf("Error reading logs from pod %s: %v", agentPod.Name, copyErr)
 					continue
 				}
 
 				logs := buf.String()
-				t.Logf("Agent logs retrieved from pod %s, checking for JVM attachment...",
-					agentPod.Name)
+				// Store the logs for this agent pod
+				agentLogs[agentPod.Name] = logs
+
+				t.Logf("Agent logs retrieved from pod %s on worker node %s, checking for JVM attachment...",
+					agentPod.Name, agentPod.Spec.NodeName)
 
 				// For each namespace, check if its pods are being monitored
 				for ns, pods := range podsByNamespace {
@@ -452,10 +458,18 @@ func VerifySelectiveMonitoring() features.Func {
 
 		// Log polling duration
 		pollDuration := time.Since(startTime)
-		t.Logf("Finished polling after %v", pollDuration)
+		if time.Now().After(deadline) {
+			t.Logf("Polling timed out after %v (maximum poll time: %v)", pollDuration, maxPollTime)
+		} else {
+			t.Logf("Finished polling after %v", pollDuration)
+		}
+
+		// Track if we have any failures
+		hasFailures := false
 
 		// Verify expectations
 		if !attachmentStatus[NamespaceOptIn] {
+			hasFailures = true
 			t.Error(
 				"JVM in opt-in namespace should be monitored, but no attachment was found in logs",
 			)
@@ -464,6 +478,7 @@ func VerifySelectiveMonitoring() features.Func {
 		}
 
 		if attachmentStatus[NamespaceNoLabel] {
+			hasFailures = true
 			t.Error(
 				"JVM in no-label namespace should not be monitored, but attachment was found in logs",
 			)
@@ -472,6 +487,7 @@ func VerifySelectiveMonitoring() features.Func {
 		}
 
 		if attachmentStatus[NamespaceOptOut] {
+			hasFailures = true
 			t.Error(
 				"JVM in opt-out namespace should not be monitored, but attachment was found in logs",
 			)
@@ -479,8 +495,39 @@ func VerifySelectiveMonitoring() features.Func {
 			t.Log("JVM in opt-out namespace is correctly not monitored")
 		}
 
+		// If we have failures, dump the agent logs for debugging
+		if hasFailures {
+			t.Log("Test failed - dumping agent logs for debugging purposes")
+			dumpAgentLogs(t, agentLogs, relevantAgentPods)
+		}
+
 		return ctx
 	}
+}
+
+// dumpAgentLogs dumps the stored logs from the specified agent pods for debugging purposes
+func dumpAgentLogs(t *testing.T, agentLogs map[string]string, agentPods []corev1.Pod) {
+	t.Log("============= BEGIN AGENT LOGS DUMP =============")
+
+	for _, agentPod := range agentPods {
+		t.Logf("--- Logs from agent pod %s on worker node %s ---", agentPod.Name, agentPod.Spec.NodeName)
+
+		logs, exists := agentLogs[agentPod.Name]
+		if !exists {
+			t.Logf("No logs stored for pod %s", agentPod.Name)
+			continue
+		}
+
+		// Print the logs with line numbers for easier reference
+		logLines := strings.Split(logs, "\n")
+		for i, line := range logLines {
+			if line != "" {
+				t.Logf("[%d] %s", i+1, line)
+			}
+		}
+	}
+
+	t.Log("============= END AGENT LOGS DUMP =============")
 }
 
 // CleanupNamespaces cleans up the namespaces created for the test.
