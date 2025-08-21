@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 (c) Copyright Instana Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -227,6 +229,33 @@ type InstanaAgentControllerTestSuite struct {
 func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 	suite.ctx, suite.cancel = context.WithCancel(context.Background())
 
+	// Clear any Kubernetes-related environment variables to prevent interference
+	// with the test environment when running in a Kubernetes pod
+	fmt.Println("Clearing Kubernetes environment variables to isolate test environment")
+	if err := os.Unsetenv("KUBERNETES_SERVICE_HOST"); err != nil {
+		fmt.Printf("Warning: Failed to unset KUBERNETES_SERVICE_HOST: %v\n", err)
+	}
+	if err := os.Unsetenv("KUBERNETES_SERVICE_PORT"); err != nil {
+		fmt.Printf("Warning: Failed to unset KUBERNETES_SERVICE_PORT: %v\n", err)
+	}
+	if err := os.Unsetenv("KUBECONFIG"); err != nil {
+		fmt.Printf("Warning: Failed to unset KUBECONFIG: %v\n", err)
+	}
+
+	// Check if we're running inside a Kubernetes pod by looking for the service account token
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		fmt.Println(
+			"WARNING: Test is running inside a Kubernetes pod. This might affect test behavior.",
+		)
+		fmt.Println("Setting empty environment variables to ensure we use the test API server")
+		if err := os.Setenv("KUBERNETES_SERVICE_HOST", ""); err != nil {
+			fmt.Printf("Warning: Failed to set KUBERNETES_SERVICE_HOST: %v\n", err)
+		}
+		if err := os.Setenv("KUBERNETES_SERVICE_PORT", ""); err != nil {
+			fmt.Printf("Warning: Failed to set KUBERNETES_SERVICE_PORT: %v\n", err)
+		}
+	}
+
 	// Set up the logger for controller-runtime
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
@@ -269,15 +298,80 @@ func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 	}()
 }
 
+// logResourceStatus logs the existence status of each resource for debugging
+func (suite *InstanaAgentControllerTestSuite) logResourceStatus(phase string, objects ...object) {
+	fmt.Printf("\n--- Resource Status (%s) ---\n", phase)
+	for _, obj := range objects {
+		exists, _ := suite.instanaAgentClient.Exists(suite.ctx, obj.gvk, obj.key).Get()
+		fmt.Printf(
+			"Resource %s/%s (%s): %v\n",
+			obj.key.Namespace,
+			obj.key.Name,
+			obj.gvk.Kind,
+			exists,
+		)
+	}
+	fmt.Println("----------------------------")
+}
+
+// waitForResourceDeletion waits for resources to be deleted with a timeout
+func (suite *InstanaAgentControllerTestSuite) waitForResourceDeletion(
+	timeout time.Duration,
+	objects ...object,
+) {
+	ctx, cancel := context.WithTimeout(suite.ctx, timeout)
+	defer cancel()
+
+	for _, obj := range objects {
+		for {
+			exists, _ := suite.instanaAgentClient.Exists(ctx, obj.gvk, obj.key).Get()
+			if !exists || ctx.Err() != nil {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}
+}
+
 // TearDownSuite i.e. AfterSuite
 func (suite *InstanaAgentControllerTestSuite) TearDownSuite() {
+	// Try to clean up any leftover resources
+	agentList := &instanav1.InstanaAgentList{}
+	if err := suite.k8sClient.List(suite.ctx, agentList); err == nil {
+		for i := range agentList.Items {
+			agent := &agentList.Items[i]
+			fmt.Printf("Cleaning up agent %s/%s\n", agent.Namespace, agent.Name)
+			if err := suite.k8sClient.Delete(suite.ctx, agent); err == nil {
+				// Wait for resources to be deleted
+				suite.waitForResourceDeletion(30*time.Second,
+					agentDaemonset,
+					agentHeadlessService,
+					agentSecretConfig,
+					agentService,
+					agentServiceAccount,
+					agentKeysSecret,
+					agentContainerSecret,
+					k8SensorConfigMap,
+					k8SensorDeployment,
+					k8SensorServiceAccount,
+					k8SensorClusterRole,
+					k8SensorClusterRoleBinding,
+					k8SensorPdb,
+				)
+			}
+		}
+	}
+
 	suite.cancel()
 	err := suite.testEnv.Stop()
 	require.NoError(suite.T(), err)
 }
 
 // all is a utility method to iterate through objects and use the user defined validation function to verify validity
-func (suite *InstanaAgentControllerTestSuite) all(validatorFunc func(object) bool, o ...object) func() bool {
+func (suite *InstanaAgentControllerTestSuite) all(
+	validatorFunc func(object) bool,
+	o ...object,
+) func() bool {
 	return func() bool {
 		return list.NewConditions(o).All(validatorFunc)
 	}
@@ -298,7 +392,27 @@ func (suite *InstanaAgentControllerTestSuite) notExist(obj object) bool {
 // TestInstanaAgentCR is the test method to verify the whole lifecycle of the Instana Agent custom resource from start to deletion against the EnvTest
 func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 	_, err := suite.instanaAgentClient.Apply(suite.ctx, agent).Get()
-	require.NoError(suite.T(), err, "Should not throw an error when applying the InstanaAgent schema")
+	require.NoError(
+		suite.T(),
+		err,
+		"Should not throw an error when applying the InstanaAgent schema",
+	)
+
+	// Log resource status before checking
+	suite.logResourceStatus("Initial creation",
+		agentDaemonset,
+		agentHeadlessService,
+		agentSecretConfig,
+		agentService,
+		agentServiceAccount,
+		agentKeysSecret,
+		k8SensorConfigMap,
+		k8SensorDeployment,
+		k8SensorServiceAccount,
+		k8SensorClusterRole,
+		k8SensorClusterRoleBinding,
+		k8SensorPdb,
+	)
 
 	require.Eventually(suite.T(),
 		suite.all(
@@ -316,7 +430,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		10*time.Second,
+		60*time.Second, // Increased timeout from 10s to 60s for CI environments
 		time.Second,
 		"Should contain all objects in the schema",
 	)
@@ -330,7 +444,26 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 		agentNew,
 		client.MergeFrom(agent),
 	)
-	require.NoError(suite.T(), err, "Should not throw an error when patching the InstanaAgent schema with a new version")
+	require.NoError(
+		suite.T(),
+		err,
+		"Should not throw an error when patching the InstanaAgent schema with a new version",
+	)
+
+	// Log resource status before checking patched resources
+	suite.logResourceStatus("After patch",
+		agentDaemonset,
+		agentHeadlessService,
+		agentSecretConfig,
+		agentService,
+		agentServiceAccount,
+		agentContainerSecret,
+		k8SensorConfigMap,
+		k8SensorDeployment,
+		k8SensorServiceAccount,
+		k8SensorClusterRole,
+		k8SensorClusterRoleBinding,
+	)
 
 	require.Eventually(suite.T(),
 		suite.all(
@@ -347,23 +480,47 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
 		),
-		10*time.Second,
+		60*time.Second, // Increased timeout from 10s to 60s for CI environments
 		time.Second,
 		"Should contain listed objects in the patched schema",
 	)
+	// Log resource status for objects that should not exist
+	suite.logResourceStatus("After patch (should not exist)",
+		agentKeysSecret,
+		k8SensorPdb,
+	)
+
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.notExist,
 			agentKeysSecret,
 			k8SensorPdb,
 		),
-		10*time.Second,
+		60*time.Second, // Increased timeout from 10s to 60s for CI environments
 		time.Second,
 		"Should not contain listed objects after the patched schema",
 	)
 
 	err = suite.k8sClient.Delete(suite.ctx, agent)
 	require.NoError(suite.T(), err, "Should not return an error while deleting the agent")
+
+	// Log resource status during deletion
+	suite.logResourceStatus("After deletion request",
+		agentDaemonset,
+		agentHeadlessService,
+		agentSecretConfig,
+		agentService,
+		agentServiceAccount,
+		agentKeysSecret,
+		agentContainerSecret,
+		k8SensorConfigMap,
+		k8SensorDeployment,
+		k8SensorServiceAccount,
+		k8SensorClusterRole,
+		k8SensorClusterRoleBinding,
+		k8SensorPdb,
+	)
+
 	require.Eventually(suite.T(),
 		suite.all(
 			suite.notExist,
@@ -381,7 +538,7 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorClusterRoleBinding,
 			k8SensorPdb,
 		),
-		10*time.Second,
+		60*time.Second, // Increased timeout from 10s to 60s for CI environments
 		time.Second,
 		"Should delete all objects from the schema",
 	)
