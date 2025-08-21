@@ -328,10 +328,9 @@ If migration fails:
 
 ## Post-Migration Tasks
 
-1. **Update CLAUDE.md**: Remove mock generation commands
-2. **Update CI/CD**: Remove mock generation steps if any
-3. **Documentation**: Update development setup instructions
-4. **Team communication**: Share new mock maintenance practices
+1. **Update CI/CD**: Remove mock generation steps if any
+2. **Documentation**: Update development setup instructions
+3. **Team communication**: Share new mock maintenance practices
 
 ---
 
