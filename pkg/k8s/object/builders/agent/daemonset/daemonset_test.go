@@ -7,10 +7,10 @@ package daemonset
 import (
 	"testing"
 
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -89,7 +89,6 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
 
 				expected := map[string]string{
 					"adsf":      "eroinsvd",
@@ -97,8 +96,9 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 					"e8uriunv":  "rrudsiu",
 				}
 
-				podSelector := mocks.NewMockPodSelectorLabelGenerator(ctrl)
-				podSelector.EXPECT().GetPodLabels(gomock.Eq(test.getPodLabelsInput)).Return(expected)
+				podSelector := &mocks.MockPodSelectorLabelGenerator{}
+				defer podSelector.AssertExpectations(t)
+				podSelector.On("GetPodLabels", test.getPodLabelsInput).Return(expected)
 
 				d := &daemonSetBuilder{
 					InstanaAgent: &instanav1.InstanaAgent{
@@ -117,7 +117,6 @@ func TestDaemonSetBuilder_getPodTemplateLabels(t *testing.T) {
 
 func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	expected := []corev1.EnvVar{
 		{
@@ -130,8 +129,9 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		},
 	}
 
-	envBuilder := mocks.NewMockEnvBuilder(ctrl)
-	envBuilder.EXPECT().Build(
+	envBuilder := &mocks.MockEnvBuilder{}
+	defer envBuilder.AssertExpectations(t)
+	envBuilder.On("Build",
 		env.AgentModeEnv,
 		env.ZoneNameEnv,
 		env.ClusterNameEnv,
@@ -163,8 +163,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
 		env.NamespacesDetailsPathEnv,
-	).
-		Return(expected)
+	).Return(expected)
 
 	// Create agent with no pod.env
 	agent := &instanav1.InstanaAgent{
@@ -189,7 +188,6 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 
 func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	baseEnvVars := []corev1.EnvVar{
 		{
@@ -219,41 +217,41 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 
 	expectedEnvVars := append(baseEnvVars, podEnvVars...)
 
-	envBuilder := mocks.NewMockEnvBuilder(ctrl)
-	envBuilder.EXPECT().Build(
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-	).
-		Return(baseEnvVars)
+	envBuilder := &mocks.MockEnvBuilder{}
+	defer envBuilder.AssertExpectations(t)
+	envBuilder.On("Build",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	).Return(baseEnvVars)
 
 	// Create agent with pod.env
 	agent := &instanav1.InstanaAgent{
@@ -299,7 +297,6 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 
 func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	expected := []corev1.ContainerPort{
 		{
@@ -308,8 +305,9 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 		},
 	}
 
-	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
-	portsBuilder.EXPECT().GetContainerPorts().Return(expected)
+	portsBuilder := &mocks.MockPortsBuilder{}
+	defer portsBuilder.AssertExpectations(t)
+	portsBuilder.On("GetContainerPorts").Return(expected)
 
 	db := &daemonSetBuilder{
 		portsBuilder: portsBuilder,
@@ -322,28 +320,28 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 
 func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	expectedVolumes := []corev1.Volume{{Name: rand.String(10)}}
 	expectedVolumeMounts := []corev1.VolumeMount{{Name: rand.String(10)}}
 
-	volumeBuilder := mocks.NewMockVolumeBuilder(ctrl)
-	volumeBuilder.EXPECT().Build(
-		gomock.Eq(volume.DevVolume),
-		gomock.Eq(volume.RunVolume),
-		gomock.Eq(volume.VarRunVolume),
-		gomock.Eq(volume.VarRunKuboVolume),
-		gomock.Eq(volume.VarRunContainerdVolume),
-		gomock.Eq(volume.VarContainerdConfigVolume),
-		gomock.Eq(volume.SysVolume),
-		gomock.Eq(volume.VarLogVolume),
-		gomock.Eq(volume.VarLibVolume),
-		gomock.Eq(volume.VarDataVolume),
-		gomock.Eq(volume.MachineIdVolume),
-		gomock.Eq(volume.ConfigVolume),
-		gomock.Eq(volume.TlsVolume),
-		gomock.Eq(volume.RepoVolume),
-		gomock.Eq(volume.NamespacesDetailsVolume),
+	volumeBuilder := &mocks.MockVolumeBuilder{}
+	defer volumeBuilder.AssertExpectations(t)
+	volumeBuilder.On("Build",
+		volume.DevVolume,
+		volume.RunVolume,
+		volume.VarRunVolume,
+		volume.VarRunKuboVolume,
+		volume.VarRunContainerdVolume,
+		volume.VarContainerdConfigVolume,
+		volume.SysVolume,
+		volume.VarLogVolume,
+		volume.VarLibVolume,
+		volume.VarDataVolume,
+		volume.MachineIdVolume,
+		volume.ConfigVolume,
+		volume.TlsVolume,
+		volume.RepoVolume,
+		volume.NamespacesDetailsVolume,
 	).Return(expectedVolumes, expectedVolumeMounts)
 
 	db := &daemonSetBuilder{
@@ -358,14 +356,14 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 
 func TestDaemonSetBuilder_getUserVolumes(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	volumeName := "testVolume"
 	expectedVolumes := []corev1.Volume{{Name: volumeName}}
 	expectedVolumeMounts := []corev1.VolumeMount{{Name: volumeName}}
 
-	volumeBuilder := mocks.NewMockVolumeBuilder(ctrl)
-	volumeBuilder.EXPECT().BuildFromUserConfig().Return(expectedVolumes, expectedVolumeMounts)
+	volumeBuilder := &mocks.MockVolumeBuilder{}
+	defer volumeBuilder.AssertExpectations(t)
+	volumeBuilder.On("BuildFromUserConfig").Return(expectedVolumes, expectedVolumeMounts)
 
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -556,11 +554,11 @@ func TestDaemonSetBuilder_Build(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := assert.New(t)
-				ctrl := gomock.NewController(t)
 
-				status := mocks.NewMockAgentStatusManager(ctrl)
+				status := &mocks.MockAgentStatusManager{}
+				defer status.AssertExpectations(t)
 				if test.expectPresent {
-					status.EXPECT().AddAgentDaemonset(gomock.Any())
+					status.On("AddAgentDaemonset", mock.Anything)
 				}
 
 				dsBuilder := NewDaemonSetBuilder(test.agent, false, status)

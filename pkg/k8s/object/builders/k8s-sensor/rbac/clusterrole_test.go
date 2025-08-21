@@ -21,13 +21,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
@@ -43,7 +42,6 @@ func TestClusterRoleBuilder_IsNamespaced_ComponentName(t *testing.T) {
 
 func TestClusterRoleBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	sensorResourcesName := rand.String(10)
 
@@ -130,8 +128,9 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 		},
 	)
 
-	helpers := mocks.NewMockHelpers(ctrl)
-	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName).Times(2)
+	helpers := &mocks.MockHelpers{}
+	defer helpers.AssertExpectations(t)
+	helpers.On("K8sSensorResourcesName").Return(sensorResourcesName).Times(2)
 
 	cb := &clusterRoleBuilder{
 		Helpers: helpers,

@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	backend "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/env"
@@ -28,8 +28,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -100,7 +100,6 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
 
 				expected := map[string]string{
 					"adsf":      "eroinsvd",
@@ -108,8 +107,9 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 					"e8uriunv":  "rrudsiu",
 				}
 
-				podSelector := mocks.NewMockPodSelectorLabelGenerator(ctrl)
-				podSelector.EXPECT().GetPodLabels(gomock.Eq(test.getPodLabelsInput)).Return(expected)
+				podSelector := &mocks.MockPodSelectorLabelGenerator{}
+				defer podSelector.AssertExpectations(t)
+				podSelector.On("GetPodLabels", test.getPodLabelsInput).Return(expected)
 
 				d := &deploymentBuilder{
 					InstanaAgentRemote: &instanav1.InstanaAgentRemote{
@@ -128,7 +128,6 @@ func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 
 func TestDeploymentBuilder_getBaseEnvVars(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	expected := []corev1.EnvVar{
 		{
@@ -141,8 +140,9 @@ func TestDeploymentBuilder_getBaseEnvVars(t *testing.T) {
 		},
 	}
 
-	envBuilder := mocks.NewMockEnvBuilderRemote(ctrl)
-	envBuilder.EXPECT().Build(
+	envBuilder := &mocks.MockRemoteEnvBuilder{}
+	defer envBuilder.AssertExpectations(t)
+	envBuilder.On("Build",
 		env.AgentModeEnvRemote,
 		env.ZoneNameEnvRemote,
 		env.AgentEndpointEnvRemote,
@@ -187,16 +187,16 @@ func TestDeploymentBuilder_getBaseEnvVars(t *testing.T) {
 
 func TestDeploymentBuilder_getVolumes(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	expectedVolumes := []corev1.Volume{{Name: rand.String(10)}}
 	expectedVolumeMounts := []corev1.VolumeMount{{Name: rand.String(10)}}
 
-	volumeBuilder := mocks.NewMockVolumeBuilderRemote(ctrl)
-	volumeBuilder.EXPECT().Build(
-		gomock.Eq(volume.ConfigVolumeRemote),
-		gomock.Eq(volume.TlsVolumeRemote),
-		gomock.Eq(volume.RepoVolumeRemote),
+	volumeBuilder := &mocks.MockRemoteVolumeBuilder{}
+	defer volumeBuilder.AssertExpectations(t)
+	volumeBuilder.On("Build",
+		volume.ConfigVolumeRemote,
+		volume.TlsVolumeRemote,
+		volume.RepoVolumeRemote,
 	).Return(expectedVolumes, expectedVolumeMounts)
 
 	db := &deploymentBuilder{
@@ -211,14 +211,14 @@ func TestDeploymentBuilder_getVolumes(t *testing.T) {
 
 func TestDeploymentBuilder_getUserVolumes(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	volumeName := "testVolume"
 	expectedVolumes := []corev1.Volume{{Name: volumeName}}
 	expectedVolumeMounts := []corev1.VolumeMount{{Name: volumeName}}
 
-	volumeBuilder := mocks.NewMockVolumeBuilderRemote(ctrl)
-	volumeBuilder.EXPECT().BuildFromUserConfig().Return(expectedVolumes, expectedVolumeMounts)
+	volumeBuilder := &mocks.MockRemoteVolumeBuilder{}
+	defer volumeBuilder.AssertExpectations(t)
+	volumeBuilder.On("BuildFromUserConfig").Return(expectedVolumes, expectedVolumeMounts)
 
 	agent := &instanav1.InstanaAgentRemote{
 		ObjectMeta: metav1.ObjectMeta{
@@ -405,12 +405,11 @@ func TestDeploymentBuilder_Build(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assertions := assert.New(t)
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
-			status := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
+			status := &mocks.MockRemoteAgentStatusManager{}
+			defer status.AssertExpectations(t)
 			if test.expectPresent {
-				status.EXPECT().AddAgentDeployment(gomock.Any())
+				status.On("AddAgentDeployment", mock.Anything)
 			}
 
 			emptyBackend := backend.RemoteSensorBackend{}

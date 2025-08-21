@@ -9,14 +9,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -48,7 +47,6 @@ func TestServiceBuilder_Build(t *testing.T) {
 					),
 					func(t *testing.T) {
 						assertions := require.New(t)
-						ctrl := gomock.NewController(t)
 
 						name := rand.String(10)
 						namespace := rand.String(10)
@@ -81,9 +79,11 @@ func TestServiceBuilder_Build(t *testing.T) {
 							}
 						}
 
-						podSelectorLabelGenerator := mocks.NewMockPodSelectorLabelGenerator(ctrl)
+						podSelectorLabelGenerator := &mocks.MockPodSelectorLabelGenerator{}
+						defer podSelectorLabelGenerator.AssertExpectations(t)
 
-						portsBuilder := mocks.NewMockPortsBuilder(ctrl)
+						portsBuilder := &mocks.MockPortsBuilder{}
+						defer portsBuilder.AssertExpectations(t)
 
 						sb := &serviceBuilder{
 							instanaAgent:              &agent,
@@ -98,14 +98,14 @@ func TestServiceBuilder_Build(t *testing.T) {
 								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),
 								rand.String(rand.IntnRange(1, 15)): rand.String(rand.IntnRange(1, 15)),
 							}
-							podSelectorLabelGenerator.EXPECT().GetPodSelectorLabels().Return(expectedSelectorLabels)
+							podSelectorLabelGenerator.On("GetPodSelectorLabels").Return(expectedSelectorLabels)
 
 							expectedServicePorts := []corev1.ServicePort{
 								{Name: rand.String(rand.IntnRange(1, 15))},
 								{Name: rand.String(rand.IntnRange(1, 15))},
 								{Name: rand.String(rand.IntnRange(1, 15))},
 							}
-							portsBuilder.EXPECT().GetServicePorts().Return(expectedServicePorts)
+							portsBuilder.On("GetServicePorts").Return(expectedServicePorts)
 
 							expected := optional.Of[client.Object](
 								&corev1.Service{

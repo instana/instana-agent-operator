@@ -1,0 +1,51 @@
+/*
+(c) Copyright IBM Corp. 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package mocks
+
+import (
+	"context"
+
+	"github.com/stretchr/testify/mock"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+)
+
+// MockRemoteAgentStatusManager provides a testify mock implementation of RemoteAgentStatusManager
+type MockRemoteAgentStatusManager struct {
+	mock.Mock
+}
+
+func (m *MockRemoteAgentStatusManager) AddAgentDeployment(agentDeployment client.ObjectKey) {
+	m.Called(agentDeployment)
+}
+
+func (m *MockRemoteAgentStatusManager) SetAgentOld(agent *instanav1.InstanaAgentRemote) {
+	m.Called(agent)
+}
+
+func (m *MockRemoteAgentStatusManager) SetAgentSecretConfig(agentSecretConfig client.ObjectKey) {
+	m.Called(agentSecretConfig)
+}
+
+func (m *MockRemoteAgentStatusManager) UpdateAgentStatus(
+	ctx context.Context,
+	reconcileErr error,
+) error {
+	args := m.Called(ctx, reconcileErr)
+	return args.Error(0)
+}

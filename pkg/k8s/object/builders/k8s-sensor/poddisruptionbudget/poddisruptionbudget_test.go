@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	gomock "go.uber.org/mock/gomock"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -29,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -135,10 +134,10 @@ func TestPodDisruptionBudgetBuilderBuild(t *testing.T) {
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
-				ctrl := gomock.NewController(t)
-
-				helpers := mocks.NewMockHelpers(ctrl)
-				podSelectorGen := mocks.NewMockPodSelectorLabelGenerator(ctrl)
+				helpers := &mocks.MockHelpers{}
+				defer helpers.AssertExpectations(t)
+				podSelectorGen := &mocks.MockPodSelectorLabelGenerator{}
+				defer podSelectorGen.AssertExpectations(t)
 
 				pdbBuilder := &podDisruptionBudgetBuilder{
 					InstanaAgent:              test.agent,
@@ -148,8 +147,8 @@ func TestPodDisruptionBudgetBuilderBuild(t *testing.T) {
 
 				test.expected.IfPresent(
 					func(_ client.Object) {
-						helpers.EXPECT().K8sSensorResourcesName().Return(expectedPdbName)
-						podSelectorGen.EXPECT().GetPodSelectorLabels().Return(expectedMatchLabels)
+						helpers.On("K8sSensorResourcesName").Return(expectedPdbName)
+						podSelectorGen.On("GetPodSelectorLabels").Return(expectedMatchLabels)
 					},
 				)
 

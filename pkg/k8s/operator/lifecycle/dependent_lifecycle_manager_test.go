@@ -25,12 +25,12 @@ import (
 	"testing"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/result"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,25 +61,20 @@ func TestAsObjectConversion(t *testing.T) {
 // contains more than the current generated key to hold data in, the code will
 // remove that field from the array
 func TestCleanupDependentsDeletesUnmatchedData(t *testing.T) {
-	ctrl := gomock.NewController(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
+	instanaAgentClient := &mocks.MockInstanaAgentClient{}
+	defer instanaAgentClient.AssertExpectations(t)
 
 	// Create two client.Object arrays which have some overlap for comparisons and deletion calls
 	oldDependentsJson := genMockObjs(10)
 	currentDependentsJson := genMockObjs(5)
 	currentDependentsJson = append(currentDependentsJson, oldDependentsJson[:5]...)
 
-	instanaAgentClient.EXPECT().
-		Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(
-			_ context.Context,
-			_ types.NamespacedName,
-			config *corev1.ConfigMap,
-			opts ...client.GetOption,
-		) error {
+	instanaAgentClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			config := args.Get(2).(*corev1.ConfigMap)
 			config.TypeMeta = metav1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "ConfigMap",
@@ -93,20 +88,16 @@ func TestCleanupDependentsDeletesUnmatchedData(t *testing.T) {
 			olderDependentsJsonString, _ := json.Marshal(asUnstructureds(oldDependentsJson...))
 			config.Data["v0.0.1-dev"] = string(olderDependentsJsonString)
 			config.Data["v0.0.1-dev-to-be-deleted"] = string(olderDependentsJsonString)
-			return nil
-		}).
-		Times(1)
+		}).Return(nil)
 
-	instanaAgentClient.EXPECT().
-		DeleteAllInTimeLimit(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+	instanaAgentClient.On("DeleteAllInTimeLimit",
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(result.Of(genMockObjs(1), nil)).
 		Times(2)
 
 	var obj client.Object = &unstructured.Unstructured{}
-	instanaAgentClient.EXPECT().
-		Apply(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(result.Of(obj, nil)).
-		Times(1)
+	instanaAgentClient.On("Apply", mock.Anything, mock.Anything, mock.Anything).
+		Return(result.Of(obj, nil))
 
 	dependentLifecycleManager := NewDependentLifecycleManager(
 		ctx,
@@ -122,20 +113,15 @@ func TestCleanupDependentsDeletesUnmatchedData(t *testing.T) {
 // delete all and returns that correctly back to the caller
 func TestCleanupDependentsDeleteAllReturnsError(t *testing.T) {
 
-	ctrl := gomock.NewController(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
+	instanaAgentClient := &mocks.MockInstanaAgentClient{}
+	defer instanaAgentClient.AssertExpectations(t)
 
-	instanaAgentClient.EXPECT().
-		Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(
-			_ context.Context,
-			_ types.NamespacedName,
-			config *corev1.ConfigMap,
-			opts ...client.GetOption,
-		) error {
+	instanaAgentClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			config := args.Get(2).(*corev1.ConfigMap)
 			config.TypeMeta = metav1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "ConfigMap",
@@ -148,25 +134,19 @@ func TestCleanupDependentsDeleteAllReturnsError(t *testing.T) {
 			config.Data = make(map[string]string, 1)
 			currentDependentsJson, _ := json.Marshal(asUnstructureds(genMockObjs(12)...))
 			config.Data["v0.0.1-dev_1234"] = string(currentDependentsJson)
-
-			return nil
-		}).
-		AnyTimes()
+		}).Return(nil)
 
 	errBuilder := multierror.NewMultiErrorBuilder()
 	expected := errors.New("Error returned from d.deleteAll")
 	errBuilder.Add(expected)
 
-	instanaAgentClient.EXPECT().
-		DeleteAllInTimeLimit(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(result.Of(genMockObjs(1), expected)).
-		Times(1)
+	instanaAgentClient.On("DeleteAllInTimeLimit",
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(result.Of(genMockObjs(1), expected))
 
 	var obj client.Object = &unstructured.Unstructured{}
-	instanaAgentClient.EXPECT().
-		Apply(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(result.Of(obj, nil)).
-		Times(1)
+	instanaAgentClient.On("Apply", mock.Anything, mock.Anything, mock.Anything).
+		Return(result.Of(obj, nil))
 
 	dependentLifecycleManager := NewDependentLifecycleManager(
 		ctx,
@@ -189,7 +169,6 @@ func TestCleanupDependents(t *testing.T) {
 			_ context.Context,
 			_ types.NamespacedName,
 			config *corev1.ConfigMap,
-			opts ...client.GetOption,
 		) error
 	}{
 		{
@@ -200,7 +179,6 @@ func TestCleanupDependents(t *testing.T) {
 				_ context.Context,
 				_ types.NamespacedName,
 				config *corev1.ConfigMap,
-				opts ...client.GetOption,
 			) error {
 				config.TypeMeta = metav1.TypeMeta{
 					APIVersion: "v1",
@@ -227,7 +205,6 @@ func TestCleanupDependents(t *testing.T) {
 				_ context.Context,
 				_ types.NamespacedName,
 				config *corev1.ConfigMap,
-				opts ...client.GetOption,
 			) error {
 				config.TypeMeta = metav1.TypeMeta{
 					APIVersion: "v1",
@@ -250,25 +227,31 @@ func TestCleanupDependents(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-				instanaAgentClient.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					DoAndReturn(test.clientGetterFunc).
-					Times(1)
-				instanaAgentClient.EXPECT().
-					DeleteAllInTimeLimit(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(result.Of(genMockObjs(test.generatedObjects), nil)).
-					Times(1)
+				instanaAgentClient := &mocks.MockInstanaAgentClient{}
+				defer instanaAgentClient.AssertExpectations(t)
+				getReturn := test.clientGetterFunc(
+					context.Background(),
+					types.NamespacedName{},
+					&corev1.ConfigMap{})
+				instanaAgentClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args mock.Arguments) {
+						if getReturn == nil {
+							_ = test.clientGetterFunc(
+								args.Get(0).(context.Context),
+								args.Get(1).(types.NamespacedName),
+								args.Get(2).(*corev1.ConfigMap))
+						}
+					}).
+					Return(getReturn)
+				instanaAgentClient.On("DeleteAllInTimeLimit",
+					mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(result.Of(genMockObjs(test.generatedObjects), nil))
 				var obj client.Object = &unstructured.Unstructured{}
-				instanaAgentClient.EXPECT().
-					Apply(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(result.Of(obj, nil)).
-					Times(1)
+				instanaAgentClient.On("Apply", mock.Anything, mock.Anything, mock.Anything).
+					Return(result.Of(obj, nil))
 
 				dependentLifecycleManager := NewDependentLifecycleManager(
 					ctx,
@@ -276,7 +259,8 @@ func TestCleanupDependents(t *testing.T) {
 					instanaAgentClient,
 				)
 
-				err := dependentLifecycleManager.CleanupDependents(genMockObjs(test.generatedObjects)...)
+				err := dependentLifecycleManager.CleanupDependents(
+					genMockObjs(test.generatedObjects)...)
 				assertions.Nil(err)
 			},
 		)
@@ -293,7 +277,6 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 			_ context.Context,
 			_ types.NamespacedName,
 			config *corev1.ConfigMap,
-			opts ...client.GetOption,
 		) error
 	}{
 		{
@@ -303,7 +286,6 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 				_ context.Context,
 				_ types.NamespacedName,
 				config *corev1.ConfigMap,
-				opts ...client.GetOption,
 			) error {
 				config.TypeMeta = metav1.TypeMeta{
 					APIVersion: "v1",
@@ -324,7 +306,6 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 				_ context.Context,
 				_ types.NamespacedName,
 				config *corev1.ConfigMap,
-				opts ...client.GetOption,
 			) error {
 				return k8serrors.NewNotFound(schema.GroupResource{}, "asdasd")
 			},
@@ -337,7 +318,6 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 				_ context.Context,
 				_ types.NamespacedName,
 				config *corev1.ConfigMap,
-				opts ...client.GetOption,
 			) error {
 				return errors.New("An expected error occurred")
 			},
@@ -350,7 +330,6 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 				_ context.Context,
 				_ types.NamespacedName,
 				config *corev1.ConfigMap,
-				opts ...client.GetOption,
 			) error {
 				config.TypeMeta = metav1.TypeMeta{
 					APIVersion: "v1",
@@ -371,19 +350,27 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 
-				ctrl := gomock.NewController(t)
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-				instanaAgentClient.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					DoAndReturn(test.clientGetterFunc).
-					AnyTimes()
-				instanaAgentClient.EXPECT().
-					Apply(gomock.Any(), gomock.Any()).
-					Return(result.Of[client.Object](&unstructured.Unstructured{}, nil)).
-					AnyTimes()
+				instanaAgentClient := &mocks.MockInstanaAgentClient{}
+				defer instanaAgentClient.AssertExpectations(t)
+				getReturn := test.clientGetterFunc(
+					context.Background(),
+					types.NamespacedName{},
+					&corev1.ConfigMap{})
+				instanaAgentClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args mock.Arguments) {
+						if getReturn == nil {
+							_ = test.clientGetterFunc(
+								args.Get(0).(context.Context),
+								args.Get(1).(types.NamespacedName),
+								args.Get(2).(*corev1.ConfigMap))
+						}
+					}).
+					Return(getReturn)
+				instanaAgentClient.On("Apply", mock.Anything, mock.Anything, mock.Anything).
+					Return(result.Of[client.Object](&unstructured.Unstructured{}, nil))
 
 				dependentLifecycleManager := NewDependentLifecycleManager(
 					ctx,

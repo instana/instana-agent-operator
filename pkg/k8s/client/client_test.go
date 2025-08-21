@@ -22,8 +22,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,26 +32,26 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
 func TestInstanaAgentClientApply(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cm := corev1.ConfigMap{}
 	opts := []k8sclient.PatchOption{k8sclient.DryRunAll}
 	expectedErr := errors.New("awojsgeoisegoijsdg")
 
-	mockK8sClient := mocks.NewMockClient(ctrl)
-	mockK8sClient.EXPECT().Patch(
-		gomock.Eq(ctx),
-		gomock.Eq(&cm),
-		gomock.Eq(k8sclient.Apply),
-		gomock.Eq(append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator"))),
-	).Times(1).Return(expectedErr)
+	mockK8sClient := &mocks.MockClient{}
+	defer mockK8sClient.AssertExpectations(t)
+
+	mockK8sClient.On("Patch",
+		ctx,
+		&cm,
+		k8sclient.Apply,
+		append(opts, k8sclient.ForceOwnership, k8sclient.FieldOwner("instana-agent-operator")),
+	).Return(expectedErr).Once()
 
 	client := instanaAgentClient{
 		k8sClient: mockK8sClient,
@@ -67,7 +67,6 @@ func TestInstanaAgentClientApply(t *testing.T) {
 
 func TestInstanaAgentClientGetAsResult(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -86,13 +85,15 @@ func TestInstanaAgentClientGetAsResult(t *testing.T) {
 		},
 	}
 
-	mockK8sClient := mocks.NewMockClient(ctrl)
-	mockK8sClient.EXPECT().Get(
-		gomock.Eq(ctx),
-		gomock.Eq(key),
-		gomock.Eq(obj),
-		gomock.Eq(opts),
-		gomock.Eq(opts),
+	mockK8sClient := &mocks.MockClient{}
+	defer mockK8sClient.AssertExpectations(t)
+
+	mockK8sClient.On("Get",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
 	).Return(errors.New("foo"))
 
 	instanaAgentClient := instanaAgentClient{
@@ -133,7 +134,6 @@ func TestInstanaAgentClientExists(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
 
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -150,8 +150,14 @@ func TestInstanaAgentClientExists(t *testing.T) {
 				obj := &unstructured.Unstructured{}
 				obj.SetGroupVersionKind(gvk)
 
-				k8sClient := mocks.NewMockClient(ctrl)
-				k8sClient.EXPECT().Get(gomock.Eq(ctx), gomock.Eq(key), gomock.Eq(obj)).Return(test.errOfGet)
+				k8sClient := &mocks.MockClient{}
+				defer k8sClient.AssertExpectations(t)
+				k8sClient.On("Get",
+					mock.Anything,
+					mock.Anything,
+					mock.Anything,
+					mock.Anything,
+				).Return(test.errOfGet)
 
 				instanaAgentClient := NewInstanaAgentClient(k8sClient)
 

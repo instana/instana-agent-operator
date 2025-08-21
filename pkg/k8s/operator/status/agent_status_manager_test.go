@@ -11,11 +11,11 @@ import (
 
 	"github.com/go-errors/errors"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 
 	"github.com/instana/instana-agent-operator/pkg/result"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,25 +26,20 @@ import (
 func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 	assertions := require.New(t)
 
-	ctrl := gomock.NewController(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	writer := mocks.NewMockSubResourceWriter(ctrl)
-	writer.EXPECT().
-		Patch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(errors.New("FAILURE")).
-		AnyTimes()
+	writer := &mocks.MockSubResourceWriter{}
+	defer writer.AssertExpectations(t)
+	writer.On("Patch", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(errors.New("FAILURE"))
 
-	instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-	instanaAgentClient.EXPECT().
-		GetAsResult(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(result.Of[k8sclient.Object](&unstructured.Unstructured{}, nil)).
-		AnyTimes()
-	instanaAgentClient.EXPECT().
-		Status().
-		Return(writer).
-		AnyTimes()
+	instanaAgentClient := &mocks.MockInstanaAgentClient{}
+	defer instanaAgentClient.AssertExpectations(t)
+	instanaAgentClient.On("GetAsResult", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(result.Of[k8sclient.Object](&unstructured.Unstructured{}, nil))
+	instanaAgentClient.On("Status").
+		Return(writer)
 
 	agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
 	agentStatusManager.SetAgentOld(&instanav1.InstanaAgent{})
@@ -287,27 +282,30 @@ func TestUpdateAgentStatus(t *testing.T) {
 				}
 
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				writer := mocks.NewMockSubResourceWriter(ctrl)
-				writer.EXPECT().
-					Patch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil).
-					AnyTimes()
+				writer := &mocks.MockSubResourceWriter{}
+				defer writer.AssertExpectations(t)
 
-				instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
+				instanaAgentClient := &mocks.MockInstanaAgentClient{}
+				defer instanaAgentClient.AssertExpectations(t)
+
+				// Set up GetAsResult mocks for any test that defines them
 				for _, val := range test.getAsResultErrors {
-					instanaAgentClient.EXPECT().
-						GetAsResult(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+					instanaAgentClient.On("GetAsResult", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Return(result.Of[k8sclient.Object](&unstructured.Unstructured{}, val)).
-						Times(1)
+						Once()
 				}
-				instanaAgentClient.EXPECT().
-					Status().
-					Return(writer).
-					AnyTimes()
+
+				// Set up Status and Patch mocks if we expect them to be called
+				// Status and Patch are called whenever there are GetAsResult calls, regardless of errors
+				if len(test.getAsResultErrors) > 0 {
+					writer.On("Patch", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						Return(nil)
+					instanaAgentClient.On("Status").
+						Return(writer)
+				}
 
 				agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
 

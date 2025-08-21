@@ -21,14 +21,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 )
 
@@ -58,7 +57,6 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 						},
 					), func(t *testing.T) {
 						assertions := require.New(t)
-						ctrl := gomock.NewController(t)
 
 						namespace := rand.String(rand.IntnRange(1, 15))
 
@@ -77,7 +75,8 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 							},
 						}
 
-						helpers := mocks.NewMockRemoteHelpers(ctrl)
+						helpers := &mocks.MockRemoteHelpers{}
+						defer helpers.AssertExpectations(t)
 
 						sb := &secretBuilder{
 							InstanaAgentRemote: agent,
@@ -95,7 +94,7 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 						default:
 							tlsSecretName := rand.String(rand.IntnRange(1, 15))
 
-							helpers.EXPECT().TLSSecretName().Return(tlsSecretName)
+							helpers.On("TLSSecretName").Return(tlsSecretName)
 
 							expected := optional.Of[client.Object](
 								&corev1.Secret{

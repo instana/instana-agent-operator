@@ -22,14 +22,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -46,7 +45,6 @@ func TestConfigMapBuilderIsNamespacedComponentName(t *testing.T) {
 
 func TestConfigMapBuilderBuild(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	sensorResourcesName := rand.String(10)
 	namespace := rand.String(10)
@@ -82,8 +80,9 @@ func TestConfigMapBuilderBuild(t *testing.T) {
 		},
 	)
 
-	helpers := mocks.NewMockHelpers(ctrl)
-	helpers.EXPECT().K8sSensorResourcesName().Return(sensorResourcesName)
+	helpers := &mocks.MockHelpers{}
+	defer helpers.AssertExpectations(t)
+	helpers.On("K8sSensorResourcesName").Return(sensorResourcesName)
 
 	backend := backends.NewK8SensorBackend("", "", "", endpointHost, endpointPort)
 	var backends [1]backends.K8SensorBackend

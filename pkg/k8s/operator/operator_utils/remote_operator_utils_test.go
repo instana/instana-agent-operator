@@ -21,13 +21,11 @@ import (
 	"testing"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
-	"github.com/instana/instana-agent-operator/pkg/result"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"golang.org/x/net/context"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,35 +38,31 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockRemoteDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			agent := instanav1.InstanaAgentRemote{}
-
-			var unstrctrd client.Object = &unstructured.Unstructured{}
 
 			expected := errors.New("LifecycleManager cleanup failed")
 
 			// Prepare builders
 			builders := []builder.ObjectBuilder{}
 
-			// Dry-run
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
+			// These Apply calls should not happen with empty builders - remove expectations
+			// instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{client.DryRunAll}).
+			// 	Return(result.Of(unstrctrd, nil)).
+			// 	Times(len(builders))
 
-			// Non dry-run
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Any()).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
+			// instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{}).
+			// 	Return(result.Of(unstrctrd, nil)).
+			// 	Times(len(builders))
 
 			// Update success
-			dependentLifecycleManager.EXPECT().UpdateDependentLifecycleInfo(gomock.Any()).Return(nil).AnyTimes()
+			dependentLifecycleManager.On("UpdateDependentLifecycleInfo", mock.Anything).Return(nil)
 
 			// Cleanup returns error
-			dependentLifecycleManager.EXPECT().CleanupDependents(gomock.Any()).Return(expected).AnyTimes()
+			dependentLifecycleManager.On("CleanupDependents", mock.Anything).Return(expected)
 
 			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
 
@@ -84,27 +78,23 @@ func TestRemoteOperatorUtilsApplyAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockRemoteDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			agent := instanav1.InstanaAgentRemote{}
-
-			var unstrctrd client.Object = &unstructured.Unstructured{}
 
 			expected := errors.New("LifecycleManager update failed")
 
 			// Prepare builders
 			builders := []builder.ObjectBuilder{}
 
-			// Mock calls
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
-			dependentLifecycleManager.EXPECT().
-				UpdateDependentLifecycleInfo(gomock.Any()).
-				Return(expected).
-				AnyTimes()
+			// Mock calls - Apply should not be called with empty builders
+			// instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{client.DryRunAll}).
+			// 	Return(result.Of(unstrctrd, nil)).
+			// 	Times(len(builders))
+			dependentLifecycleManager.On("UpdateDependentLifecycleInfo", mock.Anything).
+				Return(expected)
 
 			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
 
@@ -123,16 +113,14 @@ func TestRemoteOperatorUtilsDeleteAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockRemoteDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockRemoteDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			operatorUtils := NewRemoteOperatorUtils(ctx, instanaAgentClient, &instanav1.InstanaAgentRemote{}, dependentLifecycleManager)
 
 			// Mock calls
-			dependentLifecycleManager.EXPECT().
-				CleanupDependents().
-				Return(nil).
-				AnyTimes()
+			dependentLifecycleManager.On("CleanupDependents", ([]client.Object)(nil)).Return(nil)
 
 			err := operatorUtils.DeleteAll()
 			assertions.Nil(err)

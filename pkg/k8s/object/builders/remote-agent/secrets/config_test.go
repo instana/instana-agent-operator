@@ -20,25 +20,25 @@ import (
 	"testing"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	backend "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/stretchr/testify/assert"
-	gomock "go.uber.org/mock/gomock"
+	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestConfigBuilderComponentName(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	statusManager := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
+	statusManager := &mocks.MockRemoteAgentStatusManager{}
+	defer statusManager.AssertExpectations(t)
 	s := NewConfigBuilder(&instanav1.InstanaAgentRemote{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
 
 	assert.True(t, s.IsNamespaced())
 }
 
 func TestConfigBuilderIsNamespaced(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	statusManager := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
+	statusManager := &mocks.MockRemoteAgentStatusManager{}
+	defer statusManager.AssertExpectations(t)
 	s := NewConfigBuilder(&instanav1.InstanaAgentRemote{}, statusManager, &corev1.Secret{}, make([]backend.RemoteSensorBackend, 0))
 
 	assert.Equal(t, "instana-agent-remote", s.ComponentName())
@@ -361,10 +361,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
-				ctrl := gomock.NewController(t)
-
-				statusManager := mocks.NewMockInstanaAgentRemoteStatusManager(ctrl)
-				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
+				statusManager := &mocks.MockRemoteAgentStatusManager{}
+				defer statusManager.AssertExpectations(t)
+				statusManager.On("SetAgentSecretConfig", mock.Anything)
 
 				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.remoteBackends)
 

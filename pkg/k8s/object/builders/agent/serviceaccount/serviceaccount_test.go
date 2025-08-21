@@ -22,14 +22,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -61,7 +60,6 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 		t.Run(
 			fmt.Sprintf("%+v", test), func(t *testing.T) {
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
 
 				serviceAccountName := rand.String(10)
 				namespace := rand.String(10)
@@ -101,9 +99,10 @@ func TestServiceAccountBuilder_Build(t *testing.T) {
 					},
 				)
 
-				helpers := mocks.NewMockHelpers(ctrl)
+				helpers := &mocks.MockHelpers{}
+				defer helpers.AssertExpectations(t)
 				if pointer.DerefOrEmpty(test.createServiceAccount) {
-					helpers.EXPECT().ServiceAccountName().Return(serviceAccountName)
+					helpers.On("ServiceAccountName").Return(serviceAccountName)
 				}
 
 				sb := &serviceAccountBuilder{
