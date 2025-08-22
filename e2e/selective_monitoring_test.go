@@ -72,7 +72,7 @@ func NewAgentCrWithSelectiveMonitoring() v1.InstanaAgent {
 	})
 
 	// Use a static agent image to have faster startup times
-	agent.Spec.Agent.ImageSpec.Name = InstanaAgentStaticImage
+	// agent.Spec.Agent.ImageSpec.Name = InstanaAgentStaticImage
 
 	return agent
 }
