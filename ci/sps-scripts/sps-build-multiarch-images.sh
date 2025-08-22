@@ -60,6 +60,7 @@ for platform in "${PLATFORMS[@]}"; do
     docker buildx build \
         "$BUILD_CONTEXT" \
         --platform "$platform" \
+        --build-arg BUILDPLATFORM="$platform" \
         --build-arg TARGETPLATFORM="$platform" \
         --secret id=DOWNLOAD_KEY,src=$SECRET_FILE \
         -t $LOCAL_IMAGE_TAG \
