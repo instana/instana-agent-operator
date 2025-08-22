@@ -6,7 +6,7 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
-./installGolang.sh 1.24.4 amd64
+source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh amd64
 export PATH=$PATH:/usr/local/go/bin
 make generate
 go install

@@ -107,8 +107,12 @@ bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
 
 echo "=== Running e2e tests ==="
 
+# Initialize COMMIT_STATUS with default value
+COMMIT_STATUS="failure"
 
 if ! make e2e; then
+    echo "E2E tests failed"
+else
     COMMIT_STATUS="success"
 fi
 
