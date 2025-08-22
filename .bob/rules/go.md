@@ -16,7 +16,7 @@
 - If golangeci-lint is not found, install it via make: `make golangci-lint`
 - Imports: Group standard library, external, and internal imports
 - Error handling: Always check errors, use `pkg/errors` for wrapping
-- Commit messages: Include DCO sign-off with `git commit -s`
+- Commit messages: Include DCO sign-off with `git commit -s`. Use conventional commits syntax for the commit message subject. Use a consise and short message and a brief summary of changes for the commit body. 
 - Types: Use strong typing, avoid interface{} when possible
 - Tests: Write unit tests for all new functionality
 - Documentation: Update docs when changing public APIs, especially on Custom Resource Definition changes
