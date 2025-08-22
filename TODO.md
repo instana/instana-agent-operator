@@ -99,7 +99,7 @@ will automatically push changes to the chart when relevant files in the operator
 
 ### Code Linting
 
-Settings for [static code linting](.golangci.yml) should be reviewed and updated to suit the teams preferences. A basic
+Settings for [static code linting](.golangci.yaml) should be reviewed and updated to suit the teams preferences. A basic
 set of rules is currently enabled and will run during PR builds for this repo.
 
 ### Error Wrapping
