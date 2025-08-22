@@ -118,7 +118,7 @@ cleanup() {
         --repository "$(load_repo app-repo url)" \
         --commit-sha "$(load_repo app-repo commit)" \
         --state "${COMMIT_STATUS}" \
-        --description "OCP e2e test" \
+        --description "Kubernetes e2e test" \
         --context "tekton/e2e-${CLUSTER_ID}" \
         --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
     if [[ "$(get_env pipeline_namespace)" == *"pr"* ]]; then
@@ -126,7 +126,7 @@ cleanup() {
             --repository "$(load_repo app-repo url)" \
             --commit-sha "$(load_repo app-repo commit)" \
             --state "${COMMIT_STATUS}" \
-            --description "OCP e2e test" \
+            --description "Kubernetes e2e test" \
             --context "tekton/e2e-${CLUSTER_ID}" \
             --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
     else
@@ -134,7 +134,7 @@ cleanup() {
             --repository "$(load_repo app-repo url)" \
             --commit-sha "$(load_repo app-repo commit)" \
             --state "${COMMIT_STATUS}" \
-            --description "OCP e2e test" \
+            --description "Kubernetes e2e test" \
             --context "tekton/e2e-${CLUSTER_ID}" \
             --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
     fi
