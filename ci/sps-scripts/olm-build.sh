@@ -9,7 +9,7 @@ export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
 export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 
 dnf -y install microdnf
-./installGolang.sh 1.24.4 amd64
+./installGolang.sh amd64
 export PATH=$PATH:/usr/local/go/bin
 
 IMAGE_TAG=${GIT_COMMIT}
@@ -26,7 +26,7 @@ mkdir -p bundle
 mkdir -p ../docker-input
 
 export PREFIX="v"
-export VERSION="$(cat ./version/AGENT_OPERATOR_VERSION)"
+export VERSION="0.0.0"
 export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
 # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field

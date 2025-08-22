@@ -3,7 +3,7 @@ version: "2"
 tasks:
   pr-code-checks:
     displayName: build-amd64-arm64-s390x-and-ppc64le-images
-    runtimeClassName: large
+    runtimeClassName: x86-xlarge
     onError: stopAndFail
     include:
       - dind
