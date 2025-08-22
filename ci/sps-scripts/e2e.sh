@@ -20,8 +20,9 @@ CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
 CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
 CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
 ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
-export ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
-export ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
+ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
+ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
+export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD
 # required in e2e test, therefore exporting variable
 export CLUSTER_NAME
 
