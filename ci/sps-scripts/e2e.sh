@@ -105,9 +105,9 @@ echo "=== Claim cluster lock ==="
 bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
 
 echo "=== Running e2e tests ==="
-make e2e
 
-if [ $? -eq 0 ]; then
+
+if ! make e2e; then
     COMMIT_STATUS="success"
 fi
 
