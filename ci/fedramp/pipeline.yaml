@@ -1,0 +1,536 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+---
+groups:
+  - name: test
+    jobs:
+    - self-update
+    - manual-trigger
+    - docker-build
+    - end-to-end-tests
+    - multiarch-operator-manifest-promotion
+
+var_sources:
+  - name: local-vars
+    type: dummy
+    config:
+      vars:
+        fedramp-version-static: '1.0.0'
+
+var:
+  instana-operator-git-repo-config: &instana-operator-git-repo-config
+    uri: https://github.com/instana/instana-agent-operator.git
+    branch: main
+    username: instanacd
+    password: ((instanacd-github-api-token))
+
+resource_types:
+  - name: cogito
+    type: registry-image
+    check_every: never
+    source:
+      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      tag: latest
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: key-value
+    type: registry-image
+    source:
+      repository: gstack/keyval-resource
+  - name: slack-notification
+    type: registry-image
+    source:
+      repository: cfcommunity/slack-notification-resource
+      tag: latest
+  - name: metadata
+    type: registry-image
+    source:
+      repository: delivery.instana.io/int-docker-private-virtual/olhtbr/metadata-resource
+      tag: 2.0.1
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
+
+resources:
+
+  - name: fedramp-version
+    type: semver
+    icon: alpha
+    source:
+      driver: gcs
+      initial_version: ((local-vars:fedramp-version-static))
+      bucket: instana-agent-qa-versioning
+      key: ((local-vars:fedramp-version-static))/fedramp/version
+      json_key: ((project-berlin-tests-gcp-instana-qa))
+
+  - name: pipeline-source
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: add-fedramp-pipeline #TODO revert to main
+      username: instanacd
+      password: ((instanacd-github-api-token))
+
+  - name: agent-operator-git-source
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/instana/instana-agent-operator.git
+      branch: fedramp-release-v((local-vars:fedramp-version-static))
+      username: instanacd
+      password: ((instanacd-github-api-token))
+      ignore_paths:
+        - ci/
+
+  - name: agent-operator-image-amd64
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
+      tag: main
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-arm64
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
+      tag: main
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-ppc64le
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
+      tag: main
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-s390x
+    type: registry-image
+    icon: docker
+    source:
+      repository: delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
+      tag: main
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+  - name: agent-operator-image-manifest-sha
+    type: key-value
+    icon: zip-disk
+
+  - name: metadata
+    type: metadata
+
+jobs:
+  - name: self-update
+    plan:
+      - get: pipeline-source
+        trigger: true
+      - set_pipeline: self
+        file: pipeline-source/ci/fedramp/pipeline.yaml
+
+  - name: manual-trigger
+    max_in_flight: 1
+    plan:
+      - get: pipeline-source
+      - get: agent-operator-git-source
+      - get: fedramp-version
+        params:
+          get_latest: true
+
+  - name: docker-build
+    max_in_flight: 1
+    plan:
+      - get: fedramp-version
+        passed: [manual-trigger]
+        trigger: true
+      - get: pipeline-source
+        passed: [manual-trigger]
+        trigger: true
+      - get: agent-operator-git-source
+        passed: [manual-trigger]
+        trigger: true
+      - load_var: agent-operator-version
+        file: agent-operator-git-source/.git/ref
+        reveal: true
+      - load_var: git-commit
+        file: agent-operator-git-source/.git/HEAD
+        reveal: true
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-git-source
+              output_mapping: 
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                build-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-arm64
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-git-source
+              output_mapping: 
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                build-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-s390x
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-git-source
+              output_mapping: 
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                build-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le
+              privileged: true
+              file: pipeline-source/ci/container-image-build-task.yml
+              input_mapping:
+                source: agent-operator-git-source
+              output_mapping: 
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                build-platform: linux/amd64
+                version: ((.:agent-operator-version))
+                git-commit: ((.:git-commit))
+      - task: create-tag-files
+        privileged: true
+        file: agent-operator-git-source/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:agent-operator-version))
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - put: agent-operator-image-amd64
+              params:
+                image: image-amd64/image.tar
+                additional_tags: image-tags/amd64
+            - put: agent-operator-image-arm64
+              params:
+                image: image-arm64/image.tar
+                additional_tags: image-tags/arm64
+            - put: agent-operator-image-ppc64le
+              params:
+                image: image-ppc64le/image.tar
+                additional_tags: image-tags/ppc64le
+            - put: agent-operator-image-s390x
+              params:
+                image: image-s390x/image.tar
+                additional_tags: image-tags/s390x
+      - task: publish-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: &e2e-test-base-image
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          outputs:
+            - name: manifest-list
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                IMAGE_TAG=${GIT_COMMIT}
+                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
+
+                manifest-tool \
+                  --username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
+                  --target ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} | tee manifest-output.txt
+
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
+                echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+                # folder is created by output defintion
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+      - put: agent-operator-image-manifest-sha
+        params:
+          directory: manifest-list
+
+  - name: end-to-end-tests
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-git-source
+        trigger: true
+        passed: [docker-build]
+      - get: fedramp-version
+        passed: [docker-build]
+        trigger: true
+      - load_var: git-commit
+        file: agent-operator-git-source/.git/HEAD
+      - get: pipeline-source
+        passed: [docker-build]
+        trigger: true
+      - get: agent-operator-image-manifest-sha
+        passed: [docker-build]
+      - in_parallel:
+        - do:
+          - put: metadata
+          - task: reslock-claim-gke-lowest
+            timeout: 75m
+            config:
+              platform: linux
+              image_resource:
+                type: registry-image
+                source: *e2e-test-base-image
+              params:
+                RESLOCK_COMMAND: claim
+                RESLOCK_RESOURCE_NAME: gke-lowest
+                RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+              inputs:
+                - name: pipeline-source
+                - name: metadata
+              run:
+                path: pipeline-source/ci/scripts/reslock.sh
+          - task: run-e2e-test-gke-lowest
+            timeout: 55m
+            attempts: 1
+            config: &gke-e2e-test-config
+              platform: linux
+              image_resource: &e2e-test-image-resource
+                type: registry-image
+                source:
+                  repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                  tag: main
+                  username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                  password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              params:
+                GIT_COMMIT: ((.:git-commit))
+                CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-lowest
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                BUILD_BRANCH: main
+                INSTANA_API_KEY: ((qa-instana-agent-key))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: agent-operator-git-source
+              run:
+                path: bash
+                args:
+                  - -ceu
+                  - |
+                    cd agent-operator-git-source
+                    bash ./ci/scripts/cluster-authentication.sh
+                    export OPERATOR_IMAGE_NAME="delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build"
+                    make pre-pull-images generate e2e
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-lowest
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - task: reslock-release-gke-lowest
+                timeout: 5m
+                config:
+                  platform: linux
+                  image_resource:
+                    type: registry-image
+                    source: *e2e-test-base-image
+                  params:
+                    RESLOCK_COMMAND: release
+                    RESLOCK_RESOURCE_NAME: gke-lowest
+                    RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                  inputs:
+                    - name: pipeline-source
+                    - name: metadata
+                  run:
+                    path: pipeline-source/ci/scripts/reslock.sh
+
+        - do:
+          - put: metadata
+          - task: reslock-claim-gke-latest
+            timeout: 75m
+            config:
+              platform: linux
+              image_resource:
+                type: registry-image
+                source: *e2e-test-base-image
+              params:
+                RESLOCK_COMMAND: claim
+                RESLOCK_RESOURCE_NAME: gke-latest
+                RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+              inputs:
+                - name: pipeline-source
+                - name: metadata
+              run:
+                path: pipeline-source/ci/scripts/reslock.sh
+          - task: run-e2e-test-gke-latest
+            timeout: 55m
+            attempts: 1
+            config:
+              <<: *gke-e2e-test-config
+              params:
+                GIT_COMMIT: ((.:git-commit))
+                CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                CLUSTER_TYPE: gke
+                NAME: gke-latest
+                GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
+                INSTANA_ENDPOINT_PORT: 443
+                INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
+                INSTANA_API_URL: ((instana-qa.api_url))
+                INSTANA_API_TOKEN: ((instana-qa.api_token))
+                BUILD_BRANCH: main
+                INSTANA_API_KEY: ((qa-instana-agent-key))
+                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              inputs:
+                - name: agent-operator-git-source
+              run:
+                path: bash
+                args:
+                  - -ceu
+                  - |
+                    cd agent-operator-git-source
+                    bash ./ci/scripts/cluster-authentication.sh
+                    export OPERATOR_IMAGE_NAME="delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build"
+                    make pre-pull-images generate e2e
+            ensure:
+              do:
+              - task: cleanup-resources
+                timeout: 10m
+                config:
+                  platform: linux
+                  image_resource: *e2e-test-image-resource
+                  params:
+                    CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                    CLUSTER_TYPE: gke
+                    NAME: gke-latest
+
+                    GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  inputs:
+                    - name: pipeline-source
+                  run:
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
+              - task: reslock-release-gke-latest
+                timeout: 5m
+                config:
+                  platform: linux
+                  image_resource:
+                    type: registry-image
+                    source: *e2e-test-base-image
+                  params:
+                    RESLOCK_COMMAND: release
+                    RESLOCK_RESOURCE_NAME: gke-latest
+                    RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
+                  inputs:
+                    - name: pipeline-source
+                    - name: metadata
+                  run:
+                    path: pipeline-source/ci/scripts/reslock.sh
+
+  - name: multiarch-operator-manifest-promotion
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-git-source
+        trigger: true
+        passed: [end-to-end-tests]
+      - get: fedramp-version
+        passed: [end-to-end-tests]
+        trigger: true
+      - get: agent-operator-image-manifest-sha
+        passed: [end-to-end-tests]
+      - get: pipeline-source
+        passed: [end-to-end-tests]
+        trigger: true
+      - load_var: operator-version
+        file: agent-operator-git-source/.git/ref
+        reveal: true
+      - load_var: git-commit
+        file: agent-operator-git-source/.git/HEAD
+        reveal: true
+      - load_var: fedramp-version
+        file: fedramp-version/number
+        reveal: true
+      - task: build-multiarch-manifest
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: agent-operator-image-manifest-sha
+          params:
+            GIT_COMMIT: ((.:git-commit))
+            VERSION: ((.:operator-version))
+            FEDRAMP_VERSION: ((.:fedramp-version))
+            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            ARTIFACTORY_CONTAINER_DOCKER_URL: delivery.instana.io/int-docker-agent-fedramp-release-local
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/dev-build
+                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator/fedramp-${FEDRAMP_VERSION}/instana-agent-operator"
+
+                DIGEST=$(cat agent-operator-image-manifest-sha/digest)
+                echo ${DIGEST}
+
+                echo "---> **** Public release, publishing to delivery.instana.io. ****"
+
+                # strip the leading "v" from the operator version for release:
+                export PREFIX="v"
+                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
+
+                echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
+                echo "---> Copying docker://${DEV_BUILD_IMAGE}@${DIGEST} to ${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}"
+                skopeo copy --multi-arch=all --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --dest-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                  --dest-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
