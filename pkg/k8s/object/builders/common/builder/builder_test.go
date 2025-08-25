@@ -22,12 +22,11 @@ import (
 
 	"github.com/Masterminds/goutils"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	bldr "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/optional"
@@ -47,7 +46,7 @@ func TestBuilderTransformerApply(t *testing.T) {
 			expected: func(
 				builder *mocks.MockObjectBuilder,
 			) optional.Optional[client.Object] {
-				builder.EXPECT().Build().Return(optional.Empty[client.Object]())
+				builder.On("Build").Return(optional.Empty[client.Object]())
 
 				return optional.Empty[client.Object]()
 			},
@@ -59,9 +58,9 @@ func TestBuilderTransformerApply(t *testing.T) {
 			) optional.Optional[client.Object] {
 				componentName, _ := goutils.RandomAlphabetic(10)
 
-				builder.EXPECT().Build().Return(newDummyObject())
-				builder.EXPECT().ComponentName().Return(componentName)
-				builder.EXPECT().IsNamespaced().Return(false)
+				builder.On("Build").Return(newDummyObject())
+				builder.On("ComponentName").Return(componentName)
+				builder.On("IsNamespaced").Return(false)
 
 				return newDummyObject()
 			},
@@ -73,9 +72,9 @@ func TestBuilderTransformerApply(t *testing.T) {
 			) optional.Optional[client.Object] {
 				componentName, _ := goutils.RandomAlphabetic(10)
 
-				builder.EXPECT().Build().Return(newDummyObject())
-				builder.EXPECT().ComponentName().Return(componentName)
-				builder.EXPECT().IsNamespaced().Return(true)
+				builder.On("Build").Return(newDummyObject())
+				builder.On("ComponentName").Return(componentName)
+				builder.On("IsNamespaced").Return(true)
 
 				return newDummyObject()
 			},
@@ -84,9 +83,9 @@ func TestBuilderTransformerApply(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctrl := gomock.NewController(t)
 
-				builder := mocks.NewMockObjectBuilder(ctrl)
+				builder := &mocks.MockObjectBuilder{}
+				defer builder.AssertExpectations(t)
 				transformations := transformations.NewTransformations(&instanav1.InstanaAgent{})
 
 				expected := test.expected(builder).Get()

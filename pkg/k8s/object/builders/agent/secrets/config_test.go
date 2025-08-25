@@ -8,26 +8,26 @@ import (
 	"testing"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	backend "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/stretchr/testify/assert"
-	gomock "go.uber.org/mock/gomock"
+	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestConfigBuilderComponentName(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	statusManager := mocks.NewMockAgentStatusManager(ctrl)
+	statusManager := &mocks.MockAgentStatusManager{}
+	defer statusManager.AssertExpectations(t)
 	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
 
 	assert.True(t, s.IsNamespaced())
 }
 
 func TestConfigBuilderIsNamespaced(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	statusManager := mocks.NewMockAgentStatusManager(ctrl)
+	statusManager := &mocks.MockAgentStatusManager{}
+	defer statusManager.AssertExpectations(t)
 	s := NewConfigBuilder(&instanav1.InstanaAgent{}, statusManager, &corev1.Secret{}, make([]backend.K8SensorBackend, 0))
 
 	assert.Equal(t, "instana-agent", s.ComponentName())
@@ -381,10 +381,9 @@ func TestAgentSecretConfigBuild(t *testing.T) {
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
-				ctrl := gomock.NewController(t)
-
-				statusManager := mocks.NewMockAgentStatusManager(ctrl)
-				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
+				statusManager := &mocks.MockAgentStatusManager{}
+				defer statusManager.AssertExpectations(t)
+				statusManager.On("SetAgentSecretConfig", mock.Anything)
 
 				builder := NewConfigBuilder(&test.agent, statusManager, test.keysSecret, test.k8sBackends)
 
@@ -479,10 +478,9 @@ func TestAgentConfigBuildForOTEL(t *testing.T) {
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
-				ctrl := gomock.NewController(t)
-
-				statusManager := mocks.NewMockAgentStatusManager(ctrl)
-				statusManager.EXPECT().SetAgentSecretConfig(gomock.Any()).AnyTimes()
+				statusManager := &mocks.MockAgentStatusManager{}
+				defer statusManager.AssertExpectations(t)
+				statusManager.On("SetAgentSecretConfig", mock.Anything)
 
 				keysSecret := &corev1.Secret{}
 

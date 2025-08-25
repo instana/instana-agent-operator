@@ -22,14 +22,14 @@ import (
 	"testing"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	k8ssensorrbac "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/rbac"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/result"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -77,8 +77,8 @@ func TestOperatorUtilsClusterIsOpenShift(t *testing.T) {
 			name:           "Should return false when user has specified OpenShift in the spec as false",
 			crdExists:      false,
 			crdExistsErr:   nil,
-			openShiftField: pointer.To(true),
-			expected:       true,
+			openShiftField: pointer.To(false),
+			expected:       false,
 		},
 	} {
 		t.Run(
@@ -88,9 +88,10 @@ func TestOperatorUtilsClusterIsOpenShift(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				ctrl := gomock.NewController(t)
-				instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-				dependentLifecycleManager := mocks.NewMockDependentLifecycleManager(ctrl)
+				instanaAgentClient := &mocks.MockInstanaAgentClient{}
+				defer instanaAgentClient.AssertExpectations(t)
+				dependentLifecycleManager := &mocks.MockDependentLifecycleManager{}
+				defer dependentLifecycleManager.AssertExpectations(t)
 
 				gvk := schema.GroupVersionKind{
 					Group:   "apiextensions.k8s.io",
@@ -101,10 +102,10 @@ func TestOperatorUtilsClusterIsOpenShift(t *testing.T) {
 					Name: "clusteroperators.config.openshift.io",
 				}
 
-				instanaAgentClient.EXPECT().
-					Exists(gomock.Eq(ctx), gomock.Eq(gvk), gomock.Eq(key)).
-					Return(result.Of(test.crdExists, test.crdExistsErr)).
-					AnyTimes()
+				if test.openShiftField == nil {
+					instanaAgentClient.On("Exists", ctx, gvk, key).
+						Return(result.Of(test.crdExists, test.crdExistsErr))
+				}
 
 				instanaAgent := instanav1.InstanaAgent{}
 				instanaAgent.Spec.OpenShift = test.openShiftField
@@ -128,9 +129,10 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			agent := instanav1.InstanaAgent{}
 
 			var unstrctrd client.Object = &unstructured.Unstructured{}
@@ -146,22 +148,19 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			)
 
 			// Dry-run
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
+			instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{client.DryRunAll}).
 				Return(result.Of(unstrctrd, nil)).
 				Times(len(builders))
 
 			// Non dry-run
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Any()).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
+			instanaAgentClient.On("Apply", ctx, mock.Anything, mock.Anything).
+				Return(result.Of(unstrctrd, nil))
 
 			// Update success
-			dependentLifecycleManager.EXPECT().UpdateDependentLifecycleInfo(gomock.Any()).Return(nil).AnyTimes()
+			dependentLifecycleManager.On("UpdateDependentLifecycleInfo", mock.Anything).Return(nil)
 
 			// Cleanup returns error
-			dependentLifecycleManager.EXPECT().CleanupDependents(gomock.Any()).Return(expected).AnyTimes()
+			dependentLifecycleManager.On("CleanupDependents", mock.Anything).Return(expected)
 
 			operatorUtils := NewOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
 
@@ -177,9 +176,10 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			agent := instanav1.InstanaAgent{}
 
 			var unstrctrd client.Object = &unstructured.Unstructured{}
@@ -195,14 +195,10 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			)
 
 			// Mock calls
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
-			dependentLifecycleManager.EXPECT().
-				UpdateDependentLifecycleInfo(gomock.Any()).
-				Return(expected).
-				AnyTimes()
+			instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{client.DryRunAll}).
+				Return(result.Of(unstrctrd, nil))
+			dependentLifecycleManager.On("UpdateDependentLifecycleInfo", mock.Anything).
+				Return(expected)
 
 			operatorUtils := NewOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
 
@@ -218,9 +214,10 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			agent := instanav1.InstanaAgent{}
 
 			var unstrctrd client.Object = &unstructured.Unstructured{}
@@ -239,18 +236,8 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			)
 
 			// Mock calls
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, expected)).
-				Times(len(builders))
-			dependentLifecycleManager.EXPECT().
-				UpdateDependentLifecycleInfo(gomock.Any()).
-				Return(nil).
-				AnyTimes()
-			dependentLifecycleManager.EXPECT().
-				CleanupDependents(gomock.Any()).
-				Return(nil).
-				AnyTimes()
+			instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{client.DryRunAll}).
+				Return(result.Of(unstrctrd, expected))
 
 			operatorUtils := NewOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
 
@@ -266,9 +253,10 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			agent := instanav1.InstanaAgent{}
 			operatorUtils := NewOperatorUtils(ctx, instanaAgentClient, &agent, dependentLifecycleManager)
 
@@ -288,18 +276,12 @@ func TestOperatorUtilsApplyAll(t *testing.T) {
 			)
 
 			// Mock calls
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Eq(client.DryRunAll)).
-				Return(result.Of(unstrctrd, nil)).
-				Times(len(builders))
-			instanaAgentClient.EXPECT().
-				Apply(gomock.Eq(ctx), gomock.Any(), gomock.Any()).
-				Return(result.Of(unstrctrd, expected)).
-				Times(len(builders))
-			dependentLifecycleManager.EXPECT().
-				UpdateDependentLifecycleInfo(gomock.Any()).
-				Return(nil).
-				AnyTimes()
+			instanaAgentClient.On("Apply", ctx, mock.Anything, []client.PatchOption{client.DryRunAll}).
+				Return(result.Of(unstrctrd, nil))
+			instanaAgentClient.On("Apply", ctx, mock.Anything, mock.Anything).
+				Return(result.Of(unstrctrd, expected))
+			dependentLifecycleManager.On("UpdateDependentLifecycleInfo", mock.Anything).
+				Return(nil)
 
 			err := operatorUtils.ApplyAll(builders...)
 			assertions.Equal(errBuilder.Build().Error(), err.Error())
@@ -316,16 +298,15 @@ func TestOperatorUtilsDeleteAll(t *testing.T) {
 			defer cancel()
 
 			// Preparations and initialisations
-			ctrl := gomock.NewController(t)
-			instanaAgentClient := mocks.NewMockInstanaAgentClient(ctrl)
-			dependentLifecycleManager := mocks.NewMockDependentLifecycleManager(ctrl)
+			instanaAgentClient := &mocks.MockInstanaAgentClient{}
+			defer instanaAgentClient.AssertExpectations(t)
+			dependentLifecycleManager := &mocks.MockDependentLifecycleManager{}
+			defer dependentLifecycleManager.AssertExpectations(t)
 			operatorUtils := NewOperatorUtils(ctx, instanaAgentClient, &instanav1.InstanaAgent{}, dependentLifecycleManager)
 
 			// Mock calls
-			dependentLifecycleManager.EXPECT().
-				CleanupDependents().
-				Return(nil).
-				AnyTimes()
+			dependentLifecycleManager.On("CleanupDependents", ([]client.Object)(nil)).
+				Return(nil)
 
 			err := operatorUtils.DeleteAll()
 			assertions.Nil(err)

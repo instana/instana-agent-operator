@@ -8,13 +8,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/mocks"
+	"github.com/instana/instana-agent-operator/internal/mocks"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/ports"
@@ -34,7 +33,6 @@ func TestHeadlessServiceBuilder_ComponentName(t *testing.T) {
 
 func TestHeadlessServiceBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
-	ctrl := gomock.NewController(t)
 
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -42,16 +40,18 @@ func TestHeadlessServiceBuilder_Build(t *testing.T) {
 		},
 	}
 
-	hlprs := mocks.NewMockHelpers(ctrl)
-	hlprs.EXPECT().HeadlessServiceName().Return("headless-service-name")
+	hlprs := &mocks.MockHelpers{}
+	defer hlprs.AssertExpectations(t)
+	hlprs.On("HeadlessServiceName").Return("headless-service-name")
 
-	podSelectorLabelGenerator := mocks.NewMockPodSelectorLabelGenerator(ctrl)
-	podSelectorLabelGenerator.EXPECT().
-		GetPodSelectorLabels().
+	podSelectorLabelGenerator := &mocks.MockPodSelectorLabelGenerator{}
+	defer podSelectorLabelGenerator.AssertExpectations(t)
+	podSelectorLabelGenerator.On("GetPodSelectorLabels").
 		Return(map[string]string{"foo": "bar", "hello": "world"})
 
-	portsBuilder := mocks.NewMockPortsBuilder(ctrl)
-	portsBuilder.EXPECT().GetServicePorts().Return([]corev1.ServicePort{{Name: "headless-service-port"}})
+	portsBuilder := &mocks.MockPortsBuilder{}
+	defer portsBuilder.AssertExpectations(t)
+	portsBuilder.On("GetServicePorts").Return([]corev1.ServicePort{{Name: "headless-service-port"}})
 
 	expected := optional.Of[client.Object](
 		&corev1.Service{

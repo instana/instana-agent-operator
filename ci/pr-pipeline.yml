@@ -277,7 +277,7 @@ jobs:
                 cd pipeline-source
                 make generate
                 go install
-                make gen-mocks lint test
+                make lint test
         on_success:
           put: gh-status
           inputs: [pipeline-source]
