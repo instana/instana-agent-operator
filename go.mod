@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/Masterminds/goutils v1.1.1
 	github.com/Masterminds/semver/v3 v3.3.0
-	github.com/go-errors/errors v1.4.2
+	github.com/go-errors/errors v1.5.1
 	github.com/go-logr/logr v1.4.3
 	github.com/joho/godotenv v1.5.1
 	github.com/openshift/client-go v0.0.0-20250811163556-6193816ae379
