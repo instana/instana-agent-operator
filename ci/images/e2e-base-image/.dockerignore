@@ -1,0 +1,7 @@
+# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
+# Ignore all by default
+*
+
+# Don't ignore files which are Go type
+!**/*.mod
+!installGolang.sh

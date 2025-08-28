@@ -47,3 +47,4 @@ bundle/metadata/annotations.yaml
 # CI/CD
 backend.cfg
 target/
+config/crd/bases/instana.io_agentsremote.yaml

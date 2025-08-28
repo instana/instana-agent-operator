@@ -25,19 +25,13 @@ RUN dnf update -y && dnf install -y \
     kubectl \
     && pip3 install pyyaml
 
-# Set environment variables for Go
+# Install go
 ENV GOPATH=/go
-ENV GO_VERSION=1.25.0
+COPY go.mod /go.mod
+COPY installGolang.sh /installGolang.sh
+RUN /installGolang.sh amd64 && rm /installGolang.sh /go.mod
 ENV PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"
 
-# Install go
-RUN GO_SHA256="77e5da33bb72aeaef1ba4418b6fe511bc4d041873cbf82e5aa6318740df98717 go${GO_VERSION}.linux-amd64.tar.gz"  \
-    && curl -L --fail --show-error --silent "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o "go${GO_VERSION}.linux-amd64.tar.gz" \
-    && echo "${GO_SHA256}" | sha256sum --check \
-    && rm -rf /usr/local/go \
-    && tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz" \
-    && mkdir -p "${GOPATH}" \
-    && go version
 
 # Install required gcloud package
 RUN yum install -y google-cloud-sdk-gke-gcloud-auth-plugin
