@@ -8,7 +8,7 @@
 - Generate mocks: `make gen-mocks`
 
 ## Code Style Guidelines
-- Go version: 1.24
+- Go version: 1.25
 - Line length: 120 characters max
 - Formatting: Use `gofmt`, `goimports`, and `golines`
 - Linters: `govet`, `ineffassign`, `unused`, `misspell`, `exhaustive`, `errcheck`, `lll`
