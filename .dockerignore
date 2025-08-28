@@ -6,6 +6,7 @@
 !**/*.go
 !**/*.mod
 !**/*.sum
+!installGolang.sh
 
 # Bug in .dockerignore, have to list wanted directories explicitly (https://github.com/moby/moby/issues/40319)
 !api/

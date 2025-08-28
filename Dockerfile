@@ -9,21 +9,20 @@ ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
-ARG GO_VERSION=1.24.4
-
 WORKDIR /workspace
 
 # Install packages necessary for preparing the builder
 RUN microdnf install -y make jq tar gzip gpg && microdnf clean all
 
-# Install go using custom installation script
-ENV PATH="/usr/local/go/bin:/root/.local/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-COPY installGolang.sh installGolang.sh
-RUN export BUILDER_ARCHITECTURE="$(echo ${BUILDPLATFORM} | cut -d'/' -f2)" && ./installGolang.sh ${GO_VERSION} ${BUILDER_ARCHITECTURE}
 
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
+
+# Install go using custom installation script
+ENV PATH="/usr/local/go/bin:/root/.local/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+COPY installGolang.sh installGolang.sh
+RUN export BUILDER_ARCHITECTURE="$(echo ${BUILDPLATFORM} | cut -d'/' -f2)" && ./installGolang.sh ${BUILDER_ARCHITECTURE}
 
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer

@@ -1481,7 +1481,7 @@ jobs:
             source:
               repository: vito/oci-build-task
           params:
-            CONTEXT: pipeline-source/ci/images/e2e-base-image
+            CONTEXT: pipeline-source
             DOCKERFILE: pipeline-source/ci/images/e2e-base-image/Dockerfile
           inputs:
           - name: pipeline-source

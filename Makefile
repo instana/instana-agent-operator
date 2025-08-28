@@ -140,6 +140,7 @@ docker-push: ## Push the docker image with the manager.
 BUILDPLATFORM ?= linux/${ARCH}
 BUILDTARGET ?= linux/${ARCH}
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
+
 container-build: buildctl
 	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build \
 	  --frontend=dockerfile.v0 \

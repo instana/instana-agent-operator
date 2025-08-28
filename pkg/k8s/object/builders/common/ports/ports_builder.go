@@ -25,7 +25,7 @@ func NewPortsBuilder(otel instanav1.OpenTelemetry) PortsBuilder {
 // GetServicePorts is responsible of creating a list of service ports based on the InstanaAgent configuration
 func (p *portsBuilder) GetServicePorts() []corev1.ServicePort {
 	servicePorts := []corev1.ServicePort{InstanaAgentAPIPortConfig.AsServicePort()}
-	if p.otel.Enabled.Enabled != nil && *p.otel.Enabled.Enabled != false { //nolint:gosimple
+	if p.otel.Enabled.Enabled != nil && *p.otel.Enabled.Enabled != false {
 		if *p.otel.GRPC.Enabled {
 			GRPCPortConfig := DefaultOpenTelemetryGRPCPortConfig
 			// Override default value if the config contains a new port number
@@ -51,7 +51,7 @@ func (p *portsBuilder) GetServicePorts() []corev1.ServicePort {
 func (p *portsBuilder) GetContainerPorts() []corev1.ContainerPort {
 	containerPorts := []corev1.ContainerPort{InstanaAgentAPIPortConfig.AsContainerPort()}
 	// ensure to not hit a nil pointer
-	if p.otel.Enabled.Enabled != nil && *p.otel.Enabled.Enabled != false { //nolint:gosimple
+	if p.otel.Enabled.Enabled != nil && *p.otel.Enabled.Enabled != false {
 		if *p.otel.GRPC.Enabled {
 			GRPCPortConfig := DefaultOpenTelemetryGRPCPortConfig
 			// Override default value if the config contains a new port number
