@@ -930,7 +930,7 @@ jobs:
           params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
       - get: preflight
         version:
-          tag: 1.12.1
+          tag: 1.14.1
         params:
           globs:
             - preflight-linux-amd64
