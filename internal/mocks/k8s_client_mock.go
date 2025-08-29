@@ -133,6 +133,15 @@ func (m *MockClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *MockClient) Apply(
+	ctx context.Context,
+	obj runtime.ApplyConfiguration,
+	opts ...client.ApplyOption,
+) error {
+	args := m.Called(ctx, obj, opts)
+	return args.Error(0)
+}
+
 // MockSubResourceWriter provides a testify mock implementation of client.SubResourceWriter
 type MockSubResourceWriter struct {
 	mock.Mock

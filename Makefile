@@ -27,6 +27,15 @@ VERSION ?= 0.0.1
 # Previous version, will only be used for updating the "replaces" field in the ClusterServiceVersion when defined command-line
 PREV_VERSION ?= 0.0.0
 
+# Tool versions
+CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
+KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
+GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+# Buildkit versions - the image tag is the actual release version, CLI version is derived from it
+BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
+# Extract major.minor version for buildctl CLI (strip patch version)
+BUILDCTL_VERSION = $(shell echo $(BUILDKIT_IMAGE_TAG) | sed -E 's/v([0-9]+\.[0-9]+)\.[0-9]+.*/v\1/')
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 CHANNELS ?= "stable"
@@ -322,19 +331,60 @@ CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controll
 
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
+	@if [ -f $(CONTROLLER_GEN) ]; then \
+		echo "Controller-gen binary found in $(CONTROLLER_GEN)"; \
+		version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
+		if [ "$$version" = "$(CONTROLLER_GEN_VERSION)" ]; then \
+			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed"; \
+		else \
+			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)"; \
+			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+		fi \
+	else \
+		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)"; \
+		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+	fi
 
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
-	go install sigs.k8s.io/kustomize/kustomize/v4@v4.5.5
+	@if [ -f $(KUSTOMIZE) ]; then \
+		echo "Kustomize binary found in $(KUSTOMIZE)"; \
+		version=$$($(KUSTOMIZE) version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
+		if [ "$$version" = "$(KUSTOMIZE_VERSION)" ]; then \
+			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed"; \
+		else \
+			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)"; \
+			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		fi \
+	else \
+		echo "Installing kustomize $(KUSTOMIZE_VERSION)"; \
+		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+	fi
 
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
-	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	@if [ -f $(ENVTEST) ]; then \
+		echo "Envtest binary found in $(ENVTEST)"; \
+	else \
+		echo "Installing envtest"; \
+		go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest; \
+	fi
 
 .PHONY: golanci-lint
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
+	@if [ -f $(GOLANGCI_LINT) ]; then \
+		echo "Golangci-lint binary found in $(GOLANGCI_LINT)"; \
+		version=$$($(GOLANGCI_LINT) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
+		if [ "$$version" = "$(GOLANGCI_LINT_VERSION)" ]; then \
+			echo "Golangci-lint version $(GOLANGCI_LINT_VERSION) is already installed"; \
+		else \
+			echo "Updating golangci-lint from $$version to $(GOLANGCI_LINT_VERSION)"; \
+			go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+		fi \
+	else \
+		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)"; \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+	fi
 
 .PHONY: operator-sdk
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
@@ -350,19 +400,29 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 .PHONY: buildctl
 BUILDKITD_CONTAINER_NAME = buildkitd
 buildctl: ## Download the buildctl binary locally if necessary and prepare the container for running builds.
-	go install github.com/moby/buildkit/cmd/buildctl@v0.16
-	@if [ "`podman ps -a -q -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
-		if [ "`podman ps -aq -f status=exited -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
-			echo "Starting buildkitd container $(BUILDKITD_CONTAINER_NAME)"; \
-			$(CONTAINER_CMD) start $(BUILDKITD_CONTAINER_NAME) || true; \
-			echo "Allowing 5 seconds to bootup"; \
-			sleep 5; \
+	@if [ -f $(BUILDCTL) ]; then \
+		echo "Buildctl binary found in $(BUILDCTL)"; \
+		version=$$($(BUILDCTL) -v | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
+		if [ "$$version" = "$(BUILDCTL_VERSION)" ] || [ "$$version" = "v0.0.0" ]; then \
+			echo "Buildctl version $(BUILDCTL_VERSION) is already installed"; \
 		else \
-			echo "Buildkit daemon is already running, skip container creation"; \
+			echo "Updating buildctl from $$version to $(BUILDCTL_VERSION)"; \
+			go install github.com/moby/buildkit/cmd/buildctl@$(BUILDCTL_VERSION); \
 		fi \
 	else \
+		echo "Installing buildctl $(BUILDCTL_VERSION)"; \
+		go install github.com/moby/buildkit/cmd/buildctl@$(BUILDCTL_VERSION); \
+	fi
+	@if [ "`$(CONTAINER_CMD) ps -a -q -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
+		echo "Ensuring buildkit container is using the correct version $(BUILDKIT_IMAGE_TAG)"; \
+		$(CONTAINER_CMD) rm -f $(BUILDKITD_CONTAINER_NAME) 2>/dev/null || true; \
+		echo "Starting buildkit container with version $(BUILDKIT_IMAGE_TAG)"; \
+		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:$(BUILDKIT_IMAGE_TAG); \
+		echo "Allowing 5 seconds to bootup"; \
+		sleep 5; \
+	else \
 		echo "$(BUILDKITD_CONTAINER_NAME) container is not present, launching it now"; \
-		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:v0.16.0; \
+		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:$(BUILDKIT_IMAGE_TAG); \
 		echo "Allowing 5 seconds to bootup"; \
 		sleep 5; \
 	fi

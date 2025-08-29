@@ -16,14 +16,16 @@ import (
 	"time"
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
-	securityv1 "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	log "k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -192,23 +194,39 @@ func AdjustOcpPermissionsIfNecessaryRemote() env.Func {
 			command := "oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent"
 			log.Infof("OpenShift detected, adding instana-agent-remote service account to SecurityContextConstraints via api, command would be: %s\n", command)
 
-			// replaced command execution with SDK call to not require `oc` cli
-			securityClient, err := securityv1.NewForConfig(cfg.Client().RESTConfig())
-			if err != nil {
-				return ctx, fmt.Errorf("could not initialize securityClient: %v", err)
+			// Define the GVR for SecurityContextConstraints
+			sccGVR := schema.GroupVersionResource{
+				Group:    "security.openshift.io",
+				Version:  "v1",
+				Resource: "securitycontextconstraints",
 			}
 
-			// get security context constraints
-			scc, err := securityClient.SecurityContextConstraints().Get(ctx, "anyuid", metav1.GetOptions{})
+			// Create a dynamic client
+			dynamicClient, err := dynamic.NewForConfig(cfg.Client().RESTConfig())
 			if err != nil {
-				return ctx, fmt.Errorf("failed to get SecurityContextContraints: %v", err)
+				return ctx, fmt.Errorf("could not initialize dynamic client: %v", err)
 			}
 
-			// check if service account user for remote agent is already listed in the scc
+			// Get the SCC
+			sccUnstructured, err := dynamicClient.Resource(sccGVR).
+				Get(ctx, "anyuid", metav1.GetOptions{})
+			if err != nil {
+				return ctx, fmt.Errorf("failed to get SecurityContextConstraints: %v", err)
+			}
+
+			// Extract users
+			users, found, err := unstructured.NestedStringSlice(sccUnstructured.Object, "users")
+			if err != nil {
+				return ctx, fmt.Errorf("failed to get users from SCC: %v", err)
+			}
+			if !found {
+				users = []string{}
+			}
+
+			// Check if service account is already in the list
 			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", InstanaNamespace, "instana-agent-remote")
 			userFound := false
-
-			for _, user := range scc.Users {
+			for _, user := range users {
 				if user == serviceAccountId {
 					userFound = true
 					break
@@ -220,10 +238,15 @@ func AdjustOcpPermissionsIfNecessaryRemote() env.Func {
 				return ctx, nil
 			}
 
-			// updating Security Context Constraints to list instana remote service account
-			scc.Users = append(scc.Users, serviceAccountId)
+			// Add service account to users
+			users = append(users, serviceAccountId)
+			if err := unstructured.SetNestedStringSlice(sccUnstructured.Object, users, "users"); err != nil {
+				return ctx, fmt.Errorf("failed to set users in SCC: %v", err)
+			}
 
-			_, err = securityClient.SecurityContextConstraints().Update(ctx, scc, metav1.UpdateOptions{})
+			// Update the SCC
+			_, err = dynamicClient.Resource(sccGVR).
+				Update(ctx, sccUnstructured, metav1.UpdateOptions{})
 			if err != nil {
 				return ctx, fmt.Errorf("could not update Security Context Constraints on OCP cluster: %v", err)
 			}
