@@ -10,7 +10,6 @@ require (
 	github.com/go-errors/errors v1.5.1
 	github.com/go-logr/logr v1.4.3
 	github.com/joho/godotenv v1.5.1
-	github.com/openshift/client-go v0.0.0-20250811163556-6193816ae379
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.43.0
@@ -92,7 +91,6 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/openshift/api v0.0.0-20250811150514-cc869c87a7f0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
@@ -142,7 +140,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.19.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
