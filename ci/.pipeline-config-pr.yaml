@@ -1,0 +1,128 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+
+version: "2"
+
+tasks:
+  pr-code-checks:
+    displayName: build-amd64-arm64-s390x-and-ppc64le-images
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+
+  # pr-code-checks-2:
+  #   from: pr-code-checks
+  #   displayName: build-and-test-agent-operator
+  #   runtimeClassName: large
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-and-test-operator.sh 
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+    
+  # pr-code-checks-3:
+  #   from: pr-code-checks
+  #   displayName: go-lang-unit-test
+  #   runtimeClassName: large
+  #   onError: stopAndFail
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh          
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+  # pr-code-checks-4:
+  #   from: pr-code-checks
+  #   displayName: operator-olm-build
+  #   runtimeClassName: large
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-build.sh
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+
+  # pr-code-checks-5:
+  #   from: pr-code-checks
+  #   displayName: e2e-ocp-latest
+  #   runtimeClassName: large
+  #   runAfter: 
+  #     - pr-code-checks
+  #     - pr-code-checks-2
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         export GIT_COMMIT="$(get_env branch || echo "latest")"
+  #         export CLUSTER_ID="ocp-fyre-latest"
+  #         export TASK_NAME="pr-code-checks-5"
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
+
+  # pr-code-checks-6:
+  #   from: pr-code-checks
+  #   displayName: e2e-gke-latest
+  #   runtimeClassName: large
+  #   runAfter: 
+  #     - pr-code-checks
+  #     - pr-code-checks-2
+  #   include:
+  #     - dind
+  #   steps:
+  #     - name: unit-test
+  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  #       include:
+  #         - docker-socket
+  #       script: |
+  #         #!/usr/bin/env bash
+  #         export GIT_COMMIT="$(get_env branch || echo "latest")"
+  #         export CLUSTER_ID="gke-latest"
+  #         export SKIP_INSTALL_GCLOUD="false"
+  #         export TASK_NAME="pr-code-checks-6"
+  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+  #     - name: detect-secrets
+  #       include:
+  #         - docker-socket
