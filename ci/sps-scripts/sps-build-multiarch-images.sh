@@ -40,4 +40,7 @@ docker buildx build \
     --push \
     "$BUILD_CONTEXT"
 
+echo "Git details from current directory: $(pwd)"
 git branch
+git status
+git rev-parse --show-toplevel
