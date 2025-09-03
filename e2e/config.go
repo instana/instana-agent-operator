@@ -10,7 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 	log "k8s.io/klog/v2"
-	"sigs.k8s.io/e2e-framework/support/utils"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 )
 
 type InstanaTestConfig struct {

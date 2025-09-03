@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
-	"sigs.k8s.io/e2e-framework/support/utils"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 )
 
 // Constants for namespace names used in selective monitoring tests

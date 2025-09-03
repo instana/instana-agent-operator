@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	e2etypes "sigs.k8s.io/e2e-framework/pkg/types"
-	"sigs.k8s.io/e2e-framework/support/utils"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 )
 
 // This file exposes the reusable assets which are used during the e2e test

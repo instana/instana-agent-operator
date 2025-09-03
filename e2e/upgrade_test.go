@@ -13,7 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
-	"sigs.k8s.io/e2e-framework/support/utils"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 )
 
 func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {

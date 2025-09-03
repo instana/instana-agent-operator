@@ -23,7 +23,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/e2e-framework/support/utils"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
