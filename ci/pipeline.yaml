@@ -21,7 +21,7 @@ groups:
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
     uri: https://github.com/instana/instana-agent-operator.git
-    branch: main
+    branch: ((branch))
     username: instanacd
     password: ((instanacd-github-api-token))
 
@@ -532,8 +532,6 @@ jobs:
                 NAME: gke-lowest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
-                BUILD_BRANCH: main
                 INSTANA_API_KEY: ((qa-instana-agent-key))
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -638,11 +636,7 @@ jobs:
                 NAME: gke-latest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-                INSTANA_ENDPOINT_PORT: 443
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-                INSTANA_API_URL: ((instana-qa.api_url))
-                INSTANA_API_TOKEN: ((instana-qa.api_token))
-                BUILD_BRANCH: main
                 INSTANA_API_KEY: ((qa-instana-agent-key))
                 ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
                 ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
@@ -737,11 +731,7 @@ jobs:
 
         #         GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
         #         INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
-        #         INSTANA_ENDPOINT_PORT: 443
         #         INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
-        #         INSTANA_API_URL: ((instana-qa.api_url))
-        #         INSTANA_API_TOKEN: ((instana-qa.api_token))
-        #         BUILD_BRANCH: main
         #         INSTANA_API_KEY: ((qa-instana-agent-key))
         #         ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
         #         ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
