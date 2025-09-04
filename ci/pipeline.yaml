@@ -14,9 +14,6 @@ groups:
   - name: public-pr-creation
     jobs:
     - olm-release-pr-creation
-  - name: build-test-images
-    jobs:
-    - build-e2e-operator-base-image
 
 var:
   instana-operator-git-repo-config: &instana-operator-git-repo-config
@@ -63,14 +60,6 @@ resources:
     icon: github
     source:
       <<: *instana-operator-git-repo-config
-
-  # - name: agent-operator-git-source
-  #   type: git
-  #   icon: github
-  #   source:
-  #     <<: *instana-operator-git-repo-config
-  #     ignore_paths:
-  #       - ci/
 
   - name: agent-operator-release-source
     type: git
@@ -1459,32 +1448,3 @@ jobs:
                     inputs: [ agent-operator-git-source ]
                     params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
 
-  - name: build-e2e-operator-base-image
-    max_in_flight: 1
-    plan:
-      - get: agent-operator-git-source
-        trigger: true
-        passed: [self-update]
-      - task: build-e2e-operator-base-image
-        privileged: true
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: vito/oci-build-task
-          params:
-            CONTEXT: agent-operator-git-source/ci/images/e2e-base-image
-            DOCKERFILE: agent-operator-git-source/ci/images/e2e-base-image/Dockerfile
-          inputs:
-          - name: agent-operator-git-source
-          outputs:
-          - name: image
-          run:
-            path: build
-      - put: e2e-test-base-image
-        inputs: detect
-        params:
-          image: image/image.tar
-        get_params:
-          skip_download: true
