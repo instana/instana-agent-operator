@@ -33,6 +33,7 @@ const (
 	TlsVolume
 	RepoVolume
 	NamespacesDetailsVolume
+	ServiceCaVolume
 )
 
 type VolumeBuilder interface {
@@ -131,6 +132,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.tlsVolume()
 	case RepoVolume:
 		return v.repoVolume()
+	case ServiceCaVolume:
+		return v.serviceCaVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
@@ -256,5 +259,31 @@ func (v *volumeBuilder) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {
 		MountPath: "/opt/instana/agent/data/repo",
 	}
 
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) serviceCaVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	volumeName := "service-ca"
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "sensor-service-ca",
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "service-ca.crt",
+						Path: "service-ca.crt",
+					},
+				},
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: "/etc/service-ca",
+		ReadOnly:  true,
+	}
 	return &volume, &volumeMount
 }

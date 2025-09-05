@@ -110,6 +110,7 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
+		k8ssensorconfigmap.NewServiceCaConfigMapBuilder(agent),
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
 		namespaces_configmap.NewConfigMapBuilder(agent, statusManager, namespacesDetails),
 	)
