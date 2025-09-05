@@ -392,7 +392,7 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
 	else \
 		echo "DOwnload Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
-		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.23.0/operator-sdk_${OS}_${ARCH}; \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0/operator-sdk_${OS}_${ARCH}; \
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
