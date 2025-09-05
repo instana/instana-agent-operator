@@ -32,7 +32,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/controllers"
+	controllers "github.com/instana/instana-agent-operator/internal/controller"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/version"
 	// +kubebuilder:scaffold:imports

@@ -135,11 +135,11 @@ e2e: ## Run end-to-end tests
 ##@ Build
 
 build: setup generate fmt vet ## Build manager binary.
-	go build -o bin/manager *.go
+	go build -o bin/manager cmd/main.go
 
 run: export DEBUG_MODE=true
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
-	go run ./
+	go run ./cmd/main.go
 
 docker-build: test container-build ## Build docker image with the manager.
 
@@ -392,7 +392,7 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
 	else \
 		echo "DOwnload Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
-		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.23.0/operator-sdk_${OS}_${ARCH}; \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.41.1/operator-sdk_${OS}_${ARCH}; \
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
