@@ -29,7 +29,7 @@ RUN export BUILDER_ARCHITECTURE="$(echo ${BUILDPLATFORM} | cut -d'/' -f2)" && ./
 RUN go mod download
 
 # Copy the go source
-COPY main.go main.go
+COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY version/ version/
