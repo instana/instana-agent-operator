@@ -19,6 +19,7 @@ KUSTOMIZE = ${GOBIN}/kustomize
 ENVTEST = ${GOBIN}/setup-envtest
 GOLANGCI_LINT = ${GOBIN}/golangci-lint
 OPERATOR_SDK = ${GOBIN}/operator-sdk
+OPERATOR_MANIFEST_TOOLS = ${GOBIN}/operator-manifest-tools
 BUILDCTL =  ${GOBIN}/buildctl
 
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
@@ -32,6 +33,7 @@ CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName
 KUSTOMIZE_VERSION ?= v5.7.1 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
 GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
 OPERATOR_SDK_VERSION ?= v1.41.1 # renovate: datasource=github-releases depName=operator-framework/operator-sdk
+OPERATOR_MANIFEST_TOOLS_VERSION ?= v0.10.0 # renovate: datasource=github-releases depName=operator-framework/operator-manifest-tools
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
 BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
@@ -305,7 +307,7 @@ logs: ## Tail operator logs
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Create the OLM bundle
+bundle: operator-sdk manifests kustomize operator-manifest-tools ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/manifests \
@@ -315,7 +317,16 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 		| sed -e 's|\(image:[[:space:]]*\).*agent:latest|\1$(AGENT_IMG)|' \
 		| $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
+	$(OPERATOR_MANIFEST_TOOLS) pinning pin ./bundle/manifests
 	$(OPERATOR_SDK) bundle validate ./bundle
+	@echo "Validating relatedImages in CSV..."
+	@if ! grep -q "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; then \
+		echo "ERROR: relatedImages section not found in CSV file"; \
+		exit 1; \
+	else \
+		echo "relatedImages section found in CSV file:"; \
+		grep -A 10 "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; \
+	fi
 
 .PHONY: bundle-build
 bundle-build: buildctl ## Build the bundle image for OLM.
@@ -405,6 +416,17 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
+.PHONY: operator-manifest-tools
+operator-manifest-tools: ## Download the Operator Manifest Tools binary locally if necessary.
+	@if [ -f $(OPERATOR_MANIFEST_TOOLS) ]; then \
+		echo "Operator Manifest Tools binary found in $(OPERATOR_MANIFEST_TOOLS)"; \
+		echo "Note: operator-manifest-tools does not provide version information in its output"; \
+		echo "Installing operator-manifest-tools $(OPERATOR_MANIFEST_TOOLS_VERSION) to ensure correct version"; \
+		go install github.com/operator-framework/operator-manifest-tools@$(OPERATOR_MANIFEST_TOOLS_VERSION); \
+	else \
+		echo "Installing operator-manifest-tools $(OPERATOR_MANIFEST_TOOLS_VERSION)"; \
+		go install github.com/operator-framework/operator-manifest-tools@$(OPERATOR_MANIFEST_TOOLS_VERSION); \
+	fi
 
 .PHONY: buildctl
 BUILDKITD_CONTAINER_NAME = buildkitd
