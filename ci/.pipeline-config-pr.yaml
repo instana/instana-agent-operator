@@ -37,6 +37,7 @@ tasks:
       - name: detect-secrets
         include:
           - docker-socket
+          
   pr-code-checks-3:
     from: pr-code-checks
     displayName: operator-olm-build
