@@ -35,7 +35,7 @@ fi
 # shellcheck disable=SC1090
 source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
 make generate
-go install
+go install cmd/main.go
 make build
 
 export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
