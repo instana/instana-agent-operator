@@ -2,6 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
+    agent-image: icr.io/instana/agent:latest
     alm-examples: |-
       [
           {
@@ -38,6 +39,7 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
+    k8sensor-image: icr.io/instana/k8sensor:latest
     repository: https://github.com/instana/instana-agent-operator
     support: Instana
   labels:
@@ -393,10 +395,5 @@ spec:
   minKubeVersion: 1.11.0
   provider:
     name: Instana
-  relatedImages:
-  - image: icr.io/instana/instana-agent-operator:0.0.0
-    name: instana-agent-operator
-  - image: icr.io/instana/agent:latest
-    name: instana-agent
   replaces: instana-agent-operator.v0.0.0
   version: 0.0.0
