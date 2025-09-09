@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package keys_secret
@@ -61,18 +61,78 @@ func (s *secretBuilder) build() *corev1.Secret {
 }
 
 func (s *secretBuilder) getData() map[string][]byte {
-	data := make(map[string][]byte, len(s.backends)+1)
+	data := make(map[string][]byte, len(s.backends)+8) // Increased capacity for all secrets
 
+	// Agent keys
 	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
 		func(downloadKey string) {
 			data[constants.DownloadKey] = []byte(downloadKey)
+			// Only add environment variable name for file mounting if UseSecretMounts is true
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileDownloadKey] = []byte(downloadKey)
+			}
 		},
 	)
 
+	// Proxy credentials
+	optional.Of(s.Spec.Agent.ProxyUser).IfPresent(
+		func(proxyUser string) {
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileProxyUser] = []byte(proxyUser)
+			}
+		},
+	)
+
+	optional.Of(s.Spec.Agent.ProxyPassword).IfPresent(
+		func(proxyPassword string) {
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileProxyPassword] = []byte(proxyPassword)
+			}
+		},
+	)
+
+	// Mirror repository credentials
+	optional.Of(s.Spec.Agent.MirrorReleaseRepoUsername).IfPresent(
+		func(username string) {
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileMirrorReleaseRepoUsername] = []byte(username)
+			}
+		},
+	)
+
+	optional.Of(s.Spec.Agent.MirrorReleaseRepoPassword).IfPresent(
+		func(password string) {
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileMirrorReleaseRepoPassword] = []byte(password)
+			}
+		},
+	)
+
+	optional.Of(s.Spec.Agent.MirrorSharedRepoUsername).IfPresent(
+		func(username string) {
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileMirrorSharedRepoUsername] = []byte(username)
+			}
+		},
+	)
+
+	optional.Of(s.Spec.Agent.MirrorSharedRepoPassword).IfPresent(
+		func(password string) {
+			if s.Spec.UseSecretMounts {
+				data[constants.SecretFileMirrorSharedRepoPassword] = []byte(password)
+			}
+		},
+	)
+
+	// Backend keys
 	for _, backend := range s.backends {
 		optional.Of(backend.EndpointKey).IfPresent(
 			func(key string) {
 				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
+				// For the first backend, also add with environment variable name for file mounting
+				if backend.ResourceSuffix == "" && s.Spec.UseSecretMounts {
+					data[constants.SecretFileAgentKey] = []byte(key)
+				}
 			},
 		)
 	}

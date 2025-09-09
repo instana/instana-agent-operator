@@ -151,7 +151,7 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 }
 
 func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
-	return d.VolumeBuilder.Build(
+	volumes := []volume.Volume{
 		volume.DevVolume,
 		volume.RunVolume,
 		volume.VarRunVolume,
@@ -167,7 +167,14 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.TlsVolume,
 		volume.RepoVolume,
 		volume.NamespacesDetailsVolume,
-	)
+	}
+
+	// Add secrets volume if useSecretMounts is enabled
+	if d.InstanaAgent.Spec.UseSecretMounts {
+		volumes = append(volumes, volume.SecretsVolume)
+	}
+
+	return d.VolumeBuilder.Build(volumes...)
 }
 
 func (d *daemonSetBuilder) getUserVolumes() ([]corev1.Volume, []corev1.VolumeMount) {

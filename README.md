@@ -19,6 +19,10 @@ There are two ways to install the operator:
 
 [This documentation section](https://www.ibm.com/docs/en/instana-observability/current?topic=agents-installing-kubernetes#operator-configuration) describes configuration options you can set via the Instana Agent CRD and environment variables.
 
+#### Security Features
+
+- [Secret Mounts](docs/secret-mounts.md): Improves security by mounting sensitive information as files instead of exposing them as environment variables.
+
 ### Contributing
 
 Please see the guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).

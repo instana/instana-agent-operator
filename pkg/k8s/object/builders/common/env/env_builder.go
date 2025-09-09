@@ -99,7 +99,35 @@ func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
 	return allEnvVars
 }
 
+func (e *envBuilder) isSecret(envVar EnvVar) bool {
+	// handle all existing env values to prevent the "exhaustive" linter error
+	switch envVar {
+	case InstanaAgentKeyEnv, AgentKeyEnv, DownloadKeyEnv,
+		ProxyUserEnv, ProxyPasswordEnv,
+		MirrorReleaseRepoUsernameEnv, MirrorReleaseRepoPasswordEnv,
+		MirrorSharedRepoUsernameEnv, MirrorSharedRepoPasswordEnv:
+		return true
+	case AgentModeEnv, ZoneNameEnv, ClusterNameEnv, AgentEndpointEnv, AgentEndpointPortEnv,
+		MavenRepoURLEnv, MavenRepoFeaturesPath, MavenRepoSharedPath, MirrorReleaseRepoUrlEnv,
+		MirrorSharedRepoUrlEnv, ProxyHostEnv, ProxyPortEnv, ProxyProtocolEnv, ProxyUseDNSEnv,
+		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, HTTPSProxyEnv, BackendURLEnv,
+		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
+		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
+		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
+		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
+		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort:
+		return false
+	default:
+		return false
+	}
+}
+
 func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
+	// Skip setting environment variables for secrets if useSecretMounts is enabled
+	if e.agent.Spec.UseSecretMounts && e.isSecret(envVar) {
+		return nil
+	}
+
 	switch envVar {
 	case AgentModeEnv:
 		return e.agentModeEnv()

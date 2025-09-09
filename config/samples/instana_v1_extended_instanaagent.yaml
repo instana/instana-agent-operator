@@ -9,6 +9,7 @@ spec:
   cluster:
       # cluster.name represents the name that will be assigned to this cluster in Instana
       name: my-cluster
+  # useSecretMounts: true  # Default is true. Set to false to use environment variables for secrets instead of file mounts
   agent:
     # replace with your Instana agent key
     key: replace-key

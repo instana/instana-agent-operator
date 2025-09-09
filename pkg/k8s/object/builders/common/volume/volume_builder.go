@@ -33,6 +33,7 @@ const (
 	TlsVolume
 	RepoVolume
 	NamespacesDetailsVolume
+	SecretsVolume
 )
 
 type VolumeBuilder interface {
@@ -131,6 +132,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.tlsVolume()
 	case RepoVolume:
 		return v.repoVolume()
+	case SecretsVolume:
+		return v.secretsVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
@@ -254,6 +257,36 @@ func (v *volumeBuilder) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: "/opt/instana/agent/data/repo",
+	}
+
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	// Only create the secrets volume if useSecretMounts is enabled
+	if !v.instanaAgent.Spec.UseSecretMounts {
+		return nil, nil
+	}
+
+	volumeName := "instana-secrets"
+	secretName := v.instanaAgent.Spec.Agent.KeysSecret
+	if secretName == "" {
+		secretName = v.instanaAgent.Name
+	}
+
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  secretName,
+				DefaultMode: pointer.To[int32](0400), // Read-only for owner
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: constants.InstanaSecretsDirectory,
+		ReadOnly:  true,
 	}
 
 	return &volume, &volumeMount

@@ -342,10 +342,16 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 		volume.TlsVolume,
 		volume.RepoVolume,
 		volume.NamespacesDetailsVolume,
+		volume.SecretsVolume,
 	).Return(expectedVolumes, expectedVolumeMounts)
 
 	db := &daemonSetBuilder{
 		VolumeBuilder: volumeBuilder,
+		InstanaAgent: &instanav1.InstanaAgent{
+			Spec: instanav1.InstanaAgentSpec{
+				UseSecretMounts: true,
+			},
+		},
 	}
 
 	actualVolumes, actualVolumeMounts := db.getVolumes()

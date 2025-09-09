@@ -70,6 +70,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
 	)
+
 	backendEnvVars := []corev1.EnvVar{
 		{
 			Name: "BACKEND",
@@ -82,7 +83,11 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
-		{
+	}
+
+	// Only add the AGENT_KEY environment variable if not using secret mounts
+	if !d.Spec.UseSecretMounts {
+		backendEnvVars = append(backendEnvVars, corev1.EnvVar{
 			Name: "AGENT_KEY",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
@@ -92,14 +97,18 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 					Key: constants.AgentKey + d.backend.ResourceSuffix,
 				},
 			},
-		},
+		})
 	}
+
 	envVars = append(backendEnvVars, envVars...)
 	d.helpers.SortEnvVarsByName(envVars)
 	return envVars
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	if d.Spec.UseSecretMounts {
+		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.SecretsVolume)
+	}
 	return d.VolumeBuilder.Build(volume.ConfigVolume)
 }
 
@@ -169,7 +178,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
 							Command:         []string{"/ko-app/k8sensor"},
-							Args:            []string{"-pollrate", "10s"},
+							Args:            d.getK8SensorArgs(),
 							Env:             d.getEnvVars(),
 							VolumeMounts:    mounts,
 							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
@@ -244,4 +253,17 @@ func NewDeploymentBuilder(
 		backend:                   backend,
 		keysSecret:                keysSecret,
 	}
+}
+
+// getK8SensorArgs returns the command line arguments for the k8sensor
+func (d *deploymentBuilder) getK8SensorArgs() []string {
+	args := []string{"-pollrate", "10s"}
+
+	if d.Spec.UseSecretMounts {
+		args = append(args,
+			"-agent-key-file",
+			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, constants.SecretFileAgentKey))
+	}
+
+	return args
 }
