@@ -319,6 +319,8 @@ bundle: operator-sdk manifests kustomize operator-manifest-tools ## Create the O
 	./hack/patch-bundle.sh
 	$(OPERATOR_MANIFEST_TOOLS) pinning pin ./bundle/manifests
 	$(OPERATOR_SDK) bundle validate ./bundle
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional name=good-practices
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 	@echo "Validating relatedImages in CSV..."
 	@if ! grep -q "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; then \
 		echo "ERROR: relatedImages section not found in CSV file"; \
