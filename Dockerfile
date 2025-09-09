@@ -31,7 +31,7 @@ RUN go mod download
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
-COPY controllers/ controllers/
+COPY internal/controller/ internal/controller/
 COPY version/ version/
 COPY pkg/ pkg/
 COPY bin/ bin/
@@ -42,7 +42,7 @@ RUN make generate
 # Build, injecting VERSION and GIT_COMMIT directly in the code
 RUN export TARGET_ARCHITECTURE="$(echo ${TARGETPLATFORM} | cut -d'/' -f2)" \
   && CGO_ENABLED=0 GOOS=linux GOARCH="${TARGET_ARCHITECTURE}" GO111MODULE=on  \
-  go build -ldflags="-X 'github.com/instana/instana-agent-operator/version.Version=${VERSION}' -X 'github.com/instana/instana-agent-operator/version.GitCommit=${GIT_COMMIT}'" -a -o manager main.go
+  go build -ldflags="-X 'github.com/instana/instana-agent-operator/version.Version=${VERSION}' -X 'github.com/instana/instana-agent-operator/version.GitCommit=${GIT_COMMIT}'" -a -o manager cmd/main.go
 
 # Resulting image with actual Operator
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
