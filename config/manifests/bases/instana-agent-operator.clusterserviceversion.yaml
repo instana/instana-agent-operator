@@ -5,32 +5,42 @@ metadata:
     agent-image: icr.io/instana/agent:latest
     alm-examples: |-
       [
-          {
-              "apiVersion": "instana.io/v1",
-              "kind": "InstanaAgent",
-              "metadata": {
-                  "name": "instana-agent",
-                  "namespace": "instana-agent"
+        {
+          "apiVersion": "instana.io/v1",
+          "kind": "InstanaAgent",
+          "metadata": {
+            "name": "instana-agent"
+          },
+          "spec": {
+            "agent": {
+              "configuration_yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://docs.instana.io/setup_and_manage/host_agent/on/kubernetes/\n",
+              "endpointHost": "ingress-red-saas.instana.io",
+              "endpointPort": "443",
+              "env": {},
+              "image": {
+                "name": "icr.io/instana/agent",
+                "tag": "latest"
               },
-              "spec": {
-                  "agent.zone.name": "my-zone",
-                  "agent.key": "replace-me",
-                  "agent.endpoint.host": "ingress-red-saas.instana.io",
-                  "agent.endpoint.port": 443,
-                  "agent.env": {
-                      "INSTANA_AGENT_TAGS": "example"
-                  },
-                  "cluster.name": "replace-me",
-                  "config.files": {
-                      "configuration.yaml": "# You can leave this empty, or use this to configure your instana agent.\n# See https://ibm.biz/monitoring-k8s\n"
-                  }
+              "key": "replace-me"
+            },
+            "k8s_sensor": {
+              "image": {
+                "name": "icr.io/instana/agent",
+                "tag": "latest"
               }
+            },
+            "cluster": {
+              "name": "replace-me"
+            },
+            "zone": {
+              "name": "replace-me"
+            }
           }
+        }
       ]
     capabilities: Full Lifecycle
     categories: Monitoring,Logging & Tracing,OpenShift Optional
     certified: "false"
-    containerImage: icr.io/instana/instana-agent-operator:0.0.0
     description: Fully automated Application Performance Monitoring (APM) for microservices.
     features.operators.openshift.io/disconnected: "false"
     features.operators.openshift.io/fips-compliant: "true"
