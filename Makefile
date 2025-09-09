@@ -29,8 +29,9 @@ PREV_VERSION ?= 0.0.0
 
 # Tool versions
 CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
-KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
+KUSTOMIZE_VERSION ?= v5.7.1 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
 GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+OPERATOR_SDK_VERSION ?= v1.41.1 # renovate: datasource=github-releases depName=operator-framework/operator-sdk
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
 BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
@@ -354,11 +355,11 @@ kustomize: ## Download kustomize locally if necessary.
 			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed"; \
 		else \
 			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)"; \
-			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+			go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION); \
 		fi \
 	else \
 		echo "Installing kustomize $(KUSTOMIZE_VERSION)"; \
-		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION); \
 	fi
 
 .PHONY: envtest
@@ -388,11 +389,19 @@ golangci-lint: ## Download the golangci-lint linter locally if necessary.
 
 .PHONY: operator-sdk
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
-	@if [ -f $(OPERATOR_SDK) ]; then \
+	@SDK_VERSION=$$(echo "$(OPERATOR_SDK_VERSION)" | tr -d ' '); \
+	if [ -f $(OPERATOR_SDK) ] && [ -x $(OPERATOR_SDK) ]; then \
 		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
+		if $(OPERATOR_SDK) version 2>/dev/null | grep -q "$$SDK_VERSION"; then \
+			echo "Operator SDK version $$SDK_VERSION is already installed"; \
+		else \
+			echo "Updating operator-sdk to $$SDK_VERSION"; \
+			curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$$SDK_VERSION/operator-sdk_$(OS)_$(ARCH); \
+			chmod +x $(OPERATOR_SDK); \
+		fi \
 	else \
 		echo "Download Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
-		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.41.1/operator-sdk_${OS}_${ARCH}; \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$$SDK_VERSION/operator-sdk_$(OS)_$(ARCH); \
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
