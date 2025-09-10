@@ -349,7 +349,7 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 		VolumeBuilder: volumeBuilder,
 		InstanaAgent: &instanav1.InstanaAgent{
 			Spec: instanav1.InstanaAgentSpec{
-				UseSecretMounts: true,
+				UseSecretMounts: pointer.To(true),
 			},
 		},
 	}

@@ -23,7 +23,7 @@ type InstanaAgentSpec struct {
 	// This is more secure as it prevents secrets from being exposed in the environment.
 	// Default is true.
 	// +kubebuilder:validation:Optional
-	UseSecretMounts bool `json:"useSecretMounts,omitempty"`
+	UseSecretMounts *bool `json:"useSecretMounts,omitempty"`
 
 	// Agent deployment specific fields.
 	// +kubebuilder:validation:Required
@@ -186,7 +186,7 @@ func (in *InstanaAgent) Default() {
 
 	// Set default value for useSecretMounts to true for all instances
 	// This is more secure as it prevents secrets from being exposed in the environment
-	in.Spec.UseSecretMounts = true
+	optional.ValueOrDefault(&in.Spec.UseSecretMounts, pointer.To(true))
 }
 
 // +kubebuilder:object:root=true
