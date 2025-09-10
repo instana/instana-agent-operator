@@ -107,47 +107,6 @@ tasks:
         include:
           - docker-socket
 
-  pr-code-checks-6:
-    from: pr-code-checks
-    displayName: tag-release
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks-4
-      - pr-code-checks-5
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/tag-new-release.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-  
-  pr-code-checks-7:
-    from: pr-code-checks
-    displayName: build-multiarch-manifest
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-multiarch-manifest.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
   code-pr-finish:
     steps:
       - name: evaluate
