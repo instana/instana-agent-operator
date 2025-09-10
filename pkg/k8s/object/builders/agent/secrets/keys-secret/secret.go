@@ -21,7 +21,10 @@ type secretBuilder struct {
 	backends []backends.K8SensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgent, backends []backends.K8SensorBackend) builder.ObjectBuilder {
+func NewSecretBuilder(
+	agent *instanav1.InstanaAgent,
+	backends []backends.K8SensorBackend,
+) builder.ObjectBuilder {
 	return &secretBuilder{
 		InstanaAgent: agent,
 		backends:     backends,
@@ -68,7 +71,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 		func(downloadKey string) {
 			data[constants.DownloadKey] = []byte(downloadKey)
 			// Only add environment variable name for file mounting if UseSecretMounts is true
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileDownloadKey] = []byte(downloadKey)
 			}
 		},
@@ -77,7 +80,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 	// Proxy credentials
 	optional.Of(s.Spec.Agent.ProxyUser).IfPresent(
 		func(proxyUser string) {
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileProxyUser] = []byte(proxyUser)
 			}
 		},
@@ -85,7 +88,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 
 	optional.Of(s.Spec.Agent.ProxyPassword).IfPresent(
 		func(proxyPassword string) {
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileProxyPassword] = []byte(proxyPassword)
 			}
 		},
@@ -94,7 +97,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 	// Mirror repository credentials
 	optional.Of(s.Spec.Agent.MirrorReleaseRepoUsername).IfPresent(
 		func(username string) {
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileMirrorReleaseRepoUsername] = []byte(username)
 			}
 		},
@@ -102,7 +105,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 
 	optional.Of(s.Spec.Agent.MirrorReleaseRepoPassword).IfPresent(
 		func(password string) {
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileMirrorReleaseRepoPassword] = []byte(password)
 			}
 		},
@@ -110,7 +113,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 
 	optional.Of(s.Spec.Agent.MirrorSharedRepoUsername).IfPresent(
 		func(username string) {
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileMirrorSharedRepoUsername] = []byte(username)
 			}
 		},
@@ -118,7 +121,7 @@ func (s *secretBuilder) getData() map[string][]byte {
 
 	optional.Of(s.Spec.Agent.MirrorSharedRepoPassword).IfPresent(
 		func(password string) {
-			if s.Spec.UseSecretMounts {
+			if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 				data[constants.SecretFileMirrorSharedRepoPassword] = []byte(password)
 			}
 		},
@@ -130,7 +133,8 @@ func (s *secretBuilder) getData() map[string][]byte {
 			func(key string) {
 				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
 				// For the first backend, also add with environment variable name for file mounting
-				if backend.ResourceSuffix == "" && s.Spec.UseSecretMounts {
+				if backend.ResourceSuffix == "" && s.Spec.UseSecretMounts != nil &&
+					*s.Spec.UseSecretMounts {
 					data[constants.SecretFileAgentKey] = []byte(key)
 				}
 			},

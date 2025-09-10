@@ -124,7 +124,7 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 
 func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	// Skip setting environment variables for secrets if useSecretMounts is enabled
-	if e.agent.Spec.UseSecretMounts && e.isSecret(envVar) {
+	if e.agent.Spec.UseSecretMounts != nil && *e.agent.Spec.UseSecretMounts && e.isSecret(envVar) {
 		return nil
 	}
 

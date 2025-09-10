@@ -170,7 +170,7 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 	}
 
 	// Add secrets volume if useSecretMounts is enabled
-	if d.InstanaAgent.Spec.UseSecretMounts {
+	if d.InstanaAgent.Spec.UseSecretMounts != nil && *d.InstanaAgent.Spec.UseSecretMounts {
 		volumes = append(volumes, volume.SecretsVolume)
 	}
 
