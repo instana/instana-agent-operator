@@ -270,7 +270,7 @@ func (suite *InstanaAgentControllerTestSuite) SetupSuite() {
 
 	// Prepare environment
 	suite.testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 		CRDInstallOptions:     envtest.CRDInstallOptions{CleanUpAfterUse: true},
 		Scheme:                scheme.Scheme,

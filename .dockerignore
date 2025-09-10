@@ -10,11 +10,12 @@
 
 # Bug in .dockerignore, have to list wanted directories explicitly (https://github.com/moby/moby/issues/40319)
 !api/
-!controllers/
+!internal/controllers/
 !logger/
 !pkg/
 !version/
 !bin/
+!cmd
 
 # Other files not to ignore
 !bundle/

@@ -48,3 +48,5 @@ bundle/metadata/annotations.yaml
 backend.cfg
 target/
 config/crd/bases/instana.io_agentsremote.yaml
+references.json
+replacements.json

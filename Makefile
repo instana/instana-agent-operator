@@ -19,6 +19,7 @@ KUSTOMIZE = ${GOBIN}/kustomize
 ENVTEST = ${GOBIN}/setup-envtest
 GOLANGCI_LINT = ${GOBIN}/golangci-lint
 OPERATOR_SDK = ${GOBIN}/operator-sdk
+OPERATOR_MANIFEST_TOOLS = ${GOBIN}/operator-manifest-tools
 BUILDCTL =  ${GOBIN}/buildctl
 
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
@@ -29,8 +30,10 @@ PREV_VERSION ?= 0.0.0
 
 # Tool versions
 CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
-KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
+KUSTOMIZE_VERSION ?= v5.7.1 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
 GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+OPERATOR_SDK_VERSION ?= v1.41.1 # renovate: datasource=github-releases depName=operator-framework/operator-sdk
+OPERATOR_MANIFEST_TOOLS_VERSION ?= v0.10.0 # renovate: datasource=github-releases depName=operator-framework/operator-manifest-tools
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
 BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
@@ -135,11 +138,11 @@ e2e: ## Run end-to-end tests
 ##@ Build
 
 build: setup generate fmt vet ## Build manager binary.
-	go build -o bin/manager *.go
+	go build -o bin/manager cmd/main.go
 
 run: export DEBUG_MODE=true
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
-	go run ./
+	go run ./cmd/main.go
 
 docker-build: test container-build ## Build docker image with the manager.
 
@@ -304,7 +307,7 @@ logs: ## Tail operator logs
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Create the OLM bundle
+bundle: operator-sdk manifests kustomize operator-manifest-tools ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/manifests \
@@ -314,7 +317,18 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 		| sed -e 's|\(image:[[:space:]]*\).*agent:latest|\1$(AGENT_IMG)|' \
 		| $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
+	$(OPERATOR_MANIFEST_TOOLS) pinning pin ./bundle/manifests
 	$(OPERATOR_SDK) bundle validate ./bundle
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional name=good-practices
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
+	@echo "Validating relatedImages in CSV..."
+	@if ! grep -q "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; then \
+		echo "ERROR: relatedImages section not found in CSV file"; \
+		exit 1; \
+	else \
+		echo "relatedImages section found in CSV file:"; \
+		grep -A 10 "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; \
+	fi
 
 .PHONY: bundle-build
 bundle-build: buildctl ## Build the bundle image for OLM.
@@ -354,11 +368,11 @@ kustomize: ## Download kustomize locally if necessary.
 			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed"; \
 		else \
 			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)"; \
-			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+			go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION); \
 		fi \
 	else \
 		echo "Installing kustomize $(KUSTOMIZE_VERSION)"; \
-		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION); \
 	fi
 
 .PHONY: envtest
@@ -388,14 +402,33 @@ golangci-lint: ## Download the golangci-lint linter locally if necessary.
 
 .PHONY: operator-sdk
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
-	@if [ -f $(OPERATOR_SDK) ]; then \
+	@SDK_VERSION=$$(echo "$(OPERATOR_SDK_VERSION)" | tr -d ' '); \
+	if [ -f $(OPERATOR_SDK) ] && [ -x $(OPERATOR_SDK) ]; then \
 		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
+		if $(OPERATOR_SDK) version 2>/dev/null | grep -q "$$SDK_VERSION"; then \
+			echo "Operator SDK version $$SDK_VERSION is already installed"; \
+		else \
+			echo "Updating operator-sdk to $$SDK_VERSION"; \
+			curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$$SDK_VERSION/operator-sdk_$(OS)_$(ARCH); \
+			chmod +x $(OPERATOR_SDK); \
+		fi \
 	else \
-		echo "DOwnload Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
-		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0/operator-sdk_${OS}_${ARCH}; \
+		echo "Download Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$$SDK_VERSION/operator-sdk_$(OS)_$(ARCH); \
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
+.PHONY: operator-manifest-tools
+operator-manifest-tools: ## Download the Operator Manifest Tools binary locally if necessary.
+	@if [ -f $(OPERATOR_MANIFEST_TOOLS) ]; then \
+		echo "Operator Manifest Tools binary found in $(OPERATOR_MANIFEST_TOOLS)"; \
+		echo "Note: operator-manifest-tools does not provide version information in its output"; \
+		echo "Installing operator-manifest-tools $(OPERATOR_MANIFEST_TOOLS_VERSION) to ensure correct version"; \
+		go install github.com/operator-framework/operator-manifest-tools@$(OPERATOR_MANIFEST_TOOLS_VERSION); \
+	else \
+		echo "Installing operator-manifest-tools $(OPERATOR_MANIFEST_TOOLS_VERSION)"; \
+		go install github.com/operator-framework/operator-manifest-tools@$(OPERATOR_MANIFEST_TOOLS_VERSION); \
+	fi
 
 .PHONY: buildctl
 BUILDKITD_CONTAINER_NAME = buildkitd
