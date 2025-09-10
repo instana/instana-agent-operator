@@ -101,6 +101,7 @@ func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
 
 func (e *envBuilder) isSecret(envVar EnvVar) bool {
 	// handle all existing env values to prevent the "exhaustive" linter error
+	// do not just remove this function, as long as we can fallback to the old logic by setting useSecretMounts to false
 	switch envVar {
 	case InstanaAgentKeyEnv, AgentKeyEnv, DownloadKeyEnv,
 		ProxyUserEnv, ProxyPasswordEnv,
