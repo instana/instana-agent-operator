@@ -4,9 +4,9 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
-export GIT_COMMIT="$(get_env branch || echo "latest")"
-export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
-export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
+GIT_COMMIT=$(load_repo app-repo commit)
+ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
+ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 
 dnf -y install microdnf
 ./installGolang.sh amd64
