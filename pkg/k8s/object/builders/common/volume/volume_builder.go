@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package volume
@@ -266,8 +266,8 @@ func (v *volumeBuilder) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {
 }
 
 func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
-	// Only create the secrets volume if useSecretMounts is enabled
-	if v.instanaAgent.Spec.UseSecretMounts == nil || !*v.instanaAgent.Spec.UseSecretMounts {
+	// Only create the secrets volume if useSecretMounts is enabled or nil (default to true)
+	if v.instanaAgent.Spec.UseSecretMounts != nil && !*v.instanaAgent.Spec.UseSecretMounts {
 		return nil, nil
 	}
 
@@ -313,8 +313,8 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 }
 
 func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
-	// Only create the secrets volume if useSecretMounts is enabled
-	if v.instanaAgent.Spec.UseSecretMounts == nil || !*v.instanaAgent.Spec.UseSecretMounts {
+	// Only create the secrets volume if useSecretMounts is enabled or nil (default to true)
+	if v.instanaAgent.Spec.UseSecretMounts != nil && !*v.instanaAgent.Spec.UseSecretMounts {
 		return nil, nil
 	}
 
