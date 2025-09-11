@@ -56,4 +56,5 @@ const (
 	SecretFileMirrorReleaseRepoPassword = "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD"
 	SecretFileMirrorSharedRepoUsername  = "INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME"
 	SecretFileMirrorSharedRepoPassword  = "INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD"
+	SecretFileHttpsProxy                = "HTTPS_PROXY"
 )
