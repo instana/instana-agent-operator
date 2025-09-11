@@ -1,7 +1,7 @@
 ## Build & Test Commands
 - Build: `make build`
 - Lint: `make lint`
-- Format: `make fmt`
+- Format: `./bin/golangci-lint fmt ./path/to/file`
 - Run tests: `make test`
 - Run single test: `go test -v ./path/to/package -run TestName`
 - Run e2e tests: `make e2e`
