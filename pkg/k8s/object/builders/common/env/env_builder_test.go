@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func TestEnvBuilderBuildPanicsWhenEnvVarNotExists(t *testing.T) {
@@ -37,8 +38,9 @@ func TestEnvBuilderBuild(t *testing.T) {
 			name: "Should produce all env vars with values from the Instana Agent Spec",
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
-					Zone:    instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
-					Cluster: instanav1.Name{Name: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
+					UseSecretMounts: pointer.To(false),
+					Zone:            instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
+					Cluster:         instanav1.Name{Name: "INSTANA_AGENT_SPEC_CLUSTER_NAME"},
 					Agent: instanav1.BaseAgentSpec{
 						EndpointHost:              "INSTANA_AGENT_ENDPOINT_HOST",
 						EndpointPort:              "INSTANA_AGENT_ENDPOINT_PORT",
@@ -186,6 +188,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 			zone: &instanav1.Zone{},
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
+					UseSecretMounts: pointer.To(false),
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost: "INSTANA_AGENT_PROXY_HOST",
 						ProxyPort: "8080",
@@ -204,6 +207,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 			zone: &instanav1.Zone{},
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
+					UseSecretMounts: pointer.To(false),
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:     "INSTANA_AGENT_PROXY_HOST",
 						ProxyPort:     "443",
@@ -218,6 +222,88 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 			expected: []corev1.EnvVar{
 				{Name: "HTTPS_PROXY", Value: "https://testuser:testpassword@INSTANA_AGENT_PROXY_HOST:443"},
+			},
+		},
+		{
+			name: "Should skip secret environment variables when useSecretMounts is true",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					UseSecretMounts: pointer.To(true),
+					Agent: instanav1.BaseAgentSpec{
+						ProxyUser:                 "INSTANA_AGENT_PROXY_USER",
+						ProxyPassword:             "INSTANA_AGENT_PROXY_PASSWORD",
+						MirrorReleaseRepoUsername: "AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME",
+						MirrorReleaseRepoPassword: "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD",
+						MirrorSharedRepoUsername:  "INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME",
+						MirrorSharedRepoPassword:  "INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				ProxyUserEnv,
+				ProxyPasswordEnv,
+				MirrorReleaseRepoUsernameEnv,
+				MirrorReleaseRepoPasswordEnv,
+				MirrorSharedRepoUsernameEnv,
+				MirrorSharedRepoPasswordEnv,
+				InstanaAgentKeyEnv,
+				AgentKeyEnv,
+				DownloadKeyEnv,
+			},
+			expected: []corev1.EnvVar{
+				// No environment variables should be included since all are secrets and useSecretMounts is true
+			},
+		},
+		{
+			name: "Should include secret environment variables when useSecretMounts is false",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					UseSecretMounts: pointer.To(false),
+					Agent: instanav1.BaseAgentSpec{
+						ProxyUser:                 "INSTANA_AGENT_PROXY_USER",
+						ProxyPassword:             "INSTANA_AGENT_PROXY_PASSWORD",
+						MirrorReleaseRepoUsername: "AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME",
+						MirrorReleaseRepoPassword: "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				ProxyUserEnv,
+				ProxyPasswordEnv,
+				MirrorReleaseRepoUsernameEnv,
+				MirrorReleaseRepoPasswordEnv,
+			},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_PROXY_USER", Value: "INSTANA_AGENT_PROXY_USER"},
+				{Name: "INSTANA_AGENT_PROXY_PASSWORD", Value: "INSTANA_AGENT_PROXY_PASSWORD"},
+				{Name: "AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME", Value: "AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME"},
+				{Name: "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD", Value: "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD"},
+			},
+		},
+		{
+			name: "Should skip secret environment variables when useSecretMounts is nil (default is true)",
+			zone: &instanav1.Zone{},
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					UseSecretMounts: nil,
+					Agent: instanav1.BaseAgentSpec{
+						ProxyUser:                 "INSTANA_AGENT_PROXY_USER",
+						ProxyPassword:             "INSTANA_AGENT_PROXY_PASSWORD",
+						MirrorReleaseRepoUsername: "AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME",
+						MirrorReleaseRepoPassword: "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD",
+					},
+				},
+			},
+			envVars: []EnvVar{
+				ProxyUserEnv,
+				ProxyPasswordEnv,
+				MirrorReleaseRepoUsernameEnv,
+				MirrorReleaseRepoPasswordEnv,
+			},
+			expected: []corev1.EnvVar{
+				// No environment variables should be included since all are secrets and useSecretMounts default is true
 			},
 		},
 	} {
