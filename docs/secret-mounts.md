@@ -71,6 +71,7 @@ When the feature is enabled, the following secrets are mounted as files:
 | Download Key | `/opt/instana/agent/etc/instana/secrets/INSTANA_DOWNLOAD_KEY` |
 | Proxy User | `/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_PROXY_USER` |
 | Proxy Password | `/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_PROXY_PASSWORD` |
+| HTTPS Proxy | `/opt/instana/agent/etc/instana/secrets/HTTPS_PROXY` |
 | Release Repo Mirror Username | `/opt/instana/agent/etc/instana/secrets/AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME` |
 | Release Repo Mirror Password | `/opt/instana/agent/etc/instana/secrets/AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD` |
 | Shared Repo Mirror Username | `/opt/instana/agent/etc/instana/secrets/INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME` |
@@ -81,6 +82,16 @@ When the feature is enabled, the following secrets are mounted as files:
 - The feature is backward compatible. When disabled, the operator will continue to use environment variables for secrets.
 - The agent entrypoint scripts have been updated to check for secret files first, then fall back to environment variables if files are not available.
 - The k8s sensor has been updated to use file-mounted secrets when available.
+
+## K8Sensor Implementation
+
+For the k8sensor deployment, a specialized implementation is used:
+
+- Only the necessary secret files (INSTANA_AGENT_KEY and HTTPS_PROXY) are mounted in the k8sensor deployment
+- The HTTPS_PROXY secret file is only mounted if a proxy host is configured
+- The k8sensor is started with the `-agent-key-file` argument to read the agent key from the mounted file
+- When a proxy is configured, the `-https-proxy-file` argument is added to read the HTTPS_PROXY value from the mounted file
+- This ensures that sensitive proxy credentials are not exposed in environment variables
 
 ## Security Benefits
 
