@@ -219,10 +219,17 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 .PHONY: namespace
-namespace: ## Generate namespace instana-agent on OCP for manual testing
-	oc new-project instana-agent || true
-	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
-	oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent
+namespace: ## Generate namespace instana-agent for manual testing
+	@echo "Creating namespace $(NAMESPACE) if it doesn't exist..."
+	kubectl create namespace $(NAMESPACE) 2>/dev/null || true
+	@echo "Detecting cluster type (OCP or standard K8s)..."
+	@if command -v oc >/dev/null 2>&1 && oc get projects >/dev/null 2>&1; then \
+		echo "OpenShift cluster detected, applying OCP-specific security policies..."; \
+		oc adm policy add-scc-to-user privileged -z instana-agent -n $(NAMESPACE) || true; \
+		oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n $(NAMESPACE) || true; \
+	else \
+		echo "Standard Kubernetes cluster detected (GKE or other), no OCP-specific policies needed."; \
+	fi
 
 .PHONY: create-cr
 create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
@@ -293,8 +300,8 @@ pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow netwo
 setup-ocp-mirror: ## Setup ocp internal registry and define ImageContentSourcePolicy to pull from internal registry
 	./ci/scripts/setup-ocp-mirror.sh
 
-.PHONY: dev-run-ocp
-dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
+.PHONY: dev-run-cluster
+dev-run-cluster: namespace install create-cr run ## Creates a full dev deployment on any cluster from scratch, also useful after purge
 
 .PHONY: logs
 logs: ## Tail operator logs
