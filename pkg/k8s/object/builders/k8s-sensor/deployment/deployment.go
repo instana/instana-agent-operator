@@ -107,7 +107,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	if d.Spec.UseSecretMounts != nil && *d.Spec.UseSecretMounts {
-		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.SecretsVolume)
+		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.K8SensorSecretsVolume)
 	}
 	return d.VolumeBuilder.Build(volume.ConfigVolume)
 }
