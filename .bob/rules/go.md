@@ -6,6 +6,8 @@
 - Run single test: `go test -v ./path/to/package -run TestName`
 - Run e2e tests: `make e2e`
 - Validate renovate.json configuration changes: `npx --yes --package renovate -- renovate-config-validator`
+- Detect secrets update: `detect-secrets scan --update .secrets.baseline`
+- Detect secrets audit: `detect-secrets audit .secrets.baseline`
 
 ## Code Style Guidelines
 - Go version: See `go.mod` file for the current version (defined by the `toolchain` directive)
