@@ -5,6 +5,8 @@
 package keys_secret
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -126,6 +128,32 @@ func (s *secretBuilder) getData() map[string][]byte {
 			}
 		},
 	)
+
+	// HTTPS_PROXY
+	if s.Spec.Agent.ProxyHost != "" {
+		// Only add if proxy host is set
+		if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
+			// Generate the HTTPS_PROXY value similar to how it's done in env_builder.go
+			var proxyValue string
+			if s.Spec.Agent.ProxyUser == "" || s.Spec.Agent.ProxyPassword == "" {
+				proxyValue = fmt.Sprintf(
+					"%s://%s:%s",
+					optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+					s.Spec.Agent.ProxyHost,
+					optional.Of(s.Spec.Agent.ProxyPort).GetOrDefault("80"),
+				)
+			} else {
+				proxyValue = fmt.Sprintf(
+					"%s://%s%s:%s",
+					optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+					s.Spec.Agent.ProxyUser+":"+s.Spec.Agent.ProxyPassword+"@",
+					s.Spec.Agent.ProxyHost,
+					optional.Of(s.Spec.Agent.ProxyPort).GetOrDefault("80"),
+				)
+			}
+			data[constants.SecretFileHttpsProxy] = []byte(proxyValue)
+		}
+	}
 
 	// Backend keys
 	for _, backend := range s.backends {

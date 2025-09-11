@@ -182,7 +182,9 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Env:             d.getEnvVars(),
 							VolumeMounts:    mounts,
 							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
-							Ports:           []corev1.ContainerPort{ports.InstanaAgentAPIPortConfig.AsContainerPort()},
+							Ports: []corev1.ContainerPort{
+								ports.InstanaAgentAPIPortConfig.AsContainerPort(),
+							},
 						},
 					},
 					Volumes:     volumes,
@@ -200,7 +202,9 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 														{
 															Key:      constants.LabelAgentMode,
 															Operator: metav1.LabelSelectorOpIn,
-															Values:   []string{string(instanav1.KUBERNETES)},
+															Values: []string{
+																string(instanav1.KUBERNETES),
+															},
 														},
 													},
 												},
@@ -263,6 +267,19 @@ func (d *deploymentBuilder) getK8SensorArgs() []string {
 		args = append(args,
 			"-agent-key-file",
 			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, constants.SecretFileAgentKey))
+
+		// Add HTTPS_PROXY file argument if proxy host is configured
+		if d.Spec.Agent.ProxyHost != "" {
+			args = append(
+				args,
+				"-https-proxy-file",
+				fmt.Sprintf(
+					"%s/%s",
+					constants.InstanaSecretsDirectory,
+					constants.SecretFileHttpsProxy,
+				),
+			)
+		}
 	}
 
 	return args

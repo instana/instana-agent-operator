@@ -104,14 +104,14 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 	// do not just remove this function, as long as we can fallback to the old logic by setting useSecretMounts to false
 	switch envVar {
 	case InstanaAgentKeyEnv, AgentKeyEnv, DownloadKeyEnv,
-		ProxyUserEnv, ProxyPasswordEnv,
+		ProxyUserEnv, ProxyPasswordEnv, HTTPSProxyEnv,
 		MirrorReleaseRepoUsernameEnv, MirrorReleaseRepoPasswordEnv,
 		MirrorSharedRepoUsernameEnv, MirrorSharedRepoPasswordEnv:
 		return true
 	case AgentModeEnv, ZoneNameEnv, ClusterNameEnv, AgentEndpointEnv, AgentEndpointPortEnv,
 		MavenRepoURLEnv, MavenRepoFeaturesPath, MavenRepoSharedPath, MirrorReleaseRepoUrlEnv,
 		MirrorSharedRepoUrlEnv, ProxyHostEnv, ProxyPortEnv, ProxyProtocolEnv, ProxyUseDNSEnv,
-		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, HTTPSProxyEnv, BackendURLEnv,
+		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, BackendURLEnv,
 		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
 		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
