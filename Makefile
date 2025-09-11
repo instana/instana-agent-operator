@@ -244,24 +244,31 @@ create-pull-secret: ## Creates image pull secret for delivery.instana.io from yo
 	@if kubectl get secret delivery-instana-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
 		echo "Updating existing secret delivery-instana-io-pull-secret..."; \
 		kubectl delete secret delivery-instana-io-pull-secret -n $(NAMESPACE); \
-		kubectl create secret generic delivery-instana-io-pull-secret \
-			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
-			--type=kubernetes.io/dockerconfigjson \
-			-n $(NAMESPACE); \
 	else \
 		echo "Creating new secret delivery-instana-io-pull-secret..."; \
-		kubectl create secret generic delivery-instana-io-pull-secret \
-			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
-			--type=kubernetes.io/dockerconfigjson \
-			-n $(NAMESPACE); \
 	fi
-	@echo "Patching serviceaccount..."
+	@kubectl create secret generic delivery-instana-io-pull-secret \
+		--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+		--type=kubernetes.io/dockerconfigjson \
+		-n $(NAMESPACE)
+	@echo "Patching service accounts with pull secret..."
+	@echo "Checking and patching operator service account..."
 	@kubectl patch serviceaccount instana-agent-operator \
 		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
-		-n instana-agent
+		-n instana-agent || echo "Service account instana-agent-operator not found, skipping"
+	@echo "Checking and patching agent service account..."
+	@kubectl get serviceaccount instana-agent -n $(NAMESPACE) >/dev/null 2>&1 && \
+		kubectl patch serviceaccount instana-agent \
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n $(NAMESPACE) || echo "Service account instana-agent not found, skipping"
+	@echo "Checking and patching k8sensor service account..."
+	@kubectl get serviceaccount instana-agent-k8sensor -n $(NAMESPACE) >/dev/null 2>&1 && \
+		kubectl patch serviceaccount instana-agent-k8sensor \
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n $(NAMESPACE) || echo "Service account instana-agent-k8sensor not found, skipping"
 	@rm -rf .tmp
-	@echo "Restarting operator deployment..."
-	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
+	@echo "Restarting all pods in namespace $(NAMESPACE) to apply the new pull secret..."
+	@kubectl delete pods --all -n $(NAMESPACE) 2>/dev/null || echo "No pods found to restart"
 
 .PHONY: pre-pull-images
 pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow network situations to run tests reliably)
