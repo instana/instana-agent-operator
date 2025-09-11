@@ -85,8 +85,8 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		},
 	}
 
-	// Only add the AGENT_KEY environment variable if not using secret mounts
-	if d.Spec.UseSecretMounts == nil || !*d.Spec.UseSecretMounts {
+	// Only add the AGENT_KEY environment variable if secret mounts are explicitly disabled
+	if d.Spec.UseSecretMounts != nil && !*d.Spec.UseSecretMounts {
 		backendEnvVars = append(backendEnvVars, corev1.EnvVar{
 			Name: "AGENT_KEY",
 			ValueFrom: &corev1.EnvVarSource{
@@ -263,7 +263,7 @@ func NewDeploymentBuilder(
 func (d *deploymentBuilder) getK8SensorArgs() []string {
 	args := []string{"-pollrate", "10s"}
 
-	if d.Spec.UseSecretMounts != nil && *d.Spec.UseSecretMounts {
+	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
 		args = append(args,
 			"-agent-key-file",
 			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, constants.SecretFileAgentKey))
