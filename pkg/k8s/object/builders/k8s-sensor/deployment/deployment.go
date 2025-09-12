@@ -68,6 +68,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
+		// Add new env vars
+		env.ETCDCAFileEnv,
+		env.ETCDInsecureEnv,
+		env.ETCDTargetsEnv,
+		env.ControlPlaneCAFileEnv,
+		env.RestClientHostAllowlistEnv,
 	)
 
 	backendEnvVars := []corev1.EnvVar{
@@ -97,10 +103,19 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
-	if d.Spec.UseSecretMounts != nil && *d.Spec.UseSecretMounts {
-		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.K8SensorSecretsVolume)
+	volumesToBuild := []volume.Volume{
+		volume.ConfigVolume,
+		// Add new volumes
+		volume.ETCDCAVolume,
+		volume.ControlPlaneCAVolume,
 	}
-	return d.VolumeBuilder.Build(volume.ConfigVolume)
+
+	// Add secrets volume if secret mounts are enabled (default behavior)
+	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
+		volumesToBuild = append(volumesToBuild, volume.K8SensorSecretsVolume)
+	}
+
+	return d.VolumeBuilder.Build(volumesToBuild...)
 }
 
 // getAgentKeyEnvVar returns an environment variable for the AGENT_KEY that references the key from a secret

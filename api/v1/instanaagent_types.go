@@ -180,6 +180,16 @@ func (in *InstanaAgent) Default() {
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.K8sSensor.DeploymentSpec.Replicas, 3)
 
+	// Default ETCD settings
+	if in.Spec.K8sSensor.ETCD.Insecure == nil {
+		in.Spec.K8sSensor.ETCD.Insecure = pointer.To(false)
+	}
+
+	// Default CA mount path for OpenShift
+	if in.Spec.K8sSensor.ETCD.CA.MountPath == "" {
+		in.Spec.K8sSensor.ETCD.CA.MountPath = "/var/run/secrets/kubernetes.io/serviceaccount"
+	}
+
 	optional.ValueOrDefault(&in.Spec.OpenTelemetry.Enabled.Enabled, pointer.To(true))
 	optional.ValueOrDefault(&in.Spec.OpenTelemetry.GRPC.Enabled, in.Spec.OpenTelemetry.Enabled.Enabled)
 	optional.ValueOrDefault(&in.Spec.OpenTelemetry.HTTP.Enabled, in.Spec.OpenTelemetry.Enabled.Enabled)
