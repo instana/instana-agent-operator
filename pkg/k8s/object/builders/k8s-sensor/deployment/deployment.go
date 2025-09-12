@@ -69,6 +69,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
+		// Add new env vars
+		env.ETCDCAFileEnv,
+		env.ETCDInsecureEnv,
+		env.ETCDTargetsEnv,
+		env.ControlPlaneCAFileEnv,
+		env.RestClientHostAllowlistEnv,
 	)
 	backendEnvVars := []corev1.EnvVar{
 		{
@@ -100,7 +106,13 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
-	return d.VolumeBuilder.Build(volume.ConfigVolume)
+	volumes, mounts := d.VolumeBuilder.Build(
+		volume.ConfigVolume,
+		// Add new volumes
+		volume.ETCDCAVolume,
+		volume.ControlPlaneCAVolume,
+	)
+	return volumes, mounts
 }
 
 // K8Sensor relies on this label for internal sharding logic for some reason, if you remove it the k8sensor will break
