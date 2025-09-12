@@ -115,9 +115,11 @@ echo "=== Running e2e tests ==="
 
 # Initialize COMMIT_STATUS with default value
 COMMIT_STATUS="failure"
+E2E_EXIT_CODE=0
 
 if ! make e2e; then
     echo "E2E tests failed"
+    E2E_EXIT_CODE=1
 else
     COMMIT_STATUS="success"
 fi
@@ -150,6 +152,12 @@ cleanup() {
     fi
     bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}"
     echo "===== e2e.sh - end ====="
+
+    # Exit with the same code as the e2e tests
+    if [ $E2E_EXIT_CODE -ne 0 ]; then
+        echo "Exiting with failure due to e2e test failure"
+        exit $E2E_EXIT_CODE
+    fi
 }
 
 trap cleanup EXIT
