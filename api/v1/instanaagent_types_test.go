@@ -17,6 +17,7 @@ import (
 
 func TestInstanaAgent_Default(t *testing.T) {
 	fullyCustomizedInstanaAgentSpec := InstanaAgentSpec{
+		UseSecretMounts: pointer.To(true),
 		Agent: BaseAgentSpec{
 			EndpointHost: "abc",
 			EndpointPort: "123",
@@ -71,6 +72,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 			name: "Expect InstanaAgent.Default() to set defaults appropriately when values havent been set",
 			spec: &InstanaAgentSpec{},
 			expected: &InstanaAgentSpec{
+				UseSecretMounts: pointer.To(true),
 				Agent: BaseAgentSpec{
 					EndpointHost: "ingress-red-saas.instana.io",
 					EndpointPort: "443",

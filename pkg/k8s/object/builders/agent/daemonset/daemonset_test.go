@@ -319,39 +319,78 @@ func TestDaemonSetBuilder_getContainerPorts(t *testing.T) {
 }
 
 func TestDaemonSetBuilder_getVolumes(t *testing.T) {
-	assertions := require.New(t)
+	for _, test := range []struct {
+		name                 string
+		useSecretMounts      *bool
+		includeSecretsVolume bool
+	}{
+		{
+			name:                 "with_secret_mounts_enabled",
+			useSecretMounts:      pointer.To(true),
+			includeSecretsVolume: true,
+		},
+		{
+			name:                 "with_secret_mounts_disabled",
+			useSecretMounts:      pointer.To(false),
+			includeSecretsVolume: false,
+		},
+		{
+			name:                 "with_secret_mounts_nil",
+			useSecretMounts:      nil,
+			includeSecretsVolume: false,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertions := require.New(t)
 
-	expectedVolumes := []corev1.Volume{{Name: rand.String(10)}}
-	expectedVolumeMounts := []corev1.VolumeMount{{Name: rand.String(10)}}
+			expectedVolumes := []corev1.Volume{{Name: rand.String(10)}}
+			expectedVolumeMounts := []corev1.VolumeMount{{Name: rand.String(10)}}
 
-	volumeBuilder := &mocks.MockVolumeBuilder{}
-	defer volumeBuilder.AssertExpectations(t)
-	volumeBuilder.On("Build",
-		volume.DevVolume,
-		volume.RunVolume,
-		volume.VarRunVolume,
-		volume.VarRunKuboVolume,
-		volume.VarRunContainerdVolume,
-		volume.VarContainerdConfigVolume,
-		volume.SysVolume,
-		volume.VarLogVolume,
-		volume.VarLibVolume,
-		volume.VarDataVolume,
-		volume.MachineIdVolume,
-		volume.ConfigVolume,
-		volume.TlsVolume,
-		volume.RepoVolume,
-		volume.NamespacesDetailsVolume,
-	).Return(expectedVolumes, expectedVolumeMounts)
+			volumeBuilder := &mocks.MockVolumeBuilder{}
+			defer volumeBuilder.AssertExpectations(t)
 
-	db := &daemonSetBuilder{
-		VolumeBuilder: volumeBuilder,
+			// Create the base volumes list
+			baseVolumes := []interface{}{
+				volume.DevVolume,
+				volume.RunVolume,
+				volume.VarRunVolume,
+				volume.VarRunKuboVolume,
+				volume.VarRunContainerdVolume,
+				volume.VarContainerdConfigVolume,
+				volume.SysVolume,
+				volume.VarLogVolume,
+				volume.VarLibVolume,
+				volume.VarDataVolume,
+				volume.MachineIdVolume,
+				volume.ConfigVolume,
+				volume.TlsVolume,
+				volume.RepoVolume,
+				volume.NamespacesDetailsVolume,
+			}
+
+			// Add SecretsVolume if it should be included
+			if test.includeSecretsVolume {
+				baseVolumes = append(baseVolumes, volume.SecretsVolume)
+			}
+
+			// Set up the mock expectation with the appropriate volumes
+			volumeBuilder.On("Build", baseVolumes...).Return(expectedVolumes, expectedVolumeMounts)
+
+			db := &daemonSetBuilder{
+				VolumeBuilder: volumeBuilder,
+				InstanaAgent: &instanav1.InstanaAgent{
+					Spec: instanav1.InstanaAgentSpec{
+						UseSecretMounts: test.useSecretMounts,
+					},
+				},
+			}
+
+			actualVolumes, actualVolumeMounts := db.getVolumes()
+
+			assertions.Equal(expectedVolumes, actualVolumes)
+			assertions.Equal(expectedVolumeMounts, actualVolumeMounts)
+		})
 	}
-
-	actualVolumes, actualVolumeMounts := db.getVolumes()
-
-	assertions.Equal(expectedVolumes, actualVolumes)
-	assertions.Equal(expectedVolumeMounts, actualVolumeMounts)
 }
 
 func TestDaemonSetBuilder_getUserVolumes(t *testing.T) {

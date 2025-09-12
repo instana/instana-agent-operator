@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 set -euo pipefail
 # note: PIPELINE_CONFIG_REPO_PATH will point to config, not to the app folder with the current branch, use APP_REPO_FOLDER instead
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
@@ -22,7 +25,10 @@ CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
 ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
 ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
 ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
-export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD
+
+# make sure to set the GIT_COMMIT to deploy the correct image in the e2e test
+GIT_COMMIT="$(load_repo app-repo commit)"
+export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD GIT_COMMIT
 # required in e2e test, therefore exporting variable
 export CLUSTER_NAME
 
