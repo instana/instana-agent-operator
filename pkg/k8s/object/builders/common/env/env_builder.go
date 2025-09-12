@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
@@ -64,6 +65,11 @@ const (
 	InstanaOpenTelemetryGRPCPort
 	InstanaOpenTelemetryHTTPEnabled
 	InstanaOpenTelemetryHTTPPort
+	ETCDCAFileEnv
+	ETCDInsecureEnv
+	ETCDTargetsEnv
+	ControlPlaneCAFileEnv
+	RestClientHostAllowlistEnv
 )
 
 type EnvBuilder interface {
@@ -262,6 +268,16 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return boolToEnvVar("INSTANA_AGENT_OTEL_HTTP", *e.agent.Spec.OpenTelemetry.HTTP.Enabled)
 	case InstanaOpenTelemetryHTTPPort:
 		return int32ToEnvVar("INSTANA_AGENT_OTEL_HTTP_PORT", *e.agent.Spec.OpenTelemetry.HTTP.Port)
+	case ETCDCAFileEnv:
+		return e.etcdCAFileEnv()
+	case ETCDInsecureEnv:
+		return e.etcdInsecureEnv()
+	case ETCDTargetsEnv:
+		return e.etcdTargetsEnv()
+	case ControlPlaneCAFileEnv:
+		return e.controlPlaneCAFileEnv()
+	case RestClientHostAllowlistEnv:
+		return e.restClientHostAllowlistEnv()
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
@@ -402,4 +418,59 @@ func int32ToEnvVar(name string, val int32) *corev1.EnvVar {
 // intToEnvVar is a utility function to convert int to k8s corev1.EnvVar
 func intToEnvVar(name string, val int) *corev1.EnvVar {
 	return &corev1.EnvVar{Name: name, Value: strconv.Itoa(val)}
+}
+
+func (e *envBuilder) etcdCAFileEnv() *corev1.EnvVar {
+	if e.agent.Spec.K8sSensor.ETCD.CA.MountPath == "" {
+		return nil
+	}
+
+	return &corev1.EnvVar{
+		Name:  "ETCD_CA_FILE",
+		Value: fmt.Sprintf("%s/ca.crt", e.agent.Spec.K8sSensor.ETCD.CA.MountPath),
+	}
+}
+
+func (e *envBuilder) etcdInsecureEnv() *corev1.EnvVar {
+	if e.agent.Spec.K8sSensor.ETCD.Insecure == nil {
+		return nil
+	}
+
+	return &corev1.EnvVar{
+		Name:  "ETCD_INSECURE",
+		Value: strconv.FormatBool(*e.agent.Spec.K8sSensor.ETCD.Insecure),
+	}
+}
+
+func (e *envBuilder) etcdTargetsEnv() *corev1.EnvVar {
+	if len(e.agent.Spec.K8sSensor.ETCD.Targets) == 0 {
+		return nil
+	}
+
+	return &corev1.EnvVar{
+		Name:  "ETCD_TARGETS",
+		Value: strings.Join(e.agent.Spec.K8sSensor.ETCD.Targets, ","),
+	}
+}
+
+func (e *envBuilder) controlPlaneCAFileEnv() *corev1.EnvVar {
+	if e.agent.Spec.K8sSensor.RestClient.CA.MountPath == "" {
+		return nil
+	}
+
+	return &corev1.EnvVar{
+		Name:  "CONTROL_PLANE_CA_FILE",
+		Value: fmt.Sprintf("%s/ca.crt", e.agent.Spec.K8sSensor.RestClient.CA.MountPath),
+	}
+}
+
+func (e *envBuilder) restClientHostAllowlistEnv() *corev1.EnvVar {
+	if len(e.agent.Spec.K8sSensor.RestClient.HostAllowlist) == 0 {
+		return nil
+	}
+
+	return &corev1.EnvVar{
+		Name:  "REST_CLIENT_HOST_ALLOWLIST",
+		Value: strings.Join(e.agent.Spec.K8sSensor.RestClient.HostAllowlist, ","),
+	}
 }
