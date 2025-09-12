@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 set -euo pipefail
 # note: PIPELINE_CONFIG_REPO_PATH will point to config, not to the app folder with the current branch, use APP_REPO_FOLDER instead
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
@@ -22,7 +25,10 @@ CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
 ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
 ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
 ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
-export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD
+
+# make sure to set the GIT_COMMIT to deploy the correct image in the e2e test
+GIT_COMMIT="$(load_repo app-repo commit)"
+export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD GIT_COMMIT
 # required in e2e test, therefore exporting variable
 export CLUSTER_NAME
 
@@ -109,9 +115,11 @@ echo "=== Running e2e tests ==="
 
 # Initialize COMMIT_STATUS with default value
 COMMIT_STATUS="failure"
+E2E_EXIT_CODE=0
 
 if ! make e2e; then
     echo "E2E tests failed"
+    E2E_EXIT_CODE=1
 else
     COMMIT_STATUS="success"
 fi
@@ -144,6 +152,12 @@ cleanup() {
     fi
     bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}"
     echo "===== e2e.sh - end ====="
+
+    # Exit with the same code as the e2e tests
+    if [ $E2E_EXIT_CODE -ne 0 ]; then
+        echo "Exiting with failure due to e2e test failure"
+        exit $E2E_EXIT_CODE
+    fi
 }
 
 trap cleanup EXIT
