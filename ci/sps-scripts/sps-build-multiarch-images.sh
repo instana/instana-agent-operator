@@ -5,14 +5,20 @@
 set -e
 
 # Load environment variables
-export ICR_REGISTRY_DOMAIN="icr.io"
+ICR_REGISTRY_DOMAIN="icr.io"
+ARTIFACTORY_REGISTRY_DOMAIN="delivery.instana.io"
 GIT_COMMIT=$(load_repo app-repo commit)
+ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
+ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 
 echo "Building commit ${GIT_COMMIT}"
 
 # Authenticate with the private registry, see https://cloud.ibm.com/docs/devsecops?topic=devsecops-cd-devsecops-build-docker#cd-devsecops-work-with-icr
 echo "[INFO] Authenticating with the $ICR_REGISTRY_DOMAIN private Docker registry..."
 docker login -u iamapikey --password-stdin "$ICR_REGISTRY_DOMAIN" < /config/api-key
+
+echo "[INFO] Authenticating with artifactory registry..."
+echo "$ARTIFACTORY_INTERNAL_PASSWORD" | docker login "${ARTIFACTORY_REGISTRY_DOMAIN}" --username "${ARTIFACTORY_INTERNAL_USERNAME}" --password-stdin
 
 echo "[INFO] Setting up Docker Buildx for multi-platform builds..."
 docker buildx create --name multiarch-builder --use
@@ -23,10 +29,8 @@ echo "pwd: $(pwd)"
 BUILD_CONTEXT="$WORKSPACE/$APP_REPO_FOLDER/"
 
 # Define registry and image names
-REGISTRY="icr.io"
-REPO_PATH="instana-agent-dev/instana-agent-operator"
-FULL_REPO_PATH="${REGISTRY}/${REPO_PATH}"
-REGISTRY_IMAGE_TAG="${FULL_REPO_PATH}:${GIT_COMMIT}"
+REGISTRY_IMAGE_TAG_ICR="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${GIT_COMMIT}"
+REGISTRY_IMAGE_TAG_ARTIFACTORY="${ARTIFACTORY_REGISTRY_DOMAIN}/int-docker-agent-local/instana-agent-operator/dev-build:${GIT_COMMIT}"
 
 echo "cd into build context"
 cd "${BUILD_CONTEXT}"
@@ -34,8 +38,10 @@ echo "pwd: $(pwd)"
 
 docker buildx build \
     --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le \
-    -t "${REGISTRY_IMAGE_TAG}" \
+    -t "${REGISTRY_IMAGE_TAG_ICR}" \
+    -t "${REGISTRY_IMAGE_TAG_ARTIFACTORY}" \
     --push \
     "$BUILD_CONTEXT"
 
-pipelinectl save_artifact operator_image "name=${REGISTRY_IMAGE_TAG}" "type=image"
+# mark for scanning
+pipelinectl save_artifact operator_image "name=${REGISTRY_IMAGE_TAG_ICR}" "type=image"
