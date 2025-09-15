@@ -36,6 +36,7 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 		{
 			name: "agent_setup",
 			spec: &InstanaAgentRemoteSpec{
+				UseSecretMounts: pointer.To(true),
 				Zone: Name{
 					"test",
 				},
@@ -55,6 +56,7 @@ func TestInstanaAgentRemote_Default(t *testing.T) {
 				},
 			},
 			expected: &InstanaAgentRemoteSpec{
+				UseSecretMounts: pointer.To(true),
 				Zone: Name{
 					"test",
 				},
