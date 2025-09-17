@@ -148,6 +148,86 @@ tasks:
         include:
           - docker-socket
 
+  pr-code-checks-8:
+    from: pr-code-checks
+    displayName: redhat-marketplace-operator-commit-changes-and-create-pr
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+  
+  pr-code-checks-9:
+    from: pr-code-checks
+    displayName: redhat-marketplace-operators-rebase
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+
+  pr-code-checks-10:
+    from: pr-code-checks
+    displayName: certified-operators-commit-changes-and-create-pr
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+
+  pr-code-checks-11:
+    from: pr-code-checks
+    displayName: redhat-preflight-scans
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+
   code-pr-finish:
     steps:
       - name: evaluate
