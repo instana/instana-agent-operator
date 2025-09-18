@@ -55,6 +55,12 @@ func TestInstanaAgent_Default(t *testing.T) {
 			DeploymentSpec: KubernetesDeploymentSpec{
 				Replicas: 2,
 			},
+			ETCD: ETCDSpec{
+				Insecure: pointer.To(false),
+				CA: CASpec{
+					MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+				},
+			},
 		},
 		OpenTelemetry: OpenTelemetry{ // Don't interfere if user explicitly has set these values
 			Enabled: Enabled{Enabled: pointer.To(false)},
@@ -109,6 +115,12 @@ func TestInstanaAgent_Default(t *testing.T) {
 					},
 					DeploymentSpec: KubernetesDeploymentSpec{
 						Replicas: 3,
+					},
+					ETCD: ETCDSpec{
+						Insecure: pointer.To(false),
+						CA: CASpec{
+							MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+						},
 					},
 				},
 				OpenTelemetry: OpenTelemetry{ // Expect OpenTelemetry to be enabled when no value has been set
