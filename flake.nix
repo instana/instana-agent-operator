@@ -53,6 +53,8 @@
 
               # SDK for building Kubernetes applications
               operator-sdk
+
+              pre-commit
             ];
             # Adds to PATH variable the path of where the controller-gen is downloaded to
             shellHook = ''
