@@ -187,6 +187,11 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							},
 						},
 					},
+					// k8sensor is run as a "k8sensor" user (i.e: uid 1000), and thus reading the files from the secret volume
+					// requires setting FSGroup to 1000
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: pointer.To(int64(1000)),
+					},
 					Volumes:     volumes,
 					Tolerations: d.Spec.K8sSensor.DeploymentSpec.Pod.Tolerations,
 					Affinity: pointer.To(
