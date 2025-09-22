@@ -63,52 +63,84 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 
 	if len(agent.Spec.K8sSensor.ETCD.Targets) > 0 {
 		log.Info("Using ETCD targets from CR spec", "targets", agent.Spec.K8sSensor.ETCD.Targets)
-		return &DiscoveredETCDTargets{
-			Targets: agent.Spec.K8sSensor.ETCD.Targets,
-		}, nil
+		return nil, nil // Don't return targets from CR to avoid mutating Deployment when not needed
 	}
 
-	// Try to get the etcd service directly by name
-	etcdService := &corev1.Service{}
-	err := r.client.Get(ctx, types.NamespacedName{
+	// Try to find services with the etcd component label
+	var etcdService *corev1.Service
+	var err error
+
+	// Try etcd service first and check if it has the component=etcd label
+	etcdService = &corev1.Service{}
+	err = r.client.Get(ctx, types.NamespacedName{
 		Namespace: "kube-system",
 		Name:      "etcd",
 	}, etcdService)
 
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			log.Error(err, "Error getting etcd service")
-			return nil, err
-		}
-
-		// If not found by name, try etcd-metrics
+	if err == nil && etcdService.Labels != nil && etcdService.Labels["component"] == "etcd" {
+		log.Info("Found etcd service with component=etcd label", "name", etcdService.Name)
+	} else {
+		// Try etcd-metrics service and check if it has the component=etcd label
+		etcdService = &corev1.Service{}
 		err = r.client.Get(ctx, types.NamespacedName{
 			Namespace: "kube-system",
 			Name:      "etcd-metrics",
 		}, etcdService)
 
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				log.Error(err, "Error getting etcd-metrics service")
-				return nil, err
-			}
+		if err == nil && etcdService.Labels != nil && etcdService.Labels["component"] == "etcd" {
+			log.Info("Found etcd-metrics service with component=etcd label", "name", etcdService.Name)
+		} else {
+			// If no service with the etcd component label is found, fallback to name-based search
+			log.Info("No service found with component=etcd label, trying by name")
 
-			// If still not found, try etcd-k8s
+			// Try to get the etcd service directly by name
+			etcdService = &corev1.Service{}
 			err = r.client.Get(ctx, types.NamespacedName{
 				Namespace: "kube-system",
-				Name:      "etcd-k8s",
+				Name:      "etcd",
 			}, etcdService)
 
 			if err != nil {
 				if !apierrors.IsNotFound(err) {
-					log.Error(err, "Error getting etcd-k8s service")
+					log.Error(err, "Error getting etcd service")
 					return nil, err
 				}
 
-				log.Info("No etcd service found in kube-system namespace")
-				return nil, nil
+				// If not found by name, try etcd-metrics
+				err = r.client.Get(ctx, types.NamespacedName{
+					Namespace: "kube-system",
+					Name:      "etcd-metrics",
+				}, etcdService)
+
+				if err != nil {
+					if !apierrors.IsNotFound(err) {
+						log.Error(err, "Error getting etcd-metrics service")
+						return nil, err
+					}
+
+					// If still not found, try etcd-k8s
+					err = r.client.Get(ctx, types.NamespacedName{
+						Namespace: "kube-system",
+						Name:      "etcd-k8s",
+					}, etcdService)
+
+					if err != nil {
+						if !apierrors.IsNotFound(err) {
+							log.Error(err, "Error getting etcd-k8s service")
+							return nil, err
+						}
+
+						log.Info("No etcd service found in kube-system namespace")
+						return nil, nil
+					}
+				}
 			}
 		}
+	}
+
+	if etcdService == nil {
+		log.Info("No etcd service found in kube-system namespace")
+		return nil, nil
 	}
 
 	log.Info("Found etcd service", "name", etcdService.Name)
