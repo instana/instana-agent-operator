@@ -54,7 +54,7 @@ func TestDeploymentBuilder_GetEnvVars_IncludesETCDEnvVars(t *testing.T) {
 		"443",
 	)
 
-	builder := NewDeploymentBuilder(agent, true, mockStatusManager, *backendObj, nil).(*deploymentBuilder)
+	builder := NewDeploymentBuilder(agent, true, mockStatusManager, *backendObj, nil, nil).(*deploymentBuilder)
 
 	// When
 	envVars := builder.getEnvVars()
@@ -115,7 +115,7 @@ func TestDeploymentBuilder_GetVolumes_IncludesCAVolumes(t *testing.T) {
 		"443",
 	)
 
-	builder := NewDeploymentBuilder(agent, false, mockStatusManager, *backendObj, nil).(*deploymentBuilder)
+	builder := NewDeploymentBuilder(agent, false, mockStatusManager, *backendObj, nil, nil).(*deploymentBuilder)
 
 	// When
 	volumes, mounts := builder.getVolumes()

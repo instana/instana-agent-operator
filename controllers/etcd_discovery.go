@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
@@ -113,7 +113,6 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 
 	log.Info("Found etcd service", "name", etcdService.Name)
 
-
 	// Find metrics port and determine scheme
 	var metricsPort int32
 	var scheme string
@@ -176,7 +175,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 
 		// Add targets for each address
 		for _, address := range subset.Addresses {
-			target := fmt.Sprintf("%s://%s:%d/metrics", 
+			target := fmt.Sprintf("%s://%s:%d/metrics",
 				scheme,
 				address.IP,
 				endpointPort)

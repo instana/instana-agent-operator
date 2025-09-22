@@ -125,8 +125,8 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorpoddisruptionbudget.NewPodDisruptionBudgetBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
-		k8ssensorrbac.NewRoleBuilder(agent),         // Add Role for etcd access in kube-system
-		k8ssensorrbac.NewRoleBindingBuilder(agent),  // Add RoleBinding for etcd access in kube-system
+		k8ssensorrbac.NewRoleBuilder(agent),        // Add Role for etcd access in kube-system
+		k8ssensorrbac.NewRoleBindingBuilder(agent), // Add RoleBinding for etcd access in kube-system
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
