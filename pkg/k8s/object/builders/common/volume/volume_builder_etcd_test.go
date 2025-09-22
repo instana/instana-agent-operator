@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 )
 
 func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
@@ -43,9 +44,9 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"etcd-ca",
+		constants.ServiceCAConfigMapName,
 		volumes[0].VolumeSource.ConfigMap.LocalObjectReference.Name,
-		"ConfigMap name should be etcd-ca",
+		"ConfigMap name should be sensor-service-ca",
 	)
 	assert.Len(
 		t,
@@ -55,13 +56,13 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"service-ca.crt",
+		constants.ServiceCAKey,
 		volumes[0].VolumeSource.ConfigMap.Items[0].Key,
 		"ConfigMap key should be service-ca.crt",
 	)
 	assert.Equal(
 		t,
-		"service-ca.crt",
+		constants.ServiceCAKey,
 		volumes[0].VolumeSource.ConfigMap.Items[0].Path,
 		"ConfigMap path should be service-ca.crt",
 	)
@@ -74,7 +75,7 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"/etc/service-ca",
+		constants.ServiceCAMountPath,
 		mounts[0].MountPath,
 		"Mount path should be /etc/service-ca",
 	)
