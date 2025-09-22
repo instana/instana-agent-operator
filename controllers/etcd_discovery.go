@@ -19,12 +19,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
@@ -154,9 +156,9 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 			metricsPort = port.Port
 
 			// Determine scheme based on port number
-			if metricsPort == 2379 {
+			if metricsPort == constants.ETCDMetricsPortHTTPS {
 				scheme = "https"
-			} else if metricsPort == 2381 {
+			} else if metricsPort == constants.ETCDMetricsPortHTTP {
 				scheme = "http"
 			} else {
 				// Default to https for unknown ports
@@ -219,6 +221,9 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 		log.Info("No endpoints found for etcd service")
 		return nil, nil
 	}
+
+	// Sort targets to avoid spurious rollouts
+	sort.Strings(targets)
 
 	// Check if CA secret exists in agent namespace
 	caSecretExists := false
