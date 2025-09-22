@@ -20,6 +20,8 @@ import (
 	"context"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,10 +33,20 @@ func (r *InstanaAgentReconciler) createServiceCAConfigMap(ctx context.Context, a
 	// Create a ConfigMap with service-ca.crt annotation
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "etcd-ca",
+			Name:      constants.ServiceCAConfigMapName,
 			Namespace: agent.Namespace,
 			Annotations: map[string]string{
 				"service.beta.openshift.io/inject-cabundle": "true",
+			},
+			// Add owner reference so it's garbage-collected with the CR
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: agent.APIVersion,
+					Kind:       agent.Kind,
+					Name:       agent.Name,
+					UID:        agent.UID,
+					Controller: pointer.To(true),
+				},
 			},
 		},
 		Data: map[string]string{},
