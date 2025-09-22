@@ -43,16 +43,16 @@ type VolumeBuilder interface {
 }
 
 type volumeBuilder struct {
-	instanaAgent   *instanav1.InstanaAgent
-	helpers        helpers.Helpers
-	isNotOpenShift bool
+	instanaAgent *instanav1.InstanaAgent
+	helpers      helpers.Helpers
+	isOpenShift  bool
 }
 
 func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBuilder {
 	return &volumeBuilder{
-		instanaAgent:   agent,
-		helpers:        helpers.NewHelpers(agent),
-		isNotOpenShift: !isOpenShift,
+		instanaAgent: agent,
+		helpers:      helpers.NewHelpers(agent),
+		isOpenShift:  isOpenShift,
 	}
 }
 
@@ -88,7 +88,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.hostVolumeWithMount("var-run", "/var/run", &mountPropagationHostToContainer, nil)
 	case VarRunKuboVolume:
 		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
+			!v.isOpenShift,
 			"var-run-kubo",
 			"/var/vcap/sys/run/docker",
 			&mountPropagationHostToContainer,
@@ -96,7 +96,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		)
 	case VarRunContainerdVolume:
 		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
+			!v.isOpenShift,
 			"var-run-containerd",
 			"/var/vcap/sys/run/containerd",
 			&mountPropagationHostToContainer,
@@ -104,7 +104,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		)
 	case VarContainerdConfigVolume:
 		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
+			!v.isOpenShift,
 			"var-containerd-config",
 			"/var/vcap/jobs/containerd/config",
 			&mountPropagationHostToContainer,
@@ -268,19 +268,19 @@ func (v *volumeBuilder) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {
 func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	if v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName == "" {
 		// For OpenShift, use the service-ca.crt from ConfigMap
-		if !v.isNotOpenShift {
+		if v.isOpenShift {
 			volumeName := "etcd-ca"
 			volume := corev1.Volume{
 				Name: volumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "etcd-ca",
+							Name: constants.ServiceCAConfigMapName,
 						},
 						Items: []corev1.KeyToPath{
 							{
-								Key:  "service-ca.crt",
-								Path: "service-ca.crt",
+								Key:  constants.ServiceCAKey,
+								Path: constants.ServiceCAKey,
 							},
 						},
 						DefaultMode: pointer.To[int32](0440),
@@ -289,7 +289,7 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 			}
 			volumeMount := corev1.VolumeMount{
 				Name:      volumeName,
-				MountPath: "/etc/service-ca",
+				MountPath: constants.ServiceCAMountPath,
 				ReadOnly:  true,
 			}
 			return &volume, &volumeMount
