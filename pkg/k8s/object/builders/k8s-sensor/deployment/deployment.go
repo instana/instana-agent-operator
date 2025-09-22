@@ -85,27 +85,41 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.RestClientHostAllowlistEnv,
 	)
 
-	// Add discovered ETCD targets if available
-	if d.deploymentContext != nil && len(d.deploymentContext.DiscoveredETCDTargets) > 0 {
-		// Only add if not already specified in the CR
-		if len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  "ETCD_TARGETS",
-				Value: strings.Join(d.deploymentContext.DiscoveredETCDTargets, ","),
-			})
+	// Add OpenShift-specific environment variables
+	if d.isOpenShift {
+		envVars = append(envVars, []corev1.EnvVar{
+			{
+				Name:  constants.EnvETCDMetricsURL,
+				Value: constants.ETCDOCPMetricsURL,
+			},
+			{
+				Name:  constants.EnvETCDRequestTimeout,
+				Value: "15s",
+			},
+		}...)
 
-			// Add CA file env var if CA secret is available
-			if d.deploymentContext.ETCDCASecretName != "" {
-				// For OpenShift, use the service-ca.crt path
-				if d.isOpenShift {
+		// Add CA file env var if CA ConfigMap is available
+		if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  constants.EnvETCDCAFile,
+				Value: constants.ServiceCAMountPath + "/" + constants.ServiceCAKey,
+			})
+		}
+	} else {
+		// Add discovered ETCD targets for vanilla Kubernetes
+		if d.deploymentContext != nil && len(d.deploymentContext.DiscoveredETCDTargets) > 0 {
+			// Only add if not already specified in the CR
+			if len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
+				envVars = append(envVars, corev1.EnvVar{
+					Name:  constants.EnvETCDTargets,
+					Value: strings.Join(d.deploymentContext.DiscoveredETCDTargets, ","),
+				})
+
+				// Add CA file env var if CA secret is available
+				if d.deploymentContext.ETCDCASecretName != "" {
 					envVars = append(envVars, corev1.EnvVar{
-						Name:  "ETCD_CA_FILE",
-						Value: "/etc/service-ca/service-ca.crt",
-					})
-				} else {
-					envVars = append(envVars, corev1.EnvVar{
-						Name:  "ETCD_CA_FILE",
-						Value: "/var/run/secrets/etcd/ca.crt",
+						Name:  constants.EnvETCDCAFile,
+						Value: constants.ETCDCAMountPath + "/ca.crt",
 					})
 				}
 			}
