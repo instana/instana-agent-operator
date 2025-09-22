@@ -38,14 +38,32 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.NotNil(
 		t,
-		volumes[0].VolumeSource.HostPath,
-		"Volume source should be HostPath for OpenShift",
+		volumes[0].VolumeSource.ConfigMap,
+		"Volume source should be ConfigMap for OpenShift",
 	)
 	assert.Equal(
 		t,
-		"/var/run/secrets/kubernetes.io/serviceaccount",
-		volumes[0].VolumeSource.HostPath.Path,
-		"HostPath should point to service account path",
+		"etcd-ca",
+		volumes[0].VolumeSource.ConfigMap.LocalObjectReference.Name,
+		"ConfigMap name should be etcd-ca",
+	)
+	assert.Len(
+		t,
+		volumes[0].VolumeSource.ConfigMap.Items,
+		1,
+		"Should have one item mapping",
+	)
+	assert.Equal(
+		t,
+		"service-ca.crt",
+		volumes[0].VolumeSource.ConfigMap.Items[0].Key,
+		"ConfigMap key should be service-ca.crt",
+	)
+	assert.Equal(
+		t,
+		"service-ca.crt",
+		volumes[0].VolumeSource.ConfigMap.Items[0].Path,
+		"ConfigMap path should be service-ca.crt",
 	)
 
 	assert.Equal(
@@ -56,9 +74,9 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"/var/run/secrets/kubernetes.io/serviceaccount",
+		"/etc/service-ca",
 		mounts[0].MountPath,
-		"Mount path should match specified path",
+		"Mount path should be /etc/service-ca",
 	)
 	assert.True(
 		t,
