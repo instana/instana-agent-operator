@@ -69,13 +69,14 @@ func getK8sSensorDeployments(
 	statusManager status.AgentStatusManager,
 	k8SensorBackends []backends.K8SensorBackend,
 	keysSecret *corev1.Secret,
+	deploymentContext *k8ssensordeployment.DeploymentContext,
 ) []builder.ObjectBuilder {
 	builders := make([]builder.ObjectBuilder, 0, len(k8SensorBackends))
 
 	for _, backend := range k8SensorBackends {
 		builders = append(
 			builders,
-			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend, keysSecret),
+			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend, keysSecret, deploymentContext),
 		)
 	}
 
@@ -95,6 +96,22 @@ func (r *InstanaAgentReconciler) applyResources(
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
 
+	// Discover ETCD endpoints for vanilla Kubernetes
+	var deploymentContext *k8ssensordeployment.DeploymentContext
+	discoveredETCD, err := r.DiscoverETCDEndpoints(ctx, agent)
+	if err != nil {
+		log.Error(err, "Failed to discover ETCD endpoints")
+		// Continue with reconciliation, don't fail the whole process
+	} else if discoveredETCD != nil && len(discoveredETCD.Targets) > 0 {
+		log.Info("Using discovered ETCD targets", "targets", discoveredETCD.Targets)
+		deploymentContext = &k8ssensordeployment.DeploymentContext{
+			DiscoveredETCDTargets: discoveredETCD.Targets,
+		}
+		if discoveredETCD.CAFound {
+			deploymentContext.ETCDCASecretName = "etcd-ca"
+		}
+	}
+
 	builders := append(
 		getDaemonSetBuilders(agent, isOpenShift, statusManager),
 		headlessservice.NewHeadlessServiceBuilder(agent),
@@ -108,13 +125,15 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorpoddisruptionbudget.NewPodDisruptionBudgetBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
+		k8ssensorrbac.NewRoleBuilder(agent),         // Add Role for etcd access in kube-system
+		k8ssensorrbac.NewRoleBindingBuilder(agent),  // Add RoleBinding for etcd access in kube-system
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),
 		namespaces_configmap.NewConfigMapBuilder(agent, statusManager, namespacesDetails),
 	)
 
-	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret)...)
+	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret, deploymentContext)...)
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
