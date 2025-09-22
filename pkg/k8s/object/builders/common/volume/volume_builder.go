@@ -377,20 +377,29 @@ func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
 
 func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	if v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName == "" {
-		// For OpenShift, use the service-ca.crt
+		// For OpenShift, use the service-ca.crt from ConfigMap
 		if !v.isNotOpenShift {
 			volumeName := "etcd-ca"
 			volume := corev1.Volume{
 				Name: volumeName,
 				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/run/secrets/kubernetes.io/serviceaccount",
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "etcd-ca",
+						},
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "service-ca.crt",
+								Path: "service-ca.crt",
+							},
+						},
+						DefaultMode: pointer.To[int32](0440),
 					},
 				},
 			}
 			volumeMount := corev1.VolumeMount{
 				Name:      volumeName,
-				MountPath: v.instanaAgent.Spec.K8sSensor.ETCD.CA.MountPath,
+				MountPath: "/etc/service-ca",
 				ReadOnly:  true,
 			}
 			return &volume, &volumeMount

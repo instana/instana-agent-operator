@@ -18,6 +18,11 @@ package controllers
 
 import (
 	"context"
+	"strings"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
@@ -31,6 +36,7 @@ import (
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
@@ -39,7 +45,6 @@ import (
 	k8ssensorserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/serviceaccount"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func getDaemonSetBuilders(
@@ -98,17 +103,59 @@ func (r *InstanaAgentReconciler) applyResources(
 
 	// Discover ETCD endpoints for vanilla Kubernetes
 	var deploymentContext *k8ssensordeployment.DeploymentContext
-	discoveredETCD, err := r.DiscoverETCDEndpoints(ctx, agent)
-	if err != nil {
-		log.Error(err, "Failed to discover ETCD endpoints")
-		// Continue with reconciliation, don't fail the whole process
-	} else if discoveredETCD != nil && len(discoveredETCD.Targets) > 0 {
-		log.Info("Using discovered ETCD targets", "targets", discoveredETCD.Targets)
-		deploymentContext = &k8ssensordeployment.DeploymentContext{
-			DiscoveredETCDTargets: discoveredETCD.Targets,
+
+	// For OpenShift, create the service-CA ConfigMap
+	if isOpenShift {
+		if err := r.createServiceCAConfigMap(ctx, agent); err != nil {
+			log.Error(err, "Failed to create service-CA ConfigMap")
+			// Continue with reconciliation, don't fail the whole process
+		} else {
+			// Set up deployment context for OpenShift
+			deploymentContext = &k8ssensordeployment.DeploymentContext{
+				ETCDCASecretName: "etcd-ca",
+			}
 		}
-		if discoveredETCD.CAFound {
-			deploymentContext.ETCDCASecretName = "etcd-ca"
+	} else {
+		// For vanilla Kubernetes, discover ETCD endpoints
+		discoveredETCD, err := r.DiscoverETCDEndpoints(ctx, agent)
+		if err != nil {
+			log.Error(err, "Failed to discover ETCD endpoints")
+			// Continue with reconciliation, don't fail the whole process
+		} else if discoveredETCD != nil && len(discoveredETCD.Targets) > 0 {
+			// Check if we need to update the Deployment with new ETCD targets
+			existingDeployment := &appsv1.Deployment{}
+			helperInstance := helpers.NewHelpers(agent)
+			err := r.client.Get(ctx, types.NamespacedName{
+				Namespace: agent.Namespace,
+				Name:      helperInstance.K8sSensorResourcesName(),
+			}, existingDeployment)
+
+			if err == nil {
+				// Check if the ETCD_TARGETS env var already exists with the same value
+				currentTargets := ""
+				for _, container := range existingDeployment.Spec.Template.Spec.Containers {
+					for _, env := range container.Env {
+						if env.Name == "ETCD_TARGETS" {
+							currentTargets = env.Value
+							break
+						}
+					}
+				}
+
+				newTargets := strings.Join(discoveredETCD.Targets, ",")
+				if currentTargets == newTargets {
+					log.Info("ETCD targets unchanged, skipping Deployment update")
+					return reconcileContinue()
+				}
+			}
+
+			log.Info("Using discovered ETCD targets", "targets", discoveredETCD.Targets)
+			deploymentContext = &k8ssensordeployment.DeploymentContext{
+				DiscoveredETCDTargets: discoveredETCD.Targets,
+			}
+			if discoveredETCD.CAFound {
+				deploymentContext.ETCDCASecretName = "etcd-ca"
+			}
 		}
 	}
 
