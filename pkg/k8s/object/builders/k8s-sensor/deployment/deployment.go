@@ -49,6 +49,7 @@ type deploymentBuilder struct {
 	backend           backends.K8SensorBackend
 	keysSecret        *corev1.Secret
 	deploymentContext *DeploymentContext
+	isOpenShift       bool
 }
 
 func (d *deploymentBuilder) IsNamespaced() bool {
@@ -95,10 +96,18 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 			// Add CA file env var if CA secret is available
 			if d.deploymentContext.ETCDCASecretName != "" {
-				envVars = append(envVars, corev1.EnvVar{
-					Name:  "ETCD_CA_FILE",
-					Value: "/var/run/secrets/etcd/ca.crt",
-				})
+				// For OpenShift, use the service-ca.crt path
+				if d.isOpenShift {
+					envVars = append(envVars, corev1.EnvVar{
+						Name:  "ETCD_CA_FILE",
+						Value: "/etc/service-ca/service-ca.crt",
+					})
+				} else {
+					envVars = append(envVars, corev1.EnvVar{
+						Name:  "ETCD_CA_FILE",
+						Value: "/var/run/secrets/etcd/ca.crt",
+					})
+				}
 			}
 		}
 	}
@@ -338,6 +347,7 @@ func NewDeploymentBuilder(
 		backend:           backend,
 		keysSecret:        keysSecret,
 		deploymentContext: deploymentContext,
+		isOpenShift:       isOpenShift,
 	}
 }
 
