@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,6 +37,7 @@ import (
 	agentserviceaccount "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/serviceaccount"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
@@ -112,7 +114,7 @@ func (r *InstanaAgentReconciler) applyResources(
 		} else {
 			// Set up deployment context for OpenShift
 			deploymentContext = &k8ssensordeployment.DeploymentContext{
-				ETCDCASecretName: "etcd-ca",
+				ETCDCASecretName: constants.ServiceCAConfigMapName,
 			}
 		}
 	} else {
@@ -134,24 +136,37 @@ func (r *InstanaAgentReconciler) applyResources(
 				// Check if the ETCD_TARGETS env var already exists with the same value
 				currentTargets := ""
 				for _, container := range existingDeployment.Spec.Template.Spec.Containers {
-					for _, env := range container.Env {
-						if env.Name == "ETCD_TARGETS" {
-							currentTargets = env.Value
-							break
+					if container.Name == constants.ContainerK8Sensor {
+						for _, env := range container.Env {
+							if env.Name == constants.EnvETCDTargets {
+								currentTargets = env.Value
+								break
+							}
 						}
+						break
 					}
 				}
 
-				newTargets := strings.Join(discoveredETCD.Targets, ",")
+				// Sort targets to ensure consistent comparison
+				sortedTargets := make([]string, len(discoveredETCD.Targets))
+				copy(sortedTargets, discoveredETCD.Targets)
+				sort.Strings(sortedTargets)
+				newTargets := strings.Join(sortedTargets, ",")
+
 				if currentTargets == newTargets {
 					log.Info("ETCD targets unchanged, skipping Deployment update")
 					return reconcileContinue()
 				}
 			}
 
-			log.Info("Using discovered ETCD targets", "targets", discoveredETCD.Targets)
+			// Use sorted targets for consistency
+			sortedTargets := make([]string, len(discoveredETCD.Targets))
+			copy(sortedTargets, discoveredETCD.Targets)
+			sort.Strings(sortedTargets)
+
+			log.Info("Using discovered ETCD targets", "targets", sortedTargets)
 			deploymentContext = &k8ssensordeployment.DeploymentContext{
-				DiscoveredETCDTargets: discoveredETCD.Targets,
+				DiscoveredETCDTargets: sortedTargets,
 			}
 			if discoveredETCD.CAFound {
 				deploymentContext.ETCDCASecretName = "etcd-ca"
