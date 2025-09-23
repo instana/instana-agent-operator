@@ -65,7 +65,6 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodNamespaceEnv,
 		env.PodNameEnv,
 		env.PodIPEnv,
-		env.HTTPSProxyEnv,
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
@@ -85,19 +84,10 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		},
 	}
 
-	// Only add the AGENT_KEY environment variable if secret mounts are explicitly disabled
+	// Only add the AGENT_KEY and HTTPS_PROXY environment variable if secret mounts are explicitly disabled
 	if d.Spec.UseSecretMounts != nil && !*d.Spec.UseSecretMounts {
-		backendEnvVars = append(backendEnvVars, corev1.EnvVar{
-			Name: "AGENT_KEY",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name),
-					},
-					Key: constants.AgentKey + d.backend.ResourceSuffix,
-				},
-			},
-		})
+		backendEnvVars = append(backendEnvVars, d.EnvBuilder.Build(env.AgentKeyEnv)...)
+		envVars = append(envVars, d.EnvBuilder.Build(env.HTTPSProxyEnv)...)
 	}
 
 	envVars = append(backendEnvVars, envVars...)
