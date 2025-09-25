@@ -160,8 +160,9 @@ jobs:
       inputs: [ agent-operator-ci-git-source ]
       params: { state: error, context: self-update }
     plan:
-      - get: agent-operator-ci-git-source
+      - get: agent-operator-release-source
         trigger: true
+      - get: agent-operator-ci-git-source
       - put: gh-status
         inputs: [ agent-operator-ci-git-source ]
         params: { state: pending, context: self-update }
@@ -180,7 +181,7 @@ jobs:
           globs:
             - olm-*.zip
       - get: agent-operator-release-source
-        passed: [operator-olm-github-release]
+        passed: [self-update]
       - get: agent-operator-git-source
       - task: verify-latest-release
         config:
@@ -265,7 +266,6 @@ jobs:
             - put: gh-status
               inputs: [ agent-operator-git-source ]
               params: { state: success, context: olm-release-pr-creation/verify-latest-release }
-            - abort: {}
         on_error:
           do:
             - put: slack-alert
