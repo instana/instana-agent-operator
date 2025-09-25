@@ -87,7 +87,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	// Only add the AGENT_KEY and HTTPS_PROXY environment variable if secret mounts are explicitly disabled
 	if d.Spec.UseSecretMounts != nil && !*d.Spec.UseSecretMounts {
 		backendEnvVars = append(backendEnvVars, d.EnvBuilder.Build(env.AgentKeyEnv)...)
-		envVars = append(envVars, d.EnvBuilder.Build(env.HTTPSProxyEnv)...)
+		backendEnvVars = append(backendEnvVars, d.EnvBuilder.Build(env.HTTPSProxyEnv)...)
 	}
 
 	envVars = append(backendEnvVars, envVars...)
