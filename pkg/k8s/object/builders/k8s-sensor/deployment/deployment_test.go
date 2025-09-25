@@ -245,6 +245,16 @@ func createTestDeploymentBuilder(t *testing.T, agent *instanav1.InstanaAgent) *d
 		{Name: "INSTANA_ZONE", Value: "test-zone"},
 	})
 
+	// Add specific mock for AgentKeyEnv
+	mockEnvBuilder.On("Build", []env.EnvVar{env.AgentKeyEnv}).Return([]corev1.EnvVar{
+		{Name: "AGENT_KEY", Value: "test-key"},
+	})
+
+	// Add specific mock for HTTPSProxyEnv
+	mockEnvBuilder.On("Build", []env.EnvVar{env.HTTPSProxyEnv}).Return([]corev1.EnvVar{
+		{Name: "HTTPS_PROXY", Value: ""},
+	})
+
 	// Mock the PortsBuilder
 	mockPortsBuilder.On("GetContainerPorts").Return([]corev1.ContainerPort{
 		{Name: "api", ContainerPort: 42699},
@@ -338,8 +348,22 @@ func TestGetEnvVarsWithSecretMountsDisabled(t *testing.T) {
 	agent := createInstanaAgentWithSecretMountsDisabled()
 	builder := createTestDeploymentBuilder(t, agent)
 
+	// Override the mock setup to include AGENT_KEY
+	mockEnvBuilder := new(MockEnvBuilder)
+	mockEnvBuilder.On("Build", mock.Anything).Return([]corev1.EnvVar{
+		{Name: "BACKEND_URL", Value: "https://test-host:443"},
+		{Name: "INSTANA_ZONE", Value: "test-zone"},
+		{Name: "AGENT_KEY", Value: "test-key"}, // Add AGENT_KEY to the mock response
+	})
+	builder.EnvBuilder = mockEnvBuilder
+
 	// Act
 	envVars := builder.getEnvVars()
+
+	// Debug: Print all environment variables
+	for _, env := range envVars {
+		t.Logf("Env var: %s = %s", env.Name, env.Value)
+	}
 
 	// Assert
 	assert.True(
@@ -681,6 +705,15 @@ func TestBuildDeploymentWithSecretMountsDisabled(t *testing.T) {
 
 	builder.statusManager.(*MockStatusManager).On("SetK8sSensorDeployment", mock.Anything).Return()
 
+	// Override the mock setup to include AGENT_KEY
+	mockEnvBuilder := new(MockEnvBuilder)
+	mockEnvBuilder.On("Build", mock.Anything).Return([]corev1.EnvVar{
+		{Name: "BACKEND_URL", Value: "https://test-host:443"},
+		{Name: "INSTANA_ZONE", Value: "test-zone"},
+		{Name: "AGENT_KEY", Value: "test-key"}, // Add AGENT_KEY to the mock response
+	})
+	builder.EnvBuilder = mockEnvBuilder
+
 	// Act
 	deploymentObj := builder.build()
 
@@ -725,6 +758,11 @@ func TestBuildDeploymentWithSecretMountsDisabled(t *testing.T) {
 	)
 	assert.False(t, containsVolumeMount(container.VolumeMounts, "instana-secrets"),
 		"Container should not include secrets volume mount when UseSecretMounts is disabled")
+
+	// Debug: Print all environment variables
+	for _, env := range container.Env {
+		t.Logf("Env var: %s = %s", env.Name, env.Value)
+	}
 
 	// Check environment variables
 	assert.True(t, containsEnvVar(container.Env, "AGENT_KEY"),
