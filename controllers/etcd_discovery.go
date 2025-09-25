@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright IBM Corp. 2025
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ type DiscoveredETCDTargets struct {
 // Discovery logic:
 // 1. Skip if on OpenShift or if targets are already specified in the CR
 // 2. Look for a service in kube-system with label component=etcd
-// 3. Fallback to a service with "etcd" in the name
+// 3. If no result found in the #2 then search for a service with "etcd" in the name
 // 4. Find a port named "metrics"
 // 5. Determine scheme based on port number (2379 -> https, 2381 -> http)
 // 6. Override scheme if service has annotation instana.io/etcd-scheme
