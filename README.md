@@ -35,6 +35,10 @@ On OpenShift clusters, the operator automatically:
 4. Sets `ETCD_CA_FILE` to the mounted certificate path
 5. Sets `ETCD_REQUEST_TIMEOUT` to 15s
 
+**Note:** The 15 s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
+For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
+For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the ETCD tuning guid
+
 #### Vanilla Kubernetes Clusters
 
 On non-OpenShift clusters, the operator will automatically discover ETCD endpoints if:
