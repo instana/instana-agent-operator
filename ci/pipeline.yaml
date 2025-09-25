@@ -729,16 +729,83 @@ jobs:
         #         params:
         #           release: openshift-4.11
 
+  - name: tag-release
+    on_success:
+      do:
+        - put: agent-operator-git-source
+          params:
+            repository: agent-operator-git-source
+            tag_file: agent-operator-git-source/ci/version.txt
+            force: true
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: success, context: tag-release }
+    on_failure:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: failure, context: tag-release }
+    on_error:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: error, context: tag-release }
+    on_abort:
+      put: gh-status
+      inputs: [ agent-operator-git-source ]
+      params: { state: error, context: tag-release }
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-image-manifest-sha
+        passed: [end-to-end-tests]
+      - get: agent-operator-git-source
+        passed: [end-to-end-tests]
+        trigger: true
+      - get: version-increment-type
+        passed: [end-to-end-tests]
+      - load_var: trigger-type
+        file: version-increment-type/type
+      - task: tag-with-new-semver
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: agent-operator-git-source
+          outputs:
+            - name: agent-operator-git-source
+          params:
+            BRANCH: ((branch))
+            TRIGGER_TYPE: ((.:trigger-type))
+          run:
+            path: agent-operator-git-source/ci/scripts/tag-new-release.sh
+
+
   - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
     plan:
       - get: agent-operator-git-source
         trigger: true
-        passed: [end-to-end-tests]
+        passed: [tag-release]
       - get: agent-operator-image-manifest-sha
-        passed: [end-to-end-tests]
+        passed: [tag-release]
       - get: version-increment-type
-        passed: [end-to-end-tests]
+        passed: [tag-release]
       - load_var: operator-version
         file: agent-operator-git-source/.git/ref
         #file: agent-operator-git-source/version
@@ -762,6 +829,7 @@ jobs:
           params:
             GIT_COMMIT: ((.:git-commit))
             VERSION: ((.:operator-version))
+            BRANCH: ((branch))
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
@@ -790,7 +858,7 @@ jobs:
                   --dest-username ${ARTIFACTORY_USERNAME} \
                   --dest-password ${ARTIFACTORY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${DEV_BUILD_IMAGE}:main
+                  docker://${DEV_BUILD_IMAGE}:${BRANCH}
 
                 # For non-public releases we are done:
                 export RELEASE_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
@@ -814,14 +882,19 @@ jobs:
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
-                echo "---> Pushing multi-architectural manifest to icr.io with the latest tag"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ICR_USERNAME} \
-                  --dest-password ${ICR_PASSWORD} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${ICR_REPOSITORY}:latest
+                # Only push with the latest tag when running on main branch
+                if [[ "${BRANCH}" == "main" ]]; then
+                  echo "---> Pushing multi-architectural manifest to icr.io with the latest tag"
+                  skopeo copy -a --preserve-digests \
+                    --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
+                    --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                    --dest-username ${ICR_USERNAME} \
+                    --dest-password ${ICR_PASSWORD} \
+                    docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                    docker://${ICR_REPOSITORY}:latest
+                else
+                  echo "---> Skipping push with latest tag as not running on main branch"
+                fi
 
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
@@ -916,80 +989,14 @@ jobs:
 
                 popd
 
-  - name: tag-release
-    on_success:
-      do:
-        - put: agent-operator-git-source
-          params:
-            repository: agent-operator-git-source
-            tag_file: agent-operator-git-source/ci/version.txt
-            force: true
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: success, context: tag-release }
-    on_failure:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: failure, context: tag-release }
-    on_error:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: tag-release }
-    on_abort:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: error, context: tag-release }
-    max_in_flight: 1
-    plan:
-      - get: agent-operator-image-manifest-sha
-        passed: [multiarch-operator-manifest-promotion]
-      - get: agent-operator-git-source
-        passed: [multiarch-operator-manifest-promotion]
-        trigger: true
-      - get: version-increment-type
-        passed: [multiarch-operator-manifest-promotion]
-      - load_var: trigger-type
-        file: version-increment-type/type
-      - task: tag-with-new-semver
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-              tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-          inputs:
-            - name: agent-operator-git-source
-          outputs:
-            - name: agent-operator-git-source
-          params:
-            BRANCH: ((branch))
-            TRIGGER_TYPE: ((.:trigger-type))
-          run:
-            path: agent-operator-git-source/ci/scripts/tag-new-release.sh
-
   - name: operator-olm-github-release
     max_in_flight: 1
     plan:
       - get: agent-operator-git-source
         trigger: true
-        passed: [tag-release]
+        passed: [multiarch-operator-manifest-promotion]
       - get: agent-operator-image-manifest-sha
-        passed: [tag-release]
+        passed: [multiarch-operator-manifest-promotion]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
       - load_var: operator-version
@@ -1017,6 +1024,7 @@ jobs:
           params:
             VERSION: ((.:operator-version))
             AGENT_IMG_DIGEST: ((.:agent-image-digest))
+            BRANCH: ((branch))
             GH_API_TOKEN: ((instanacd-github-api-token))
           run:
             path: bash
@@ -1081,7 +1089,12 @@ jobs:
 
                 echo "delivery.instana.io/rel-docker-agent-local/instana-agent-operator:${OLM_RELEASE_VERSION}" > target/images.txt
                 echo "icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" >> target/images.txt
-                echo "icr.io/instana/instana-agent-operator:latest" >> target/images.txt
+                
+                # Only include the latest tag when running on main branch
+                if [[ "${BRANCH}" == "main" ]]; then
+                  echo "icr.io/instana/instana-agent-operator:latest" >> target/images.txt
+                fi
+                
                 cat target/images.txt
 
                 # For public releases, also create the appropriate github release:
