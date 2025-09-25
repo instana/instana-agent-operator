@@ -861,8 +861,11 @@ jobs:
       params: { state: error, context: tag-release }
     max_in_flight: 1
     plan:
+      - get: agent-operator-image-manifest-sha
+        passed: [multiarch-operator-manifest-promotion]
       - get: agent-operator-git-source
         passed: [multiarch-operator-manifest-promotion]
+        trigger: true
       - task: tag-with-new-semver
         config:
           platform: linux
@@ -892,8 +895,6 @@ jobs:
         passed: [tag-release]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
-      - get: agent-operator-git-source
-        passed: [tag-release]
       - load_var: operator-version
         file: agent-operator-git-source/.git/ref
         reveal: true
