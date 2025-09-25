@@ -59,25 +59,6 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
 
-  - name: agent-operator-release-source
-    type: git
-    icon: github
-    source:
-      <<: *instana-operator-git-repo-config
-      fetch_tags: true
-      #  match release tags like "v1.12.99"
-      #  match pre-release tags like "v1.12.100-pre"
-      tag_regex: '^v\d+\.\d+\.\d+.*$'
-      #          ^ beginning of the tag string
-      #           ^ all tags start with "v"
-      #            ^ ^ any number of digits
-      #               ^ the "." character
-      #                 ^ ^ any number of digits
-      #                    ^ the "." character
-      #                      ^ ^ any number of digits
-      #                         ^^ any prefix (denoting a non-release tag)
-      #                           ^ end of the tag string
-
   - name: gh-status
     type: cogito
     source:
@@ -202,62 +183,6 @@ jobs:
     plan:
       - get: agent-operator-git-source
 
-  - name: tag-release
-    on_success:
-      do:
-        - put: agent-operator-git-source
-          params:
-            repository: agent-operator-git-source
-            tag_file: agent-operator-git-source/ci/version.txt
-            force: true
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: success, context: tag-release }
-    on_failure:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: failure, context: tag-release }
-    on_error:
-      do:
-        - put: slack-alert
-          params:
-            channel: '#tech-agent-delivery-notifications'
-            text: |
-              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: tag-release }
-    on_abort:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: error, context: tag-release }
-    max_in_flight: 1
-    plan:
-      - get: agent-operator-git-source
-        passed: [manual-trigger]
-      - task: tag-with-new-semver
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-              tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-          inputs:
-            - name: agent-operator-git-source
-          outputs:
-            - name: agent-operator-git-source
-          run:
-            path: agent-operator-git-source/ci/scripts/tag-new-release.sh
-
   - name: docker-build
     max_in_flight: 1
     on_success:
@@ -290,23 +215,22 @@ jobs:
       params: { state: error, context: build/docker }
     plan:
       - get: agent-operator-git-source
-        passed: [self-update]
-      - get: agent-operator-release-source
+        passed: [manual-trigger]
         trigger: true
       - load_var: agent-operator-version
-        file: agent-operator-release-source/.git/ref
+        file: agent-operator-git-source/.git/ref
         reveal: true
       - load_var: git-commit
-        file: agent-operator-release-source/.git/HEAD
+        file: agent-operator-git-source/.git/HEAD
         reveal: true
       - in_parallel:
           fail_fast: true
           steps:
             - task: build-amd64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-git-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-amd64
               vars:
@@ -317,9 +241,9 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-arm64
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-git-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-arm64
               vars:
@@ -330,9 +254,9 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-s390x
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-git-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-s390x
               vars:
@@ -343,9 +267,9 @@ jobs:
                 git-commit: ((.:git-commit))
             - task: build-ppc64le
               privileged: true
-              file: agent-operator-release-source/ci/container-image-build-task.yml
+              file: agent-operator-git-source/ci/container-image-build-task.yml
               input_mapping:
-                source: agent-operator-release-source
+                source: agent-operator-git-source
               output_mapping: 
                 image: image-ppc64le
               vars:
@@ -356,7 +280,7 @@ jobs:
                 git-commit: ((.:git-commit))
       - task: create-tag-files
         privileged: true
-        file: agent-operator-release-source/ci/create-tag-file.yml
+        file: agent-operator-git-source/ci/create-tag-file.yml
         vars:
           git-commit: ((.:git-commit))
           version: ((.:agent-operator-version))
@@ -423,13 +347,11 @@ jobs:
   - name: end-to-end-tests
     max_in_flight: 1
     plan:
-      - get: agent-operator-release-source
+      - get: agent-operator-git-source
         trigger: true
         passed: [docker-build]
       - load_var: git-commit
-        file: agent-operator-release-source/.git/HEAD
-      - get: agent-operator-git-source
-        passed: [docker-build]
+        file: agent-operator-git-source/.git/HEAD
       - get: agent-operator-image-manifest-sha
         passed: [docker-build]
       - in_parallel:
@@ -720,19 +642,17 @@ jobs:
   - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
     plan:
-      - get: agent-operator-release-source
+      - get: agent-operator-git-source
         trigger: true
         passed: [end-to-end-tests]
       - get: agent-operator-image-manifest-sha
         passed: [end-to-end-tests]
-      - get: agent-operator-git-source
-        passed: [end-to-end-tests]
       - load_var: operator-version
-        file: agent-operator-release-source/.git/ref
-        #file: agent-operator-release-source/version
+        file: agent-operator-git-source/.git/ref
+        #file: agent-operator-git-source/version
         reveal: true
       - load_var: git-commit
-        file: agent-operator-release-source/.git/HEAD
+        file: agent-operator-git-source/.git/HEAD
         reveal: true
       - task: build-multiarch-manifest
         privileged: true
@@ -904,20 +824,78 @@ jobs:
 
                 popd
 
+  - name: tag-release
+    on_success:
+      do:
+        - put: agent-operator-git-source
+          params:
+            repository: agent-operator-git-source
+            tag_file: agent-operator-git-source/ci/version.txt
+            force: true
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: success, context: tag-release }
+    on_failure:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: failure, context: tag-release }
+    on_error:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: error, context: tag-release }
+    on_abort:
+      put: gh-status
+      inputs: [ agent-operator-git-source ]
+      params: { state: error, context: tag-release }
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-git-source
+        passed: [multiarch-operator-manifest-promotion]
+      - task: tag-with-new-semver
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: agent-operator-git-source
+          outputs:
+            - name: agent-operator-git-source
+          params:
+            BRANCH: ((branch))
+          run:
+            path: agent-operator-git-source/ci/scripts/tag-new-release.sh
+
   - name: operator-olm-github-release
     max_in_flight: 1
     plan:
-      - get: agent-operator-release-source
+      - get: agent-operator-git-source
         trigger: true
-        passed: [multiarch-operator-manifest-promotion]
+        passed: [tag-release]
       - get: agent-operator-image-manifest-sha
-        passed: [multiarch-operator-manifest-promotion]
+        passed: [tag-release]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
       - get: agent-operator-git-source
-        passed: [multiarch-operator-manifest-promotion]
+        passed: [tag-release]
       - load_var: operator-version
-        file: agent-operator-release-source/.git/ref
+        file: agent-operator-git-source/.git/ref
         reveal: true
       - load_var: agent-image-digest
         file: latest-agent-image-manifest/digest
@@ -934,7 +912,7 @@ jobs:
               username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
               password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
-            - name: agent-operator-release-source
+            - name: agent-operator-git-source
             - name: agent-operator-image-manifest-sha
           outputs:
             - name: build
@@ -957,7 +935,7 @@ jobs:
                   exit 1
                 fi
 
-                pushd agent-operator-release-source
+                pushd agent-operator-git-source
 
                 # Create a place to store our output for packaging up
                 mkdir -p target
