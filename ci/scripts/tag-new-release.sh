@@ -8,14 +8,35 @@
 set -e
 set -o pipefail
 
+echo "Running on branch $BRANCH"
 cd agent-operator-git-source
 git pull -r
-latest_release=$(git tag | sort -r --version-sort | head -n1)
-echo "Latest release is ${latest_release}"
+
+# Handle different branch scenarios
+if [[ $BRANCH =~ ^release-([0-9]+\.[0-9]+)$ ]]; then
+    # Extract major.minor from branch name
+    major_minor="${BASH_REMATCH[1]}"
+    echo "Release branch detected: $BRANCH with major.minor version $major_minor"
+
+    # Find the latest tag with this major.minor
+    latest_release=$(git tag | grep "^v${major_minor}\." | sort -r --version-sort | head -n1)
+
+    if [ -z "$latest_release" ]; then
+        # No existing tag with this major.minor, create first patch version
+        latest_release="v${major_minor}.0"
+        echo "No existing release found for $major_minor, using $latest_release as base"
+    else
+        echo "Latest release for $major_minor is ${latest_release}"
+    fi
+else
+    # Main branch - get the overall latest release
+    latest_release=$(git tag | sort -r --version-sort | head -n1)
+    echo "Main branch detected, latest release is ${latest_release}"
+fi
 
 new_commits=$(git log "${latest_release}"..HEAD --oneline)
 
-if [ -z "$new_commits" ]; then 
+if [ -z "$new_commits" ]; then
     echo "No new commits since the last release"
     exit 1
 fi
@@ -50,7 +71,19 @@ if $only_ci_changes; then
     exit 1
 fi
 
-new_release=$(echo "$latest_release" | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
+# Handle version increment based on the latest_release
+if [[ $latest_release =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    major="${BASH_REMATCH[1]}"
+    minor="${BASH_REMATCH[2]}"
+    patch="${BASH_REMATCH[3]}"
+
+    # Increment patch version
+    new_patch=$((patch + 1))
+    new_release="v${major}.${minor}.${new_patch}"
+else
+    # Fallback if the tag format is unexpected
+    new_release=$(echo "$latest_release" | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
+fi
 
 echo "Tagging repo with the new release tag ${new_release}"
 git config --global user.name "instanacd"
