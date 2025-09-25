@@ -6,7 +6,8 @@ groups:
   - name: git-release
     jobs:
     - self-update
-    - manual-trigger
+    - manual-patch-trigger
+    - manual-minor-trigger
     - tag-release
     - docker-build
     - end-to-end-tests
@@ -112,6 +113,10 @@ resources:
     type: key-value
     icon: zip-disk
 
+  - name: version-increment-type
+    type: key-value
+    icon: zip-disk
+
   - name: preflight
     type: github-release
     source:
@@ -178,10 +183,93 @@ jobs:
       - set_pipeline: self
         file: agent-operator-git-source/ci/pipeline.yaml
 
-  - name: manual-trigger
+  - name: manual-patch-trigger
     max_in_flight: 1
     plan:
       - get: agent-operator-git-source
+      - task: set-patch-increment
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          outputs:
+            - name: increment-type
+          run:
+            path: /bin/bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+                echo "patch" > increment-type/type
+      - put: version-increment-type
+        params:
+          directory: increment-type
+
+  - name: manual-minor-trigger
+    max_in_flight: 1
+    plan:
+      - get: agent-operator-git-source
+      - task: verify-branch-context
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: agent-operator-git-source
+          params:
+            BRANCH: ((branch))
+          run:
+            path: /bin/bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+
+                echo "Running on branch $BRANCH"
+
+                # Check if branch is main
+                if [[ "$BRANCH" != "main" ]]; then
+                  echo "Error: This trigger is only permitted from the main branch"
+                  echo "Current branch: $BRANCH"
+                  exit 1
+                fi
+
+                echo "Branch context verified: $BRANCH is main"
+      - task: set-minor-increment
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          outputs:
+            - name: increment-type
+          run:
+            path: /bin/bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+                echo "minor" > increment-type/type
+      - put: version-increment-type
+        params:
+          directory: increment-type
 
   - name: docker-build
     max_in_flight: 1
@@ -215,8 +303,9 @@ jobs:
       params: { state: error, context: build/docker }
     plan:
       - get: agent-operator-git-source
-        passed: [manual-trigger]
+        passed: [manual-patch-trigger, manual-minor-trigger]
         trigger: true
+      - get: version-increment-type
       - load_var: agent-operator-version
         file: agent-operator-git-source/.git/ref
         reveal: true
@@ -353,6 +442,8 @@ jobs:
       - load_var: git-commit
         file: agent-operator-git-source/.git/HEAD
       - get: agent-operator-image-manifest-sha
+        passed: [docker-build]
+      - get: version-increment-type
         passed: [docker-build]
       - in_parallel:
         - do:
@@ -638,7 +729,6 @@ jobs:
         #         params:
         #           release: openshift-4.11
 
-
   - name: multiarch-operator-manifest-promotion
     max_in_flight: 1
     plan:
@@ -646,6 +736,8 @@ jobs:
         trigger: true
         passed: [end-to-end-tests]
       - get: agent-operator-image-manifest-sha
+        passed: [end-to-end-tests]
+      - get: version-increment-type
         passed: [end-to-end-tests]
       - load_var: operator-version
         file: agent-operator-git-source/.git/ref
@@ -866,6 +958,10 @@ jobs:
       - get: agent-operator-git-source
         passed: [multiarch-operator-manifest-promotion]
         trigger: true
+      - get: version-increment-type
+        passed: [multiarch-operator-manifest-promotion]
+      - load_var: trigger-type
+        file: version-increment-type/type
       - task: tag-with-new-semver
         config:
           platform: linux
@@ -882,6 +978,7 @@ jobs:
             - name: agent-operator-git-source
           params:
             BRANCH: ((branch))
+            TRIGGER_TYPE: ((.:trigger-type))
           run:
             path: agent-operator-git-source/ci/scripts/tag-new-release.sh
 
