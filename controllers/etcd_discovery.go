@@ -222,7 +222,12 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 		return nil, nil
 	}
 
-	// Sort targets to avoid spurious rollouts
+	// We sort the discovered Service list before computing the checksum to avoid
+	// “spurious rollouts.” Without a deterministic order, the API may return the
+	// same set of Services in a different sequence on each reconciliation.
+	// Even though the actual endpoints are unchanged, the checksum annotation
+	// would differ and trigger an unnecessary Deployment rollout. Sorting ensures
+	// a stable hash when the logical content is identical.
 	sort.Strings(targets)
 
 	// Check if CA secret exists in agent namespace
