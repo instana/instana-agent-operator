@@ -182,6 +182,104 @@ jobs:
       - get: agent-operator-release-source
         passed: [operator-olm-github-release]
       - get: agent-operator-git-source
+      - task: verify-latest-release
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: instana-agent-operator-release
+            - name: agent-operator-git-source
+          run:
+            path: /bin/bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+
+                # Extract the new version from the release
+                NEW_VERSION=$(ls instana-agent-operator-release/olm-*.zip | grep -oP 'olm-v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+                if [ -z "$NEW_VERSION" ]; then
+                  echo "Failed to extract version from release artifact"
+                  exit 1
+                fi
+
+                echo "New version: $NEW_VERSION"
+
+                # Get the latest release version from GitHub API
+                LATEST_RELEASE=$(curl -s https://api.github.com/repos/instana/instana-agent-operator/releases/latest | jq -r '.tag_name' | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+                if [ -z "$LATEST_RELEASE" ]; then
+                  echo "Failed to get latest release version, proceeding with PR creation"
+                  exit 0
+                fi
+
+                echo "Latest release: $LATEST_RELEASE"
+
+                # Compare versions using semver logic
+                # Split versions into components
+                IFS='.' read -r -a NEW_PARTS <<< "$NEW_VERSION"
+                IFS='.' read -r -a LATEST_PARTS <<< "$LATEST_RELEASE"
+
+                # Compare major version
+                if [ "${NEW_PARTS[0]}" -gt "${LATEST_PARTS[0]}" ]; then
+                  echo "New version $NEW_VERSION is semver-greater than latest release $LATEST_RELEASE (major version higher)"
+                  echo "Proceeding with PR creation"
+                  exit 0
+                elif [ "${NEW_PARTS[0]}" -eq "${LATEST_PARTS[0]}" ]; then
+                  # Compare minor version
+                  if [ "${NEW_PARTS[1]}" -gt "${LATEST_PARTS[1]}" ]; then
+                    echo "New version $NEW_VERSION is semver-greater than latest release $LATEST_RELEASE (minor version higher)"
+                    echo "Proceeding with PR creation"
+                    exit 0
+                  elif [ "${NEW_PARTS[1]}" -eq "${LATEST_PARTS[1]}" ]; then
+                    # Compare patch version
+                    if [ "${NEW_PARTS[2]}" -gt "${LATEST_PARTS[2]}" ]; then
+                      echo "New version $NEW_VERSION is semver-greater than latest release $LATEST_RELEASE (patch version higher)"
+                      echo "Proceeding with PR creation"
+                      exit 0
+                    fi
+                  fi
+                fi
+
+                echo "New version $NEW_VERSION is NOT semver-greater than latest release $LATEST_RELEASE"
+                echo "Skipping PR creation"
+                exit 1
+        on_success:
+          do:
+            - put: gh-status
+              inputs: [ agent-operator-git-source ]
+              params: { state: success, context: olm-release-pr-creation/verify-latest-release }
+        on_failure:
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :information_source: Skipping PR creation as the new version is not semver-greater than the latest release.
+            - put: gh-status
+              inputs: [ agent-operator-git-source ]
+              params: { state: success, context: olm-release-pr-creation/verify-latest-release }
+            - abort: {}
+        on_error:
+          do:
+            - put: slack-alert
+              params:
+                channel: '#tech-agent-delivery-notifications'
+                text: |
+                  :x: The operator olm-release-pr-creation/verify-latest-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+            - put: gh-status
+              inputs: [ agent-operator-git-source ]
+              params: { state: error, context: olm-release-pr-creation/verify-latest-release }
+        on_abort:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: error, context: olm-release-pr-creation/verify-latest-release }
       - in_parallel:
           steps:
             - do:
