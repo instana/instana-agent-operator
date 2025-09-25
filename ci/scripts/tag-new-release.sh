@@ -71,18 +71,29 @@ if $only_ci_changes; then
     exit 1
 fi
 
-# Handle version increment based on the latest_release
+# Handle version increment based on the latest_release and TRIGGER_TYPE
 if [[ $latest_release =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
     major="${BASH_REMATCH[1]}"
     minor="${BASH_REMATCH[2]}"
     patch="${BASH_REMATCH[3]}"
 
-    # Increment patch version
-    new_patch=$((patch + 1))
-    new_release="v${major}.${minor}.${new_patch}"
+    # Check if this is a minor version increment
+    if [[ "${TRIGGER_TYPE}" == "minor" ]]; then
+        echo "Minor version increment requested"
+        # Increment minor version and reset patch to 0
+        new_minor=$((minor + 1))
+        new_release="v${major}.${new_minor}.0"
+    else
+        echo "Patch version increment requested (default)"
+        # Increment patch version
+        new_patch=$((patch + 1))
+        new_release="v${major}.${minor}.${new_patch}"
+    fi
 else
-    # Fallback if the tag format is unexpected
-    new_release=$(echo "$latest_release" | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
+    # Fail if the tag format is unexpected
+    echo "ERROR: Unexpected tag format: ${latest_release}"
+    echo "Expected format: v<major>.<minor>.<patch> (e.g., v1.2.3)"
+    exit 1
 fi
 
 echo "Tagging repo with the new release tag ${new_release}"
