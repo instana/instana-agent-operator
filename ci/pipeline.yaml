@@ -117,6 +117,10 @@ resources:
     type: key-value
     icon: zip-disk
 
+  - name: release-version
+    type: key-value
+    icon: zip-disk
+
   - name: preflight
     type: github-release
     source:
@@ -737,6 +741,9 @@ jobs:
             repository: agent-operator-git-source
             tag_file: agent-operator-git-source/ci/version.txt
             force: true
+        - put: release-version
+          params:
+            file: agent-operator-git-source/ci/version.txt
         - put: gh-status
           inputs: [ agent-operator-git-source ]
           params: { state: success, context: tag-release }
@@ -806,9 +813,10 @@ jobs:
         passed: [tag-release]
       - get: version-increment-type
         passed: [tag-release]
+      - get: release-version
+        passed: [tag-release]
       - load_var: operator-version
-        file: agent-operator-git-source/.git/ref
-        #file: agent-operator-git-source/version
+        file: release-version/version
         reveal: true
       - load_var: git-commit
         file: agent-operator-git-source/.git/HEAD
@@ -997,10 +1005,12 @@ jobs:
         passed: [multiarch-operator-manifest-promotion]
       - get: agent-operator-image-manifest-sha
         passed: [multiarch-operator-manifest-promotion]
+      - get: release-version
+        passed: [multiarch-operator-manifest-promotion]
       - get: latest-agent-image-manifest
         params: { skip_download: true }
       - load_var: operator-version
-        file: agent-operator-git-source/.git/ref
+        file: release-version/version
         reveal: true
       - load_var: agent-image-digest
         file: latest-agent-image-manifest/digest
