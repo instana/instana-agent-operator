@@ -836,5 +836,7 @@ func PrintOperatorLogs(ctx context.Context, cfg *envconf.Config, t *testing.T) {
 			cfg.Namespace(),
 		),
 	)
-	t.Log("Error while creating pull secret", p.Out())
+	t.Log("====== Operator logs start ======", p.Out())
+	t.Log(p.Out())
+	t.Log("====== Operator logs end ======", p.Out())
 }
