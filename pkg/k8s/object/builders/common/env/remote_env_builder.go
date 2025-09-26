@@ -103,7 +103,34 @@ func (e *envBuilderRemote) Build(envVars ...EnvVarRemote) []corev1.EnvVar {
 	return allEnvVars
 }
 
+func (e *envBuilderRemote) isSecret(envVar EnvVarRemote) bool {
+	// handle all existing env values to prevent the "exhaustive" linter error
+	// do not just remove this function, as long as we can fallback to the old logic by setting useSecretMounts to false
+	switch envVar {
+	case InstanaAgentKeyEnvRemote, AgentKeyEnvRemote, DownloadKeyEnvRemote,
+		ProxyUserEnvRemote, ProxyPasswordEnvRemote, HTTPSProxyEnvRemote,
+		MirrorReleaseRepoUsernameEnvRemote, MirrorReleaseRepoPasswordEnvRemote,
+		MirrorSharedRepoUsernameEnvRemote, MirrorSharedRepoPasswordEnvRemote:
+		return true
+	case AgentModeEnvRemote, ZoneNameEnvRemote, AgentEndpointEnvRemote, AgentEndpointPortEnvRemote,
+		MavenRepoURLEnvRemote, MavenRepoFeaturesPathRemote, MavenRepoSharedPathRemote, MirrorReleaseRepoUrlEnvRemote,
+		MirrorSharedRepoUrlEnvRemote, ProxyHostEnvRemote, ProxyPortEnvRemote, ProxyProtocolEnvRemote, ProxyUseDNSEnvRemote,
+		ListenAddressEnvRemote, RedactK8sSecretsEnvRemote, AgentZoneEnvRemote, BackendURLEnvRemote,
+		NoProxyEnvRemote, ConfigPathEnvRemote, EntrypointSkipBackendTemplateGenerationRemote, BackendEnvRemote,
+		InstanaAgentPodNameEnvRemote, PodNameEnvRemote, PodIPEnvRemote, PodUIDEnvRemote, PodNamespaceEnvRemote:
+		return false
+	default:
+		return false
+	}
+}
+
 func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
+	// Skip setting environment variables for secrets if useSecretMounts is enabled or nil (default is true)
+	useSecretMounts := e.agent.Spec.UseSecretMounts == nil || *e.agent.Spec.UseSecretMounts
+	if useSecretMounts && e.isSecret(envVar) {
+		return nil
+	}
+
 	switch envVar {
 	case AgentModeEnvRemote:
 		return e.agentModeEnv()
