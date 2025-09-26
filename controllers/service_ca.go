@@ -26,11 +26,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// createServiceCAConfigMap creates a ConfigMap with service-ca.crt annotation for OpenShift
+// createServiceCAConfigMap creates a ConfigMap with "service.beta.openshift.io/inject-cabundle" annotation for OpenShift
+// See: https://docs.redhat.com/en/documentation/openshift_container_platform/4.9/html/security_and_compliance/configuring-certificates#add-service-certificate-configmap_service-serving-certificate
 func (r *InstanaAgentReconciler) createServiceCAConfigMap(ctx context.Context, agent *instanav1.InstanaAgent) error {
 	log := r.loggerFor(ctx, agent)
 
-	// Create a ConfigMap with service-ca.crt annotation
+	// Create a ConfigMap with "service.beta.openshift.io/inject-cabundle" annotation
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      constants.ServiceCAConfigMapName,

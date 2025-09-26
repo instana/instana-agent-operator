@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
@@ -32,7 +33,7 @@ func TestInstanaAgent_Default_ETCDSettings(t *testing.T) {
 	agent.Default()
 
 	// Then
-	assert.NotNil(t, agent.Spec.K8sSensor.ETCD.Insecure, "ETCD.Insecure should be defaulted")
+	require.NotNil(t, agent.Spec.K8sSensor.ETCD.Insecure, "ETCD.Insecure should not be nil, as it defaults to false")
 	assert.False(t, *agent.Spec.K8sSensor.ETCD.Insecure, "ETCD.Insecure should default to false")
 	assert.Equal(
 		t,
