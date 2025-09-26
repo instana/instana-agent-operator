@@ -26,8 +26,9 @@ import (
 
 // mockReconciler is a simplified version of InstanaAgentReconciler for testing
 type mockReconciler struct {
-	client                client.Client
-	mockDiscoverETCDFunc  func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error)
+	client               client.Client
+	mockDiscoverETCDFunc func(ctx context.Context,
+		agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error)
 	mockCreateServiceCAConfigMapFunc func(ctx context.Context, agent *instanav1.InstanaAgent) error
 }
 
