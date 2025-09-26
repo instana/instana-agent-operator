@@ -314,6 +314,14 @@ dev-run-cluster: namespace install create-cr run ## Creates a full dev deploymen
 logs: ## Tail operator logs
 	kubectl logs -f deployment/instana-agent-controller-manager -n $(NAMESPACE)
 
+.PHONY: debug-pod
+debug-pod: ## Debug a pod by name using kubectl debug with UBI9 image
+	@if [ -z "$(POD_NAME)" ]; then \
+		echo "Error: POD_NAME is required. Usage: make debug-pod POD_NAME=<pod-name>"; \
+		exit 1; \
+	fi
+	kubectl debug $(POD_NAME) -it --image=registry.access.redhat.com/ubi9/ubi --target=instana-agent -n $(NAMESPACE)
+
 ##@ OLM
 
 # Generate bundle manifests and metadata, then validate generated files.
