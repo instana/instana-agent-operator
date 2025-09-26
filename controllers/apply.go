@@ -90,20 +90,15 @@ func getK8sSensorDeployments(
 	return builders
 }
 
-func (r *InstanaAgentReconciler) applyResources(
+// createDeploymentContext creates a deployment context for the k8s-sensor deployment.
+// It handles both OpenShift and vanilla Kubernetes cases, setting up the appropriate
+// ETCD configuration based on the environment.
+func (r *InstanaAgentReconciler) createDeploymentContext(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
-	operatorUtils operator_utils.OperatorUtils,
-	statusManager status.AgentStatusManager,
-	keysSecret *corev1.Secret,
-	k8SensorBackends []backends.K8SensorBackend,
-	namespacesDetails namespaces.NamespacesDetails,
-) reconcileReturn {
+) (*k8ssensordeployment.DeploymentContext, reconcileReturn) {
 	log := r.loggerFor(ctx, agent)
-	log.V(1).Info("applying Kubernetes resources for agent")
-
-	// Discover ETCD endpoints for vanilla Kubernetes
 	var deploymentContext *k8ssensordeployment.DeploymentContext
 
 	// For OpenShift, create the service-CA ConfigMap
@@ -155,7 +150,7 @@ func (r *InstanaAgentReconciler) applyResources(
 
 				if currentTargets == newTargets {
 					log.Info("ETCD targets unchanged, skipping Deployment update")
-					return reconcileContinue()
+					return nil, reconcileContinue()
 				}
 			}
 
@@ -172,6 +167,28 @@ func (r *InstanaAgentReconciler) applyResources(
 				deploymentContext.ETCDCASecretName = "etcd-ca"
 			}
 		}
+	}
+
+	return deploymentContext, reconcileContinue()
+}
+
+func (r *InstanaAgentReconciler) applyResources(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+	isOpenShift bool,
+	operatorUtils operator_utils.OperatorUtils,
+	statusManager status.AgentStatusManager,
+	keysSecret *corev1.Secret,
+	k8SensorBackends []backends.K8SensorBackend,
+	namespacesDetails namespaces.NamespacesDetails,
+) reconcileReturn {
+	log := r.loggerFor(ctx, agent)
+	log.V(1).Info("applying Kubernetes resources for agent")
+
+	// Create deployment context for k8s-sensor
+	deploymentContext, result := r.createDeploymentContext(ctx, agent, isOpenShift)
+	if result.suppliesReconcileResult() {
+		return result
 	}
 
 	builders := append(
