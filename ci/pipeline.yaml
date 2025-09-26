@@ -306,8 +306,13 @@ jobs:
       inputs: [ agent-operator-git-source ]
       params: { state: error, context: build/docker }
     plan:
-      - get: agent-operator-git-source
-        passed: [manual-patch-trigger, manual-minor-trigger]
+      - get: agent-operator-git-source-patch
+        resource: agent-operator-git-source
+        passed: [manual-patch-trigger]
+        trigger: true
+      - get: agent-operator-git-source-minor
+        resource: agent-operator-git-source
+        passed: [manual-minor-trigger]
         trigger: true
       - get: version-increment-type
       - load_var: agent-operator-version
