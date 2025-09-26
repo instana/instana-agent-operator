@@ -19,6 +19,7 @@ package constants
 const (
 	// ConfigMap names
 	ServiceCAConfigMapName = "sensor-service-ca"
+	ETCDCASecretName       = "etcd-ca"
 
 	// ETCD ports
 	ETCDMetricsPortHTTPS = 2379
