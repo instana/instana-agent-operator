@@ -27,6 +27,12 @@ import (
 
 // InstanaAgentRemoteSpec defines the desired state of the Instana Agent Remote
 type InstanaAgentRemoteSpec struct {
+	// UseSecretMounts specifies whether to mount secrets as files instead of environment variables.
+	// This is more secure as it prevents secrets from being exposed in the environment.
+	// Default is true.
+	// +kubebuilder:validation:Optional
+	UseSecretMounts *bool `json:"useSecretMounts,omitempty"`
+
 	// Agent deployment specific fields.
 	// +kubebuilder:validation:Required
 	Agent BaseAgentSpec `json:"agent"`
@@ -91,6 +97,10 @@ func (in *InstanaAgentRemote) Default() {
 	optional.ValueOrDefault(&in.Spec.Agent.ImageSpec.PullPolicy, corev1.PullAlways)
 	optional.ValueOrDefault(&in.Spec.Rbac.Create, pointer.To(true))
 	optional.ValueOrDefault(&in.Spec.ServiceAccountSpec.Create.Create, pointer.To(true))
+
+	// Set default value for useSecretMounts to true for all instances
+	// This is more secure as it prevents secrets from being exposed in the environment
+	optional.ValueOrDefault(&in.Spec.UseSecretMounts, pointer.To(true))
 }
 
 // +kubebuilder:object:root=true
