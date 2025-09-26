@@ -955,3 +955,45 @@ func TestBuildDeploymentWithProxyConfiguration(t *testing.T) {
 	assert.False(t, containsEnvVar(container.Env, "AGENT_KEY"),
 		"AGENT_KEY environment variable should not be present when UseSecretMounts is enabled")
 }
+
+// Test case for multiple backends to prevent regression
+func TestGetEnvVarsWithMultipleBackends(t *testing.T) {
+	// Arrange
+	agent := createInstanaAgentWithSecretMountsDisabled()
+
+	// Create a builder with a non-empty ResourceSuffix to simulate additional backend
+	backend := backends.K8SensorBackend{
+		EndpointHost:   agent.Spec.Agent.EndpointHost,
+		EndpointPort:   agent.Spec.Agent.EndpointPort,
+		EndpointKey:    "additional-backend-key",
+		ResourceSuffix: "-1", // This simulates an additional backend
+	}
+
+	builder := createTestDeploymentBuilder(t, agent)
+	builder.backend = backend
+
+	// Act
+	envVars := builder.getEnvVars()
+
+	// Assert
+	agentKeyEnv := findEnvVar(envVars, "AGENT_KEY")
+	assert.NotNil(t, agentKeyEnv, "AGENT_KEY environment variable should be present")
+
+	// The key should be from a secret reference, not a hardcoded value
+	assert.NotNil(t, agentKeyEnv.ValueFrom, "AGENT_KEY should use ValueFrom, not a hardcoded Value")
+	assert.NotNil(t, agentKeyEnv.ValueFrom.SecretKeyRef, "AGENT_KEY should reference a secret")
+
+	// Check that it's using the correct key with suffix
+	assert.Equal(t, constants.AgentKey+"-1", agentKeyEnv.ValueFrom.SecretKeyRef.Key,
+		"Secret key should include the backend suffix")
+}
+
+// Helper function to find an environment variable by name
+func findEnvVar(envVars []corev1.EnvVar, name string) *corev1.EnvVar {
+	for _, env := range envVars {
+		if env.Name == name {
+			return &env
+		}
+	}
+	return nil
+}
