@@ -147,12 +147,77 @@ func (v *volumeBuilderRemote) secretsVolume() (*corev1.Volume, *corev1.VolumeMou
 		secretName = v.remoteAgent.Name
 	}
 
+	// Create a volume with specific items for remote agent
+	items := []corev1.KeyToPath{
+		{
+			Key:  constants.AgentKey,
+			Path: constants.SecretFileAgentKey,
+		},
+	}
+
+	// Add download key mapping only if it's specified
+	if v.remoteAgent.Spec.Agent.DownloadKey != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.DownloadKey,
+			Path: constants.SecretFileDownloadKey,
+		})
+	}
+
+	// Add proxy-related secrets if proxy is configured
+	if v.remoteAgent.Spec.Agent.ProxyHost != "" {
+		if v.remoteAgent.Spec.Agent.ProxyUser != "" {
+			items = append(items, corev1.KeyToPath{
+				Key:  "proxyUser",
+				Path: constants.SecretFileProxyUser,
+			})
+		}
+		if v.remoteAgent.Spec.Agent.ProxyPassword != "" {
+			items = append(items, corev1.KeyToPath{
+				Key:  "proxyPassword",
+				Path: constants.SecretFileProxyPassword,
+			})
+		}
+		// Add HTTPS_PROXY if needed
+		items = append(items, corev1.KeyToPath{
+			Key:  "httpsProxy",
+			Path: constants.SecretFileHttpsProxy,
+		})
+	}
+
+	// Add repository mirror credentials if configured
+	if v.remoteAgent.Spec.Agent.MirrorReleaseRepoUsername != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  "mirrorReleaseRepoUsername",
+			Path: constants.SecretFileMirrorReleaseRepoUsername,
+		})
+	}
+	if v.remoteAgent.Spec.Agent.MirrorReleaseRepoPassword != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  "mirrorReleaseRepoPassword",
+			Path: constants.SecretFileMirrorReleaseRepoPassword,
+		})
+	}
+	if v.remoteAgent.Spec.Agent.MirrorSharedRepoUsername != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  "mirrorSharedRepoUsername",
+			Path: constants.SecretFileMirrorSharedRepoUsername,
+		})
+	}
+	if v.remoteAgent.Spec.Agent.MirrorSharedRepoPassword != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  "mirrorSharedRepoPassword",
+			Path: constants.SecretFileMirrorSharedRepoPassword,
+		})
+	}
+
 	volume := corev1.Volume{
 		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  secretName,
 				DefaultMode: pointer.To[int32](0400), // Read-only for owner
+				Items:       items,
+				Optional:    pointer.To(false),
 			},
 		},
 	}
