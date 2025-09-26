@@ -477,6 +477,48 @@ func TestSecretBuilder_BuildWithSecretMounts(t *testing.T) {
 				Type: corev1.SecretTypeOpaque,
 			},
 		},
+		{
+			name: "with UseSecretMounts false and multiple backends",
+			agent: &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-agent",
+					Namespace: "test-namespace",
+				},
+				Spec: instanav1.InstanaAgentSpec{
+					UseSecretMounts: pointer.To(false),
+					Agent: instanav1.BaseAgentSpec{
+						Key:         "test-key",
+						DownloadKey: "test-download-key",
+					},
+				},
+			},
+			backends: []backends.K8SensorBackend{
+				{
+					ResourceSuffix: "",
+					EndpointKey:    "first-backend-key",
+				},
+				{
+					ResourceSuffix: "-2",
+					EndpointKey:    "second-backend-key",
+				},
+			},
+			expectedSecret: &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Secret",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-agent",
+					Namespace: "test-namespace",
+				},
+				Data: map[string][]byte{
+					"key":         []byte("first-backend-key"),
+					"key-2":       []byte("second-backend-key"),
+					"downloadKey": []byte("test-download-key"),
+				},
+				Type: corev1.SecretTypeOpaque,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -86,7 +86,8 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 	// Only add the AGENT_KEY and HTTPS_PROXY environment variable if secret mounts are explicitly disabled
 	if d.Spec.UseSecretMounts != nil && !*d.Spec.UseSecretMounts {
-		backendEnvVars = append(backendEnvVars, d.EnvBuilder.Build(env.AgentKeyEnv)...)
+		// For all backends, use the key from the secret
+		backendEnvVars = append(backendEnvVars, d.getAgentKeyEnvVar())
 		backendEnvVars = append(backendEnvVars, d.EnvBuilder.Build(env.HTTPSProxyEnv)...)
 	}
 
@@ -100,6 +101,22 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.K8SensorSecretsVolume)
 	}
 	return d.VolumeBuilder.Build(volume.ConfigVolume)
+}
+
+// getAgentKeyEnvVar returns an environment variable for the AGENT_KEY that references the key from a secret
+// It works for both the main backend and additional backends by using the appropriate key suffix
+func (d *deploymentBuilder) getAgentKeyEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: "AGENT_KEY",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name),
+				},
+				Key: constants.AgentKey + d.backend.ResourceSuffix,
+			},
+		},
+	}
 }
 
 // K8Sensor relies on this label for internal sharding logic for some reason, if you remove it the k8sensor will break
