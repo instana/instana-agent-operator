@@ -531,6 +531,8 @@ jobs:
               do:
               - task: cleanup-resources
                 timeout: 10m
+                input_mapping:
+                  pipeline-source: agent-operator-git-source
                 config:
                   platform: linux
                   image_resource: *e2e-test-image-resource
@@ -540,9 +542,9 @@ jobs:
                     NAME: gke-lowest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
-                    - name: agent-operator-git-source
+                    - name: pipeline-source
                   run:
-                    path: agent-operator-git-source/ci/scripts/cleanup-resources.sh
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
               - task: reslock-release-gke-lowest
                 timeout: 5m
                 config:
@@ -636,6 +638,8 @@ jobs:
               do:
               - task: cleanup-resources
                 timeout: 10m
+                input_mapping:
+                  pipeline-source: agent-operator-git-source
                 config:
                   platform: linux
                   image_resource: *e2e-test-image-resource
@@ -646,9 +650,9 @@ jobs:
 
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
-                    - name: agent-operator-git-source
+                    - name: pipeline-source
                   run:
-                    path: agent-operator-git-source/ci/scripts/cleanup-resources.sh
+                    path: pipeline-source/ci/scripts/cleanup-resources.sh
               - task: reslock-release-gke-latest
                 timeout: 5m
                 config:
