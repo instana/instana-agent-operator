@@ -77,6 +77,24 @@ When the feature is enabled, the following secrets are mounted as files:
 | Shared Repo Mirror Username | `/opt/instana/agent/etc/instana/secrets/INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME` |
 | Shared Repo Mirror Password | `/opt/instana/agent/etc/instana/secrets/INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD` |
 
+## Secret Key Mapping
+
+When using the Secret Mounts feature, the following secret keys are mapped to specific file paths:
+
+| Secret Key | File Path |
+|------------|-----------|
+| key | `/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_KEY` |
+| downloadKey | `/opt/instana/agent/etc/instana/secrets/INSTANA_DOWNLOAD_KEY` |
+| proxyUser | `/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_PROXY_USER` |
+| proxyPassword | `/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_PROXY_PASSWORD` |
+| httpsProxy | `/opt/instana/agent/etc/instana/secrets/HTTPS_PROXY` |
+| mirrorReleaseRepoUsername | `/opt/instana/agent/etc/instana/secrets/AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME` |
+| mirrorReleaseRepoPassword | `/opt/instana/agent/etc/instana/secrets/AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD` |
+| mirrorSharedRepoUsername | `/opt/instana/agent/etc/instana/secrets/INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME` |
+| mirrorSharedRepoPassword | `/opt/instana/agent/etc/instana/secrets/INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD` |
+
+This mapping ensures that the agent can find the secrets at the expected file paths, regardless of the key names used in the Kubernetes Secret.
+
 ## Compatibility
 
 - The feature is backward compatible. When disabled, the operator will continue to use environment variables for secrets.

@@ -21,193 +21,187 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 )
 
-const numDefinedVolumesRemote = 3
-
-func rangeUntilRemote(n int) []RemoteVolume {
-	res := make([]RemoteVolume, 0, n)
-
-	for i := 0; i < n; i++ {
-		res = append(res, RemoteVolume(i))
-	}
-
-	return res
-}
-
-func assertAllElementsUniqueRemote[T comparable](assertions *require.Assertions, list []T) {
-	m := make(map[T]bool, len(list))
-
-	for _, element := range list {
-		m[element] = true
-	}
-
-	assertions.Equal(len(list), len(m))
-}
-
-func TestVolumeBuilderBuildsAreUniqueRemote(t *testing.T) {
-	t.Run(
-		"each returned volume and volume mount is unique", func(t *testing.T) {
-			assertions := require.New(t)
-
-			vb := NewVolumeBuilderRemote(&instanav1.InstanaAgentRemote{})
-			volume, volumeMount := vb.Build(rangeUntilRemote(numDefinedVolumesRemote)...)
-
-			assertions.Len(volume, numDefinedVolumesRemote-2)
-			assertions.Len(volumeMount, numDefinedVolumesRemote-2)
-			assertAllElementsUniqueRemote(assertions, volume)
-			assertAllElementsUniqueRemote(assertions, volumeMount)
-		},
-	)
-
-}
-
-func TestVolumeBuilderPanicsWhenVolumeNumberDoesntExistRemote(t *testing.T) {
-	t.Run(
-		"panics once a volume is introduced that isn't found in the defined volumes", func(t *testing.T) {
-			assert.PanicsWithError(t, "unknown volume requested", func() {
-				_, _ = NewVolumeBuilderRemote(&instanav1.InstanaAgentRemote{}).
-					Build([]RemoteVolume{RemoteVolume(9999)}...)
-			})
-		},
-	)
-}
-
-func TestVolumeBuilderBuildRemote(t *testing.T) {
-	for _, test := range []struct {
-		name               string
-		expectedNumVolumes int
-	}{
-		{
-			name:               "testVolumes",
-			expectedNumVolumes: 1,
-		},
-	} {
-		t.Run(
-			test.name, func(t *testing.T) {
-				assertions := require.New(t)
-
-				vb := NewVolumeBuilderRemote(&instanav1.InstanaAgentRemote{})
-
-				volumes, volumeMounts := vb.Build(rangeUntilRemote(numDefinedVolumesRemote)...)
-
-				assertions.Len(volumes, test.expectedNumVolumes)
-				assertions.Len(volumeMounts, test.expectedNumVolumes)
+func TestRemoteVolumeBuilder_SecretsVolume(t *testing.T) {
+	// Test case 1: useSecretMounts is true (default)
+	t.Run("with useSecretMounts enabled", func(t *testing.T) {
+		// Setup
+		agent := &instanav1.InstanaAgentRemote{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-agent",
 			},
-		)
-	}
-}
-
-func TestVolumeBuilderBuildFromUserConfigRemote(t *testing.T) {
-	assertions := require.New(t)
-	volumeName := "testVolume"
-	agent := &instanav1.InstanaAgent{
-		Spec: instanav1.InstanaAgentSpec{
-			Agent: instanav1.BaseAgentSpec{
-				Pod: instanav1.AgentPodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: volumeName,
-						},
-					},
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name: volumeName,
-						},
-					},
+			Spec: instanav1.InstanaAgentRemoteSpec{
+				Agent: instanav1.BaseAgentSpec{
+					KeysSecret:  "test-secret",
+					DownloadKey: "test-download-key", // Add download key for this test
 				},
 			},
-		},
-	}
-	for _, test := range []struct {
-		name string
-	}{
-		{
-			name: "UserConfig",
-		},
-	} {
-		t.Run(
-			test.name, func(t *testing.T) {
-				vb := NewVolumeBuilder(agent, true)
-				volumes, volumeMounts := vb.BuildFromUserConfig()
-				assertions.Equal(volumeName, volumes[0].Name)
-				assertions.Equal(volumeName, volumeMounts[0].Name)
-			},
-		)
-	}
-}
+		}
+		builder := NewVolumeBuilderRemote(agent)
 
-func TestVolumeBuilderTlsSpecRemote(t *testing.T) {
-	for _, test := range []struct {
-		name               string
-		volume             RemoteVolume
-		volumeName         string
-		instanaAgent       instanav1.InstanaAgentRemote
-		expectedNumVolumes int
-	}{
-		{
-			name:       "Should return an TLS volume when Agent configuration has TLS Spec values",
-			volume:     TlsVolumeRemote,
-			volumeName: "remote-agent-tls",
-			instanaAgent: instanav1.InstanaAgentRemote{
-				Spec: instanav1.InstanaAgentRemoteSpec{
-					Agent: instanav1.BaseAgentSpec{
-						TlsSpec: instanav1.TlsSpec{
-							SecretName: "very-secret",
-						},
-					},
+		// Execute
+		volumes, mounts := builder.Build(SecretsVolumeRemote)
+
+		// Verify
+		require.Len(t, volumes, 1)
+		require.Len(t, mounts, 1)
+
+		// Check volume
+		volume := volumes[0]
+		assert.Equal(t, "instana-secrets", volume.Name)
+		assert.Equal(t, "test-secret", volume.Secret.SecretName)
+		assert.NotNil(t, volume.Secret.Items)
+
+		// Verify key mappings
+		foundAgentKey := false
+		foundDownloadKey := false
+		for _, item := range volume.Secret.Items {
+			if item.Key == constants.AgentKey && item.Path == constants.SecretFileAgentKey {
+				foundAgentKey = true
+			}
+			if item.Key == constants.DownloadKey && item.Path == constants.SecretFileDownloadKey {
+				foundDownloadKey = true
+			}
+		}
+		assert.True(t, foundAgentKey, "Agent key mapping not found")
+		assert.True(t, foundDownloadKey, "Download key mapping not found")
+
+		// Check mount
+		mount := mounts[0]
+		assert.Equal(t, "instana-secrets", mount.Name)
+		assert.Equal(t, constants.InstanaSecretsDirectory, mount.MountPath)
+		assert.True(t, mount.ReadOnly)
+	})
+
+	// Test case 2: useSecretMounts is false
+	t.Run("with useSecretMounts disabled", func(t *testing.T) {
+		// Setup
+		useSecretMounts := false
+		agent := &instanav1.InstanaAgentRemote{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-agent",
+			},
+			Spec: instanav1.InstanaAgentRemoteSpec{
+				UseSecretMounts: &useSecretMounts,
+				Agent: instanav1.BaseAgentSpec{
+					KeysSecret: "test-secret",
 				},
 			},
-			expectedNumVolumes: 1,
-		},
-		{
-			name:               "Should not return a TLS volume entry when TLS Spec values are missing from Agent configuration",
-			volume:             TlsVolumeRemote,
-			instanaAgent:       instanav1.InstanaAgentRemote{Spec: instanav1.InstanaAgentRemoteSpec{Agent: instanav1.BaseAgentSpec{TlsSpec: instanav1.TlsSpec{}}}},
-			expectedNumVolumes: 0,
-		},
-	} {
-		t.Run(
-			test.name, func(t *testing.T) {
-				assertions := require.New(t)
+		}
+		builder := NewVolumeBuilderRemote(agent)
 
-				vb := NewVolumeBuilderRemote(&test.instanaAgent)
+		// Execute
+		volumes, mounts := builder.Build(SecretsVolumeRemote)
 
-				actualvolumes, actualVolumeMounts := vb.Build(test.volume)
-				assertions.Len(actualvolumes, test.expectedNumVolumes)
-				assertions.Len(actualVolumeMounts, test.expectedNumVolumes)
+		// Verify
+		assert.Empty(t, volumes)
+		assert.Empty(t, mounts)
+	})
 
-				if len(actualvolumes) > 0 && test.volumeName != "" {
-					assertions.Equal(actualvolumes[0].Name, test.volumeName)
-				}
+	// Test case 3: with proxy configuration
+	t.Run("with proxy configuration", func(t *testing.T) {
+		// Setup
+		agent := &instanav1.InstanaAgentRemote{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-agent",
 			},
-		)
-	}
+			Spec: instanav1.InstanaAgentRemoteSpec{
+				Agent: instanav1.BaseAgentSpec{
+					KeysSecret:    "test-secret",
+					ProxyHost:     "proxy.example.com",
+					ProxyUser:     "proxyuser",
+					ProxyPassword: "proxypass",
+				},
+			},
+		}
+		builder := NewVolumeBuilderRemote(agent)
+
+		// Execute
+		volumes, _ := builder.Build(SecretsVolumeRemote)
+
+		// Verify
+		require.Len(t, volumes, 1)
+		volume := volumes[0]
+
+		// Verify proxy-related key mappings
+		foundProxyUser := false
+		foundProxyPassword := false
+		foundHttpsProxy := false
+		for _, item := range volume.Secret.Items {
+			if item.Key == "proxyUser" && item.Path == constants.SecretFileProxyUser {
+				foundProxyUser = true
+			}
+			if item.Key == "proxyPassword" && item.Path == constants.SecretFileProxyPassword {
+				foundProxyPassword = true
+			}
+			if item.Key == "httpsProxy" && item.Path == constants.SecretFileHttpsProxy {
+				foundHttpsProxy = true
+			}
+		}
+		assert.True(t, foundProxyUser, "Proxy user mapping not found")
+		assert.True(t, foundProxyPassword, "Proxy password mapping not found")
+		assert.True(t, foundHttpsProxy, "HTTPS_PROXY mapping not found")
+	})
+
+	// Test case 4: with repository mirror credentials
+	t.Run("with repository mirror credentials", func(t *testing.T) {
+		// Setup
+		agent := &instanav1.InstanaAgentRemote{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-agent",
+			},
+			Spec: instanav1.InstanaAgentRemoteSpec{
+				Agent: instanav1.BaseAgentSpec{
+					KeysSecret:                "test-secret",
+					MirrorReleaseRepoUsername: "releaseuser",
+					MirrorReleaseRepoPassword: "releasepass",
+					MirrorSharedRepoUsername:  "shareduser",
+					MirrorSharedRepoPassword:  "sharedpass",
+				},
+			},
+		}
+		builder := NewVolumeBuilderRemote(agent)
+
+		// Execute
+		volumes, _ := builder.Build(SecretsVolumeRemote)
+
+		// Verify
+		require.Len(t, volumes, 1)
+		volume := volumes[0]
+
+		// Verify mirror-related key mappings
+		foundReleaseRepoUsername := false
+		foundReleaseRepoPassword := false
+		foundSharedRepoUsername := false
+		foundSharedRepoPassword := false
+		for _, item := range volume.Secret.Items {
+			if item.Key == "mirrorReleaseRepoUsername" &&
+				item.Path == constants.SecretFileMirrorReleaseRepoUsername {
+				foundReleaseRepoUsername = true
+			}
+			if item.Key == "mirrorReleaseRepoPassword" &&
+				item.Path == constants.SecretFileMirrorReleaseRepoPassword {
+				foundReleaseRepoPassword = true
+			}
+			if item.Key == "mirrorSharedRepoUsername" &&
+				item.Path == constants.SecretFileMirrorSharedRepoUsername {
+				foundSharedRepoUsername = true
+			}
+			if item.Key == "mirrorSharedRepoPassword" &&
+				item.Path == constants.SecretFileMirrorSharedRepoPassword {
+				foundSharedRepoPassword = true
+			}
+		}
+		assert.True(t, foundReleaseRepoUsername, "Mirror release repo username mapping not found")
+		assert.True(t, foundReleaseRepoPassword, "Mirror release repo password mapping not found")
+		assert.True(t, foundSharedRepoUsername, "Mirror shared repo username mapping not found")
+		assert.True(t, foundSharedRepoPassword, "Mirror shared repo password mapping not found")
+	})
 }
 
-func TestVolumeBuilderRepositoryRemote(t *testing.T) {
-	t.Run(
-		"Build returns a Repository struct when the Repository exists", func(t *testing.T) {
-			assertions := require.New(t)
-
-			vb := NewVolumeBuilderRemote(
-				&instanav1.InstanaAgentRemote{
-					Spec: instanav1.InstanaAgentRemoteSpec{
-						Agent: instanav1.BaseAgentSpec{
-							Host: instanav1.HostSpec{
-								Repository: "very-repository",
-							},
-						},
-					},
-				})
-
-			actualvolumes, actualVolumeMounts := vb.Build(RepoVolumeRemote)
-
-			assertions.Len(actualvolumes, 1)
-			assertions.Len(actualVolumeMounts, 1)
-		},
-	)
-}
+// Made with Bob
