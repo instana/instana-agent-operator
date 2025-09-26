@@ -100,6 +100,13 @@ func (r *mockReconciler) createDeploymentContext(
 				sort.Strings(sortedTargets)
 				newTargets := strings.Join(sortedTargets, ",")
 
+				// Sort currentTargets for proper comparison
+				if currentTargets != "" {
+					currentTargetsList := strings.Split(currentTargets, ",")
+					sort.Strings(currentTargetsList)
+					currentTargets = strings.Join(currentTargetsList, ",")
+				}
+
 				if currentTargets == newTargets {
 					log.Info("ETCD targets unchanged, skipping Deployment update")
 					return nil, reconcileSuccess(ctrl.Result{})
@@ -305,5 +312,81 @@ func TestCreateDeploymentContext_VanillaK8s_UnchangedTargets(t *testing.T) {
 
 	// Verify
 	require.True(t, result.suppliesReconcileResult(), "Should supply reconcile result when targets are unchanged")
+	assert.Nil(t, deploymentContext, "Deployment context should be nil when targets are unchanged")
+}
+
+func TestCreateDeploymentContext_VanillaK8s_DifferentOrderTargets(t *testing.T) {
+	// Setup
+	scheme := runtime.NewScheme()
+	_ = instanav1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	_ = appsv1.AddToScheme(scheme)
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+	}
+
+	// Create a deployment with existing ETCD targets in a specific order
+	helperInstance := helpers.NewHelpers(agent)
+	existingDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helperInstance.K8sSensorResourcesName(),
+			Namespace: agent.Namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: constants.ContainerK8Sensor,
+							Env: []corev1.EnvVar{
+								{
+									Name:  constants.EnvETCDTargets,
+									Value: "https://etcd-2:2379/metrics,https://etcd-1:2379/metrics,https://etcd-3:2379/metrics", // Unsorted order
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create a fake client with the existing deployment
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(existingDeployment).
+		Build()
+
+	// Create mock reconciler
+	reconciler := &mockReconciler{
+		client: fakeClient,
+		mockCreateServiceCAConfigMapFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) error {
+			return nil
+		},
+		mockDiscoverETCDFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+			return &DiscoveredETCDTargets{
+				// Different order than in the deployment, but same targets
+				Targets: []string{
+					"https://etcd-1:2379/metrics",
+					"https://etcd-3:2379/metrics",
+					"https://etcd-2:2379/metrics",
+				},
+				CAFound: true,
+			}, nil
+		},
+	}
+
+	// Test
+	ctx := context.Background()
+	deploymentContext, result := reconciler.createDeploymentContext(ctx, agent, false)
+
+	// Verify
+	require.True(t,
+		result.suppliesReconcileResult(),
+		"Should supply reconcile result when targets are unchanged (just in different order)")
 	assert.Nil(t, deploymentContext, "Deployment context should be nil when targets are unchanged")
 }

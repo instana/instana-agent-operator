@@ -32,6 +32,8 @@ import (
 
 // DiscoveredETCDTargets holds information about discovered ETCD endpoints
 type DiscoveredETCDTargets struct {
+	// Targets is a slice of ETCD endpoint URLs in the format scheme://ip:port/metrics
+	// where scheme is either http or https. For example: "https://10.0.0.1:2379/metrics"
 	Targets []string
 	CAFound bool
 }

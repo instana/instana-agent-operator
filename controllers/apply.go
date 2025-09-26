@@ -148,6 +148,13 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 				sort.Strings(sortedTargets)
 				newTargets := strings.Join(sortedTargets, ",")
 
+				// Sort currentTargets for proper comparison
+				if currentTargets != "" {
+					currentTargetsList := strings.Split(currentTargets, ",")
+					sort.Strings(currentTargetsList)
+					currentTargets = strings.Join(currentTargetsList, ",")
+				}
+
 				if currentTargets == newTargets {
 					log.Info("ETCD targets unchanged, skipping Deployment update")
 					return nil, reconcileContinue()
