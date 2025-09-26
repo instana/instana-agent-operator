@@ -34,7 +34,13 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 
 			t.Logf("Creating dummy secret")
 
-			err = decoder.ApplyWithManifestDir(ctx, r, "../config/samples", "external_secret_instana_agent_key.yaml", []resources.CreateOption{})
+			err = decoder.ApplyWithManifestDir(
+				ctx,
+				r,
+				"../config/samples",
+				"external_secret_instana_agent_key.yaml",
+				[]resources.CreateOption{},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -42,7 +48,13 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 			t.Logf("Secret created")
 
 			t.Logf("Creating dummy agent CR with external secret")
-			err = decoder.ApplyWithManifestDir(ctx, r, "../config/samples", "instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml", []resources.CreateOption{})
+			err = decoder.ApplyWithManifestDir(
+				ctx,
+				r,
+				"../config/samples",
+				"instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml",
+				[]resources.CreateOption{},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -58,6 +70,83 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 
 	// test feature
 	testEnv.Test(t, installCrWithExternalSecretFeature)
+}
+
+func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
+	installCrWithExternalSecretAndSecretMountsFeature := features.New(
+		"multiple backend support with external keyssecret and useSecretMounts: true",
+	).
+		Setup(SetupOperatorDevBuild()).
+		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			r, err := resources.New(cfg.Client().RESTConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("Creating dummy secret")
+
+			err = decoder.ApplyWithManifestDir(
+				ctx,
+				r,
+				"../config/samples",
+				"external_secret_instana_agent_key.yaml",
+				[]resources.CreateOption{},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("Secret created")
+
+			t.Logf("Creating dummy agent CR with external secret and useSecretMounts: true")
+
+			// Read the existing CR file
+			f, err := os.Open(
+				"../config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml",
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					t.Logf("Failed to close file: %v", err)
+				}
+			}()
+
+			var agent instanav1.InstanaAgent
+			err = decoder.Decode(f, &agent)
+			if err != nil {
+				t.Fatal("Could not decode agent", err)
+			}
+
+			// Set useSecretMounts to true
+			useSecretMounts := true
+			agent.Spec.UseSecretMounts = &useSecretMounts
+
+			// Create the modified agent CR
+			err = decoder.CreateHandler(r)(ctx, &agent)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("CR created")
+
+			return ctx
+		}).
+		Assess("wait for first k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
+		Assess("wait for second k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(
+			fmt.Sprintf("%s-1", K8sensorDeploymentName)),
+		).
+		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		Assess("validate instana-agent-config secret contains 2 backends", ValidateAgentMultiBackendConfiguration()).
+		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
+		Assess("validate sensitive environment variables are not set", ValidateSensitiveEnvVarsNotSet()).
+		Assess("validate k8sensor uses agent-key-file argument", ValidateK8sensorAgentKeyFileArg()).
+		Feature()
+
+	// test feature
+	testEnv.Test(t, installCrWithExternalSecretAndSecretMountsFeature)
 }
 
 func TestMultiBackendSupportInlineSecret(t *testing.T) {
@@ -109,17 +198,23 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 func TestRemovalOfAdditionalBackend(t *testing.T) {
 	agent := NewAgentCr()
 
-	agent.Spec.Agent.AdditionalBackends = append(agent.Spec.Agent.AdditionalBackends, instanav1.BackendSpec{
-		EndpointHost: "test1.instana.ibm.com",
-		EndpointPort: "443",
-		Key:          "yyy",
-	})
+	agent.Spec.Agent.AdditionalBackends = append(
+		agent.Spec.Agent.AdditionalBackends,
+		instanav1.BackendSpec{
+			EndpointHost: "test1.instana.ibm.com",
+			EndpointPort: "443",
+			Key:          "yyy",
+		},
+	)
 
-	agent.Spec.Agent.AdditionalBackends = append(agent.Spec.Agent.AdditionalBackends, instanav1.BackendSpec{
-		EndpointHost: "test2.instana.ibm.com",
-		EndpointPort: "443",
-		Key:          "zzz",
-	})
+	agent.Spec.Agent.AdditionalBackends = append(
+		agent.Spec.Agent.AdditionalBackends,
+		instanav1.BackendSpec{
+			EndpointHost: "test2.instana.ibm.com",
+			EndpointPort: "443",
+			Key:          "zzz",
+		},
+	)
 
 	var checksum, checksum1, checksum2 string
 
@@ -159,11 +254,14 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 
 	agent2 := NewAgentCr()
 	agent2.Spec.Agent.AdditionalBackends = []instanav1.BackendSpec{}
-	agent2.Spec.Agent.AdditionalBackends = append(agent2.Spec.Agent.AdditionalBackends, instanav1.BackendSpec{
-		EndpointHost: "test2.instana.ibm.com",
-		EndpointPort: "443",
-		Key:          "zzz",
-	})
+	agent2.Spec.Agent.AdditionalBackends = append(
+		agent2.Spec.Agent.AdditionalBackends,
+		instanav1.BackendSpec{
+			EndpointHost: "test2.instana.ibm.com",
+			EndpointPort: "443",
+			Key:          "zzz",
+		},
+	)
 	checkReconciliationFeature := features.New("check reconcile works with new operator deployment").
 		Setup(UpdateAgentCr(&agent2)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
@@ -177,9 +275,15 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 				t.Fatal(err)
 			}
 			dep := appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: k8sensorDeploymentName2, Namespace: cfg.Namespace()},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      k8sensorDeploymentName2,
+					Namespace: cfg.Namespace(),
+				},
 			}
-			err = wait.For(conditions.New(client.Resources()).ResourceDeleted(&dep), wait.WithTimeout(time.Minute*2))
+			err = wait.For(
+				conditions.New(client.Resources()).ResourceDeleted(&dep),
+				wait.WithTimeout(time.Minute*2),
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -204,11 +308,15 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 			t.Logf("k8sensor deployment-1: %s", newChecksum1)
 
 			if newChecksum != checksum {
-				t.Errorf("If the additional backend 1 gets removed, the main backend should remain unchanged")
+				t.Errorf(
+					"If the additional backend 1 gets removed, the main backend should remain unchanged",
+				)
 			}
 
 			if newChecksum1 != checksum2 {
-				t.Errorf("If additional backend 1 gets removed, k8sensor deployment 1 must carry the checksum of the former backend2")
+				t.Errorf(
+					"If additional backend 1 gets removed, k8sensor deployment 1 must carry the checksum of the former backend2",
+				)
 			}
 			return ctx
 		}).
