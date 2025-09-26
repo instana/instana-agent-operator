@@ -90,6 +90,14 @@ func getK8sSensorDeployments(
 	return builders
 }
 
+// getSortedTargets returns a sorted copy of the given targets slice
+func getSortedTargets(targets []string) []string {
+	sortedTargets := make([]string, len(targets))
+	copy(sortedTargets, targets)
+	sort.Strings(sortedTargets)
+	return sortedTargets
+}
+
 // createDeploymentContext creates a deployment context for the k8s-sensor deployment.
 // It handles both OpenShift and vanilla Kubernetes cases, setting up the appropriate
 // ETCD configuration based on the environment.
@@ -127,7 +135,9 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 				Name:      helperInstance.K8sSensorResourcesName(),
 			}, existingDeployment)
 
-			if err == nil {
+			if err != nil {
+				log.Info("K8sensor deployment not found, will create with discovered ETCD targets")
+			} else {
 				// Check if the ETCD_TARGETS env var already exists with the same value
 				currentTargets := ""
 				for _, container := range existingDeployment.Spec.Template.Spec.Containers {
@@ -143,9 +153,7 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 				}
 
 				// Sort targets to ensure consistent comparison
-				sortedTargets := make([]string, len(discoveredETCD.Targets))
-				copy(sortedTargets, discoveredETCD.Targets)
-				sort.Strings(sortedTargets)
+				sortedTargets := getSortedTargets(discoveredETCD.Targets)
 				newTargets := strings.Join(sortedTargets, ",")
 
 				// Sort currentTargets for proper comparison
@@ -162,16 +170,14 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 			}
 
 			// Use sorted targets for consistency
-			sortedTargets := make([]string, len(discoveredETCD.Targets))
-			copy(sortedTargets, discoveredETCD.Targets)
-			sort.Strings(sortedTargets)
+			sortedTargets := getSortedTargets(discoveredETCD.Targets)
 
 			log.Info("Using discovered ETCD targets", "targets", sortedTargets)
 			deploymentContext = &k8ssensordeployment.DeploymentContext{
 				DiscoveredETCDTargets: sortedTargets,
 			}
 			if discoveredETCD.CAFound {
-				deploymentContext.ETCDCASecretName = "etcd-ca"
+				deploymentContext.ETCDCASecretName = constants.ETCDCASecretName
 			}
 		}
 	}
