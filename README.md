@@ -35,9 +35,9 @@ On OpenShift clusters, the operator automatically:
 4. Sets `ETCD_CA_FILE` to the mounted certificate path
 5. Sets `ETCD_REQUEST_TIMEOUT` to 15s
 
-**Note:** The 15 s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
+**Note:** The 15s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
 For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
-For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the ETCD tuning guid
+For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
 
 #### Vanilla Kubernetes Clusters
 
@@ -46,7 +46,7 @@ On non-OpenShift clusters, the operator will automatically discover ETCD endpoin
 1. A Service exists in the `kube-system` namespace with label `component=etcd`
 2. The Service has a port named `metrics`
 
-If no labeled Service is found, the operator will try to find a Service named `etcd` or `etcd-metrics`.
+If no such labeled Service, the operator will try to find a Service named `etcd` or `etcd-metrics`.
 
 To expose ETCD metrics in your cluster, create a Service:
 
