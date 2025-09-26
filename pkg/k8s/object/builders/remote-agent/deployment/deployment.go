@@ -132,6 +132,7 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 		volume.ConfigVolumeRemote,
 		volume.TlsVolumeRemote,
 		volume.RepoVolumeRemote,
+		volume.SecretsVolumeRemote,
 	)
 }
 

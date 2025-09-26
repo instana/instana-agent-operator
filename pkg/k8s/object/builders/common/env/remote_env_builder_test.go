@@ -49,7 +49,8 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 			name: "Should produce all env vars with values from the Instana Agent Remote Spec",
 			agent: &instanav1.InstanaAgentRemote{
 				Spec: instanav1.InstanaAgentRemoteSpec{
-					Zone: instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
+					Zone:            instanav1.Name{Name: "INSTANA_AGENT_SPEC_ZONE_NAME"},
+					UseSecretMounts: func() *bool { b := false; return &b }(),
 					Agent: instanav1.BaseAgentSpec{
 						EndpointHost:              "INSTANA_AGENT_ENDPOINT_HOST",
 						EndpointPort:              "INSTANA_AGENT_ENDPOINT_PORT",
@@ -193,6 +194,7 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 			zone: &instanav1.Zone{},
 			agent: &instanav1.InstanaAgentRemote{
 				Spec: instanav1.InstanaAgentRemoteSpec{
+					UseSecretMounts: func() *bool { b := false; return &b }(),
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost: "INSTANA_AGENT_PROXY_HOST",
 						ProxyPort: "8080",
@@ -211,6 +213,7 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 			zone: &instanav1.Zone{},
 			agent: &instanav1.InstanaAgentRemote{
 				Spec: instanav1.InstanaAgentRemoteSpec{
+					UseSecretMounts: func() *bool { b := false; return &b }(),
 					Agent: instanav1.BaseAgentSpec{
 						ProxyHost:     "INSTANA_AGENT_PROXY_HOST",
 						ProxyPort:     "443",
