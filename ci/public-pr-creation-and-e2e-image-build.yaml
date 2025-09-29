@@ -170,7 +170,7 @@ jobs:
         inputs: [ agent-operator-ci-git-source ]
         params: { state: pending, context: operator-olm-release-pr-creation/build }
       - set_pipeline: self
-        file: agent-operator-ci-git-source/ci/release-pr-creation-and-e2e-image-build.yaml
+        file: agent-operator-ci-git-source/ci/public-pr-creation-and-e2e-image-build.yaml
 
   - name: olm-release-pr-creation
     max_in_flight: 1
