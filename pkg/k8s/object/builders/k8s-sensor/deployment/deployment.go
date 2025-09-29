@@ -264,10 +264,11 @@ func NewDeploymentBuilder(
 		helpers:                   helpers.NewHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
-		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
-		PortsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
-		backend:                   backend,
-		keysSecret:                keysSecret,
+		VolumeBuilder: volume.NewVolumeBuilder(agent, isOpenShift).
+			WithBackendResourceSuffix(backend.ResourceSuffix),
+		PortsBuilder: ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
+		backend:      backend,
+		keysSecret:   keysSecret,
 	}
 }
 

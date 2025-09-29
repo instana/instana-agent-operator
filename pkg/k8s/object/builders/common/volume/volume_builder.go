@@ -40,12 +40,14 @@ const (
 type VolumeBuilder interface {
 	Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount)
 	BuildFromUserConfig() ([]corev1.Volume, []corev1.VolumeMount)
+	WithBackendResourceSuffix(string) VolumeBuilder
 }
 
 type volumeBuilder struct {
-	instanaAgent   *instanav1.InstanaAgent
-	helpers        helpers.Helpers
-	isNotOpenShift bool
+	instanaAgent          *instanav1.InstanaAgent
+	helpers               helpers.Helpers
+	isNotOpenShift        bool
+	backendResourceSuffix string
 }
 
 func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBuilder {
@@ -54,6 +56,11 @@ func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBui
 		helpers:        helpers.NewHelpers(agent),
 		isNotOpenShift: !isOpenShift,
 	}
+}
+
+func (v *volumeBuilder) WithBackendResourceSuffix(suffix string) VolumeBuilder {
+	v.backendResourceSuffix = suffix
+	return v
 }
 
 func (v *volumeBuilder) Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount) {
@@ -278,9 +285,19 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 	}
 
 	// Create a volume with specific items for k8sensor
+	agentKeySecretKey := constants.SecretFileAgentKey
+	proxySecretKey := constants.SecretFileHttpsProxy
+
+	// When the user provides an external secret, the keys follow the "key", "key-1" pattern.
+	// Remap them to the expected file names so run.sh can find INSTANA_AGENT_KEY.
+	if v.instanaAgent.Spec.Agent.KeysSecret != "" {
+		agentKeySecretKey = constants.AgentKey + v.backendResourceSuffix
+		proxySecretKey = constants.SecretKeyHttpsProxy
+	}
+
 	items := []corev1.KeyToPath{
 		{
-			Key:  constants.SecretFileAgentKey,
+			Key:  agentKeySecretKey,
 			Path: constants.SecretFileAgentKey,
 		},
 	}
@@ -288,7 +305,7 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 	// Only include HTTPS_PROXY if ProxyHost is set
 	if v.instanaAgent.Spec.Agent.ProxyHost != "" {
 		items = append(items, corev1.KeyToPath{
-			Key:  constants.SecretFileHttpsProxy,
+			Key:  proxySecretKey,
 			Path: constants.SecretFileHttpsProxy,
 		})
 	}
@@ -324,12 +341,22 @@ func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
 		secretName = v.instanaAgent.Name
 	}
 
+	var items []corev1.KeyToPath
+	if v.instanaAgent.Spec.Agent.KeysSecret != "" {
+		agentKeySecretKey := constants.AgentKey + v.backendResourceSuffix
+		items = append(items, corev1.KeyToPath{
+			Key:  agentKeySecretKey,
+			Path: constants.SecretFileAgentKey,
+		})
+	}
+
 	volume := corev1.Volume{
 		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  secretName,
 				DefaultMode: pointer.To[int32](0400), // Read-only for owner
+				Items:       items,
 			},
 		},
 	}
