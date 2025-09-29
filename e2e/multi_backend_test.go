@@ -23,7 +23,7 @@ import (
 )
 
 func TestMultiBackendSupportExternalSecret(t *testing.T) {
-	installCrWithExternalSecretFeature := features.New("multiple backend support with external keyssecret").
+	installCrWithExternalSecretFeature := features.New("multiple backend support with external keyssecret and useSecretMounts: false").
 		Setup(SetupOperatorDevBuild()).
 		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
