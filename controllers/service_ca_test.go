@@ -162,9 +162,10 @@ func TestCreateServiceCAConfigMap(t *testing.T) {
 				assert.Equal(t, agent.UID, ownerRef.UID, "Owner reference UID should match")
 				assert.True(t, *ownerRef.Controller, "Owner reference controller should be true")
 
-				// Verify empty data
-				assert.NotNil(t, configMap.Data, "Data should not be nil")
-				assert.Empty(t, configMap.Data, "Data should be empty")
+				// Verify data is empty (fake client may set Data to nil for empty maps)
+				if configMap.Data != nil {
+					assert.Empty(t, configMap.Data, "Data should be empty")
+				}
 			},
 		},
 		{
