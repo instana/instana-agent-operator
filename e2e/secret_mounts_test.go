@@ -271,13 +271,10 @@ func ValidateSensitiveEnvVarsSet() features.Func {
 			"INSTANA_AGENT_KEY",
 		}
 
-		// For the switching modes test, we'll be more lenient and just log a warning
-		// instead of failing the test if the environment variable is not set
-		// This is because the environment variables might take longer to propagate
 		for _, envVar := range sensitiveEnvVars {
 			if env := findEnvVar(container, envVar); env == nil {
-				t.Logf(
-					"Warning: Sensitive environment variable %s is not set but should be. This might be due to timing issues.",
+				t.Errorf(
+					"Sensitive environment variable %s is not set but should be.",
 					envVar,
 				)
 			} else {
