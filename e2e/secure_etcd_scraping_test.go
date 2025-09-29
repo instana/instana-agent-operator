@@ -29,111 +29,126 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/pkg/types"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 )
 
-func TestSecureETCDScraping(t *testing.T) {
-	// Create a CA certificate secret that will be used for ETCD scraping
-	setupETCDCASecret := func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+const (
+	// expectedCAAbsolutePath is the path where the CA certificate is mounted in the k8sensor pod
+	expectedCAAbsolutePath = "/etc/ssl/certs/ca.crt"
+
+	// testCACertificateContent is the CA certificate content used in tests
+	testCACertificateContent = "-----BEGIN CERTIFICATE-----\n" +
+		"MIIBVzCB/qADAgECAhBsL8JXhPlGrvu/hMCRWXAFMAoGCCqGSM49BAMCMBkxFzAV\n" +
+		"BgNVBAMTDmV0Y2QtY2EtdGVzdGluZzAeFw0yMzA1MDEwMDAwMDBaFw0zMzA1MDEw\n" +
+		"MDAwMDBaMBkxFzAVBgNVBAMTDmV0Y2QtY2EtdGVzdGluZzBZMBMGByqGSM49AgEG\n" +
+		"CCqGSM49AwEHA0IABLnVZEsHdWyq0QgOsS7E5RgXIrBVnL+bZtDEkqkW/kD3N4Fm\n" +
+		"JUK1MdJzwQ7QKnNUQbwpLHmp7vZPMlWxwhPzrMyjQjBAMA4GA1UdDwEB/wQEAwIC\n" +
+		"pDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQxCIIkW0uFSp+1+EwcOWeyZkKJ\n" +
+		"RTAKBggqhkjOPQQDAgNHADBEAiAWYHwQPZPXULYcGXNpEPE0feKOO9iq9TwH44j5\n" +
+		"EAQRJgIgLnJBGd4ZS8+H6TS6WbkQ9MKX1jgCt0QlPGOo+ZxpnBs=\n" +
+		"-----END CERTIFICATE-----"
+)
+
+func SetupETCDCASecret() types.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Create CA certificate Secret
-		caSecret := &corev1.Secret{
+		caSecret := &corev1.Secret{ // pragma: allowlist secret
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "etcd-ca-cert",
 				Namespace: cfg.Namespace(),
 			},
 			Type: corev1.SecretTypeOpaque,
 			StringData: map[string]string{
-				"ca.crt": "-----BEGIN CERTIFICATE-----\n" +
-					"MIIBVzCB/qADAgECAhBsL8JXhPlGrvu/hMCRWXAFMAoGCCqGSM49BAMCMBkxFzAV\n" +
-					"BgNVBAMTDmV0Y2QtY2EtdGVzdGluZzAeFw0yMzA1MDEwMDAwMDBaFw0zMzA1MDEw\n" +
-					"MDAwMDBaMBkxFzAVBgNVBAMTDmV0Y2QtY2EtdGVzdGluZzBZMBMGByqGSM49AgEG\n" +
-					"CCqGSM49AwEHA0IABLnVZEsHdWyq0QgOsS7E5RgXIrBVnL+bZtDEkqkW/kD3N4Fm\n" +
-					"JUK1MdJzwQ7QKnNUQbwpLHmp7vZPMlWxwhPzrMyjQjBAMA4GA1UdDwEB/wQEAwIC\n" +
-					"pDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQxCIIkW0uFSp+1+EwcOWeyZkKJ\n" +
-					"RTAKBggqhkjOPQQDAgNHADBEAiAWYHwQPZPXULYcGXNpEPE0feKOO9iq9TwH44j5\n" +
-					"EAQRJgIgLnJBGd4ZS8+H6TS6WbkQ9MKX1jgCt0QlPGOo+ZxpnBs=\n" +
-					"-----END CERTIFICATE-----",
+				"ca.crt": testCACertificateContent,
 			},
 		}
 		if err := r.Create(ctx, caSecret); err != nil {
-			t.Fatal("Failed to create CA certificate Secret:", err)
+			t.Fatal("Failed to create CA certificate Secret:", err) // pragma: allowlist secret
 		}
 		t.Log("CA certificate Secret created")
 
 		return ctx
 	}
+}
+
+func SetupInstanaAgentCR() types.StepFunc {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Log("Creating agent CR with secure ETCD configuration")
+		err = decoder.ApplyWithManifestDir(
+			ctx,
+			r,
+			"../config/samples",
+			"instana_v1_agent.yaml",
+			[]resources.CreateOption{},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Patch the agent CR to add ETCD configuration
+		agent := &instanav1.InstanaAgent{}
+		err = r.Get(ctx, "instana-agent", cfg.Namespace(), agent)
+		if err != nil {
+			t.Fatal("Failed to get agent CR:", err)
+		}
+
+		// Apply patch to add ETCD configuration
+		patchData := []byte(`{
+			"spec": {
+				"k8s_sensor": {
+					"etcd": {
+						"insecure": false,
+						"ca": {
+							"mountPath": "/etc/ssl/certs",
+							"secretName": "etcd-ca-cert"
+						}
+					},
+					"restClient": {
+						"hostAllowlist": ["kubernetes.default.svc"],
+						"ca": {
+							"mountPath": "/etc/ssl/control-plane",
+							"secretName": "etcd-ca-cert"
+						}
+					}
+				}
+			}
+		}`)
+		err = r.Patch(ctx, agent, k8s.Patch{
+			PatchType: k8stypes.MergePatchType,
+			Data:      patchData,
+		})
+		if err != nil {
+			t.Fatal("Failed to patch agent CR:", err)
+		}
+
+		t.Log("CR created and patched with secure ETCD configuration")
+		return ctx
+	}
+}
+
+func TestSecureETCDScraping(t *testing.T) {
 
 	installCrWithSecureETCDFeature := features.New("secure ETCD scraping").
 		Setup(SetupOperatorDevBuild()).
 		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
-		Setup(setupETCDCASecret).
-		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			r, err := resources.New(cfg.Client().RESTConfig())
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			t.Log("Creating agent CR with secure ETCD configuration")
-			err = decoder.ApplyWithManifestDir(
-				ctx,
-				r,
-				"../config/samples",
-				"instana_v1_agent.yaml",
-				[]resources.CreateOption{},
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			// Patch the agent CR to add ETCD configuration
-			agent := &instanav1.InstanaAgent{}
-			err = r.Get(ctx, "instana-agent", cfg.Namespace(), agent)
-			if err != nil {
-				t.Fatal("Failed to get agent CR:", err)
-			}
-
-			// Apply patch to add ETCD configuration
-			patchData := []byte(`{
-				"spec": {
-					"k8s_sensor": {
-						"etcd": {
-							"insecure": false,
-							"ca": {
-								"mountPath": "/etc/ssl/certs",
-								"secretName": "etcd-ca-cert"
-							}
-						},
-						"restClient": {
-							"hostAllowlist": ["kubernetes.default.svc"],
-							"ca": {
-								"mountPath": "/etc/ssl/control-plane",
-								"secretName": "etcd-ca-cert"
-							}
-						}
-					}
-				}
-			}`)
-			err = r.Patch(ctx, agent, k8s.Patch{
-				PatchType: types.MergePatchType,
-				Data:      patchData,
-			})
-			if err != nil {
-				t.Fatal("Failed to patch agent CR:", err)
-			}
-
-			t.Log("CR created and patched with secure ETCD configuration")
-			return ctx
-		}).
+		Setup(SetupETCDCASecret()).
+		Setup(SetupInstanaAgentCR()).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("validate ETCD CA certificate is mounted", ValidateETCDCAMounted()).
@@ -166,13 +181,13 @@ func ValidateETCDCAMounted() features.Func {
 		podName := pods.Items[0].Name
 		containerName := "instana-agent"
 
-		// Check if the CA certificate file exists
+		// Check if the CA certificate file exists and validate its content
 		if err := r.ExecInPod(
 			ctx,
 			cfg.Namespace(),
 			podName,
 			containerName,
-			[]string{"ls", "-la", "/etc/ssl/certs/ca.crt"},
+			[]string{"cat", expectedCAAbsolutePath},
 			&stdout,
 			&stderr,
 		); err != nil {
@@ -181,10 +196,14 @@ func ValidateETCDCAMounted() features.Func {
 		}
 
 		output := stdout.String()
-		if !strings.Contains(output, "/etc/ssl/certs/ca.crt") {
-			t.Errorf("CA certificate file not found: %s", output)
+		if strings.TrimSpace(output) != strings.TrimSpace(testCACertificateContent) {
+			t.Errorf(
+				"CA certificate content does not match expected.\nExpected:\n%s\nActual:\n%s",
+				testCACertificateContent,
+				output,
+			)
 		} else {
-			t.Logf("CA certificate file found: %s", output)
+			t.Logf("CA certificate content matches expected at path: %s", expectedCAAbsolutePath)
 		}
 
 		return ctx
@@ -220,7 +239,7 @@ func ValidateETCDEnvironmentVariables() features.Func {
 		}{
 			{
 				name:     "ETCD_CA_FILE",
-				expected: "/etc/ssl/certs/ca.crt",
+				expected: expectedCAAbsolutePath,
 			},
 			{
 				name:     "ETCD_INSECURE",

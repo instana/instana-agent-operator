@@ -90,7 +90,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  constants.EnvETCDMetricsURL,
-				Value: constants.ETCDOCPMetricsURL,
+				Value: constants.GetETCDOCPMetricsURL(),
 			},
 			{
 				Name:  constants.EnvETCDRequestTimeout,
@@ -171,7 +171,7 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 		volumes = append(volumes, corev1.Volume{
 			Name: "etcd-ca",
 			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
+				Secret: &corev1.SecretVolumeSource{ // pragma: allowlist secret
 					SecretName: d.deploymentContext.ETCDCASecretName,
 					Items: []corev1.KeyToPath{
 						{

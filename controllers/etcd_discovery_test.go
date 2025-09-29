@@ -203,6 +203,11 @@ func TestShouldSkipDiscovery(t *testing.T) {
 				assert.NoError(t, err, "Should not return an error")
 			}
 			assert.Equal(t, tc.expectedSkip, skip, "Skip value should match expected")
+
+			// Explicitly assert skip is false when discovery should proceed
+			if tc.name == "Should not skip on vanilla K8s without targets" {
+				assert.False(t, skip, "Skip should be false when discovery should proceed")
+			}
 		})
 	}
 }
@@ -967,7 +972,7 @@ func TestCheckCASecretExists(t *testing.T) {
 
 			// Add CA secret to client if needed
 			if tc.createSecret {
-				caSecret := &corev1.Secret{
+				caSecret := &corev1.Secret{ // pragma: allowlist secret
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      constants.ETCDCASecretName,
 						Namespace: agent.Namespace,
@@ -1376,7 +1381,7 @@ func checkCASecretExists(
 	agent *instanav1.InstanaAgent,
 	logger logr.Logger,
 ) bool {
-	caSecret := &corev1.Secret{}
+	caSecret := &corev1.Secret{} // pragma: allowlist secret
 	err := client.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
 		Name:      constants.ETCDCASecretName,
