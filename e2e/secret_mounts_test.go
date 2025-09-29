@@ -67,6 +67,15 @@ func hasVolumeMountAt(container *corev1.Container, mountPath string) bool {
 	return false
 }
 
+func hasDaemonSetOwner(pod *corev1.Pod) bool {
+	for _, owner := range pod.OwnerReferences {
+		if owner.Kind == "DaemonSet" {
+			return true
+		}
+	}
+	return false
+}
+
 func findEnvVar(container *corev1.Container, name string) *corev1.EnvVar {
 	for i := range container.Env {
 		if container.Env[i].Name == name {
@@ -106,10 +115,6 @@ func ensureSecretFilePresent(
 	fileName string,
 ) {
 	t.Helper()
-	if secretSource == nil {
-		t.Fatalf("pod is missing instana-secrets volume")
-	}
-
 	for _, item := range secretSource.Items {
 		if item.Path == fileName {
 			return
@@ -177,22 +182,70 @@ func ValidateSecretFilesMounted() features.Func {
 			t.Fatal(err)
 		}
 
-		// Get agent pods
-		pods := &corev1.PodList{}
+		const (
+			pollInterval = 2 * time.Second
+			pollTimeout  = 2 * time.Minute
+		)
+
 		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
-		err = r.List(ctx, pods, listOps)
-		if err != nil || len(pods.Items) == 0 {
-			t.Fatal("Error while getting agent pods:", err)
+
+		waitErr := wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
+			pods := &corev1.PodList{}
+			if err := r.List(ctx, pods, listOps); err != nil {
+				return false, err
+			}
+			if len(pods.Items) == 0 {
+				t.Log("Waiting for agent pods to be created before validating secret mounts")
+				return false, nil
+			}
+
+			for _, pod := range pods.Items {
+				if !hasDaemonSetOwner(&pod) {
+					continue
+				}
+
+				container := firstContainerOrFail(t, &pod)
+				if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
+					t.Logf("Pod %s missing secrets volume mount; waiting", pod.Name)
+					return false, nil
+				}
+
+				secretSource := secretVolumeSourceFromPod(&pod)
+				if secretSource == nil {
+					t.Logf("Pod %s missing secrets volume source; waiting", pod.Name)
+					return false, nil
+				}
+			}
+
+			return true, nil
+		})
+		if waitErr != nil {
+			t.Fatalf("instana agent pods did not mount secrets volume in time: %v", waitErr)
 		}
 
-		pod := pods.Items[0]
-		container := firstContainerOrFail(t, &pod)
-		if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
-			t.Errorf("agent container does not mount secrets directory at %s", constants.InstanaSecretsDirectory)
+		pods := &corev1.PodList{}
+		if err := r.List(ctx, pods, listOps); err != nil {
+			t.Fatal("Error while getting agent pods after wait:", err)
 		}
 
-		secretSource := secretVolumeSourceFromPod(&pod)
-		ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
+		for _, pod := range pods.Items {
+			if !hasDaemonSetOwner(&pod) {
+				continue
+			}
+
+			container := firstContainerOrFail(t, &pod)
+			if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
+				t.Fatalf("pod %s missing secrets volume mount after wait", pod.Name)
+			}
+
+			secretSource := secretVolumeSourceFromPod(&pod)
+			if secretSource == nil {
+				t.Fatalf("pod %s missing secrets volume source after wait", pod.Name)
+			}
+
+			ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
+			t.Logf("Pod %s mounts instana secrets volume", pod.Name)
+		}
 
 		return ctx
 	}
@@ -253,32 +306,61 @@ func ValidateSensitiveEnvVarsSet() features.Func {
 		}
 
 		// Get agent pods
-		pods := &corev1.PodList{}
 		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
-		err = r.List(ctx, pods, listOps)
-		if err != nil || len(pods.Items) == 0 {
-			t.Fatal("Error while getting agent pods:", err)
-		}
-
-		// In the switching modes test, we might need more time for the environment variables to be set
-		// Let's add a delay to ensure the pods are fully ready
-		time.Sleep(10 * time.Second)
-
-		container := firstContainerOrFail(t, &pods.Items[0])
-
-		// Check that sensitive environment variables are set
 		sensitiveEnvVars := []string{
 			"INSTANA_AGENT_KEY",
 		}
 
-		for _, envVar := range sensitiveEnvVars {
-			if env := findEnvVar(container, envVar); env == nil {
-				t.Errorf(
-					"Sensitive environment variable %s is not set but should be.",
-					envVar,
-				)
-			} else {
-				t.Logf("Sensitive environment variable %s is set as expected (%s)", envVar, describeEnvVar(env))
+		const (
+			pollInterval = 2 * time.Second
+			pollTimeout  = 2 * time.Minute
+		)
+
+		waitErr := wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
+			pods := &corev1.PodList{}
+			if err := r.List(ctx, pods, listOps); err != nil {
+				return false, err
+			}
+			if len(pods.Items) == 0 {
+				t.Log("Waiting for agent pods to be created before checking environment variables")
+				return false, nil
+			}
+
+			for _, pod := range pods.Items {
+				if len(pod.Spec.Containers) == 0 {
+					t.Logf("Pod %s has no containers yet; waiting", pod.Name)
+					return false, nil
+				}
+
+				container := &pod.Spec.Containers[0]
+				for _, envName := range sensitiveEnvVars {
+					if env := findEnvVar(container, envName); env == nil {
+						t.Logf("Pod %s missing environment variable %s; waiting", pod.Name, envName)
+						return false, nil
+					}
+				}
+			}
+
+			return true, nil
+		})
+		if waitErr != nil {
+			t.Fatalf("Sensitive environment variables were not set after switching legacy mode: %v", waitErr)
+		}
+
+		pods := &corev1.PodList{}
+		if err := r.List(ctx, pods, listOps); err != nil {
+			t.Fatal("Error while getting agent pods after wait:", err)
+		}
+		if len(pods.Items) == 0 {
+			t.Fatal("no agent pods found after waiting for sensitive environment variables")
+		}
+
+		for _, pod := range pods.Items {
+			container := firstContainerOrFail(t, &pod)
+			for _, envVar := range sensitiveEnvVars {
+				if env := findEnvVar(container, envVar); env != nil {
+					t.Logf("Sensitive environment variable %s is set in pod %s (%s)", envVar, pod.Name, describeEnvVar(env))
+				}
 			}
 		}
 
@@ -597,7 +679,7 @@ func TestSecretMountsSwitchingModes(t *testing.T) {
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
-		Setup(UpdateAgentWithSecretMounts(false)).
+		Assess("switch agent to environment variable mode", UpdateAgentWithSecretMounts(false)).
 		Assess("wait for agent daemonset to become ready after update", WaitForAgentDaemonSetToBecomeReady()).
 
 		// Add a delay to ensure pods are fully recreated with new environment variables
@@ -606,7 +688,7 @@ func TestSecretMountsSwitchingModes(t *testing.T) {
 			WaitForPodsToBeRecreated(),
 		).
 		Assess("validate sensitive environment variables are set after switching", ValidateSensitiveEnvVarsSet()).
-		Setup(UpdateAgentWithSecretMounts(true)).
+		Assess("switch agent back to use secret mounts", UpdateAgentWithSecretMounts(true)).
 		Assess("wait for agent daemonset to become ready after second update", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("validate secret files are mounted correctly after switching back", ValidateSecretFilesMounted()).
 		Feature()
