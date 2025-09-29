@@ -379,7 +379,7 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	if v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName == "" {
 		// For OpenShift, use the service-ca.crt from ConfigMap
 		if v.isOpenShift {
-			volumeName := "etcd-ca"
+			volumeName := constants.ETCDCASecretName
 			volume := corev1.Volume{
 				Name: volumeName,
 				VolumeSource: corev1.VolumeSource{

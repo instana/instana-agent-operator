@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -98,6 +99,52 @@ func getSortedTargets(targets []string) []string {
 	return sortedTargets
 }
 
+// compareAndUpdateETCDTargets compares current ETCD targets with new discovered targets
+// and determines if an update is needed. This function handles environment variable extraction,
+// target sorting, and comparison logic.
+func compareAndUpdateETCDTargets(
+	existingDeployment *appsv1.Deployment,
+	discoveredTargets []string,
+	log logr.Logger,
+) bool {
+	log.Info(
+		"Comparing current ETCD targets with discovered targets to determine if update is needed",
+	)
+
+	// Extract current ETCD targets from deployment environment variables
+	currentTargets := ""
+	for _, container := range existingDeployment.Spec.Template.Spec.Containers {
+		if container.Name == constants.ContainerK8Sensor {
+			for _, env := range container.Env {
+				if env.Name == constants.EnvETCDTargets {
+					currentTargets = env.Value
+					break
+				}
+			}
+			break
+		}
+	}
+
+	// Sort discovered targets to ensure consistent comparison
+	sortedDiscoveredTargets := getSortedTargets(discoveredTargets)
+	newTargets := strings.Join(sortedDiscoveredTargets, ",")
+
+	// Sort current targets for proper comparison
+	if currentTargets != "" {
+		currentTargetsList := strings.Split(currentTargets, ",")
+		sort.Strings(currentTargetsList)
+		currentTargets = strings.Join(currentTargetsList, ",")
+	}
+
+	log.Info("Target comparison details",
+		"currentTargets", currentTargets,
+		"newTargets", newTargets,
+		"needsUpdate", currentTargets != newTargets)
+
+	// Return true if targets are different (update needed)
+	return currentTargets != newTargets
+}
+
 // createDeploymentContext creates a deployment context for the k8s-sensor deployment.
 // It handles both OpenShift and vanilla Kubernetes cases, setting up the appropriate
 // ETCD configuration based on the environment.
@@ -114,72 +161,56 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 		if err := r.createServiceCAConfigMap(ctx, agent); err != nil {
 			log.Error(err, "Failed to create service-CA ConfigMap")
 			// Continue with reconciliation, don't fail the whole process
-		} else {
-			// Set up deployment context for OpenShift
-			deploymentContext = &k8ssensordeployment.DeploymentContext{
-				ETCDCASecretName: constants.ServiceCAConfigMapName,
-			}
+			return deploymentContext, reconcileContinue()
 		}
+
+		// Set up deployment context for OpenShift
+		deploymentContext = &k8ssensordeployment.DeploymentContext{
+			ETCDCASecretName: constants.ServiceCAConfigMapName,
+		}
+		return deploymentContext, reconcileContinue()
+	}
+
+	// For vanilla Kubernetes, discover ETCD endpoints
+	discoveredETCD, err := r.DiscoverETCDEndpoints(ctx, agent)
+	if err != nil {
+		log.Error(err, "Failed to discover ETCD endpoints")
+		// Continue with reconciliation, don't fail the whole process
+		return deploymentContext, reconcileContinue()
+	}
+
+	if discoveredETCD == nil || len(discoveredETCD.Targets) == 0 {
+		return deploymentContext, reconcileContinue()
+	}
+
+	// Check if we need to update the Deployment with new ETCD targets
+	existingDeployment := &appsv1.Deployment{}
+	helperInstance := helpers.NewHelpers(agent)
+	err = r.client.Get(ctx, types.NamespacedName{
+		Namespace: agent.Namespace,
+		Name:      helperInstance.K8sSensorResourcesName(),
+	}, existingDeployment)
+
+	if err != nil {
+		log.Info("K8sensor deployment not found, will create with discovered ETCD targets")
 	} else {
-		// For vanilla Kubernetes, discover ETCD endpoints
-		discoveredETCD, err := r.DiscoverETCDEndpoints(ctx, agent)
-		if err != nil {
-			log.Error(err, "Failed to discover ETCD endpoints")
-			// Continue with reconciliation, don't fail the whole process
-		} else if discoveredETCD != nil && len(discoveredETCD.Targets) > 0 {
-			// Check if we need to update the Deployment with new ETCD targets
-			existingDeployment := &appsv1.Deployment{}
-			helperInstance := helpers.NewHelpers(agent)
-			err := r.client.Get(ctx, types.NamespacedName{
-				Namespace: agent.Namespace,
-				Name:      helperInstance.K8sSensorResourcesName(),
-			}, existingDeployment)
-
-			if err != nil {
-				log.Info("K8sensor deployment not found, will create with discovered ETCD targets")
-			} else {
-				// Check if the ETCD_TARGETS env var already exists with the same value
-				currentTargets := ""
-				for _, container := range existingDeployment.Spec.Template.Spec.Containers {
-					if container.Name == constants.ContainerK8Sensor {
-						for _, env := range container.Env {
-							if env.Name == constants.EnvETCDTargets {
-								currentTargets = env.Value
-								break
-							}
-						}
-						break
-					}
-				}
-
-				// Sort targets to ensure consistent comparison
-				sortedTargets := getSortedTargets(discoveredETCD.Targets)
-				newTargets := strings.Join(sortedTargets, ",")
-
-				// Sort currentTargets for proper comparison
-				if currentTargets != "" {
-					currentTargetsList := strings.Split(currentTargets, ",")
-					sort.Strings(currentTargetsList)
-					currentTargets = strings.Join(currentTargetsList, ",")
-				}
-
-				if currentTargets == newTargets {
-					log.Info("ETCD targets unchanged, skipping Deployment update")
-					return nil, reconcileContinue()
-				}
-			}
-
-			// Use sorted targets for consistency
-			sortedTargets := getSortedTargets(discoveredETCD.Targets)
-
-			log.Info("Using discovered ETCD targets", "targets", sortedTargets)
-			deploymentContext = &k8ssensordeployment.DeploymentContext{
-				DiscoveredETCDTargets: sortedTargets,
-			}
-			if discoveredETCD.CAFound {
-				deploymentContext.ETCDCASecretName = constants.ETCDCASecretName
-			}
+		// Compare current and discovered ETCD targets
+		needsUpdate := compareAndUpdateETCDTargets(existingDeployment, discoveredETCD.Targets, log)
+		if !needsUpdate {
+			log.Info("ETCD targets unchanged, skipping Deployment update")
+			return nil, reconcileContinue()
 		}
+	}
+
+	// Use sorted targets for consistency
+	sortedTargets := getSortedTargets(discoveredETCD.Targets)
+
+	log.Info("Using discovered ETCD targets", "targets", sortedTargets)
+	deploymentContext = &k8ssensordeployment.DeploymentContext{
+		DiscoveredETCDTargets: sortedTargets,
+	}
+	if discoveredETCD.CAFound {
+		deploymentContext.ETCDCASecretName = constants.ETCDCASecretName
 	}
 
 	return deploymentContext, reconcileContinue()

@@ -37,7 +37,7 @@ func (r *InstanaAgentReconciler) createServiceCAConfigMap(ctx context.Context, a
 			Name:      constants.ServiceCAConfigMapName,
 			Namespace: agent.Namespace,
 			Annotations: map[string]string{
-				"service.beta.openshift.io/inject-cabundle": "true",
+				constants.OpenShiftInjectCABundleAnnotation: "true",
 			},
 			// Add owner reference so it's garbage-collected with the CR
 			OwnerReferences: []metav1.OwnerReference{
@@ -53,7 +53,7 @@ func (r *InstanaAgentReconciler) createServiceCAConfigMap(ctx context.Context, a
 		Data: map[string]string{},
 	}
 
-	// Apply the ConfigMap using server-side apply
+	// Use the existing Apply method with the custom client
 	_, err := r.client.Apply(ctx, configMap).Get()
 	if err != nil {
 		log.Error(err, "Failed to apply service-CA ConfigMap")

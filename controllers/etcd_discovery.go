@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -54,6 +55,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 		return nil, err
 	}
 	if shouldSkip {
+		log.Info("Skipping ETCD discovery based on configuration or environment")
 		return nil, nil
 	}
 
@@ -63,17 +65,19 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 		return nil, err
 	}
 	if etcdService == nil {
+		log.Info("No ETCD service found in kube-system namespace")
 		return nil, nil
 	}
 
 	log.Info("Found etcd service", "name", etcdService.Name)
 
 	// Step 3: Find metrics port and determine scheme
-	metricsPort, scheme := r.findMetricsPortAndScheme(etcdService)
-	if metricsPort == 0 {
+	metricsPortPtr, scheme := r.findMetricsPortAndScheme(etcdService)
+	if metricsPortPtr == nil {
 		log.Info("No metrics port found in etcd service")
 		return nil, nil
 	}
+	metricsPort := *metricsPortPtr
 
 	// Step 4: Get endpoints and build targets
 	targets, err := r.buildTargetsFromEndpoints(ctx, etcdService, metricsPort, scheme)
@@ -194,7 +198,9 @@ func (r *InstanaAgentReconciler) getServiceByName(ctx context.Context, name stri
 }
 
 // findMetricsPortAndScheme finds the metrics port and determines the scheme
-func (r *InstanaAgentReconciler) findMetricsPortAndScheme(service *corev1.Service) (int32, string) {
+func (r *InstanaAgentReconciler) findMetricsPortAndScheme(
+	service *corev1.Service,
+) (*int32, string) {
 	for _, port := range service.Spec.Ports {
 		if port.Name == "metrics" {
 			// Use switch/case for scheme determination
@@ -211,45 +217,47 @@ func (r *InstanaAgentReconciler) findMetricsPortAndScheme(service *corev1.Servic
 				scheme = schemeOverride
 			}
 
-			return port.Port, scheme
+			return &port.Port, scheme
 		}
 	}
 
-	return 0, ""
+	return nil, ""
 }
 
-// buildTargetsFromEndpoints builds targets from service endpoints
+// buildTargetsFromEndpoints builds targets from service endpoint slices
 func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(ctx context.Context, service *corev1.Service, metricsPort int32, scheme string) ([]string, error) {
-	// Get endpoints for the service
-	endpoints := &corev1.Endpoints{}
+	// Get endpoint slice for the service
+	endpointSlice := &discoveryv1.EndpointSlice{}
 	if err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: kubeSystemNamespace,
 		Name:      service.Name,
-	}, endpoints); err != nil {
+	}, endpointSlice); err != nil {
 		return nil, err
 	}
 
 	targets := make([]string, 0)
 
-	for _, subset := range endpoints.Subsets {
-		// Find the metrics port in the endpoint subset
-		var endpointPort int32
-		for _, port := range subset.Ports {
-			if port.Name == "metrics" {
-				endpointPort = port.Port
-				break
+	// Find the metrics port in the endpoint slice
+	var endpointPort int32
+	for _, port := range endpointSlice.Ports {
+		if port.Name != nil && *port.Name == "metrics" && port.Port != nil {
+			endpointPort = *port.Port
+			break
+		}
+	}
+
+	// If no metrics port found in endpoint slice, use the service port
+	if endpointPort == 0 {
+		endpointPort = metricsPort
+	}
+
+	// Add targets for each endpoint
+	for _, endpoint := range endpointSlice.Endpoints {
+		if endpoint.Conditions.Ready != nil && *endpoint.Conditions.Ready {
+			for _, address := range endpoint.Addresses {
+				target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address, endpointPort)
+				targets = append(targets, target)
 			}
-		}
-
-		// If no metrics port found in endpoints, use the service port
-		if endpointPort == 0 {
-			endpointPort = metricsPort
-		}
-
-		// Add targets for each address
-		for _, address := range subset.Addresses {
-			target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address.IP, endpointPort)
-			targets = append(targets, target)
 		}
 	}
 
@@ -264,7 +272,7 @@ func (r *InstanaAgentReconciler) checkCASecretExists(ctx context.Context, agent 
 	caSecret := &corev1.Secret{}
 	err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
-		Name:      "etcd-ca",
+		Name:      constants.ETCDCASecretName,
 	}, caSecret)
 
 	if err == nil {
