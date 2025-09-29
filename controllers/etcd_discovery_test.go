@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,9 +53,9 @@ type (
 	FindServiceFunc func(ctx context.Context, client client.Client, logger logr.Logger) (*corev1.Service, error)
 
 	// FindPortAndSchemeFunc is a function that finds the metrics port and scheme
-	FindPortAndSchemeFunc func(service *corev1.Service) (int32, string)
+	FindPortAndSchemeFunc func(service *corev1.Service) (*int32, string)
 
-	// BuildTargetsFunc is a function that builds targets from endpoints
+	// BuildTargetsFunc is a function that builds targets from endpoint slices
 	BuildTargetsFunc func(ctx context.Context, client client.Client, service *corev1.Service,
 		metricsPort int32, scheme string) ([]string, error)
 
@@ -200,8 +201,8 @@ func TestShouldSkipDiscovery(t *testing.T) {
 				assert.Error(t, err, "Should return an error")
 			} else {
 				assert.NoError(t, err, "Should not return an error")
-				assert.Equal(t, tc.expectedSkip, skip, "Skip value should match expected")
 			}
+			assert.Equal(t, tc.expectedSkip, skip, "Skip value should match expected")
 		})
 	}
 }
@@ -595,7 +596,7 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 		name            string
 		servicePorts    []corev1.ServicePort
 		annotations     map[string]string
-		expectedPort    int32
+		expectedPort    *int32
 		expectedScheme  string
 		expectPortFound bool
 	}{
@@ -608,7 +609,7 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 				},
 			},
 			annotations:     nil,
-			expectedPort:    constants.ETCDMetricsPortHTTPS,
+			expectedPort:    &[]int32{constants.ETCDMetricsPortHTTPS}[0],
 			expectedScheme:  "https",
 			expectPortFound: true,
 		},
@@ -621,7 +622,7 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 				},
 			},
 			annotations:     nil,
-			expectedPort:    constants.ETCDMetricsPortHTTP,
+			expectedPort:    &[]int32{constants.ETCDMetricsPortHTTP}[0],
 			expectedScheme:  "http",
 			expectPortFound: true,
 		},
@@ -634,7 +635,7 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 				},
 			},
 			annotations:     nil,
-			expectedPort:    9999,
+			expectedPort:    &[]int32{9999}[0],
 			expectedScheme:  "https",
 			expectPortFound: true,
 		},
@@ -649,7 +650,7 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 			annotations: map[string]string{
 				"instana.io/etcd-scheme": "http",
 			},
-			expectedPort:    constants.ETCDMetricsPortHTTPS,
+			expectedPort:    &[]int32{constants.ETCDMetricsPortHTTPS}[0],
 			expectedScheme:  "http",
 			expectPortFound: true,
 		},
@@ -662,7 +663,7 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 				},
 			},
 			annotations:     nil,
-			expectedPort:    0,
+			expectedPort:    nil,
 			expectedScheme:  "",
 			expectPortFound: false,
 		},
@@ -687,10 +688,11 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 
 			// Verify
 			if tc.expectPortFound {
-				assert.Equal(t, tc.expectedPort, port, "Port should match expected")
+				assert.NotNil(t, port, "Port should not be nil when found")
+				assert.Equal(t, *tc.expectedPort, *port, "Port should match expected")
 				assert.Equal(t, tc.expectedScheme, scheme, "Scheme should match expected")
 			} else {
-				assert.Equal(t, int32(0), port, "Port should be 0 when not found")
+				assert.Nil(t, port, "Port should be nil when not found")
 				assert.Equal(t, "", scheme, "Scheme should be empty when port not found")
 			}
 		})
@@ -703,12 +705,13 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = instanav1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
+	_ = discoveryv1.AddToScheme(scheme)
 
 	// Test cases
 	testCases := []struct {
 		name            string
 		service         *corev1.Service
-		endpoints       *corev1.Endpoints
+		endpointSlice   *discoveryv1.EndpointSlice
 		metricsPort     int32
 		scheme          string
 		expectedTargets []string
@@ -723,19 +726,28 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 					Namespace: kubeSystemNamespace,
 				},
 			},
-			endpoints: &corev1.Endpoints{
+			endpointSlice: &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
 				},
-				Subsets: []corev1.EndpointSubset{
+				Ports: []discoveryv1.EndpointPort{
 					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.0.0.1"},
-							{IP: "10.0.0.2"},
+						Name: func() *string { s := "metrics"; return &s }(),
+						Port: func() *int32 { p := int32(2379); return &p }(),
+					},
+				},
+				Endpoints: []discoveryv1.Endpoint{
+					{
+						Addresses: []string{"10.0.0.1"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
 						},
-						Ports: []corev1.EndpointPort{
-							{Name: "metrics", Port: 2379},
+					},
+					{
+						Addresses: []string{"10.0.0.2"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
 						},
 					},
 				},
@@ -757,18 +769,22 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 					Namespace: kubeSystemNamespace,
 				},
 			},
-			endpoints: &corev1.Endpoints{
+			endpointSlice: &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
 				},
-				Subsets: []corev1.EndpointSubset{
+				Ports: []discoveryv1.EndpointPort{
 					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.0.0.1"},
-						},
-						Ports: []corev1.EndpointPort{
-							{Name: "api", Port: 8080},
+						Name: func() *string { s := "api"; return &s }(),
+						Port: func() *int32 { p := int32(8080); return &p }(),
+					},
+				},
+				Endpoints: []discoveryv1.Endpoint{
+					{
+						Addresses: []string{"10.0.0.1"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
 						},
 					},
 				},
@@ -787,26 +803,28 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 					Namespace: kubeSystemNamespace,
 				},
 			},
-			endpoints: &corev1.Endpoints{
+			endpointSlice: &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
 				},
-				Subsets: []corev1.EndpointSubset{
+				Ports: []discoveryv1.EndpointPort{
 					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.0.0.1"},
-						},
-						Ports: []corev1.EndpointPort{
-							{Name: "metrics", Port: 2379},
+						Name: func() *string { s := "metrics"; return &s }(),
+						Port: func() *int32 { p := int32(2379); return &p }(),
+					},
+				},
+				Endpoints: []discoveryv1.Endpoint{
+					{
+						Addresses: []string{"10.0.0.1"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
 						},
 					},
 					{
-						Addresses: []corev1.EndpointAddress{
-							{IP: "10.0.0.2"},
-						},
-						Ports: []corev1.EndpointPort{
-							{Name: "metrics", Port: 2379},
+						Addresses: []string{"10.0.0.2"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
 						},
 					},
 				},
@@ -828,19 +846,18 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 					Namespace: kubeSystemNamespace,
 				},
 			},
-			endpoints: &corev1.Endpoints{
+			endpointSlice: &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
 				},
-				Subsets: []corev1.EndpointSubset{
+				Ports: []discoveryv1.EndpointPort{
 					{
-						Addresses: []corev1.EndpointAddress{},
-						Ports: []corev1.EndpointPort{
-							{Name: "metrics", Port: 2379},
-						},
+						Name: func() *string { s := "metrics"; return &s }(),
+						Port: func() *int32 { p := int32(2379); return &p }(),
 					},
 				},
+				Endpoints: []discoveryv1.Endpoint{},
 			},
 			metricsPort:     2379,
 			scheme:          "https",
@@ -856,7 +873,7 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 					Namespace: kubeSystemNamespace,
 				},
 			},
-			endpoints:       nil, // Not used when setupClientErr is true
+			endpointSlice:   nil, // Not used when setupClientErr is true
 			metricsPort:     2379,
 			scheme:          "https",
 			expectedTargets: nil,
@@ -870,9 +887,9 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 			// Create a fake client builder
 			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
 
-			// Add endpoints to client if needed
-			if tc.endpoints != nil {
-				clientBuilder = clientBuilder.WithObjects(tc.endpoints)
+			// Add endpointSlice to client if needed
+			if tc.endpointSlice != nil {
+				clientBuilder = clientBuilder.WithObjects(tc.endpointSlice)
 			}
 
 			// Build the client
@@ -952,7 +969,7 @@ func TestCheckCASecretExists(t *testing.T) {
 			if tc.createSecret {
 				caSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "etcd-ca",
+						Name:      constants.ETCDCASecretName,
 						Namespace: agent.Namespace,
 					},
 				}
@@ -1108,8 +1125,11 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 				return tc.findServiceResult, tc.findServiceErr
 			}
 
-			mockFindMetricsPortAndScheme := func(service *corev1.Service) (int32, string) {
-				return tc.metricsPort, tc.scheme
+			mockFindMetricsPortAndScheme := func(service *corev1.Service) (*int32, string) {
+				if tc.metricsPort == 0 {
+					return nil, tc.scheme
+				}
+				return &tc.metricsPort, tc.scheme
 			}
 
 			mockBuildTargetsFromEndpoints := func(
@@ -1278,7 +1298,7 @@ func findETCDService(
 	return nil, nil
 }
 
-func findMetricsPortAndScheme(service *corev1.Service) (int32, string) {
+func findMetricsPortAndScheme(service *corev1.Service) (*int32, string) {
 	for _, port := range service.Spec.Ports {
 		if port.Name == "metrics" {
 			// Use switch/case for scheme determination
@@ -1295,11 +1315,11 @@ func findMetricsPortAndScheme(service *corev1.Service) (int32, string) {
 				scheme = schemeOverride
 			}
 
-			return port.Port, scheme
+			return &port.Port, scheme
 		}
 	}
 
-	return 0, ""
+	return nil, ""
 }
 
 func buildTargetsFromEndpoints(
@@ -1309,36 +1329,38 @@ func buildTargetsFromEndpoints(
 	metricsPort int32,
 	scheme string,
 ) ([]string, error) {
-	// Get endpoints for the service
-	endpoints := &corev1.Endpoints{}
+	// Get endpoint slice for the service
+	endpointSlice := &discoveryv1.EndpointSlice{}
 	if err := client.Get(ctx, types.NamespacedName{
 		Namespace: kubeSystemNamespace,
 		Name:      service.Name,
-	}, endpoints); err != nil {
+	}, endpointSlice); err != nil {
 		return nil, err
 	}
 
 	targets := make([]string, 0)
 
-	for _, subset := range endpoints.Subsets {
-		// Find the metrics port in the endpoint subset
-		var endpointPort int32
-		for _, port := range subset.Ports {
-			if port.Name == "metrics" {
-				endpointPort = port.Port
-				break
+	// Find the metrics port in the endpoint slice
+	var endpointPort int32
+	for _, port := range endpointSlice.Ports {
+		if port.Name != nil && *port.Name == "metrics" && port.Port != nil {
+			endpointPort = *port.Port
+			break
+		}
+	}
+
+	// If no metrics port found in endpoint slice, use the service port
+	if endpointPort == 0 {
+		endpointPort = metricsPort
+	}
+
+	// Add targets for each endpoint
+	for _, endpoint := range endpointSlice.Endpoints {
+		if endpoint.Conditions.Ready != nil && *endpoint.Conditions.Ready {
+			for _, address := range endpoint.Addresses {
+				target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address, endpointPort)
+				targets = append(targets, target)
 			}
-		}
-
-		// If no metrics port found in endpoints, use the service port
-		if endpointPort == 0 {
-			endpointPort = metricsPort
-		}
-
-		// Add targets for each address
-		for _, address := range subset.Addresses {
-			target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address.IP, endpointPort)
-			targets = append(targets, target)
 		}
 	}
 
@@ -1357,7 +1379,7 @@ func checkCASecretExists(
 	caSecret := &corev1.Secret{}
 	err := client.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
-		Name:      "etcd-ca",
+		Name:      constants.ETCDCASecretName,
 	}, caSecret)
 
 	if err == nil {
@@ -1401,11 +1423,12 @@ func discoverETCDEndpoints(
 	logger.Info("Found etcd service", "name", etcdService.Name)
 
 	// Step 3: Find metrics port and determine scheme
-	metricsPort, scheme := findMetricsPortAndSchemeFunc(etcdService)
-	if metricsPort == 0 {
+	metricsPortPtr, scheme := findMetricsPortAndSchemeFunc(etcdService)
+	if metricsPortPtr == nil {
 		logger.Info("No metrics port found in etcd service")
 		return nil, nil
 	}
+	metricsPort := *metricsPortPtr
 
 	// Step 4: Get endpoints and build targets
 	targets, err := buildTargetsFromEndpointsFunc(ctx, client, etcdService, metricsPort, scheme)

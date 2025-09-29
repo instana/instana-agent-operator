@@ -43,4 +43,7 @@ const (
 
 	// Container names
 	ContainerK8Sensor = "instana-agent"
+
+	// OpenShift annotations
+	OpenShiftInjectCABundleAnnotation = "service.beta.openshift.io/inject-cabundle"
 )
