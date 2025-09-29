@@ -229,7 +229,7 @@ func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(ctx context.Context, 
 		return nil, err
 	}
 
-	var targets []string
+	targets := make([]string, 0)
 
 	for _, subset := range endpoints.Subsets {
 		// Find the metrics port in the endpoint subset
