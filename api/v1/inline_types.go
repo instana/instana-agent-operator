@@ -358,13 +358,13 @@ type CASpec struct {
 	// +kubebuilder:validation:Optional
 	MountPath string `json:"mountPath,omitempty"`
 
-	// Secret name containing the CA certificate
+	// Kubernetes Secret name containing the CA certificate
 	// +kubebuilder:validation:Optional
 	SecretName string `json:"secretName,omitempty"`
 
-	// Key in the secret containing the CA certificate
+	// Name of the file containing the CA Certificate (key in the Kubernetes Secret)
 	// +kubebuilder:validation:Optional
-	SecretKey string `json:"secretKey,omitempty"`
+	Filename string `json:"filename,omitempty"`
 }
 
 type RestClientSpec struct {

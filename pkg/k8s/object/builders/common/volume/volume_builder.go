@@ -409,9 +409,9 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 
 	// For custom CA from secret
 	volumeName := "etcd-ca"
-	secretKey := v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretKey
-	if secretKey == "" {
-		secretKey = "ca.crt"
+	filename := v.instanaAgent.Spec.K8sSensor.ETCD.CA.Filename
+	if filename == "" {
+		filename = "ca.crt"
 	}
 
 	volume := corev1.Volume{
@@ -421,7 +421,7 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 				SecretName: v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName,
 				Items: []corev1.KeyToPath{
 					{
-						Key:  secretKey,
+						Key:  filename,
 						Path: "ca.crt",
 					},
 				},
@@ -443,9 +443,9 @@ func (v *volumeBuilder) controlPlaneCAVolume() (*corev1.Volume, *corev1.VolumeMo
 	}
 
 	volumeName := "control-plane-ca"
-	secretKey := v.instanaAgent.Spec.K8sSensor.RestClient.CA.SecretKey
-	if secretKey == "" {
-		secretKey = "ca.crt"
+	filename := v.instanaAgent.Spec.K8sSensor.RestClient.CA.Filename
+	if filename == "" {
+		filename = "ca.crt"
 	}
 
 	volume := corev1.Volume{
@@ -455,7 +455,7 @@ func (v *volumeBuilder) controlPlaneCAVolume() (*corev1.Volume, *corev1.VolumeMo
 				SecretName: v.instanaAgent.Spec.K8sSensor.RestClient.CA.SecretName,
 				Items: []corev1.KeyToPath{
 					{
-						Key:  secretKey,
+						Key:  filename,
 						Path: "ca.crt",
 					},
 				},
