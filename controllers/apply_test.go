@@ -123,7 +123,7 @@ func (r *mockReconciler) createDeploymentContext(
 				DiscoveredETCDTargets: sortedTargets,
 			}
 			if discoveredETCD.CAFound {
-				deploymentContext.ETCDCASecretName = "etcd-ca"
+				deploymentContext.ETCDCASecretName = constants.ETCDCASecretName
 			}
 		}
 	}
@@ -243,7 +243,12 @@ func TestCreateDeploymentContext_VanillaK8s_WithETCD(t *testing.T) {
 	require.False(t, result.suppliesReconcileResult(), "Should not supply reconcile result")
 	require.NotNil(t, deploymentContext, "Deployment context should not be nil when ETCD is discovered")
 	assert.Equal(t, []string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"}, deploymentContext.DiscoveredETCDTargets, "DiscoveredETCDTargets should be set")
-	assert.Equal(t, "etcd-ca", deploymentContext.ETCDCASecretName, "ETCDCASecretName should be set to etcd-ca")
+	assert.Equal(
+		t,
+		constants.ETCDCASecretName,
+		deploymentContext.ETCDCASecretName,
+		"ETCDCASecretName should be set to etcd-ca",
+	)
 }
 
 func TestCreateDeploymentContext_VanillaK8s_UnchangedTargets(t *testing.T) {
