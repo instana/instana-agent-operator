@@ -16,6 +16,8 @@ limitations under the License.
 
 package constants
 
+import "fmt"
+
 const (
 	// ConfigMap names
 	ServiceCAConfigMapName = "sensor-service-ca"
@@ -37,13 +39,17 @@ const (
 	ServiceCAKey       = "service-ca.crt"
 	ServiceCAMountPath = "/etc/service-ca"
 	ETCDCAMountPath    = "/var/run/secrets/etcd"
-
-	// ETCD URLs
-	ETCDOCPMetricsURL = "https://etcd.openshift-etcd.svc.cluster.local:9979/metrics"
-
 	// Container names
 	ContainerK8Sensor = "instana-agent"
 
 	// OpenShift annotations
 	OpenShiftInjectCABundleAnnotation = "service.beta.openshift.io/inject-cabundle"
 )
+
+// ETCD URLs - using functions since constants can't use fmt.Sprintf
+func GetETCDOCPMetricsURL() string {
+	return fmt.Sprintf(
+		"https://etcd.openshift-etcd.svc.cluster.local:%d/metrics",
+		ETCDOCPMetricsPort,
+	)
+}
