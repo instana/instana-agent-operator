@@ -43,8 +43,13 @@ tasks:
           
   pr-code-checks-3:
     from: pr-code-checks
-    displayName: operator-olm-build
+    displayName: operator-olm-github-release
     runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+      - pr-code-checks-2
+      - pr-code-checks-4
+      - pr-code-checks-5
     include:
       - dind
     steps:
@@ -54,7 +59,7 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-build.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-github-release.sh
       - name: detect-secrets
         include:
           - docker-socket
