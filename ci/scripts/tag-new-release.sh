@@ -1,15 +1,17 @@
 #!/bin/bash
 
 #
-# (c) Copyright IBM Corp. 2024
+# (c) Copyright IBM Corp. 2024, 2025
 # (c) Copyright Instana Inc.
 #
 
 set -e
 set -o pipefail
 
-# Create version-output directory
-mkdir -p ../version-output
+# Store the absolute path to version-output directory
+VERSION_OUTPUT_DIR=$(pwd)/../version-output
+mkdir -p $VERSION_OUTPUT_DIR
+echo "VERSION_OUTPUT_DIR=$VERSION_OUTPUT_DIR"
 
 echo "Running on branch $BRANCH"
 cd agent-operator-git-source
@@ -104,4 +106,4 @@ git config --global user.name "instanacd"
 git config --global user.email "instanacd@instana.com"
 git tag "${new_release}"
 echo "${new_release}" > ci/version
-echo "${new_release}" > ../version-output/version
+echo "${new_release}" > $VERSION_OUTPUT_DIR/version
