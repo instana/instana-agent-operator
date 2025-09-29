@@ -804,7 +804,14 @@ jobs:
             BRANCH: ((branch))
             TRIGGER_TYPE: ((.:trigger-type))
           run:
-            path: agent-operator-git-source/ci/scripts/tag-new-release.sh
+            path: bash
+            args:
+              - -exc
+              - |
+                cd agent-operator-git-source
+                ./ci/scripts/tag-new-release.sh
+                # Copy the version to the output directory with the correct name
+                cp ci/version.txt ../version-output/version
 
 
   - name: multiarch-operator-manifest-promotion
