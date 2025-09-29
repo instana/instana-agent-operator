@@ -15,6 +15,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -490,29 +491,56 @@ func ValidateHttpsProxyFileMounted() features.Func {
 	}
 }
 
-// WaitForPodsToBeRecreated waits for agent pods to be recreated after a configuration change
+const componentLabelKey = "app.kubernetes.io/component"
+
+// WaitForPodsToBeRecreated waits for instana-agent pods to be recreated after a configuration change.
 func WaitForPodsToBeRecreated() features.Func {
+	return WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgent)
+}
+
+// WaitForPodsToBeRecreatedForComponent waits for pods matching the provided component label to be recreated after a configuration change.
+func WaitForPodsToBeRecreatedForComponent(component string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Log("Waiting for agent pods to be recreated with new configuration")
+		t.Logf("Waiting for pods with component %q to be recreated with new configuration", component)
 
-		// Sleep for a few seconds to ensure pods are recreated
-		time.Sleep(10 * time.Second)
-
-		// Create a client to interact with the Kube API
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		// Get agent pods
-		pods := &corev1.PodList{}
-		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
-		err = r.List(ctx, pods, listOps)
-		if err != nil || len(pods.Items) == 0 {
-			t.Fatal("Error while getting agent pods:", err)
+		listOps := resources.WithLabelSelector(fmt.Sprintf("%s=%s", componentLabelKey, component))
+
+		const pollInterval = 2 * time.Second
+		const pollTimeout = 2 * time.Minute
+
+		waitErr := wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
+			pods := &corev1.PodList{}
+			if err := r.List(ctx, pods, listOps); err != nil {
+				return false, err
+			}
+			if len(pods.Items) == 0 {
+				t.Logf("Waiting for pods with component %q to be recreated...", component)
+				return false, nil
+			}
+			allRunning := true
+			for _, pod := range pods.Items {
+				if pod.Status.Phase != corev1.PodRunning {
+					allRunning = false
+					t.Logf("Pod %s is in phase %s; waiting...", pod.Name, pod.Status.Phase)
+					break
+				}
+			}
+			return allRunning, nil
+		})
+		if waitErr != nil {
+			t.Fatalf("pods with component %q were not ready after configuration change: %v", component, waitErr)
 		}
 
-		t.Logf("Found %d agent pods after configuration change", len(pods.Items))
+		pods := &corev1.PodList{}
+		if err := r.List(ctx, pods, listOps); err != nil {
+			t.Fatal("failed to list pods after wait:", err)
+		}
+		t.Logf("Found %d pods with component %q after configuration change", len(pods.Items), component)
 		return ctx
 	}
 }
@@ -576,7 +604,10 @@ func TestSecretMountsSwitchingModes(t *testing.T) {
 		Assess("wait for agent daemonset to become ready after update", WaitForAgentDaemonSetToBecomeReady()).
 
 		// Add a delay to ensure pods are fully recreated with new environment variables
-		Assess("wait for pods to be recreated with new environment", WaitForPodsToBeRecreated()).
+		Assess(
+			"wait for pods to be recreated with new environment",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate sensitive environment variables are set after switching", ValidateSensitiveEnvVarsSet()).
 		Setup(UpdateAgentWithSecretMounts(true)).
 		Assess("wait for agent daemonset to become ready after second update", WaitForAgentDaemonSetToBecomeReady()).
@@ -676,7 +707,10 @@ func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
 		).
 
 		// Add a delay to ensure pods are fully recreated with new environment variables
-		Assess("wait for pods to be recreated with new environment", WaitForPodsToBeRecreated()).
+		Assess(
+			"wait for pods to be recreated with new environment",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
+		).
 		Assess("validate sensitive environment variables are set in remote agent after switching",
 			ValidateRemoteSensitiveEnvVarsSet(),
 		).
