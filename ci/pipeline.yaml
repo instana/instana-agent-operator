@@ -742,11 +742,11 @@ jobs:
         - put: agent-operator-git-source
           params:
             repository: agent-operator-git-source
-            tag_file: agent-operator-git-source/ci/version.txt
+            tag_file: agent-operator-git-source/ci/version
             force: true
         - put: release-version
           params:
-            file: agent-operator-git-source/ci/version.txt
+            directory: agent-operator-git-source/ci
         - put: gh-status
           inputs: [ agent-operator-git-source ]
           params: { state: success, context: tag-release }
