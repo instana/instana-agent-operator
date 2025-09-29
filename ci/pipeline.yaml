@@ -810,7 +810,7 @@ jobs:
               - |
                 ./agent-operator-git-source/ci/scripts/tag-new-release.sh
                 # Copy the version to the output directory with the correct name
-                cp agent-operator-git-source/ci/version.txt version-output/version
+                cp agent-operator-git-source/ci/version version-output/version
 
 
   - name: multiarch-operator-manifest-promotion
