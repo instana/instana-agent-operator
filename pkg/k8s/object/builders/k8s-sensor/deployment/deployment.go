@@ -166,7 +166,7 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 
 	volumes, mounts := d.VolumeBuilder.Build(volumesToBuild...)
 
-	// Add CA volume if available from discovery
+	// Add CA cert if available from discovery
 	if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" && len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
 		volumes = append(volumes, corev1.Volume{
 			Name: "etcd-ca",
