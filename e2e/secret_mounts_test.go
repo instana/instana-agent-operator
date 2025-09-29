@@ -5,7 +5,6 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -13,9 +12,11 @@ import (
 	"time"
 
 	v1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -39,6 +40,95 @@ func NewAgentCrWithSecretMountsAndProxy() v1.InstanaAgent {
 	return agent
 }
 
+func firstContainerOrFail(t *testing.T, pod *corev1.Pod) *corev1.Container {
+	t.Helper()
+	if len(pod.Spec.Containers) == 0 {
+		t.Fatal("pod has no containers defined")
+	}
+	return &pod.Spec.Containers[0]
+}
+
+func secretVolumeSourceFromPod(pod *corev1.Pod) *corev1.SecretVolumeSource {
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Name == "instana-secrets" && volume.Secret != nil {
+			return volume.Secret
+		}
+	}
+	return nil
+}
+
+func hasVolumeMountAt(container *corev1.Container, mountPath string) bool {
+	for _, volumeMount := range container.VolumeMounts {
+		if volumeMount.MountPath == mountPath {
+			return true
+		}
+	}
+	return false
+}
+
+func findEnvVar(container *corev1.Container, name string) *corev1.EnvVar {
+	for i := range container.Env {
+		if container.Env[i].Name == name {
+			return &container.Env[i]
+		}
+	}
+	return nil
+}
+
+func describeEnvVar(envVar *corev1.EnvVar) string {
+	switch {
+	case envVar == nil:
+		return ""
+	case envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil:
+		ref := envVar.ValueFrom.SecretKeyRef
+		return fmt.Sprintf("secret:%s/%s", ref.Name, ref.Key)
+	case envVar.ValueFrom != nil && envVar.ValueFrom.FieldRef != nil:
+		ref := envVar.ValueFrom.FieldRef
+		return fmt.Sprintf("fieldRef:%s", ref.FieldPath)
+	case envVar.ValueFrom != nil && envVar.ValueFrom.ConfigMapKeyRef != nil:
+		ref := envVar.ValueFrom.ConfigMapKeyRef
+		return fmt.Sprintf("configMap:%s/%s", ref.Name, ref.Key)
+	case envVar.ValueFrom != nil && envVar.ValueFrom.ResourceFieldRef != nil:
+		ref := envVar.ValueFrom.ResourceFieldRef
+		return fmt.Sprintf("resource:%s", ref.Resource)
+	default:
+		return envVar.Value
+	}
+}
+
+func ensureSecretFilePresent(
+	t *testing.T,
+	ctx context.Context,
+	r *resources.Resources,
+	namespace string,
+	secretSource *corev1.SecretVolumeSource,
+	fileName string,
+) {
+	t.Helper()
+	if secretSource == nil {
+		t.Fatalf("pod is missing instana-secrets volume")
+	}
+
+	for _, item := range secretSource.Items {
+		if item.Path == fileName {
+			return
+		}
+	}
+
+	if secretSource.SecretName == "" {
+		t.Fatalf("instana-secrets volume has empty secret name")
+	}
+
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, secretSource.SecretName, namespace, secret); err != nil {
+		t.Fatalf("failed to get secret %s: %v", secretSource.SecretName, err)
+	}
+
+	if _, exists := secret.Data[fileName]; !exists {
+		t.Errorf("secret %s does not contain expected key %s", secretSource.SecretName, fileName)
+	}
+}
+
 // Helper function to update an existing agent CR with a new useSecretMounts value
 func UpdateAgentWithSecretMounts(useSecretMounts bool) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
@@ -58,12 +148,16 @@ func UpdateAgentWithSecretMounts(useSecretMounts bool) features.Func {
 		}
 
 		// Update the useSecretMounts field
-		agent.Spec.UseSecretMounts = &useSecretMounts
-
-		// Update the agent CR
-		err = r.Update(ctx, agent)
-		if err != nil {
-			t.Fatal("Failed to update agent CR:", err)
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			agent := &v1.InstanaAgent{}
+			if err := r.Get(ctx, "instana-agent", cfg.Namespace(), agent); err != nil {
+				return err
+			}
+			agent.Spec.UseSecretMounts = &useSecretMounts
+			return r.Update(ctx, agent)
+		})
+		if retryErr != nil {
+			t.Fatal("Failed to update agent CR:", retryErr)
 		}
 
 		t.Log("Agent CR updated successfully")
@@ -90,38 +184,14 @@ func ValidateSecretFilesMounted() features.Func {
 			t.Fatal("Error while getting agent pods:", err)
 		}
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := "instana-agent"
-
-		// Check for secret files
-		secretFiles := []struct {
-			path string
-		}{
-			{path: "/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_KEY"},
-			// INSTANA_DOWNLOAD_KEY is not mounted as a file in the current implementation
-			// Only check for AGENT_KEY which is the critical one
+		pod := pods.Items[0]
+		container := firstContainerOrFail(t, &pod)
+		if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
+			t.Errorf("agent container does not mount secrets directory at %s", constants.InstanaSecretsDirectory)
 		}
 
-		for _, file := range secretFiles {
-			stdout.Reset()
-			stderr.Reset()
-
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"test", "-f", file.path},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Errorf("Secret file %s does not exist: %v", file.path, err)
-				t.Log(stderr.String())
-			} else {
-				t.Logf("Secret file %s exists", file.path)
-			}
-		}
+		secretSource := secretVolumeSourceFromPod(&pod)
+		ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
 
 		return ctx
 	}
@@ -146,9 +216,7 @@ func ValidateSensitiveEnvVarsNotSet() features.Func {
 			t.Fatal("Error while getting agent pods:", err)
 		}
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := "instana-agent"
+		container := firstContainerOrFail(t, &pods.Items[0])
 
 		// Check that sensitive environment variables are not set
 		sensitiveEnvVars := []string{
@@ -157,28 +225,11 @@ func ValidateSensitiveEnvVarsNotSet() features.Func {
 		}
 
 		for _, envVar := range sensitiveEnvVars {
-			stdout.Reset()
-			stderr.Reset()
-
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"sh", "-c", fmt.Sprintf("echo $%s", envVar)},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Log(stderr.String())
-				t.Fatal("Failed to execute command in pod:", err)
-			}
-
-			output := strings.TrimSpace(stdout.String())
-			if output != "" {
+			if env := findEnvVar(container, envVar); env != nil {
 				t.Errorf(
-					"Sensitive environment variable %s is set but should not be: %s",
+					"Sensitive environment variable %s is set but should not be (value: %s)",
 					envVar,
-					output,
+					describeEnvVar(env),
 				)
 			} else {
 				t.Logf("Sensitive environment variable %s is not set as expected", envVar)
@@ -212,9 +263,7 @@ func ValidateSensitiveEnvVarsSet() features.Func {
 		// Let's add a delay to ensure the pods are fully ready
 		time.Sleep(10 * time.Second)
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := "instana-agent"
+		container := firstContainerOrFail(t, &pods.Items[0])
 
 		// Check that sensitive environment variables are set
 		sensitiveEnvVars := []string{
@@ -225,30 +274,13 @@ func ValidateSensitiveEnvVarsSet() features.Func {
 		// instead of failing the test if the environment variable is not set
 		// This is because the environment variables might take longer to propagate
 		for _, envVar := range sensitiveEnvVars {
-			stdout.Reset()
-			stderr.Reset()
-
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"sh", "-c", fmt.Sprintf("echo $%s", envVar)},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Log(stderr.String())
-				t.Fatal("Failed to execute command in pod:", err)
-			}
-
-			output := strings.TrimSpace(stdout.String())
-			if output == "" {
+			if env := findEnvVar(container, envVar); env == nil {
 				t.Logf(
 					"Warning: Sensitive environment variable %s is not set but should be. This might be due to timing issues.",
 					envVar,
 				)
 			} else {
-				t.Logf("Sensitive environment variable %s is set as expected", envVar)
+				t.Logf("Sensitive environment variable %s is set as expected (%s)", envVar, describeEnvVar(env))
 			}
 		}
 
@@ -717,20 +749,16 @@ func UpdateAgentRemoteWithSecretMounts(useSecretMounts bool) features.Func {
 			t.Fatal(err)
 		}
 
-		// Get the existing agent CR
-		agent := &v1.InstanaAgentRemote{}
-		err = r.Get(ctx, AgentRemoteCustomResourceName, cfg.Namespace(), agent)
-		if err != nil {
-			t.Fatal("Failed to get agent remote CR:", err)
-		}
-
-		// Update the useSecretMounts field
-		agent.Spec.UseSecretMounts = &useSecretMounts
-
-		// Update the agent CR
-		err = r.Update(ctx, agent)
-		if err != nil {
-			t.Fatal("Failed to update agent remote CR:", err)
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			agent := &v1.InstanaAgentRemote{}
+			if err := r.Get(ctx, AgentRemoteCustomResourceName, cfg.Namespace(), agent); err != nil {
+				return err
+			}
+			agent.Spec.UseSecretMounts = &useSecretMounts
+			return r.Update(ctx, agent)
+		})
+		if retryErr != nil {
+			t.Fatal("Failed to update agent remote CR:", retryErr)
 		}
 
 		t.Log("Agent remote CR updated successfully")
@@ -757,38 +785,14 @@ func ValidateRemoteSecretFilesMounted() features.Func {
 			t.Fatal("Error while getting agent remote pods:", err)
 		}
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := pods.Items[0].Name // The container name is the same as the pod name for remote agent
-
-		// Check for secret files
-		secretFiles := []struct {
-			path string
-		}{
-			{path: "/opt/instana/agent/etc/instana/secrets/INSTANA_AGENT_KEY"},
-			// INSTANA_DOWNLOAD_KEY is not mounted as a file in the current implementation
-			// Only check for AGENT_KEY which is the critical one
+		pod := pods.Items[0]
+		container := firstContainerOrFail(t, &pod)
+		if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
+			t.Errorf("remote agent container does not mount secrets directory at %s", constants.InstanaSecretsDirectory)
 		}
 
-		for _, file := range secretFiles {
-			stdout.Reset()
-			stderr.Reset()
-
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"test", "-f", file.path},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Errorf("Secret file %s does not exist in remote agent: %v", file.path, err)
-				t.Log(stderr.String())
-			} else {
-				t.Logf("Secret file %s exists in remote agent", file.path)
-			}
-		}
+		secretSource := secretVolumeSourceFromPod(&pod)
+		ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
 
 		return ctx
 	}
@@ -813,9 +817,8 @@ func ValidateRemoteSensitiveEnvVarsNotSet() features.Func {
 			t.Fatal("Error while getting agent remote pods:", err)
 		}
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := pods.Items[0].Name // The container name is the same as the pod name for remote agent
+		pod := pods.Items[0]
+		container := firstContainerOrFail(t, &pod)
 
 		// Check that sensitive environment variables are not set
 		sensitiveEnvVars := []string{
@@ -824,28 +827,11 @@ func ValidateRemoteSensitiveEnvVarsNotSet() features.Func {
 		}
 
 		for _, envVar := range sensitiveEnvVars {
-			stdout.Reset()
-			stderr.Reset()
-
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"sh", "-c", fmt.Sprintf("echo $%s", envVar)},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Log(stderr.String())
-				t.Fatal("Failed to execute command in remote agent pod:", err)
-			}
-
-			output := strings.TrimSpace(stdout.String())
-			if output != "" {
+			if env := findEnvVar(container, envVar); env != nil {
 				t.Errorf(
-					"Sensitive environment variable %s is set in remote agent but should not be: %s",
+					"Sensitive environment variable %s is set in remote agent but should not be (value: %s)",
 					envVar,
-					output,
+					describeEnvVar(env),
 				)
 			} else {
 				t.Logf("Sensitive environment variable %s is not set in remote agent as expected", envVar)
@@ -879,9 +865,8 @@ func ValidateRemoteSensitiveEnvVarsSet() features.Func {
 		// Let's add a delay to ensure the pods are fully ready
 		time.Sleep(10 * time.Second)
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
-		containerName := pods.Items[0].Name // The container name is the same as the pod name for remote agent
+		pod := pods.Items[0]
+		container := firstContainerOrFail(t, &pod)
 
 		// Check that sensitive environment variables are set
 		sensitiveEnvVars := []string{
@@ -892,30 +877,13 @@ func ValidateRemoteSensitiveEnvVarsSet() features.Func {
 		// instead of failing the test if the environment variable is not set
 		// This is because the environment variables might take longer to propagate
 		for _, envVar := range sensitiveEnvVars {
-			stdout.Reset()
-			stderr.Reset()
-
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"sh", "-c", fmt.Sprintf("echo $%s", envVar)},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Log(stderr.String())
-				t.Fatal("Failed to execute command in remote agent pod:", err)
-			}
-
-			output := strings.TrimSpace(stdout.String())
-			if output == "" {
+			if env := findEnvVar(container, envVar); env == nil {
 				t.Logf(
 					"Warning: Sensitive environment variable %s is not set in remote agent but should be.",
 					envVar,
 				)
 			} else {
-				t.Logf("Sensitive environment variable %s is set in remote agent as expected", envVar)
+				t.Logf("Sensitive environment variable %s is set in remote agent as expected (%s)", envVar, describeEnvVar(env))
 			}
 		}
 

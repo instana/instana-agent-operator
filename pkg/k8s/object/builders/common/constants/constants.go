@@ -58,3 +58,14 @@ const (
 	SecretFileMirrorSharedRepoPassword  = "INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD"
 	SecretFileHttpsProxy                = "HTTPS_PROXY"
 )
+
+// Secret key names
+const (
+	SecretKeyProxyUser                 = "proxyUser"
+	SecretKeyProxyPassword             = "proxyPassword"
+	SecretKeyHttpsProxy                = "httpsProxy"
+	SecretKeyMirrorReleaseRepoUsername = "mirrorReleaseRepoUsername"
+	SecretKeyMirrorReleaseRepoPassword = "mirrorReleaseRepoPassword"
+	SecretKeyMirrorSharedRepoUsername  = "mirrorSharedRepoUsername"
+	SecretKeyMirrorSharedRepoPassword  = "mirrorSharedRepoPassword"
+)

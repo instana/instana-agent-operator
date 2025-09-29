@@ -133,13 +133,16 @@ func TestRemoteVolumeBuilder_SecretsVolume(t *testing.T) {
 		foundProxyPassword := false
 		foundHttpsProxy := false
 		for _, item := range volume.Secret.Items {
-			if item.Key == "proxyUser" && item.Path == constants.SecretFileProxyUser {
+			if item.Key == constants.SecretKeyProxyUser &&
+				item.Path == constants.SecretFileProxyUser {
 				foundProxyUser = true
 			}
-			if item.Key == "proxyPassword" && item.Path == constants.SecretFileProxyPassword {
+			if item.Key == constants.SecretKeyProxyPassword &&
+				item.Path == constants.SecretFileProxyPassword {
 				foundProxyPassword = true
 			}
-			if item.Key == "httpsProxy" && item.Path == constants.SecretFileHttpsProxy {
+			if item.Key == constants.SecretKeyHttpsProxy &&
+				item.Path == constants.SecretFileHttpsProxy {
 				foundHttpsProxy = true
 			}
 		}
@@ -180,19 +183,19 @@ func TestRemoteVolumeBuilder_SecretsVolume(t *testing.T) {
 		foundSharedRepoUsername := false
 		foundSharedRepoPassword := false
 		for _, item := range volume.Secret.Items {
-			if item.Key == "mirrorReleaseRepoUsername" &&
+			if item.Key == constants.SecretKeyMirrorReleaseRepoUsername &&
 				item.Path == constants.SecretFileMirrorReleaseRepoUsername {
 				foundReleaseRepoUsername = true
 			}
-			if item.Key == "mirrorReleaseRepoPassword" &&
+			if item.Key == constants.SecretKeyMirrorReleaseRepoPassword &&
 				item.Path == constants.SecretFileMirrorReleaseRepoPassword {
 				foundReleaseRepoPassword = true
 			}
-			if item.Key == "mirrorSharedRepoUsername" &&
+			if item.Key == constants.SecretKeyMirrorSharedRepoUsername &&
 				item.Path == constants.SecretFileMirrorSharedRepoUsername {
 				foundSharedRepoUsername = true
 			}
-			if item.Key == "mirrorSharedRepoPassword" &&
+			if item.Key == constants.SecretKeyMirrorSharedRepoPassword &&
 				item.Path == constants.SecretFileMirrorSharedRepoPassword {
 				foundSharedRepoPassword = true
 			}

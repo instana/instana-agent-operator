@@ -167,19 +167,19 @@ func (v *volumeBuilderRemote) secretsVolume() (*corev1.Volume, *corev1.VolumeMou
 	if v.remoteAgent.Spec.Agent.ProxyHost != "" {
 		if v.remoteAgent.Spec.Agent.ProxyUser != "" {
 			items = append(items, corev1.KeyToPath{
-				Key:  "proxyUser",
+				Key:  constants.SecretKeyProxyUser,
 				Path: constants.SecretFileProxyUser,
 			})
 		}
 		if v.remoteAgent.Spec.Agent.ProxyPassword != "" {
 			items = append(items, corev1.KeyToPath{
-				Key:  "proxyPassword",
+				Key:  constants.SecretKeyProxyPassword,
 				Path: constants.SecretFileProxyPassword,
 			})
 		}
 		// Add HTTPS_PROXY if needed
 		items = append(items, corev1.KeyToPath{
-			Key:  "httpsProxy",
+			Key:  constants.SecretKeyHttpsProxy,
 			Path: constants.SecretFileHttpsProxy,
 		})
 	}
@@ -187,25 +187,25 @@ func (v *volumeBuilderRemote) secretsVolume() (*corev1.Volume, *corev1.VolumeMou
 	// Add repository mirror credentials if configured
 	if v.remoteAgent.Spec.Agent.MirrorReleaseRepoUsername != "" {
 		items = append(items, corev1.KeyToPath{
-			Key:  "mirrorReleaseRepoUsername",
+			Key:  constants.SecretKeyMirrorReleaseRepoUsername,
 			Path: constants.SecretFileMirrorReleaseRepoUsername,
 		})
 	}
 	if v.remoteAgent.Spec.Agent.MirrorReleaseRepoPassword != "" {
 		items = append(items, corev1.KeyToPath{
-			Key:  "mirrorReleaseRepoPassword",
+			Key:  constants.SecretKeyMirrorReleaseRepoPassword,
 			Path: constants.SecretFileMirrorReleaseRepoPassword,
 		})
 	}
 	if v.remoteAgent.Spec.Agent.MirrorSharedRepoUsername != "" {
 		items = append(items, corev1.KeyToPath{
-			Key:  "mirrorSharedRepoUsername",
+			Key:  constants.SecretKeyMirrorSharedRepoUsername,
 			Path: constants.SecretFileMirrorSharedRepoUsername,
 		})
 	}
 	if v.remoteAgent.Spec.Agent.MirrorSharedRepoPassword != "" {
 		items = append(items, corev1.KeyToPath{
-			Key:  "mirrorSharedRepoPassword",
+			Key:  constants.SecretKeyMirrorSharedRepoPassword,
 			Path: constants.SecretFileMirrorSharedRepoPassword,
 		})
 	}
