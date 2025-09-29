@@ -6,6 +6,7 @@ package keys_secret
 
 import (
 	"fmt"
+	"net/url"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -135,22 +136,18 @@ func (s *secretBuilder) getData() map[string][]byte {
 		if s.Spec.UseSecretMounts != nil && *s.Spec.UseSecretMounts {
 			// Generate the HTTPS_PROXY value similar to how it's done in env_builder.go
 			var proxyValue string
-			if s.Spec.Agent.ProxyUser == "" || s.Spec.Agent.ProxyPassword == "" {
-				proxyValue = fmt.Sprintf(
-					"%s://%s:%s",
-					optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+			u := url.URL{
+				Scheme: optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+				Host: fmt.Sprintf(
+					"%s:%s",
 					s.Spec.Agent.ProxyHost,
 					optional.Of(s.Spec.Agent.ProxyPort).GetOrDefault("80"),
-				)
-			} else {
-				proxyValue = fmt.Sprintf(
-					"%s://%s%s:%s",
-					optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
-					s.Spec.Agent.ProxyUser+":"+s.Spec.Agent.ProxyPassword+"@",
-					s.Spec.Agent.ProxyHost,
-					optional.Of(s.Spec.Agent.ProxyPort).GetOrDefault("80"),
-				)
+				),
 			}
+			if s.Spec.Agent.ProxyUser != "" && s.Spec.Agent.ProxyPassword != "" {
+				u.User = url.UserPassword(s.Spec.Agent.ProxyUser, s.Spec.Agent.ProxyPassword)
+			}
+			proxyValue = u.String()
 			data[constants.SecretFileHttpsProxy] = []byte(proxyValue)
 		}
 	}

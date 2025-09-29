@@ -17,7 +17,7 @@ limitations under the License.
 package keys_secret
 
 import (
-	"fmt"
+	"net/url"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +35,10 @@ type secretBuilder struct {
 	additionalBackends []backends.RemoteSensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgentRemote, backends []backends.RemoteSensorBackend) builder.ObjectBuilder {
+func NewSecretBuilder(
+	agent *instanav1.InstanaAgentRemote,
+	backends []backends.RemoteSensorBackend,
+) builder.ObjectBuilder {
 	return &secretBuilder{
 		InstanaAgentRemote: agent,
 		additionalBackends: backends,
@@ -148,18 +151,16 @@ func (s *secretBuilder) httpsProxyValue() string {
 		return ""
 	}
 
-	protocol := optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http")
-	port := optional.Of(s.Spec.Agent.ProxyPort).GetOrDefault("80")
-
-	if s.Spec.Agent.ProxyUser == "" || s.Spec.Agent.ProxyPassword == "" {
-		return fmt.Sprintf("%s://%s:%s", protocol, s.Spec.Agent.ProxyHost, port)
+	proxyURL := &url.URL{
+		Scheme: optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+		Host: s.Spec.Agent.ProxyHost + ":" + optional.Of(s.Spec.Agent.ProxyPort).
+			GetOrDefault("80"),
 	}
 
-	return fmt.Sprintf(
-		"%s://%s%s:%s",
-		protocol,
-		s.Spec.Agent.ProxyUser+":"+s.Spec.Agent.ProxyPassword+"@",
-		s.Spec.Agent.ProxyHost,
-		port,
-	)
+	// Add authentication if both username and password are provided
+	if s.Spec.Agent.ProxyUser != "" && s.Spec.Agent.ProxyPassword != "" {
+		proxyURL.User = url.UserPassword(s.Spec.Agent.ProxyUser, s.Spec.Agent.ProxyPassword)
+	}
+
+	return proxyURL.String()
 }
