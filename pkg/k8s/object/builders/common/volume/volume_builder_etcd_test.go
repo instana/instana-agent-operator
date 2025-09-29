@@ -111,7 +111,7 @@ func TestVolumeBuilder_ETCDCAVolume_CustomSecret(t *testing.T) {
 					CA: instanav1.CASpec{
 						MountPath:  "/etc/ssl/certs",
 						SecretName: "etcd-ca-cert",
-						SecretKey:  "ca.crt",
+						Filename:   "ca.crt",
 					},
 				},
 			},
@@ -153,7 +153,7 @@ func TestVolumeBuilder_ETCDCAVolume_CustomSecret(t *testing.T) {
 		t,
 		"ca.crt",
 		volumes[0].VolumeSource.Secret.Items[0].Key,
-		"Secret key should match specified key",
+		"Secret key should match specified filename",
 	)
 	assert.Equal(
 		t,
@@ -181,7 +181,7 @@ func TestVolumeBuilder_ETCDCAVolume_CustomSecret(t *testing.T) {
 	)
 }
 
-func TestVolumeBuilder_ETCDCAVolume_DefaultSecretKey(t *testing.T) {
+func TestVolumeBuilder_ETCDCAVolume_DefaultFilename(t *testing.T) {
 	// Given
 	agent := &instanav1.InstanaAgent{
 		Spec: instanav1.InstanaAgentSpec{
@@ -190,7 +190,7 @@ func TestVolumeBuilder_ETCDCAVolume_DefaultSecretKey(t *testing.T) {
 					CA: instanav1.CASpec{
 						MountPath:  "/etc/ssl/certs",
 						SecretName: "etcd-ca-cert",
-						// No SecretKey specified, should default to "ca.crt"
+						// No Filename specified, should default to "ca.crt"
 					},
 				},
 			},
@@ -207,7 +207,7 @@ func TestVolumeBuilder_ETCDCAVolume_DefaultSecretKey(t *testing.T) {
 		t,
 		"ca.crt",
 		volumes[0].VolumeSource.Secret.Items[0].Key,
-		"Secret key should default to ca.crt",
+		"Filename should default to ca.crt",
 	)
 }
 
@@ -239,7 +239,7 @@ func TestVolumeBuilder_ControlPlaneCAVolume(t *testing.T) {
 					CA: instanav1.CASpec{
 						MountPath:  "/etc/ssl/control-plane",
 						SecretName: "control-plane-ca",
-						SecretKey:  "ca.crt",
+						Filename:   "ca.crt",
 					},
 				},
 			},
