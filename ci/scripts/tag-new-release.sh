@@ -8,6 +8,9 @@
 set -e
 set -o pipefail
 
+# Create version-output directory
+mkdir -p ../version-output
+
 echo "Running on branch $BRANCH"
 cd agent-operator-git-source
 git pull -r
@@ -101,3 +104,4 @@ git config --global user.name "instanacd"
 git config --global user.email "instanacd@instana.com"
 git tag "${new_release}"
 echo "${new_release}" > ci/version
+echo "${new_release}" > ../version-output/version

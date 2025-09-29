@@ -746,7 +746,7 @@ jobs:
             force: true
         - put: release-version
           params:
-            directory: agent-operator-git-source/ci
+            directory: version-output
         - put: gh-status
           inputs: [ agent-operator-git-source ]
           params: { state: success, context: tag-release }
@@ -799,6 +799,7 @@ jobs:
             - name: agent-operator-git-source
           outputs:
             - name: agent-operator-git-source
+            - name: version-output
           params:
             BRANCH: ((branch))
             TRIGGER_TYPE: ((.:trigger-type))
