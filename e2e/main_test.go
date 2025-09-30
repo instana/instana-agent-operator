@@ -23,11 +23,22 @@ func TestMain(m *testing.M) {
 	cfg := envconf.NewWithKubeConfig(path)
 	cfg.WithNamespace(InstanaNamespace)
 	testEnv = env.NewWithConfig(cfg)
-	// cluster level setup
-	testEnv.Setup(
-		AdjustOcpPermissionsIfNecessary(),
-		AdjustOcpPermissionsIfNecessaryRemote(),
-	)
+
+	// Determine cluster type
+	clusterType := InstanaTestCfg.ClusterType
+
+	// Setup based on cluster type
+	if clusterType == "external" {
+		// Existing setup for external clusters
+		testEnv.Setup(
+			AdjustOcpPermissionsIfNecessary(),
+			AdjustOcpPermissionsIfNecessaryRemote(),
+		)
+	} else if clusterType == "kind" {
+		// Simplified setup for Kind clusters
+		// Kind clusters don't need OCP permissions
+		testEnv.Setup()
+	}
 	// ensure a new clean namespace before every test
 	// EnvFuncs are only allowed in testEnv.Setup, testEnv.BeforeEachTest requires TestEnvFuncs, therefore converting below
 	testEnv.BeforeEachTest(

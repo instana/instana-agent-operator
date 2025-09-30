@@ -14,6 +14,9 @@ import (
 )
 
 type InstanaTestConfig struct {
+	ClusterType       string
+	KindConfig        string
+	KindClusterName   string
 	ContainerRegistry *ContainerRegistry
 	InstanaBackend    *InstanaBackend
 	OperatorImage     *OperatorImage
@@ -52,11 +55,34 @@ const InstanaAgentStaticImage string = "containers.instana.io/instana/release/ag
 
 func init() {
 	var instanaApiKey, containerRegistryUser, containerRegistryPassword, containerRegistryHost, endpointHost, operatorImageName, operatorImageTag string
+	var clusterType, kindConfig, kindClusterName string
 	var found, fatal bool
 
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Warningln("Warning: an error occurred while attempting to load dotenv-file expected in location: BASE_DIR/e2e/.env", err)
+	}
+
+	// Determine cluster type
+	clusterType, found = os.LookupEnv("CLUSTER_TYPE")
+	if !found {
+		log.Warningln("Optional: $CLUSTER_TYPE not defined, defaulting to 'external'")
+		clusterType = "external"
+	}
+
+	// Get Kind-specific configuration if cluster type is kind
+	if clusterType == "kind" {
+		kindConfig, found = os.LookupEnv("KIND_CONFIG")
+		if !found {
+			log.Warningln("Optional: $KIND_CONFIG not defined, using default")
+			kindConfig = "e2e/kind-config-single-node.yaml"
+		}
+
+		kindClusterName, found = os.LookupEnv("KIND_CLUSTER_NAME")
+		if !found {
+			log.Warningln("Optional: $KIND_CLUSTER_NAME not defined, using default")
+			kindClusterName = "instana-e2e"
+		}
 	}
 
 	instanaApiKey, found = os.LookupEnv("INSTANA_API_KEY")
@@ -112,6 +138,9 @@ func init() {
 	}
 
 	InstanaTestCfg = InstanaTestConfig{
+		ClusterType:     clusterType,
+		KindConfig:      kindConfig,
+		KindClusterName: kindClusterName,
 		ContainerRegistry: &ContainerRegistry{
 			Name:     "delivery-instana",
 			User:     containerRegistryUser,

@@ -311,76 +311,103 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 // Setup functions
 func SetupOperatorDevBuild() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		// Create pull secret for custom registry
-		t.Logf("Creating custom pull secret for %s", InstanaTestCfg.ContainerRegistry.Host)
-		p := utils.RunCommand(
-			fmt.Sprintf(
-				"kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
-				cfg.Namespace(),
-				InstanaTestCfg.ContainerRegistry.Name,
-				InstanaTestCfg.ContainerRegistry.Host,
-				InstanaTestCfg.ContainerRegistry.User,
-				InstanaTestCfg.ContainerRegistry.Password,
-			),
-		)
-		if p.Err() != nil {
-			t.Fatal("Error while creating pull secret", p.Err(), p.Out(), p.ExitCode())
-		}
-		t.Log("Pull secret created")
+		// Handle differently based on cluster type
+		if InstanaTestCfg.ClusterType == "kind" {
+			// For Kind clusters, the image is already loaded by the Makefile target
+			t.Log("Using pre-loaded operator image in Kind cluster")
 
-		// Use make logic to ensure that local dev commands and test commands are in sync
-		cmd := fmt.Sprintf(
-			"bash -c 'cd .. && IMG=%s:%s make install deploy'",
-			InstanaTestCfg.OperatorImage.Name,
-			InstanaTestCfg.OperatorImage.Tag,
-		)
-		t.Logf("Deploy new dev build by running: %s", cmd)
-		p = utils.RunCommand(cmd)
-		if p.Err() != nil {
-			t.Fatal(
-				"Error while deploying custom operator build during update installation",
-				p.Command(),
-				p.Err(),
-				p.Out(),
-				p.ExitCode(),
+			// Use make logic to ensure that local dev commands and test commands are in sync
+			cmd := fmt.Sprintf(
+				"bash -c 'cd .. && IMG=%s:%s make install deploy'",
+				InstanaTestCfg.OperatorImage.Name,
+				InstanaTestCfg.OperatorImage.Tag,
 			)
-		}
-		t.Log("Deployment submitted")
-
-		// Inject image pull secret into deployment, ensure to scale to 0 replicas and back to 2 replicas, otherwise pull secrets are not propagated correctly
-		t.Log("Patch instana operator deployment to redeploy pods with image pull secret")
-		r, err := resources.New(cfg.Client().RESTConfig())
-		if err != nil {
-			t.Fatal("Cleanup: Error initializing client", err)
-		}
-		r.WithNamespace(cfg.Namespace())
-		agent := &appsv1.Deployment{}
-		err = r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), agent)
-		replicas := agent.Spec.Replicas
-		if err != nil {
-			t.Fatal("Failed to get deployment-manager deployment", err)
-		}
-		err = r.Patch(ctx, agent, k8s.Patch{
-			PatchType: types.MergePatchType,
-			Data: []byte(
+			t.Logf("Deploy operator in Kind cluster by running: %s", cmd)
+			p := utils.RunCommand(cmd)
+			if p.Err() != nil {
+				t.Fatal(
+					"Error while deploying operator in Kind cluster",
+					p.Command(),
+					p.Err(),
+					p.Out(),
+					p.ExitCode(),
+				)
+			}
+			t.Log("Deployment submitted")
+		} else {
+			// For external clusters, create pull secret and deploy operator
+			// Create pull secret for custom registry
+			t.Logf("Creating custom pull secret for %s", InstanaTestCfg.ContainerRegistry.Host)
+			p := utils.RunCommand(
 				fmt.Sprintf(
-					`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
+					"kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
+					cfg.Namespace(),
 					InstanaTestCfg.ContainerRegistry.Name,
+					InstanaTestCfg.ContainerRegistry.Host,
+					InstanaTestCfg.ContainerRegistry.User,
+					InstanaTestCfg.ContainerRegistry.Password,
 				),
-			),
-		})
-		if err != nil {
-			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
-		}
+			)
+			if p.Err() != nil {
+				t.Fatal("Error while creating pull secret", p.Err(), p.Out(), p.ExitCode())
+			}
+			t.Log("Pull secret created")
 
-		err = r.Patch(ctx, agent, k8s.Patch{
-			PatchType: types.MergePatchType,
-			Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, *replicas)),
-		})
-		if err != nil {
-			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+			// Use make logic to ensure that local dev commands and test commands are in sync
+			cmd := fmt.Sprintf(
+				"bash -c 'cd .. && IMG=%s:%s make install deploy'",
+				InstanaTestCfg.OperatorImage.Name,
+				InstanaTestCfg.OperatorImage.Tag,
+			)
+			t.Logf("Deploy new dev build by running: %s", cmd)
+			p = utils.RunCommand(cmd)
+			if p.Err() != nil {
+				t.Fatal(
+					"Error while deploying custom operator build during update installation",
+					p.Command(),
+					p.Err(),
+					p.Out(),
+					p.ExitCode(),
+				)
+			}
+			t.Log("Deployment submitted")
+
+			// Inject image pull secret into deployment, ensure to scale to 0 replicas and back to 2 replicas,
+			// otherwise pull secrets are not propagated correctly
+			t.Log("Patch instana operator deployment to redeploy pods with image pull secret")
+			r, err := resources.New(cfg.Client().RESTConfig())
+			if err != nil {
+				t.Fatal("Cleanup: Error initializing client", err)
+			}
+			r.WithNamespace(cfg.Namespace())
+			agent := &appsv1.Deployment{}
+			err = r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), agent)
+			replicas := agent.Spec.Replicas
+			if err != nil {
+				t.Fatal("Failed to get deployment-manager deployment", err)
+			}
+			err = r.Patch(ctx, agent, k8s.Patch{
+				PatchType: types.MergePatchType,
+				Data: []byte(
+					fmt.Sprintf(
+						`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
+						InstanaTestCfg.ContainerRegistry.Name,
+					),
+				),
+			})
+			if err != nil {
+				t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+			}
+
+			err = r.Patch(ctx, agent, k8s.Patch{
+				PatchType: types.MergePatchType,
+				Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, *replicas)),
+			})
+			if err != nil {
+				t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+			}
+			t.Log("Patching completed")
 		}
-		t.Log("Patching completed")
 		return ctx
 	}
 }
