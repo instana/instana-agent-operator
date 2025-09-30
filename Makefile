@@ -131,9 +131,30 @@ KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
 test: manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
+.PHONY: e2e-env
+e2e-env: ## Create a generic .env file from the template
+	@echo "Creating generic .env file from template..."
+	@if [ -f e2e/.env ]; then \
+		echo "Warning: e2e/.env already exists. Backing it up to e2e/.env.bak"; \
+		cp e2e/.env e2e/.env.bak; \
+	fi
+	@cp e2e/.env.template e2e/.env
+	@echo "Created e2e/.env from template. Please update the values as needed."
+	@echo "To restore the backup, run: mv e2e/.env.bak e2e/.env"
+
 .PHONY: e2e
 e2e: ## Run end-to-end tests on external cluster (for release testing)
-	go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
+	@echo "=== Running E2E Tests on External Cluster ==="
+	@if [ -f e2e/.env ]; then \
+		echo "Backing up existing e2e/.env file..."; \
+		cp e2e/.env e2e/.env.backup; \
+	fi
+	@cd e2e && CLUSTER_TYPE=external go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
+	@if [ -f e2e/.env.backup ]; then \
+		echo "Restoring e2e/.env backup..."; \
+		mv e2e/.env.backup e2e/.env; \
+	fi
+	@echo "=== E2E Tests Completed Successfully ==="
 
 .PHONY: kind
 kind: ## Download kind locally if necessary.
@@ -155,12 +176,26 @@ kind: ## Download kind locally if necessary.
 # Create a single-node Kind cluster
 .PHONY: kind-create-single
 kind-create-single: kind ## Create a single-node Kind cluster for standard tests
-	$(KIND) create cluster --name instana-e2e-single --config e2e/kind-config-single-node.yaml
+	@if $(KIND) get clusters | grep -q "^instana-e2e-single$$"; then \
+		echo "Kind cluster 'instana-e2e-single' already exists, continuing..."; \
+	else \
+		echo "Creating kind cluster 'instana-e2e-single'..."; \
+		$(KIND) create cluster --name instana-e2e-single --config e2e/kind-config-single-node.yaml; \
+	fi
+	@echo "Setting kubectl context to kind-instana-e2e-single"
+	@$(KIND) export kubeconfig --name=instana-e2e-single
 
 # Create a multi-node Kind cluster
 .PHONY: kind-create-multi
 kind-create-multi: kind ## Create a multi-node Kind cluster for multizone tests
-	$(KIND) create cluster --name instana-e2e-multi --config e2e/kind-config-multi-node.yaml
+	@if $(KIND) get clusters | grep -q "^instana-e2e-multi$$"; then \
+		echo "Kind cluster 'instana-e2e-multi' already exists, continuing..."; \
+	else \
+		echo "Creating kind cluster 'instana-e2e-multi'..."; \
+		$(KIND) create cluster --name instana-e2e-multi --config e2e/kind-config-multi-node.yaml; \
+	fi
+	@echo "Setting kubectl context to kind-instana-e2e-multi"
+	@$(KIND) export kubeconfig --name=instana-e2e-multi
 
 # Delete Kind clusters
 .PHONY: kind-delete
@@ -177,22 +212,32 @@ kind-load-image: kind ## Build and load operator image to Kind cluster
 # Run all Kind-based tests (standard and multinode)
 .PHONY: e2e-kind
 e2e-kind: ## Run all tests on Kind clusters (standard and multinode)
+	@echo "=== Running E2E Tests on Kind Clusters ==="
+	@if [ -f e2e/.env ]; then \
+		echo "Backing up existing e2e/.env file..."; \
+		cp e2e/.env e2e/.env.backup; \
+	fi
+	
 	@echo "Building operator image for Kind tests..."
 	docker build -t instana-agent-operator:e2e .
 	
 	@echo "Running standard tests on single-node Kind cluster..."
 	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-single KIND_CONFIG=e2e/kind-config-single-node.yaml CLUSTER_TYPE=kind kind-create-single
-	cp e2e/.env.kind e2e/.env
 	$(KIND) load docker-image instana-agent-operator:e2e --name instana-e2e-single
-	cd e2e && go test -v -tags=standard
+	cd e2e && CLUSTER_TYPE=kind KIND_CLUSTER_NAME=instana-e2e-single KIND_CONFIG=e2e/kind-config-single-node.yaml KIND_OPERATOR_IMAGE_NAME=instana-agent-operator KIND_OPERATOR_IMAGE_TAG=e2e IMG=instana-agent-operator:e2e go test -timeout=45m -v -tags=standard
 	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-single kind-delete
 	
 	@echo "Running multinode tests on multi-node Kind cluster..."
 	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-multi KIND_CONFIG=e2e/kind-config-multi-node.yaml CLUSTER_TYPE=kind kind-create-multi
-	cp e2e/.env.kind e2e/.env
 	$(KIND) load docker-image instana-agent-operator:e2e --name instana-e2e-multi
-	cd e2e && go test -v -tags=multinode
+	cd e2e && CLUSTER_TYPE=kind KIND_CLUSTER_NAME=instana-e2e-multi KIND_CONFIG=e2e/kind-config-multi-node.yaml KIND_OPERATOR_IMAGE_NAME=instana-agent-operator KIND_OPERATOR_IMAGE_TAG=e2e IMG=instana-agent-operator:e2e go test -timeout=45m -v -tags=multinode
 	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-multi kind-delete
+	
+	@if [ -f e2e/.env.backup ]; then \
+		echo "Restoring e2e/.env backup..."; \
+		mv e2e/.env.backup e2e/.env; \
+	fi
+	@echo "=== E2E Tests Completed Successfully ==="
 
 ##@ Build
 
@@ -265,6 +310,10 @@ purge: ## Full purge of the agent in the cluster
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+deploy-kind: manifests kustomize ## Deploy controller in a kind cluster with imagePullPolicy=IfNotPresent
+	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
+	$(KUSTOMIZE) build config/default | sed 's/imagePullPolicy: Always/imagePullPolicy: IfNotPresent/g' | kubectl apply -f -
 
 scale-to-zero: ## Scales the operator to zero in the cluster to allow local testing against a cluster
 	kubectl -n instana-agent scale --replicas=0 deployment.apps/instana-agent-operator && sleep 5 && kubectl get all -n instana-agent

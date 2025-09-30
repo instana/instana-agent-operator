@@ -83,8 +83,48 @@ func init() {
 			log.Warningln("Optional: $KIND_CLUSTER_NAME not defined, using default")
 			kindClusterName = "instana-e2e"
 		}
+
+		// For kind clusters, use KIND_* prefixed values for operator image if available
+		operatorImageName, found = os.LookupEnv("KIND_OPERATOR_IMAGE_NAME")
+		if !found {
+			log.Warningln("Optional: $KIND_OPERATOR_IMAGE_NAME not defined, using default")
+			operatorImageName = "instana-agent-operator"
+		}
+
+		operatorImageTag, found = os.LookupEnv("KIND_OPERATOR_IMAGE_TAG")
+		if !found {
+			log.Warningln("Optional: $KIND_OPERATOR_IMAGE_TAG not defined, using default")
+			operatorImageTag = "e2e"
+		}
+	} else {
+		// For external clusters, use the standard operator image values
+		operatorImageName, found = os.LookupEnv("OPERATOR_IMAGE_NAME")
+		if !found {
+			log.Warningln("Optional: $OPERATOR_IMAGE_NAME not defined, using default")
+			operatorImageName = "delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build"
+		}
+
+		operatorImageTag, found = os.LookupEnv("OPERATOR_IMAGE_TAG")
+		if !found {
+			log.Warningln("Optional: $OPERATOR_IMAGE_TAG not defined, falling back to $GIT_COMMIT")
+			operatorImageTag, found = os.LookupEnv("GIT_COMMIT")
+			if !found {
+				log.Warningln("Optional: $GIT_COMMIT is not defined, falling back to git cli to resolve last commit")
+				p := utils.RunCommand("git rev-parse HEAD")
+				if p.Err() != nil {
+					log.Warningf("Error while getting git commit via cli: %v, %v, %v, %v\n",
+						p.Command(), p.Err(), p.Out(), p.ExitCode())
+					log.Fatalln("Required: Either $OPERATOR_IMAGE_TAG or $GIT_COMMIT must be set " +
+						"to be able to deploy a custom operator build")
+					fatal = true
+				}
+				// using short commit as tag (default)
+				operatorImageTag = p.Result()[0:7]
+			}
+		}
 	}
 
+	// Common configuration for both cluster types
 	instanaApiKey, found = os.LookupEnv("INSTANA_API_KEY")
 	if !found {
 		log.Errorln("Required: $INSTANA_API_KEY not defined")
@@ -109,28 +149,6 @@ func init() {
 	if !found {
 		log.Warningln("Optional: $INSTANA_ENDPOINT_HOST not defined, using default")
 		endpointHost = "ingress-red-saas.instana.io"
-	}
-	operatorImageName, found = os.LookupEnv("OPERATOR_IMAGE_NAME")
-	if !found {
-		log.Warningln("Optional: $OPERATOR_IMAGE_NAME not defined, using default")
-		operatorImageName = "delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build"
-	}
-
-	operatorImageTag, found = os.LookupEnv("OPERATOR_IMAGE_TAG")
-	if !found {
-		log.Warningln("Optional: $OPERATOR_IMAGE_TAG not defined, falling back to $GIT_COMMIT")
-		operatorImageTag, found = os.LookupEnv("GIT_COMMIT")
-		if !found {
-			log.Warningln("Optional: $GIT_COMMIT is not defined, falling back to git cli to resolve last commit")
-			p := utils.RunCommand("git rev-parse HEAD")
-			if p.Err() != nil {
-				log.Warningf("Error while getting git commit via cli: %v, %v, %v, %v\n", p.Command(), p.Err(), p.Out(), p.ExitCode())
-				log.Fatalln("Required: Either $OPERATOR_IMAGE_TAG or $GIT_COMMIT must be set to be able to deploy a custom operator build")
-				fatal = true
-			}
-			// using short commit as tag (default)
-			operatorImageTag = p.Result()[0:7]
-		}
 	}
 
 	if fatal {

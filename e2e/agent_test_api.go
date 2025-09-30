@@ -318,7 +318,7 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 
 			// Use make logic to ensure that local dev commands and test commands are in sync
 			cmd := fmt.Sprintf(
-				"bash -c 'cd .. && IMG=%s:%s make install deploy'",
+				"bash -c 'cd .. && IMG=%s:%s make install deploy-kind'",
 				InstanaTestCfg.OperatorImage.Name,
 				InstanaTestCfg.OperatorImage.Tag,
 			)
