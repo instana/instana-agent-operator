@@ -222,29 +222,6 @@ func CreateDeploymentContext(
 	return deploymentContext, nil
 }
 
-// createDeploymentContext creates a deployment context for the k8s-sensor deployment.
-// It handles both OpenShift and vanilla Kubernetes cases, setting up the appropriate
-// ETCD configuration based on the environment.
-func (r *InstanaAgentReconciler) createDeploymentContext(
-	ctx context.Context,
-	agent *instanav1.InstanaAgent,
-	isOpenShift bool,
-) (*k8ssensordeployment.DeploymentContext, reconcileReturn) {
-	log := r.loggerFor(ctx, agent)
-
-	deploymentContext, err := CreateDeploymentContext(ctx, r.client, agent, isOpenShift, log, r.DiscoverETCDEndpoints)
-	if err != nil {
-		return nil, reconcileFailure(err)
-	}
-
-	// Handle the special case where targets are unchanged
-	if !isOpenShift && deploymentContext == nil {
-		return nil, reconcileContinue()
-	}
-
-	return deploymentContext, reconcileContinue()
-}
-
 func (r *InstanaAgentReconciler) applyResources(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
@@ -259,9 +236,10 @@ func (r *InstanaAgentReconciler) applyResources(
 	log.V(1).Info("applying Kubernetes resources for agent")
 
 	// Create deployment context for k8s-sensor
-	deploymentContext, result := r.createDeploymentContext(ctx, agent, isOpenShift)
-	if result.suppliesReconcileResult() {
-		return result
+	deploymentContext, err := CreateDeploymentContext(ctx, r.client, agent, isOpenShift, log, r.DiscoverETCDEndpoints)
+	if err != nil {
+		log.Error(err, "failed to create deployment context")
+		return reconcileFailure(err)
 	}
 
 	builders := append(
