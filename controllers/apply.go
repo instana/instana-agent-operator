@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	instanaClient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/client"
 	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/headless-service"
@@ -146,16 +146,19 @@ func compareAndUpdateETCDTargets(
 	return currentTargets != newTargets
 }
 
+// ETCDDiscoverFunc is a function type for discovering ETCD endpoints
+type ETCDDiscoverFunc func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error)
+
 // CreateDeploymentContext creates a deployment context for the k8s-sensor deployment.
 // It handles both OpenShift and vanilla Kubernetes cases, setting up the appropriate
 // ETCD configuration based on the environment.
 func CreateDeploymentContext(
 	ctx context.Context,
-	c instanaClient.InstanaAgentClient,
+	c client.InstanaAgentClient,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	logger logr.Logger,
-	discoveredETCD *DiscoveredETCDTargets,
+	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	var deploymentContext *k8ssensordeployment.DeploymentContext
 
@@ -174,7 +177,14 @@ func CreateDeploymentContext(
 		return deploymentContext, nil
 	}
 
-	// For vanilla Kubernetes, use the discovered ETCD endpoints
+	// For vanilla Kubernetes, discover ETCD endpoints
+	discoveredETCD, err := discoverETCD(ctx, agent)
+	if err != nil {
+		logger.Error(err, "Failed to discover ETCD endpoints")
+		// Continue with reconciliation, don't fail the whole process
+		return deploymentContext, nil
+	}
+
 	if discoveredETCD == nil || len(discoveredETCD.Targets) == 0 {
 		return deploymentContext, nil
 	}
@@ -182,7 +192,7 @@ func CreateDeploymentContext(
 	// Check if we need to update the Deployment with new ETCD targets
 	existingDeployment := &appsv1.Deployment{}
 	helperInstance := helpers.NewHelpers(agent)
-	err := c.Get(ctx, types.NamespacedName{
+	err = c.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
 		Name:      helperInstance.K8sSensorResourcesName(),
 	}, existingDeployment)
@@ -222,20 +232,7 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 ) (*k8ssensordeployment.DeploymentContext, reconcileReturn) {
 	log := r.loggerFor(ctx, agent)
 
-	var discoveredETCD *DiscoveredETCDTargets
-	var err error
-
-	// For vanilla Kubernetes, discover ETCD endpoints first
-	if !isOpenShift {
-		discoveredETCD, err = r.DiscoverETCDEndpoints(ctx, agent)
-		if err != nil {
-			log.Error(err, "Failed to discover ETCD endpoints")
-			// Continue with reconciliation, don't fail the whole process
-			return nil, reconcileContinue()
-		}
-	}
-
-	deploymentContext, err := CreateDeploymentContext(ctx, r.client, agent, isOpenShift, log, discoveredETCD)
+	deploymentContext, err := CreateDeploymentContext(ctx, r.client, agent, isOpenShift, log, r.DiscoverETCDEndpoints)
 	if err != nil {
 		return nil, reconcileFailure(err)
 	}

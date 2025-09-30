@@ -21,22 +21,12 @@ import (
 
 	"github.com/go-logr/logr"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
-	"github.com/instana/instana-agent-operator/pkg/result"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// ClientApplier interface for applying resources
-type ClientApplier interface {
-	Apply(
-		ctx context.Context,
-		obj client.Object,
-		opts ...client.PatchOption,
-	) result.Result[client.Object]
-}
 
 // CreateServiceCAConfigMap creates a ConfigMap with "service.beta.openshift.io/inject-cabundle"
 // annotation for OpenShift
@@ -44,7 +34,7 @@ type ClientApplier interface {
 // configuring-certificates#add-service-certificate-configmap_service-serving-certificate
 func CreateServiceCAConfigMap(
 	ctx context.Context,
-	applier ClientApplier,
+	c client.InstanaAgentClient,
 	agent *instanav1.InstanaAgent,
 	logger logr.Logger,
 ) error {
@@ -70,8 +60,8 @@ func CreateServiceCAConfigMap(
 		Data: map[string]string{},
 	}
 
-	// Use the Apply method with the custom client
-	_, err := applier.Apply(ctx, configMap).Get()
+	// Use the Apply method with the client
+	_, err := c.Apply(ctx, configMap).Get()
 	if err != nil {
 		logger.Error(err, "Failed to apply service-CA ConfigMap")
 		return err
@@ -79,16 +69,4 @@ func CreateServiceCAConfigMap(
 
 	logger.Info("Service-CA ConfigMap created/updated successfully")
 	return nil
-}
-
-// createServiceCAConfigMap creates a ConfigMap with "service.beta.openshift.io/inject-cabundle"
-// annotation for OpenShift
-// See: https://docs.redhat.com/en/documentation/openshift_container_platform/4.9/html/security_and_compliance/
-// configuring-certificates#add-service-certificate-configmap_service-serving-certificate
-func (r *InstanaAgentReconciler) createServiceCAConfigMap(
-	ctx context.Context,
-	agent *instanav1.InstanaAgent,
-) error {
-	log := r.loggerFor(ctx, agent)
-	return CreateServiceCAConfigMap(ctx, r.client, agent, log)
 }

@@ -211,9 +211,10 @@ func TestCreateServiceCAConfigMap(t *testing.T) {
 				client: mockClient,
 			}
 
-			// Test the method
+			// Test the free function
 			ctx := context.Background()
-			err := reconciler.createServiceCAConfigMap(ctx, tc.agent)
+			log := reconciler.loggerFor(ctx, tc.agent)
+			err := CreateServiceCAConfigMap(ctx, reconciler.client, tc.agent, log)
 
 			// Verify error expectation
 			if tc.expectError {
@@ -276,9 +277,10 @@ func TestCreateServiceCAConfigMapUpdate(t *testing.T) {
 		client: mockClient,
 	}
 
-	// Test the method
+	// Test the free function
 	ctx := context.Background()
-	err := reconciler.createServiceCAConfigMap(ctx, agent)
+	log := reconciler.loggerFor(ctx, agent)
+	err := CreateServiceCAConfigMap(ctx, reconciler.client, agent, log)
 
 	// Verify no error
 	require.NoError(t, err, "Should not return an error")
