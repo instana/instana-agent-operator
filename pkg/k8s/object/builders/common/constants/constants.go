@@ -44,3 +44,28 @@ func ReaderVerbs() []string {
 const InstanaNamespacesDetailsFileName = "namespaces.yaml"
 const InstanaConfigDirectory = "/opt/instana/agent/etc/instana-config-yml"
 const InstanaNamespacesDetailsDirectory = "/opt/instana/agent/etc/namespaces"
+const InstanaSecretsDirectory = "/opt/instana/agent/etc/instana/secrets"
+
+// Secret file names
+const (
+	SecretFileAgentKey                  = "INSTANA_AGENT_KEY"
+	SecretFileDownloadKey               = "INSTANA_DOWNLOAD_KEY"
+	SecretFileProxyUser                 = "INSTANA_AGENT_PROXY_USER"
+	SecretFileProxyPassword             = "INSTANA_AGENT_PROXY_PASSWORD"
+	SecretFileMirrorReleaseRepoUsername = "AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME"
+	SecretFileMirrorReleaseRepoPassword = "AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD"
+	SecretFileMirrorSharedRepoUsername  = "INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME"
+	SecretFileMirrorSharedRepoPassword  = "INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD"
+	SecretFileHttpsProxy                = "HTTPS_PROXY"
+)
+
+// Secret key names
+const (
+	SecretKeyProxyUser                 = "proxyUser"
+	SecretKeyProxyPassword             = "proxyPassword"
+	SecretKeyHttpsProxy                = "httpsProxy"
+	SecretKeyMirrorReleaseRepoUsername = "mirrorReleaseRepoUsername"
+	SecretKeyMirrorReleaseRepoPassword = "mirrorReleaseRepoPassword"
+	SecretKeyMirrorSharedRepoUsername  = "mirrorSharedRepoUsername"
+	SecretKeyMirrorSharedRepoPassword  = "mirrorSharedRepoPassword"
+)

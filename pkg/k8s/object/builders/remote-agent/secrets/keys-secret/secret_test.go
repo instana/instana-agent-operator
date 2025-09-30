@@ -27,7 +27,9 @@ import (
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/optional"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
 func TestRemoteSecretBuilder_IsNamespaced_ComponentName(t *testing.T) {
@@ -87,14 +89,16 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 
 						switch keysSecret {
 						case "":
-							data := make(map[string][]byte, 2)
+							data := make(map[string][]byte)
 
 							if len(key) > 0 {
-								data["key"] = []byte(key)
+								data[constants.AgentKey] = []byte(key)
+								data[constants.SecretFileAgentKey] = []byte(key)
 							}
 
 							if len(downloadKey) > 0 {
-								data["downloadKey"] = []byte(downloadKey)
+								data[constants.DownloadKey] = []byte(downloadKey)
+								data[constants.SecretFileDownloadKey] = []byte(downloadKey)
 							}
 
 							expected := optional.Of[client.Object](
@@ -121,4 +125,76 @@ func TestRemoteSecretBuilder_Build(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRemoteSecretBuilder_BuildIncludesProxySecretsWhenSecretMountsEnabled(t *testing.T) {
+	assertions := require.New(t)
+
+	agent := instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{Name: "remote", Namespace: "instana"},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:           "agent-key",
+				DownloadKey:   "download-key",
+				ProxyHost:     "proxy.example.com",
+				ProxyPort:     "3128",
+				ProxyProtocol: "https",
+				ProxyUser:     "proxyuser",
+				ProxyPassword: "proxypass",
+			},
+		},
+	}
+	backend := backends.NewRemoteSensorBackend("", "agent-key", "download-key", "", "")
+	secretOpt := NewSecretBuilder(&agent, []backends.RemoteSensorBackend{*backend}).Build()
+	assertions.True(secretOpt.IsPresent())
+
+	secret, ok := secretOpt.Get().(*corev1.Secret)
+	assertions.True(ok)
+
+	expectedHttps := "https://proxyuser:proxypass@proxy.example.com:3128"
+	expected := map[string][]byte{
+		constants.AgentKey:               []byte("agent-key"),
+		constants.SecretFileAgentKey:     []byte("agent-key"),
+		constants.DownloadKey:            []byte("download-key"),
+		constants.SecretFileDownloadKey:  []byte("download-key"),
+		constants.SecretKeyProxyUser:     []byte("proxyuser"),
+		constants.SecretKeyProxyPassword: []byte("proxypass"),
+		constants.SecretKeyHttpsProxy:    []byte(expectedHttps),
+	}
+
+	assertions.Equal(expected, secret.Data)
+}
+
+func TestRemoteSecretBuilder_BuildOmitsSecretMountDataWhenDisabled(t *testing.T) {
+	assertions := require.New(t)
+	useSecretMounts := pointer.To(false)
+
+	agent := instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{Name: "remote", Namespace: "instana"},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			UseSecretMounts: useSecretMounts,
+			Agent: instanav1.BaseAgentSpec{
+				Key:           "agent-key",
+				DownloadKey:   "download-key",
+				ProxyHost:     "proxy.example.com",
+				ProxyPort:     "3128",
+				ProxyProtocol: "https",
+				ProxyUser:     "proxyuser",
+				ProxyPassword: "proxypass",
+			},
+		},
+	}
+	backend := backends.NewRemoteSensorBackend("", "agent-key", "download-key", "", "")
+	secretOpt := NewSecretBuilder(&agent, []backends.RemoteSensorBackend{*backend}).Build()
+	assertions.True(secretOpt.IsPresent())
+
+	secret, ok := secretOpt.Get().(*corev1.Secret)
+	assertions.True(ok)
+
+	expected := map[string][]byte{
+		constants.AgentKey:    []byte("agent-key"),
+		constants.DownloadKey: []byte("download-key"),
+	}
+
+	assertions.Equal(expected, secret.Data)
 }

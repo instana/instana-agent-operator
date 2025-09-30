@@ -22,11 +22,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-const RemoteConfigDirectory = "/opt/instana/agent/etc/remote-config-yml"
+const (
+	RemoteConfigDirectory   = "/opt/instana/agent/etc/remote-config-yml"
+	InstanaSecretsDirectory = "/opt/instana/agent/etc/instana/secrets"
+)
 
 type RemoteVolume int
 
@@ -34,6 +38,7 @@ const (
 	ConfigVolumeRemote RemoteVolume = iota
 	TlsVolumeRemote
 	RepoVolumeRemote
+	SecretsVolumeRemote
 )
 
 type VolumeBuilderRemote interface {
@@ -80,6 +85,8 @@ func (v *volumeBuilderRemote) getBuilder(volume RemoteVolume) (*corev1.Volume, *
 		return v.tlsVolume()
 	case RepoVolumeRemote:
 		return v.repoVolume()
+	case SecretsVolumeRemote:
+		return v.secretsVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
@@ -125,6 +132,101 @@ func (v *volumeBuilderRemote) tlsVolume() (*corev1.Volume, *corev1.VolumeMount) 
 		MountPath: "/opt/instana/agent/etc/certs",
 		ReadOnly:  true,
 	}
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilderRemote) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	// Only create the secrets volume if useSecretMounts is enabled or nil (default to true)
+	if v.remoteAgent.Spec.UseSecretMounts != nil && !*v.remoteAgent.Spec.UseSecretMounts {
+		return nil, nil
+	}
+
+	volumeName := "instana-secrets"
+	secretName := v.remoteAgent.Spec.Agent.KeysSecret
+	if secretName == "" {
+		secretName = v.remoteAgent.Name
+	}
+
+	// Create a volume with specific items for remote agent
+	items := []corev1.KeyToPath{
+		{
+			Key:  constants.AgentKey,
+			Path: constants.SecretFileAgentKey,
+		},
+	}
+
+	// Add download key mapping only if it's specified
+	if v.remoteAgent.Spec.Agent.DownloadKey != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.DownloadKey,
+			Path: constants.SecretFileDownloadKey,
+		})
+	}
+
+	// Add proxy-related secrets if proxy is configured
+	if v.remoteAgent.Spec.Agent.ProxyHost != "" {
+		if v.remoteAgent.Spec.Agent.ProxyUser != "" {
+			items = append(items, corev1.KeyToPath{
+				Key:  constants.SecretKeyProxyUser,
+				Path: constants.SecretFileProxyUser,
+			})
+		}
+		if v.remoteAgent.Spec.Agent.ProxyPassword != "" {
+			items = append(items, corev1.KeyToPath{
+				Key:  constants.SecretKeyProxyPassword,
+				Path: constants.SecretFileProxyPassword,
+			})
+		}
+		// Add HTTPS_PROXY if needed
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.SecretKeyHttpsProxy,
+			Path: constants.SecretFileHttpsProxy,
+		})
+	}
+
+	// Add repository mirror credentials if configured
+	if v.remoteAgent.Spec.Agent.MirrorReleaseRepoUsername != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.SecretKeyMirrorReleaseRepoUsername,
+			Path: constants.SecretFileMirrorReleaseRepoUsername,
+		})
+	}
+	if v.remoteAgent.Spec.Agent.MirrorReleaseRepoPassword != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.SecretKeyMirrorReleaseRepoPassword,
+			Path: constants.SecretFileMirrorReleaseRepoPassword,
+		})
+	}
+	if v.remoteAgent.Spec.Agent.MirrorSharedRepoUsername != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.SecretKeyMirrorSharedRepoUsername,
+			Path: constants.SecretFileMirrorSharedRepoUsername,
+		})
+	}
+	if v.remoteAgent.Spec.Agent.MirrorSharedRepoPassword != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  constants.SecretKeyMirrorSharedRepoPassword,
+			Path: constants.SecretFileMirrorSharedRepoPassword,
+		})
+	}
+
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  secretName,
+				DefaultMode: pointer.To[int32](0400), // Read-only for owner
+				Items:       items,
+				Optional:    pointer.To(false),
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: constants.InstanaSecretsDirectory,
+		ReadOnly:  true,
+	}
+
 	return &volume, &volumeMount
 }
 

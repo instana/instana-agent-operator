@@ -219,10 +219,17 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 .PHONY: namespace
-namespace: ## Generate namespace instana-agent on OCP for manual testing
-	oc new-project instana-agent || true
-	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
-	oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent
+namespace: ## Generate namespace instana-agent for manual testing
+	@echo "Creating namespace $(NAMESPACE) if it doesn't exist..."
+	kubectl create namespace $(NAMESPACE) 2>/dev/null || true
+	@echo "Detecting cluster type (OCP or standard K8s)..."
+	@if command -v oc >/dev/null 2>&1 && oc get projects >/dev/null 2>&1; then \
+		echo "OpenShift cluster detected, applying OCP-specific security policies..."; \
+		oc adm policy add-scc-to-user privileged -z instana-agent -n $(NAMESPACE) || true; \
+		oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n $(NAMESPACE) || true; \
+	else \
+		echo "Standard Kubernetes cluster detected (GKE or other), no OCP-specific policies needed."; \
+	fi
 
 .PHONY: create-cr
 create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
@@ -237,24 +244,31 @@ create-pull-secret: ## Creates image pull secret for delivery.instana.io from yo
 	@if kubectl get secret delivery-instana-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
 		echo "Updating existing secret delivery-instana-io-pull-secret..."; \
 		kubectl delete secret delivery-instana-io-pull-secret -n $(NAMESPACE); \
-		kubectl create secret generic delivery-instana-io-pull-secret \
-			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
-			--type=kubernetes.io/dockerconfigjson \
-			-n $(NAMESPACE); \
 	else \
 		echo "Creating new secret delivery-instana-io-pull-secret..."; \
-		kubectl create secret generic delivery-instana-io-pull-secret \
-			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
-			--type=kubernetes.io/dockerconfigjson \
-			-n $(NAMESPACE); \
 	fi
-	@echo "Patching serviceaccount..."
+	@kubectl create secret generic delivery-instana-io-pull-secret \
+		--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+		--type=kubernetes.io/dockerconfigjson \
+		-n $(NAMESPACE)
+	@echo "Patching service accounts with pull secret..."
+	@echo "Checking and patching operator service account..."
 	@kubectl patch serviceaccount instana-agent-operator \
 		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
-		-n instana-agent
+		-n instana-agent || echo "Service account instana-agent-operator not found, skipping"
+	@echo "Checking and patching agent service account..."
+	@kubectl get serviceaccount instana-agent -n $(NAMESPACE) >/dev/null 2>&1 && \
+		kubectl patch serviceaccount instana-agent \
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n $(NAMESPACE) || echo "Service account instana-agent not found, skipping"
+	@echo "Checking and patching k8sensor service account..."
+	@kubectl get serviceaccount instana-agent-k8sensor -n $(NAMESPACE) >/dev/null 2>&1 && \
+		kubectl patch serviceaccount instana-agent-k8sensor \
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n $(NAMESPACE) || echo "Service account instana-agent-k8sensor not found, skipping"
 	@rm -rf .tmp
-	@echo "Restarting operator deployment..."
-	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
+	@echo "Restarting all pods in namespace $(NAMESPACE) to apply the new pull secret..."
+	@kubectl delete pods --all -n $(NAMESPACE) 2>/dev/null || echo "No pods found to restart"
 
 .PHONY: pre-pull-images
 pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow network situations to run tests reliably)
@@ -293,12 +307,20 @@ pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow netwo
 setup-ocp-mirror: ## Setup ocp internal registry and define ImageContentSourcePolicy to pull from internal registry
 	./ci/scripts/setup-ocp-mirror.sh
 
-.PHONY: dev-run-ocp
-dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
+.PHONY: dev-run-cluster
+dev-run-cluster: namespace install create-cr run ## Creates a full dev deployment on any cluster from scratch, also useful after purge
 
 .PHONY: logs
 logs: ## Tail operator logs
 	kubectl logs -f deployment/instana-agent-controller-manager -n $(NAMESPACE)
+
+.PHONY: debug-pod
+debug-pod: ## Debug a pod by name using kubectl debug with UBI9 image
+	@if [ -z "$(POD_NAME)" ]; then \
+		echo "Error: POD_NAME is required. Usage: make debug-pod POD_NAME=<pod-name>"; \
+		exit 1; \
+	fi
+	kubectl debug $(POD_NAME) -it --image=registry.access.redhat.com/ubi9/ubi --target=instana-agent -n $(NAMESPACE)
 
 ##@ OLM
 

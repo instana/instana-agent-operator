@@ -197,6 +197,7 @@ func TestDeploymentBuilder_getVolumes(t *testing.T) {
 		volume.ConfigVolumeRemote,
 		volume.TlsVolumeRemote,
 		volume.RepoVolumeRemote,
+		volume.SecretsVolumeRemote,
 	).Return(expectedVolumes, expectedVolumeMounts)
 
 	db := &deploymentBuilder{

@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package volume
@@ -33,17 +33,21 @@ const (
 	TlsVolume
 	RepoVolume
 	NamespacesDetailsVolume
+	SecretsVolume
+	K8SensorSecretsVolume
 )
 
 type VolumeBuilder interface {
 	Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount)
 	BuildFromUserConfig() ([]corev1.Volume, []corev1.VolumeMount)
+	WithBackendResourceSuffix(string) VolumeBuilder
 }
 
 type volumeBuilder struct {
-	instanaAgent   *instanav1.InstanaAgent
-	helpers        helpers.Helpers
-	isNotOpenShift bool
+	instanaAgent          *instanav1.InstanaAgent
+	helpers               helpers.Helpers
+	isNotOpenShift        bool
+	backendResourceSuffix string
 }
 
 func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBuilder {
@@ -52,6 +56,11 @@ func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBui
 		helpers:        helpers.NewHelpers(agent),
 		isNotOpenShift: !isOpenShift,
 	}
+}
+
+func (v *volumeBuilder) WithBackendResourceSuffix(suffix string) VolumeBuilder {
+	v.backendResourceSuffix = suffix
+	return v
 }
 
 func (v *volumeBuilder) Build(volumes ...Volume) ([]corev1.Volume, []corev1.VolumeMount) {
@@ -131,6 +140,10 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.tlsVolume()
 	case RepoVolume:
 		return v.repoVolume()
+	case SecretsVolume:
+		return v.secretsVolume()
+	case K8SensorSecretsVolume:
+		return v.k8sensorSecretsVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
@@ -254,6 +267,103 @@ func (v *volumeBuilder) repoVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: "/opt/instana/agent/data/repo",
+	}
+
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	// Only create the secrets volume if useSecretMounts is enabled or nil (default to true)
+	if v.instanaAgent.Spec.UseSecretMounts != nil && !*v.instanaAgent.Spec.UseSecretMounts {
+		return nil, nil
+	}
+
+	volumeName := "instana-secrets"
+	secretName := v.instanaAgent.Spec.Agent.KeysSecret
+	if secretName == "" {
+		secretName = v.instanaAgent.Name
+	}
+
+	// Create a volume with specific items for k8sensor
+	agentKeySecretKey := constants.SecretFileAgentKey
+	proxySecretKey := constants.SecretFileHttpsProxy
+
+	// When the user provides an external secret, the keys follow the "key", "key-1" pattern.
+	// Remap them to the expected file names so run.sh can find INSTANA_AGENT_KEY.
+	if v.instanaAgent.Spec.Agent.KeysSecret != "" {
+		agentKeySecretKey = constants.AgentKey + v.backendResourceSuffix
+		proxySecretKey = constants.SecretKeyHttpsProxy
+	}
+
+	items := []corev1.KeyToPath{
+		{
+			Key:  agentKeySecretKey,
+			Path: constants.SecretFileAgentKey,
+		},
+	}
+
+	// Only include HTTPS_PROXY if ProxyHost is set
+	if v.instanaAgent.Spec.Agent.ProxyHost != "" {
+		items = append(items, corev1.KeyToPath{
+			Key:  proxySecretKey,
+			Path: constants.SecretFileHttpsProxy,
+		})
+	}
+
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  secretName,
+				DefaultMode: pointer.To[int32](0400), // Read-only for owner
+				Items:       items,
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: constants.InstanaSecretsDirectory,
+		ReadOnly:  true,
+	}
+
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	// Only create the secrets volume if useSecretMounts is enabled or nil (default to true)
+	if v.instanaAgent.Spec.UseSecretMounts != nil && !*v.instanaAgent.Spec.UseSecretMounts {
+		return nil, nil
+	}
+
+	volumeName := "instana-secrets"
+	secretName := v.instanaAgent.Spec.Agent.KeysSecret
+	if secretName == "" {
+		secretName = v.instanaAgent.Name
+	}
+
+	var items []corev1.KeyToPath
+	if v.instanaAgent.Spec.Agent.KeysSecret != "" {
+		agentKeySecretKey := constants.AgentKey + v.backendResourceSuffix
+		items = append(items, corev1.KeyToPath{
+			Key:  agentKeySecretKey,
+			Path: constants.SecretFileAgentKey,
+		})
+	}
+
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  secretName,
+				DefaultMode: pointer.To[int32](0400), // Read-only for owner
+				Items:       items,
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: constants.InstanaSecretsDirectory,
+		ReadOnly:  true,
 	}
 
 	return &volume, &volumeMount

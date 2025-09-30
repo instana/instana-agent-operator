@@ -44,3 +44,7 @@ func (m *MockVolumeBuilder) BuildFromUserConfig() ([]corev1.Volume, []corev1.Vol
 	args := m.Called()
 	return args.Get(0).([]corev1.Volume), args.Get(1).([]corev1.VolumeMount)
 }
+
+func (m *MockVolumeBuilder) WithBackendResourceSuffix(string) volume.VolumeBuilder {
+	return m
+}
