@@ -107,7 +107,7 @@ setup: ## sets git hooks path to .githook
 	git config core.hooksPath .githooks
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object paths="./..."
@@ -344,8 +344,8 @@ bundle-build: buildctl ## Build the bundle image for OLM.
 	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build --frontend gateway.v0 --opt source=docker/dockerfile --opt filename=./bundle.Dockerfile --local context=. --local dockerfile=. --output type=oci,name=${BUNDLE_IMG} | $(CONTAINER_CMD) load
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
-	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
-	$(KUSTOMIZE) build config/default
+	@cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)" > /dev/null
+	@$(KUSTOMIZE) build config/default
 
 CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
 
@@ -354,32 +354,32 @@ CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controll
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	@if [ -f $(CONTROLLER_GEN) ]; then \
-		echo "Controller-gen binary found in $(CONTROLLER_GEN)"; \
+		echo "Controller-gen binary found in $(CONTROLLER_GEN)" >&2; \
 		version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
 		if [ "$$version" = "$(CONTROLLER_GEN_VERSION)" ]; then \
-			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed"; \
+			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed" >&2; \
 		else \
-			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)"; \
+			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)" >&2; \
 			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
 		fi \
 	else \
-		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)"; \
+		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)" >&2; \
 		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
 	fi
 
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	@if [ -f $(KUSTOMIZE) ]; then \
-		echo "Kustomize binary found in $(KUSTOMIZE)"; \
+		echo "Kustomize binary found in $(KUSTOMIZE)" >&2; \
 		version=$$($(KUSTOMIZE) version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
 		if [ "$$version" = "$(KUSTOMIZE_VERSION)" ]; then \
-			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed"; \
+			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed" >&2; \
 		else \
-			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)"; \
+			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)" >&2; \
 			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
 		fi \
 	else \
-		echo "Installing kustomize $(KUSTOMIZE_VERSION)"; \
+		echo "Installing kustomize $(KUSTOMIZE_VERSION)" >&2; \
 		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
 	fi
 
