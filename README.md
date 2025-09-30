@@ -191,8 +191,11 @@ In some situations, like running a slow e2e test, one might want to extend the t
 `.vscode/settings.json`:
 ```json
 {
-   "go.testFlags": [
-      "-timeout=2m"
-   ]
+   "go.testEnvFile": "${workspaceFolder}/e2e/.env",
+   "go.testEnvVars": {
+      "KUBEBUILDER_ASSETS": "${env:HOME}/.local/share/kubebuilder-envtest/k8s/1.32.0-${env:GOOS}-${env:GOARCH}"
+   },
+   "go.testTimeout": "600s",
+   "go.testFlags": ["-v"]
 }
 ```
