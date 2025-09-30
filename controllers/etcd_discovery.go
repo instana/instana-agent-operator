@@ -269,7 +269,7 @@ func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(ctx context.Context, 
 
 // checkCASecretExists checks if the etcd-ca secret exists in the agent namespace
 func (r *InstanaAgentReconciler) checkCASecretExists(ctx context.Context, agent *instanav1.InstanaAgent) bool {
-	caSecret := &corev1.Secret{}
+	caSecret := &corev1.Secret{} // pragma: whitelist secret
 	err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
 		Name:      constants.ETCDCASecretName,
