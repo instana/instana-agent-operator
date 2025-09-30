@@ -474,6 +474,19 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
+
+			// Add kubectl describe deployment to debug why the deployment failed to become ready
+			t.Logf("Running kubectl describe deployment %s to debug deployment issues", name)
+			p := utils.RunCommand(
+				fmt.Sprintf("kubectl describe deployment %s -n %s", name, cfg.Namespace()),
+			)
+			t.Logf("====== Deployment %s description start ======", name)
+			t.Log(p.Out())
+			if p.Err() != nil {
+				t.Logf("Error running kubectl describe: %v", p.Err())
+			}
+			t.Logf("====== Deployment %s description end ======", name)
+
 			t.Fatal(err)
 		}
 		t.Logf("Deployment %s is ready", name)
@@ -504,6 +517,19 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
+
+			// Add kubectl describe daemonset to debug why the daemonset failed to become ready
+			t.Logf("Running kubectl describe daemonset %s to debug daemonset issues", daemonSetName)
+			p := utils.RunCommand(
+				fmt.Sprintf("kubectl describe daemonset %s -n %s", daemonSetName, cfg.Namespace()),
+			)
+			t.Logf("====== DaemonSet %s description start ======", daemonSetName)
+			t.Log(p.Out())
+			if p.Err() != nil {
+				t.Logf("Error running kubectl describe: %v", p.Err())
+			}
+			t.Logf("====== DaemonSet %s description end ======", daemonSetName)
+
 			t.Fatal(err)
 		}
 		t.Logf("DaemonSet %s is ready", daemonSetName)
@@ -836,5 +862,7 @@ func PrintOperatorLogs(ctx context.Context, cfg *envconf.Config, t *testing.T) {
 			cfg.Namespace(),
 		),
 	)
-	t.Log("Error while creating pull secret", p.Out())
+	t.Log("====== Operator logs start ======", p.Out())
+	t.Log(p.Out())
+	t.Log("====== Operator logs end ======", p.Out())
 }
