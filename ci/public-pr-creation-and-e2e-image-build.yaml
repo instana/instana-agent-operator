@@ -161,8 +161,8 @@ jobs:
       params: { state: error, context: self-update }
     plan:
       - get: agent-operator-release-source
-        trigger: true
       - get: agent-operator-ci-git-source
+        trigger: true
       - put: gh-status
         inputs: [ agent-operator-ci-git-source ]
         params: { state: pending, context: self-update }
@@ -181,7 +181,7 @@ jobs:
           globs:
             - olm-*.zip
       - get: agent-operator-release-source
-        passed: [self-update]
+        trigger: true
       - get: agent-operator-git-source
       - task: verify-latest-release
         config:
@@ -205,7 +205,7 @@ jobs:
                 set -euo pipefail
 
                 # Extract the new version from the release
-                NEW_VERSION=$(ls instana-agent-operator-release/olm-*.zip | grep -oP 'olm-v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+                NEW_VERSION=$(ls instana-agent-operator-release/olm-*.zip | grep -oP 'olm-\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
                 if [ -z "$NEW_VERSION" ]; then
                   echo "Failed to extract version from release artifact"
                   exit 1
@@ -248,7 +248,15 @@ jobs:
                   fi
                 fi
 
-                echo "New version $NEW_VERSION is NOT semver-greater than latest release $LATEST_RELEASE"
+                # If versions are identical, proceed with PR creation
+                if [ "$NEW_VERSION" = "$LATEST_RELEASE" ]; then
+                  echo "New version $NEW_VERSION is identical to latest release $LATEST_RELEASE"
+                  echo "Proceeding with PR creation"
+                  exit 0
+                fi
+
+                # Only skip if new version is lower than latest release
+                echo "New version $NEW_VERSION is lower than latest release $LATEST_RELEASE"
                 echo "Skipping PR creation"
                 exit 1
         on_success:
