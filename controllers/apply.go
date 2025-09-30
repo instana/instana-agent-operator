@@ -24,9 +24,10 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	instanaClient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
 	headlessservice "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/headless-service"
@@ -49,30 +50,6 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 )
-
-// DeploymentContextDependencies encapsulates the dependencies needed for creating deployment context
-type DeploymentContextDependencies interface {
-	CreateServiceCAConfigMap(ctx context.Context, agent *instanav1.InstanaAgent, logger logr.Logger) error
-	DiscoverETCDEndpoints(ctx context.Context, agent *instanav1.InstanaAgent, logger logr.Logger) (*DiscoveredETCDTargets, error)
-	Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error
-}
-
-// reconcilerAdapter adapts InstanaAgentReconciler to implement DeploymentContextDependencies
-type reconcilerAdapter struct {
-	reconciler *InstanaAgentReconciler
-}
-
-func (a *reconcilerAdapter) CreateServiceCAConfigMap(ctx context.Context, agent *instanav1.InstanaAgent, logger logr.Logger) error {
-	return CreateServiceCAConfigMap(ctx, a.reconciler.client, agent, logger)
-}
-
-func (a *reconcilerAdapter) DiscoverETCDEndpoints(ctx context.Context, agent *instanav1.InstanaAgent, logger logr.Logger) (*DiscoveredETCDTargets, error) {
-	return a.reconciler.DiscoverETCDEndpoints(ctx, agent)
-}
-
-func (a *reconcilerAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-	return a.reconciler.client.Get(ctx, key, obj, opts...)
-}
 
 func getDaemonSetBuilders(
 	agent *instanav1.InstanaAgent,
@@ -174,16 +151,17 @@ func compareAndUpdateETCDTargets(
 // ETCD configuration based on the environment.
 func CreateDeploymentContext(
 	ctx context.Context,
-	deps DeploymentContextDependencies,
+	c instanaClient.InstanaAgentClient,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
 	logger logr.Logger,
+	discoveredETCD *DiscoveredETCDTargets,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	var deploymentContext *k8ssensordeployment.DeploymentContext
 
 	// For OpenShift, create the service-CA ConfigMap
 	if isOpenShift {
-		if err := deps.CreateServiceCAConfigMap(ctx, agent, logger); err != nil {
+		if err := CreateServiceCAConfigMap(ctx, c, agent, logger); err != nil {
 			logger.Error(err, "Failed to create service-CA ConfigMap")
 			// Continue with reconciliation, don't fail the whole process
 			return deploymentContext, nil
@@ -196,14 +174,7 @@ func CreateDeploymentContext(
 		return deploymentContext, nil
 	}
 
-	// For vanilla Kubernetes, discover ETCD endpoints
-	discoveredETCD, err := deps.DiscoverETCDEndpoints(ctx, agent, logger)
-	if err != nil {
-		logger.Error(err, "Failed to discover ETCD endpoints")
-		// Continue with reconciliation, don't fail the whole process
-		return deploymentContext, nil
-	}
-
+	// For vanilla Kubernetes, use the discovered ETCD endpoints
 	if discoveredETCD == nil || len(discoveredETCD.Targets) == 0 {
 		return deploymentContext, nil
 	}
@@ -211,7 +182,7 @@ func CreateDeploymentContext(
 	// Check if we need to update the Deployment with new ETCD targets
 	existingDeployment := &appsv1.Deployment{}
 	helperInstance := helpers.NewHelpers(agent)
-	err = deps.Get(ctx, client.ObjectKey{
+	err := c.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
 		Name:      helperInstance.K8sSensorResourcesName(),
 	}, existingDeployment)
@@ -250,9 +221,21 @@ func (r *InstanaAgentReconciler) createDeploymentContext(
 	isOpenShift bool,
 ) (*k8ssensordeployment.DeploymentContext, reconcileReturn) {
 	log := r.loggerFor(ctx, agent)
-	adapter := &reconcilerAdapter{reconciler: r}
 
-	deploymentContext, err := CreateDeploymentContext(ctx, adapter, agent, isOpenShift, log)
+	var discoveredETCD *DiscoveredETCDTargets
+	var err error
+
+	// For vanilla Kubernetes, discover ETCD endpoints first
+	if !isOpenShift {
+		discoveredETCD, err = r.DiscoverETCDEndpoints(ctx, agent)
+		if err != nil {
+			log.Error(err, "Failed to discover ETCD endpoints")
+			// Continue with reconciliation, don't fail the whole process
+			return nil, reconcileContinue()
+		}
+	}
+
+	deploymentContext, err := CreateDeploymentContext(ctx, r.client, agent, isOpenShift, log, discoveredETCD)
 	if err != nil {
 		return nil, reconcileFailure(err)
 	}
