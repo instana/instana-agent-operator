@@ -65,11 +65,11 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.PodNamespaceEnv,
 		env.PodNameEnv,
 		env.PodIPEnv,
-		env.HTTPSProxyEnv,
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
 	)
+
 	backendEnvVars := []corev1.EnvVar{
 		{
 			Name: "BACKEND",
@@ -82,25 +82,41 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
-		{
-			Name: "AGENT_KEY",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name),
-					},
-					Key: constants.AgentKey + d.backend.ResourceSuffix,
-				},
-			},
-		},
 	}
+
+	// Only add the AGENT_KEY and HTTPS_PROXY environment variable if secret mounts are explicitly disabled
+	if d.Spec.UseSecretMounts != nil && !*d.Spec.UseSecretMounts {
+		// For all backends, use the key from the secret
+		backendEnvVars = append(backendEnvVars, d.getAgentKeyEnvVar())
+		backendEnvVars = append(backendEnvVars, d.EnvBuilder.Build(env.HTTPSProxyEnv)...)
+	}
+
 	envVars = append(backendEnvVars, envVars...)
 	d.helpers.SortEnvVarsByName(envVars)
 	return envVars
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	if d.Spec.UseSecretMounts != nil && *d.Spec.UseSecretMounts {
+		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.K8SensorSecretsVolume)
+	}
 	return d.VolumeBuilder.Build(volume.ConfigVolume)
+}
+
+// getAgentKeyEnvVar returns an environment variable for the AGENT_KEY that references the key from a secret
+// It works for both the main backend and additional backends by using the appropriate key suffix
+func (d *deploymentBuilder) getAgentKeyEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: "AGENT_KEY",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: optional.Of(d.Spec.Agent.KeysSecret).GetOrDefault(d.Name),
+				},
+				Key: constants.AgentKey + d.backend.ResourceSuffix,
+			},
+		},
+	}
 }
 
 // K8Sensor relies on this label for internal sharding logic for some reason, if you remove it the k8sensor will break
@@ -169,12 +185,19 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Image:           d.Spec.K8sSensor.ImageSpec.Image(),
 							ImagePullPolicy: d.Spec.K8sSensor.ImageSpec.PullPolicy,
 							Command:         []string{"/ko-app/k8sensor"},
-							Args:            []string{"-pollrate", "10s"},
+							Args:            d.getK8SensorArgs(),
 							Env:             d.getEnvVars(),
 							VolumeMounts:    mounts,
 							Resources:       d.Spec.K8sSensor.DeploymentSpec.Pod.ResourceRequirements.GetOrDefault(),
-							Ports:           []corev1.ContainerPort{ports.InstanaAgentAPIPortConfig.AsContainerPort()},
+							Ports: []corev1.ContainerPort{
+								ports.InstanaAgentAPIPortConfig.AsContainerPort(),
+							},
 						},
+					},
+					// k8sensor is run as a "k8sensor" user (i.e: uid 1000), and thus reading the files from the secret volume
+					// requires setting FSGroup to 1000
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: pointer.To(int64(1000)),
 					},
 					Volumes:     volumes,
 					Tolerations: d.Spec.K8sSensor.DeploymentSpec.Pod.Tolerations,
@@ -191,7 +214,9 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 														{
 															Key:      constants.LabelAgentMode,
 															Operator: metav1.LabelSelectorOpIn,
-															Values:   []string{string(instanav1.KUBERNETES)},
+															Values: []string{
+																string(instanav1.KUBERNETES),
+															},
 														},
 													},
 												},
@@ -239,9 +264,36 @@ func NewDeploymentBuilder(
 		helpers:                   helpers.NewHelpers(agent),
 		PodSelectorLabelGenerator: transformations.PodSelectorLabels(agent, componentName),
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
-		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenShift),
-		PortsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
-		backend:                   backend,
-		keysSecret:                keysSecret,
+		VolumeBuilder: volume.NewVolumeBuilder(agent, isOpenShift).
+			WithBackendResourceSuffix(backend.ResourceSuffix),
+		PortsBuilder: ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
+		backend:      backend,
+		keysSecret:   keysSecret,
 	}
+}
+
+// getK8SensorArgs returns the command line arguments for the k8sensor
+func (d *deploymentBuilder) getK8SensorArgs() []string {
+	args := []string{"-pollrate", "10s"}
+
+	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
+		args = append(args,
+			"-agent-key-file",
+			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, constants.SecretFileAgentKey))
+
+		// Add HTTPS_PROXY file argument if proxy host is configured
+		if d.Spec.Agent.ProxyHost != "" {
+			args = append(
+				args,
+				"-https-proxy-file",
+				fmt.Sprintf(
+					"%s/%s",
+					constants.InstanaSecretsDirectory,
+					constants.SecretFileHttpsProxy,
+				),
+			)
+		}
+	}
+
+	return args
 }

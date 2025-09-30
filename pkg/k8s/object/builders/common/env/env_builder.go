@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024
+(c) Copyright IBM Corp. 2024, 2025
 */
 
 package env
@@ -99,7 +99,37 @@ func (e *envBuilder) Build(envVars ...EnvVar) []corev1.EnvVar {
 	return allEnvVars
 }
 
+func (e *envBuilder) isSecret(envVar EnvVar) bool {
+	// handle all existing env values to prevent the "exhaustive" linter error
+	// do not just remove this function, as long as we can fallback to the old logic by setting useSecretMounts to false
+	switch envVar {
+	case InstanaAgentKeyEnv, AgentKeyEnv, DownloadKeyEnv,
+		ProxyUserEnv, ProxyPasswordEnv, HTTPSProxyEnv,
+		MirrorReleaseRepoUsernameEnv, MirrorReleaseRepoPasswordEnv,
+		MirrorSharedRepoUsernameEnv, MirrorSharedRepoPasswordEnv:
+		return true
+	case AgentModeEnv, ZoneNameEnv, ClusterNameEnv, AgentEndpointEnv, AgentEndpointPortEnv,
+		MavenRepoURLEnv, MavenRepoFeaturesPath, MavenRepoSharedPath, MirrorReleaseRepoUrlEnv,
+		MirrorSharedRepoUrlEnv, ProxyHostEnv, ProxyPortEnv, ProxyProtocolEnv, ProxyUseDNSEnv,
+		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, BackendURLEnv,
+		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
+		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
+		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
+		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
+		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort:
+		return false
+	default:
+		return false
+	}
+}
+
 func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
+	// Skip setting environment variables for secrets if useSecretMounts is enabled or nil (default is true)
+	useSecretMounts := e.agent.Spec.UseSecretMounts == nil || *e.agent.Spec.UseSecretMounts
+	if useSecretMounts && e.isSecret(envVar) {
+		return nil
+	}
+
 	switch envVar {
 	case AgentModeEnv:
 		return e.agentModeEnv()
@@ -114,21 +144,45 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case MavenRepoURLEnv:
 		return stringToEnvVar("INSTANA_MVN_REPOSITORY_URL", e.agent.Spec.Agent.MvnRepoUrl)
 	case MavenRepoFeaturesPath:
-		return stringToEnvVar("INSTANA_MVN_REPOSITORY_FEATURES_PATH", e.agent.Spec.Agent.MvnRepoFeaturesPath)
+		return stringToEnvVar(
+			"INSTANA_MVN_REPOSITORY_FEATURES_PATH",
+			e.agent.Spec.Agent.MvnRepoFeaturesPath,
+		)
 	case MavenRepoSharedPath:
-		return stringToEnvVar("INSTANA_MVN_REPOSITORY_SHARED_PATH", e.agent.Spec.Agent.MvnRepoSharedPath)
+		return stringToEnvVar(
+			"INSTANA_MVN_REPOSITORY_SHARED_PATH",
+			e.agent.Spec.Agent.MvnRepoSharedPath,
+		)
 	case MirrorReleaseRepoUrlEnv:
-		return stringToEnvVar("AGENT_RELEASE_REPOSITORY_MIRROR_URL", e.agent.Spec.Agent.MirrorReleaseRepoUrl)
+		return stringToEnvVar(
+			"AGENT_RELEASE_REPOSITORY_MIRROR_URL",
+			e.agent.Spec.Agent.MirrorReleaseRepoUrl,
+		)
 	case MirrorReleaseRepoUsernameEnv:
-		return stringToEnvVar("AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME", e.agent.Spec.Agent.MirrorReleaseRepoUsername)
+		return stringToEnvVar(
+			"AGENT_RELEASE_REPOSITORY_MIRROR_USERNAME",
+			e.agent.Spec.Agent.MirrorReleaseRepoUsername,
+		)
 	case MirrorSharedRepoUrlEnv:
-		return stringToEnvVar("INSTANA_SHARED_REPOSITORY_MIRROR_URL", e.agent.Spec.Agent.MirrorSharedRepoUrl)
+		return stringToEnvVar(
+			"INSTANA_SHARED_REPOSITORY_MIRROR_URL",
+			e.agent.Spec.Agent.MirrorSharedRepoUrl,
+		)
 	case MirrorSharedRepoUsernameEnv:
-		return stringToEnvVar("INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME", e.agent.Spec.Agent.MirrorSharedRepoUsername)
+		return stringToEnvVar(
+			"INSTANA_SHARED_REPOSITORY_MIRROR_USERNAME",
+			e.agent.Spec.Agent.MirrorSharedRepoUsername,
+		)
 	case MirrorSharedRepoPasswordEnv:
-		return stringToEnvVar("INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD", e.agent.Spec.Agent.MirrorSharedRepoPassword)
+		return stringToEnvVar(
+			"INSTANA_SHARED_REPOSITORY_MIRROR_PASSWORD",
+			e.agent.Spec.Agent.MirrorSharedRepoPassword,
+		)
 	case MirrorReleaseRepoPasswordEnv:
-		return stringToEnvVar("AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD", e.agent.Spec.Agent.MirrorReleaseRepoPassword)
+		return stringToEnvVar(
+			"AGENT_RELEASE_REPOSITORY_MIRROR_PASSWORD",
+			e.agent.Spec.Agent.MirrorReleaseRepoPassword,
+		)
 	case ProxyHostEnv:
 		return stringToEnvVar("INSTANA_AGENT_PROXY_HOST", e.agent.Spec.Agent.ProxyHost)
 	case ProxyPortEnv:
@@ -144,9 +198,15 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case ListenAddressEnv:
 		return stringToEnvVar("INSTANA_AGENT_HTTP_LISTEN", e.agent.Spec.Agent.ListenAddress)
 	case RedactK8sSecretsEnv:
-		return stringToEnvVar("INSTANA_KUBERNETES_REDACT_SECRETS", e.agent.Spec.Agent.RedactKubernetesSecrets)
+		return stringToEnvVar(
+			"INSTANA_KUBERNETES_REDACT_SECRETS",
+			e.agent.Spec.Agent.RedactKubernetesSecrets,
+		)
 	case AgentZoneEnv:
-		return &corev1.EnvVar{Name: "AGENT_ZONE", Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name)}
+		return &corev1.EnvVar{
+			Name:  "AGENT_ZONE",
+			Value: optional.Of(e.agent.Spec.Cluster.Name).GetOrDefault(e.agent.Spec.Zone.Name),
+		}
 	case HTTPSProxyEnv:
 		return e.httpsProxyEnv()
 	case BackendURLEnv:
@@ -159,7 +219,14 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case ConfigPathEnv:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: constants.InstanaConfigDirectory}
 	case NamespacesDetailsPathEnv:
-		return &corev1.EnvVar{Name: "NAMESPACES_DETAILS_PATH", Value: fmt.Sprintf("%s/%s", constants.InstanaNamespacesDetailsDirectory, constants.InstanaNamespacesDetailsFileName)}
+		return &corev1.EnvVar{
+			Name: "NAMESPACES_DETAILS_PATH",
+			Value: fmt.Sprintf(
+				"%s/%s",
+				constants.InstanaNamespacesDetailsDirectory,
+				constants.InstanaNamespacesDetailsFileName,
+			),
+		}
 	case EntrypointSkipBackendTemplateGeneration:
 		return &corev1.EnvVar{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"}
 	case BackendEnv:
@@ -181,7 +248,10 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case PodNamespaceEnv:
 		return e.envWithObjectFieldSelector("POD_NAMESPACE", "metadata.namespace")
 	case K8sServiceDomainEnv:
-		return &corev1.EnvVar{Name: "K8S_SERVICE_DOMAIN", Value: e.helpers.HeadlessServiceName() + "." + e.agent.Namespace + ".svc"}
+		return &corev1.EnvVar{
+			Name:  "K8S_SERVICE_DOMAIN",
+			Value: e.helpers.HeadlessServiceName() + "." + e.agent.Namespace + ".svc",
+		}
 	case EnableAgentSocketEnv:
 		return boolToEnvVar("ENABLE_AGENT_SOCKET", e.agent.Spec.Agent.ServiceMesh.Enabled)
 	case InstanaOpenTelemetryGRPCEnabled:

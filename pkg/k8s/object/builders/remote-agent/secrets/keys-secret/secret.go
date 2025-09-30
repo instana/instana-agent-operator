@@ -17,6 +17,8 @@ limitations under the License.
 package keys_secret
 
 import (
+	"net/url"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +35,10 @@ type secretBuilder struct {
 	additionalBackends []backends.RemoteSensorBackend
 }
 
-func NewSecretBuilder(agent *instanav1.InstanaAgentRemote, backends []backends.RemoteSensorBackend) builder.ObjectBuilder {
+func NewSecretBuilder(
+	agent *instanav1.InstanaAgentRemote,
+	backends []backends.RemoteSensorBackend,
+) builder.ObjectBuilder {
 	return &secretBuilder{
 		InstanaAgentRemote: agent,
 		additionalBackends: backends,
@@ -73,21 +78,89 @@ func (s *secretBuilder) build() *corev1.Secret {
 }
 
 func (s *secretBuilder) getData() map[string][]byte {
-	data := make(map[string][]byte, len(s.additionalBackends)+1)
+	useSecretMounts := s.Spec.UseSecretMounts == nil || *s.Spec.UseSecretMounts
+	data := make(map[string][]byte, len(s.additionalBackends)+8)
 
 	optional.Of(s.Spec.Agent.DownloadKey).IfPresent(
 		func(downloadKey string) {
 			data[constants.DownloadKey] = []byte(downloadKey)
+			if useSecretMounts {
+				data[constants.SecretFileDownloadKey] = []byte(downloadKey)
+			}
 		},
 	)
+
+	if useSecretMounts {
+		optional.Of(s.Spec.Agent.ProxyUser).IfPresent(
+			func(proxyUser string) {
+				data[constants.SecretKeyProxyUser] = []byte(proxyUser)
+			},
+		)
+
+		optional.Of(s.Spec.Agent.ProxyPassword).IfPresent(
+			func(proxyPassword string) {
+				data[constants.SecretKeyProxyPassword] = []byte(proxyPassword)
+			},
+		)
+
+		optional.Of(s.Spec.Agent.MirrorReleaseRepoUsername).IfPresent(
+			func(username string) {
+				data[constants.SecretKeyMirrorReleaseRepoUsername] = []byte(username)
+			},
+		)
+
+		optional.Of(s.Spec.Agent.MirrorReleaseRepoPassword).IfPresent(
+			func(password string) {
+				data[constants.SecretKeyMirrorReleaseRepoPassword] = []byte(password)
+			},
+		)
+
+		optional.Of(s.Spec.Agent.MirrorSharedRepoUsername).IfPresent(
+			func(username string) {
+				data[constants.SecretKeyMirrorSharedRepoUsername] = []byte(username)
+			},
+		)
+
+		optional.Of(s.Spec.Agent.MirrorSharedRepoPassword).IfPresent(
+			func(password string) {
+				data[constants.SecretKeyMirrorSharedRepoPassword] = []byte(password)
+			},
+		)
+
+		if proxyValue := s.httpsProxyValue(); proxyValue != "" {
+			data[constants.SecretKeyHttpsProxy] = []byte(proxyValue)
+		}
+	}
 
 	for _, backend := range s.additionalBackends {
 		optional.Of(backend.EndpointKey).IfPresent(
 			func(key string) {
 				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
+				if useSecretMounts && backend.ResourceSuffix == "" {
+					data[constants.SecretFileAgentKey] = []byte(key)
+				}
 			},
 		)
 	}
 
 	return data
+}
+
+func (s *secretBuilder) httpsProxyValue() string {
+	if s.Spec.Agent.ProxyHost == "" {
+		return ""
+	}
+
+	proxyURL := &url.URL{
+		Scheme: optional.Of(s.Spec.Agent.ProxyProtocol).GetOrDefault("http"),
+		Host: s.Spec.Agent.ProxyHost + ":" + optional.Of(s.Spec.Agent.ProxyPort).
+			GetOrDefault("80"),
+	}
+
+	// Add authentication if both username and password are provided
+	if s.Spec.Agent.ProxyUser != "" && s.Spec.Agent.ProxyPassword != "" {
+		proxyURL.User = url.UserPassword(s.Spec.Agent.ProxyUser, s.Spec.Agent.ProxyPassword)
+	}
+
+	return proxyURL.String()
 }
