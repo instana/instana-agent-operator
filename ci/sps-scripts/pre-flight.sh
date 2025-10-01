@@ -6,7 +6,14 @@ set -euo pipefail
 # strip the leading "v" from the operator version for release:
 
 PREFIX="v"
+VERSION=$(cat "version/INSTANA_AGENT_OPERATOR_VERSION")
 OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
+
+RED_HAT_REGISTRY_CREDENTIALS=$(get_env RED_HAT_REGISTRY)
+echo $RED_HAT_REGISTRY_CREDENTIALS
+RED_HAT_REGISTRY_USERNAME=$(echo "${RED_HAT_REGISTRY_CREDENTIALS}" | jq -r ".username")
+RED_HAT_REGISTRY_PASSWORD=$(echo "${RED_HAT_REGISTRY_CREDENTIALS}" | jq -r ".password")
+RED_HAT_API_TOKEN=$(echo "${RED_HAT_REGISTRY_CREDENTIALS}" | jq -r ".api-token")
 
 # Run Preflight Image Scans for RH Marketplace
 
