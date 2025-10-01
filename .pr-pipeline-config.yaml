@@ -43,13 +43,8 @@ tasks:
           
   pr-code-checks-3:
     from: pr-code-checks
-    displayName: operator-olm-github-release
+    displayName: operator-olm-build
     runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-4
-      - pr-code-checks-5
     include:
       - dind
     steps:
@@ -59,7 +54,7 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-github-release.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-build.sh
       - name: detect-secrets
         include:
           - docker-socket
@@ -111,67 +106,6 @@ tasks:
       - name: detect-secrets
         include:
           - docker-socket
-
-  pr-code-checks-6:
-    from: pr-code-checks
-    displayName: tag-release
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks-4
-      - pr-code-checks-5
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/tag-new-release.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-  
-  pr-code-checks-7:
-    from: pr-code-checks
-    displayName: build-multiarch-manifest
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-multiarch-manifest.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-  pr-code-checks-8:
-    from: pr-code-checks
-    displayName: redhat-preflight-scans
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-            #!/usr/bin/env bash
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/pre-flight.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
 
   code-pr-finish:
     steps:
