@@ -46,7 +46,23 @@ make build
 
 export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
 
-if [ "${CLUSTER_TYPE}" == "fyre-ocp" ]; then
+if [[ "${CLUSTER_ID}" == "kind" ]]; then
+    echo "Kind Cluster detected, running e2e-kind tests"
+    
+    # Initialize COMMIT_STATUS with default value
+    COMMIT_STATUS="failure"
+    E2E_EXIT_CODE=0
+    
+    echo "=== Running e2e-kind tests ==="
+    
+    # Run the e2e-kind tests
+    if ! make e2e-kind; then
+        echo "E2E-kind tests failed"
+        E2E_EXIT_CODE=1
+    else
+        COMMIT_STATUS="success"
+    fi
+elif [ "${CLUSTER_TYPE}" == "fyre-ocp" ]; then
     echo "Fyre OCP Cluster detected"
     CLUSTER_SERVER=$(echo "${CLUSTER_DETAILS}" | jq -r ".server")
     CLUSTER_USERNAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".username")
@@ -117,11 +133,14 @@ echo "=== Running e2e tests ==="
 COMMIT_STATUS="failure"
 E2E_EXIT_CODE=0
 
-if ! make e2e; then
-    echo "E2E tests failed"
-    E2E_EXIT_CODE=1
-else
-    COMMIT_STATUS="success"
+# Only run make e2e for non-kind clusters (kind clusters are handled earlier)
+if [[ "${CLUSTER_ID}" != "kind" ]]; then
+    if ! make e2e; then
+        echo "E2E tests failed"
+        E2E_EXIT_CODE=1
+    else
+        COMMIT_STATUS="success"
+    fi
 fi
 
 # Ensure that cluster is released after a successful claim, even if tests fail

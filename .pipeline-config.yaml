@@ -107,6 +107,27 @@ tasks:
         include:
           - docker-socket
 
+  pr-code-checks-6:
+    from: pr-code-checks
+    displayName: e2e-kind
+    runtimeClassName: large
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          # make sure to use the git commit as id to test the correct image
+          export CLUSTER_ID="kind"
+          export TASK_NAME="pr-code-checks-6"
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+
   code-pr-finish:
     steps:
       - name: evaluate
