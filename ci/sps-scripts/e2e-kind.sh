@@ -9,8 +9,7 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
     env
     set -x
 fi
-echo "===== e2e.sh - start ====="
-
+echo "===== e2e-kind.sh - start ====="
 echo "CLUSTER_ID=${CLUSTER_ID}, TASK_NAME=${TASK_NAME}"
 cd "${WORKSPACE}/${APP_REPO_FOLDER}"
 pwd
@@ -19,80 +18,26 @@ if [[ $(get_env run-"${CLUSTER_ID}") == "false" ]]; then
     exit 0
 fi
 
-CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
-CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
-CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
+CLUSTER_NAME=kind-pipeline
 ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
 ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
 ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
 
-# make sure to set the GIT_COMMIT to deploy the correct image in the e2e test
-GIT_COMMIT="$(load_repo app-repo commit)"
-export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD GIT_COMMIT
+export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD
 # required in e2e test, therefore exporting variable
 export CLUSTER_NAME
 
-if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
-    echo "Setting SKIP_INSTALL_GCLOUD=true, because CLUSTER_TYPE is ${CLUSTER_TYPE}"
-    # shellcheck disable=SC2034
-    SKIP_INSTALL_GCLOUD=true # used in setup.sh
-fi
-
+echo "Setting SKIP_INSTALL_GCLOUD=true"
+# shellcheck disable=SC2034
+SKIP_INSTALL_GCLOUD=true # used in setup.sh
 # shellcheck disable=SC1090
 source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
 make generate
 go install
-make build
 
 export SOURCE_DIRECTORY="${WORKSPACE}/${APP_REPO_FOLDER}"
 
-if [ "${CLUSTER_TYPE}" == "fyre-ocp" ]; then
-    echo "Fyre OCP Cluster detected"
-    CLUSTER_SERVER=$(echo "${CLUSTER_DETAILS}" | jq -r ".server")
-    CLUSTER_USERNAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".username")
-    CLUSTER_PASSWORD=$(echo "${CLUSTER_DETAILS}" | jq -r ".password")
-    # channel is part of the secret in Secrets Manager and should be e.g. "channel": "stable-4.18"
-    CLUSTER_CHANNEL=$(echo "${CLUSTER_DETAILS}" | jq -r ".channel")
-    mkdir -p bin
-    cd bin
-    echo "=== Installing oc cli ==="
-    echo "trying to download oc from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${CLUSTER_CHANNEL}/openshift-client-linux.tar.gz"
-    curl -sk "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${CLUSTER_CHANNEL}/openshift-client-linux.tar.gz" -o openshift-client-linux.tar.gz
-    ls -lah openshift-client-linux.tar.gz
-    tar -xf openshift-client-linux.tar.gz
-    rm -f openshift-client-linux.tar.gz README.md
-
-    PATH=$(pwd):${PATH}
-    export PATH
-
-    # ensure that debug will not print cluster credentials to the log
-    if [[ "${PIPELINE_DEBUG}" == 1 ]]; then
-        set +x
-    fi
-
-    echo "Logging into ${CLUSTER_SERVER}"
-    oc login --insecure-skip-tls-verify=true -u "${CLUSTER_USERNAME}" -p "${CLUSTER_PASSWORD}" --server="${CLUSTER_SERVER}"
-
-    if [[ "${PIPELINE_DEBUG}" == 1 ]]; then
-        set -x
-    fi
-elif [ "${CLUSTER_TYPE}" == "gke" ]; then
-    echo "GKE Cluster detected"
-    CLUSTER_ZONE=$(echo "${CLUSTER_DETAILS}" | jq -r ".zone")
-    CLUSTER_PROJECT=$(echo "${CLUSTER_DETAILS}" | jq -r ".project")
-    # login into GCP
-    get_env gcp-service-account > keyfile.json
-    gcloud auth activate-service-account --key-file keyfile.json
-    gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}" --project "${CLUSTER_PROJECT}"
-else
-    echo "Unknown cluster type, failing build as it is unclear how to connect to the cluster"
-    exit 1
-fi
-
-
 cd "${SOURCE_DIRECTORY}"
-echo "Showing connected cluster nodes"
-kubectl get nodes -o wide
 
 export PATH=${PATH}:/usr/local/go/bin:/usr/local/bin
 go version
@@ -107,18 +52,16 @@ INSTANA_API_TOKEN=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_token")
 
 export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_API_KEY INSTANA_API_URL INSTANA_API_TOKEN
 
-echo "=== Claim cluster lock ==="
-
-bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
-
-echo "=== Running e2e tests ==="
 
 # Initialize COMMIT_STATUS with default value
 COMMIT_STATUS="failure"
 E2E_EXIT_CODE=0
 
-if ! make e2e; then
-    echo "E2E tests failed"
+echo "=== Running e2e-kind tests ==="
+
+# Run the e2e-kind tests
+if ! make e2e-kind; then
+    echo "E2E-kind tests failed"
     E2E_EXIT_CODE=1
 else
     COMMIT_STATUS="success"

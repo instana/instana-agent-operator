@@ -123,7 +123,7 @@ tasks:
           # make sure to use the git commit as id to test the correct image
           export CLUSTER_ID="kind"
           export TASK_NAME="pr-code-checks-6"
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-kind.sh
       - name: detect-secrets
         include:
           - docker-socket
