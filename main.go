@@ -79,6 +79,7 @@ func main() {
 
 	printVersion()
 	cfg := ctrl.GetConfigOrDie()
+	instanaclient.ConfigureWarningHandler(cfg)
 
 	mgr, err := ctrl.NewManager(
 		cfg, ctrl.Options{
