@@ -1,3 +1,6 @@
+//go:build standard
+// +build standard
+
 /*
  * (c) Copyright IBM Corp. 2025
  */

@@ -20,6 +20,7 @@ ENVTEST = ${GOBIN}/setup-envtest
 GOLANGCI_LINT = ${GOBIN}/golangci-lint
 OPERATOR_SDK = ${GOBIN}/operator-sdk
 BUILDCTL =  ${GOBIN}/buildctl
+KIND = ${GOBIN}/kind
 
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
 VERSION ?= 0.0.1
@@ -31,6 +32,7 @@ PREV_VERSION ?= 0.0.0
 CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
 KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
 GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+KIND_VERSION ?= v0.30.0 # renovate: datasource=github-releases depName=kubernetes-sigs/kind
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
 BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
@@ -108,6 +110,7 @@ setup: ## sets git hooks path to .githook
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object paths="./..."
@@ -128,9 +131,113 @@ KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)
 test: manifests generate fmt vet lint envtest ## Run tests but ignore specific directories that match EXCLUDED_TEST_DIRS
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(PACKAGES) -coverprofile=coverage.out
 
+.PHONY: e2e-env
+e2e-env: ## Create a generic .env file from the template
+	@echo "Creating generic .env file from template..."
+	@if [ -f e2e/.env ]; then \
+		echo "Warning: e2e/.env already exists. Backing it up to e2e/.env.bak"; \
+		cp e2e/.env e2e/.env.bak; \
+	fi
+	@cp e2e/.env.template e2e/.env
+	@echo "Created e2e/.env from template. Please update the values as needed."
+	@echo "To restore the backup, run: mv e2e/.env.bak e2e/.env"
+
 .PHONY: e2e
-e2e: ## Run end-to-end tests
-	go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
+e2e: ## Run end-to-end tests on external cluster (for release testing)
+	@echo "=== Running E2E Tests on External Cluster ==="
+	@if [ -f e2e/.env ]; then \
+		echo "Backing up existing e2e/.env file..."; \
+		cp e2e/.env e2e/.env.backup; \
+	fi
+	@cd e2e && CLUSTER_TYPE=external go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
+	@if [ -f e2e/.env.backup ]; then \
+		echo "Restoring e2e/.env backup..."; \
+		mv e2e/.env.backup e2e/.env; \
+	fi
+	@echo "=== E2E Tests Completed Successfully ==="
+
+.PHONY: kind
+kind: ## Download kind locally if necessary.
+	@if [ -f $(KIND) ]; then \
+		echo "Kind binary found in $(KIND)" >&2; \
+		current_version=$$($(KIND) version | cut -d' ' -f2 | tr -d '\n\r' || echo "unknown"); \
+		required_version=$$(echo "$(KIND_VERSION)" | tr -d ' \t\n\r'); \
+		if [ "$$current_version" = "$$required_version" ]; then \
+			echo "Kind version $$required_version is already installed" >&2; \
+		else \
+			echo "Updating kind from $$current_version to $$required_version" >&2; \
+			go install sigs.k8s.io/kind@$(KIND_VERSION); \
+		fi \
+	else \
+		echo "Installing kind $(KIND_VERSION)" >&2; \
+		go install sigs.k8s.io/kind@$(KIND_VERSION); \
+	fi
+
+# Create a single-node Kind cluster
+.PHONY: kind-create-single
+kind-create-single: kind ## Create a single-node Kind cluster for standard tests
+	@if $(KIND) get clusters | grep -q "^instana-e2e-single$$"; then \
+		echo "Kind cluster 'instana-e2e-single' already exists, continuing..."; \
+	else \
+		echo "Creating kind cluster 'instana-e2e-single'..."; \
+		$(KIND) create cluster --name instana-e2e-single --config e2e/kind-config-single-node.yaml; \
+	fi
+	@echo "Setting kubectl context to kind-instana-e2e-single"
+	@$(KIND) export kubeconfig --name=instana-e2e-single
+
+# Create a multi-node Kind cluster
+.PHONY: kind-create-multi
+kind-create-multi: kind ## Create a multi-node Kind cluster for multizone tests
+	@if $(KIND) get clusters | grep -q "^instana-e2e-multi$$"; then \
+		echo "Kind cluster 'instana-e2e-multi' already exists, continuing..."; \
+	else \
+		echo "Creating kind cluster 'instana-e2e-multi'..."; \
+		$(KIND) create cluster --name instana-e2e-multi --config e2e/kind-config-multi-node.yaml; \
+	fi
+	@echo "Setting kubectl context to kind-instana-e2e-multi"
+	@$(KIND) export kubeconfig --name=instana-e2e-multi
+
+# Delete Kind clusters
+.PHONY: kind-delete
+kind-delete: kind ## Delete Kind clusters
+	$(KIND) delete cluster --name instana-e2e-single || true
+	$(KIND) delete cluster --name instana-e2e-multi || true
+
+# Build and load operator image to Kind cluster
+.PHONY: kind-load-image
+kind-load-image: kind ## Build and load operator image to Kind cluster
+	docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t instana-agent-operator:e2e .
+	$(KIND) load docker-image instana-agent-operator:e2e --name $(KIND_CLUSTER_NAME)
+
+# Run all Kind-based tests (standard and multinode)
+.PHONY: e2e-kind
+e2e-kind: ## Run all tests on Kind clusters (standard and multinode)
+	@echo "=== Running E2E Tests on Kind Clusters ==="
+	@if [ -f e2e/.env ]; then \
+		echo "Backing up existing e2e/.env file..."; \
+		cp e2e/.env e2e/.env.backup; \
+	fi
+	
+	@echo "Building operator image for Kind tests..."
+	docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t instana-agent-operator:e2e .
+	
+	@echo "Running standard tests on single-node Kind cluster..."
+	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-single KIND_CONFIG=e2e/kind-config-single-node.yaml CLUSTER_TYPE=kind kind-create-single
+	$(KIND) load docker-image instana-agent-operator:e2e --name instana-e2e-single
+	cd e2e && CLUSTER_TYPE=kind KIND_CLUSTER_NAME=instana-e2e-single KIND_CONFIG=e2e/kind-config-single-node.yaml KIND_OPERATOR_IMAGE_NAME=instana-agent-operator KIND_OPERATOR_IMAGE_TAG=e2e IMG=instana-agent-operator:e2e go test -timeout=45m -v -tags=standard
+	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-single kind-delete
+	
+	@echo "Running multinode tests on multi-node Kind cluster..."
+	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-multi KIND_CONFIG=e2e/kind-config-multi-node.yaml CLUSTER_TYPE=kind kind-create-multi
+	$(KIND) load docker-image instana-agent-operator:e2e --name instana-e2e-multi
+	cd e2e && CLUSTER_TYPE=kind KIND_CLUSTER_NAME=instana-e2e-multi KIND_CONFIG=e2e/kind-config-multi-node.yaml KIND_OPERATOR_IMAGE_NAME=instana-agent-operator KIND_OPERATOR_IMAGE_TAG=e2e IMG=instana-agent-operator:e2e go test -timeout=45m -v -tags=multinode
+	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-multi kind-delete
+	
+	@if [ -f e2e/.env.backup ]; then \
+		echo "Restoring e2e/.env backup..."; \
+		mv e2e/.env.backup e2e/.env; \
+	fi
+	@echo "=== E2E Tests Completed Successfully ==="
 
 ##@ Build
 
@@ -203,6 +310,10 @@ purge: ## Full purge of the agent in the cluster
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+deploy-kind: manifests kustomize ## Deploy controller in a kind cluster with imagePullPolicy=IfNotPresent
+	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
+	$(KUSTOMIZE) build config/default | sed 's/imagePullPolicy: Always/imagePullPolicy: IfNotPresent/g' | kubectl apply -f -
 
 scale-to-zero: ## Scales the operator to zero in the cluster to allow local testing against a cluster
 	kubectl -n instana-agent scale --replicas=0 deployment.apps/instana-agent-operator && sleep 5 && kubectl get all -n instana-agent
@@ -355,65 +466,75 @@ CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controll
 controller-gen: ## Download controller-gen locally if necessary.
 	@if [ -f $(CONTROLLER_GEN) ]; then \
 		echo "Controller-gen binary found in $(CONTROLLER_GEN)" >&2; \
-		version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(CONTROLLER_GEN_VERSION)" ]; then \
-			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed" >&2; \
+		current_version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
+		required_version=$$(echo "$(CONTROLLER_GEN_VERSION)" | tr -d ' \t\n\r'); \
+		if [ "$$current_version" = "$$required_version" ]; then \
+			echo "Controller-gen version $$required_version is already installed" >&2; \
 		else \
-			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)" >&2; \
-			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+			echo "Updating controller-gen from $$current_version to $$required_version" >&2; \
+			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) >&2; \
 		fi \
 	else \
 		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)" >&2; \
-		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) >&2; \
 	fi
 
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	@if [ -f $(KUSTOMIZE) ]; then \
 		echo "Kustomize binary found in $(KUSTOMIZE)" >&2; \
-		version=$$($(KUSTOMIZE) version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(KUSTOMIZE_VERSION)" ]; then \
-			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed" >&2; \
+		VERSION_FILE="$(GOBIN)/.kustomize-version"; \
+		if [ -f "$$VERSION_FILE" ]; then \
+			current_version=$$(cat "$$VERSION_FILE" | tr -d ' \t\n\r'); \
 		else \
-			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)" >&2; \
-			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+			current_version="unknown"; \
+		fi; \
+		required_version=$$(echo "$(KUSTOMIZE_VERSION)" | tr -d ' \t\n\r'); \
+		if [ "$$current_version" = "$$required_version" ]; then \
+			echo "Kustomize version $$required_version is already installed" >&2; \
+		else \
+			echo "Updating kustomize from $$current_version to $$required_version" >&2; \
+			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION) >&2; \
+			echo "$(KUSTOMIZE_VERSION)" > "$$VERSION_FILE"; \
 		fi \
 	else \
 		echo "Installing kustomize $(KUSTOMIZE_VERSION)" >&2; \
-		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION) >&2; \
+		echo "$(KUSTOMIZE_VERSION)" > "$(GOBIN)/.kustomize-version"; \
 	fi
 
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
 	@if [ -f $(ENVTEST) ]; then \
-		echo "Envtest binary found in $(ENVTEST)"; \
+		echo "Envtest binary found in $(ENVTEST)" >&2; \
 	else \
-		echo "Installing envtest"; \
-		go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest; \
+		echo "Installing envtest" >&2; \
+		go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest >&2; \
 	fi
 
 .PHONY: golanci-lint
 golangci-lint: ## Download the golangci-lint linter locally if necessary.
 	@if [ -f $(GOLANGCI_LINT) ]; then \
-		echo "Golangci-lint binary found in $(GOLANGCI_LINT)"; \
-		version=$$($(GOLANGCI_LINT) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(GOLANGCI_LINT_VERSION)" ]; then \
-			echo "Golangci-lint version $(GOLANGCI_LINT_VERSION) is already installed"; \
+		echo "Golangci-lint binary found in $(GOLANGCI_LINT)" >&2; \
+		current_version=$$($(GOLANGCI_LINT) --version | awk '{print $$4}' | tr -d ' \t\n\r' || echo "unknown"); \
+		required_version=$$(echo "$(GOLANGCI_LINT_VERSION)" | tr -d 'v \t\n\r'); \
+		if [ "$$current_version" = "$$required_version" ]; then \
+			echo "Golangci-lint version $$current_version is already installed" >&2; \
 		else \
-			echo "Updating golangci-lint from $$version to $(GOLANGCI_LINT_VERSION)"; \
-			go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+			echo "Updating golangci-lint from $$current_version to $$required_version" >&2; \
+			go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) >&2; \
 		fi \
 	else \
-		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)"; \
-		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)" >&2; \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) >&2; \
 	fi
 
 .PHONY: operator-sdk
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
 	@if [ -f $(OPERATOR_SDK) ]; then \
-		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
+		echo "Operator SDK binary found in $(OPERATOR_SDK)" >&2; \
 	else \
-		echo "DOwnload Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
+		echo "Download Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)" >&2; \
 		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0/operator-sdk_${OS}_${ARCH}; \
 		chmod +x $(OPERATOR_SDK); \
 	fi
@@ -423,28 +544,29 @@ operator-sdk: ## Download the Operator SDK binary locally if necessary.
 BUILDKITD_CONTAINER_NAME = buildkitd
 buildctl: ## Download the buildctl binary locally if necessary and prepare the container for running builds.
 	@if [ -f $(BUILDCTL) ]; then \
-		echo "Buildctl binary found in $(BUILDCTL)"; \
-		version=$$($(BUILDCTL) -v | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(BUILDCTL_VERSION)" ] || [ "$$version" = "v0.0.0" ]; then \
-			echo "Buildctl version $(BUILDCTL_VERSION) is already installed"; \
+		echo "Buildctl binary found in $(BUILDCTL)" >&2; \
+		current_version=$$($(BUILDCTL) -v | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
+		required_version=$$(echo "$(BUILDCTL_VERSION)" | tr -d ' \t\n\r'); \
+		if [ "$$current_version" = "$$required_version" ] || [ "$$current_version" = "v0.0.0" ]; then \
+			echo "Buildctl version $$required_version is already installed" >&2; \
 		else \
-			echo "Updating buildctl from $$version to $(BUILDCTL_VERSION)"; \
-			go install github.com/moby/buildkit/cmd/buildctl@$(BUILDCTL_VERSION); \
+			echo "Updating buildctl from $$current_version to $$required_version" >&2; \
+			go install github.com/moby/buildkit/cmd/buildctl@$(BUILDCTL_VERSION) >&2; \
 		fi \
 	else \
-		echo "Installing buildctl $(BUILDCTL_VERSION)"; \
-		go install github.com/moby/buildkit/cmd/buildctl@$(BUILDCTL_VERSION); \
+		echo "Installing buildctl $(BUILDCTL_VERSION)" >&2; \
+		go install github.com/moby/buildkit/cmd/buildctl@$(BUILDCTL_VERSION) >&2; \
 	fi
 	@if [ "`$(CONTAINER_CMD) ps -a -q -f name=$(BUILDKITD_CONTAINER_NAME)`" ]; then \
-		echo "Ensuring buildkit container is using the correct version $(BUILDKIT_IMAGE_TAG)"; \
+		echo "Ensuring buildkit container is using the correct version $(BUILDKIT_IMAGE_TAG)" >&2; \
 		$(CONTAINER_CMD) rm -f $(BUILDKITD_CONTAINER_NAME) 2>/dev/null || true; \
-		echo "Starting buildkit container with version $(BUILDKIT_IMAGE_TAG)"; \
+		echo "Starting buildkit container with version $(BUILDKIT_IMAGE_TAG)" >&2; \
 		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:$(BUILDKIT_IMAGE_TAG); \
-		echo "Allowing 5 seconds to bootup"; \
+		echo "Allowing 5 seconds to bootup" >&2; \
 		sleep 5; \
 	else \
-		echo "$(BUILDKITD_CONTAINER_NAME) container is not present, launching it now"; \
+		echo "$(BUILDKITD_CONTAINER_NAME) container is not present, launching it now" >&2; \
 		$(CONTAINER_CMD) run -d --name buildkitd --privileged docker.io/moby/buildkit:$(BUILDKIT_IMAGE_TAG); \
-		echo "Allowing 5 seconds to bootup"; \
+		echo "Allowing 5 seconds to bootup" >&2; \
 		sleep 5; \
 	fi

@@ -1,3 +1,6 @@
+//go:build standard
+// +build standard
+
 /*
  * (c) Copyright IBM Corp. 2024
  * (c) Copyright Instana Inc. 2024
