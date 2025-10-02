@@ -184,8 +184,8 @@ func TestUpdateAgentStatus(t *testing.T) {
 			expected:             "",
 		},
 		{
-			name:                 "Return empty when ConfigMap is nil",
-			getAsResultErrors:    []error{nil, nil, nil, nil, nil},
+			name:                 "Return empty when ConfigSecret is nil",
+			getAsResultErrors:    []error{nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         nil,
 			daemonsets:           daemonsets,
@@ -207,7 +207,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 		},
 		{
 			name:                 "Return empty when K8SSensor Deployment is nil",
-			getAsResultErrors:    []error{nil, nil, nil, nil, nil},
+			getAsResultErrors:    []error{nil, nil, nil, nil},
 			agent:                &instanaAgent,
 			configSecret:         &configSecret,
 			daemonsets:           daemonsets,

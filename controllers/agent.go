@@ -1,3 +1,19 @@
+/*
+(c) Copyright IBM Corp. 2024, 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controllers
 
 import (
@@ -41,19 +57,23 @@ func (r *InstanaAgentReconciler) updateAgent(
 ) reconcileReturn {
 	log := r.loggerFor(ctx, agentNew)
 
-	switch err := r.client.Patch(
+	err := r.client.Patch(
 		ctx,
 		agentNew,
 		client.MergeFrom(agentOld),
 		client.FieldOwner(instanaclient.FieldOwnerName),
-	); errors.Is(err, nil) {
-	case true:
+	)
+
+	switch {
+	case errors.Is(err, nil):
 		log.V(1).Info("successfully applied updates to agent CR")
 		return reconcileSuccess(ctrl.Result{Requeue: true})
+	case k8serrors.IsNotFound(err):
+		log.V(2).
+			Info("agent CR no longer present while applying updates; assuming deletion complete")
+		return reconcileSuccess(ctrl.Result{})
 	default:
-		if !k8serrors.IsNotFound(err) {
-			log.Error(err, "failed to apply updates to agent CR")
-		}
+		log.Error(err, "failed to apply updates to agent CR")
 		return reconcileFailure(err)
 	}
 }
