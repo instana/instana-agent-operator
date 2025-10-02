@@ -116,12 +116,20 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 }
 
 func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+	if !objectKeyHasName(a.agentSecretConfig) {
+		return result.OfSuccess(instanav1.ResourceInfo{})
+	}
+
 	cm := a.instAgentClient.GetAsResult(ctx, a.agentSecretConfig, &corev1.Secret{})
 
 	return result.Map(cm, toResourceInfo)
 }
 
 func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+	if !objectKeyHasName(a.agentNamespacesConfigmap) {
+		return result.OfSuccess(instanav1.ResourceInfo{})
+	}
+
 	cm := a.instAgentClient.GetAsResult(ctx, a.agentNamespacesConfigmap, &corev1.ConfigMap{})
 
 	return result.Map(cm, toResourceInfo)
@@ -230,6 +238,13 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 		Message:            "",
 	}
 
+	if !objectKeyHasName(a.k8sSensorDeployment) {
+		condition.Status = metav1.ConditionUnknown
+		condition.Reason = "K8sSensorDeploymentNotConfigured"
+		condition.Message = "K8sSensor deployment has not been configured for this agent"
+		return result.OfSuccess(condition)
+	}
+
 	var deployment appsv1.Deployment
 
 	if res := a.instAgentClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
@@ -260,6 +275,10 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	}
 
 	return result.OfSuccess(condition)
+}
+
+func objectKeyHasName(key client.ObjectKey) bool {
+	return key.Name != ""
 }
 
 func (a *agentStatusManager) agentWithUpdatedStatus(
