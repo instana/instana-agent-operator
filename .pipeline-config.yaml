@@ -110,7 +110,7 @@ tasks:
   pr-code-checks-6:
     from: pr-code-checks
     displayName: e2e-kind
-    runtimeClassName: large
+    runtimeClassName: x86-xlarge
     include:
       - dind
     steps:
