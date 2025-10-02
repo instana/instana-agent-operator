@@ -206,7 +206,7 @@ kind-delete: kind ## Delete Kind clusters
 # Build and load operator image to Kind cluster
 .PHONY: kind-load-image
 kind-load-image: kind ## Build and load operator image to Kind cluster
-	docker build -t instana-agent-operator:e2e .
+	docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t instana-agent-operator:e2e .
 	$(KIND) load docker-image instana-agent-operator:e2e --name $(KIND_CLUSTER_NAME)
 
 # Run all Kind-based tests (standard and multinode)
@@ -219,7 +219,7 @@ e2e-kind: ## Run all tests on Kind clusters (standard and multinode)
 	fi
 	
 	@echo "Building operator image for Kind tests..."
-	docker build -t instana-agent-operator:e2e .
+	docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t instana-agent-operator:e2e .
 	
 	@echo "Running standard tests on single-node Kind cluster..."
 	$(MAKE) KIND_CLUSTER_NAME=instana-e2e-single KIND_CONFIG=e2e/kind-config-single-node.yaml CLUSTER_TYPE=kind kind-create-single

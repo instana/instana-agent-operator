@@ -93,7 +93,6 @@ cleanup() {
             --context "tekton/e2e-${CLUSTER_ID}" \
             --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
     fi
-    bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}"
     echo "===== e2e.sh - end ====="
 
     # Exit with the same code as the e2e tests
