@@ -171,9 +171,8 @@ func CreateDeploymentContext(
 		}
 
 		// Set up deployment context for OpenShift
-		deploymentContext = &k8ssensordeployment.DeploymentContext{
-			ETCDCASecretName: constants.ServiceCAConfigMapName,
-		}
+		// Don't set ETCDCASecretName as it's already handled by the volume builder
+		deploymentContext = &k8ssensordeployment.DeploymentContext{}
 		return deploymentContext, nil
 	}
 
