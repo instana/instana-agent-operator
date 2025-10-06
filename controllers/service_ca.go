@@ -26,6 +26,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // CreateServiceCAConfigMap creates a ConfigMap with "service.beta.openshift.io/inject-cabundle"
@@ -59,6 +60,13 @@ func CreateServiceCAConfigMap(
 		},
 		Data: map[string]string{},
 	}
+
+	// Set the GroupVersionKind explicitly
+	configMap.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "ConfigMap",
+	})
 
 	// Use the Apply method with the client
 	_, err := c.Apply(ctx, configMap).Get()
