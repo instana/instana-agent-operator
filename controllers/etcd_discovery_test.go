@@ -90,6 +90,15 @@ func (c *errorMockClient) Get(ctx context.Context, key client.ObjectKey, obj cli
 	return c.err
 }
 
+// List implements client.Client
+func (c *errorMockClient) List(
+	ctx context.Context,
+	list client.ObjectList,
+	opts ...client.ListOption,
+) error {
+	return c.err
+}
+
 // Mock client that returns errors for specific service names
 type selectiveErrorMockClient struct {
 	client.Client
@@ -717,6 +726,7 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 		name            string
 		service         *corev1.Service
 		endpointSlice   *discoveryv1.EndpointSlice
+		legacyEndpoints *corev1.Endpoints
 		metricsPort     int32
 		scheme          string
 		expectedTargets []string
@@ -735,6 +745,9 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "etcd",
+					},
 				},
 				Ports: []discoveryv1.EndpointPort{
 					{
@@ -778,6 +791,9 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "etcd",
+					},
 				},
 				Ports: []discoveryv1.EndpointPort{
 					{
@@ -812,6 +828,9 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "etcd",
+					},
 				},
 				Ports: []discoveryv1.EndpointPort{
 					{
@@ -855,6 +874,9 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "etcd",
 					Namespace: kubeSystemNamespace,
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "etcd",
+					},
 				},
 				Ports: []discoveryv1.EndpointPort{
 					{
@@ -867,6 +889,39 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 			metricsPort:     2379,
 			scheme:          "https",
 			expectedTargets: []string{},
+			expectError:     false,
+			setupClientErr:  false,
+		},
+		{
+			name: "Should fall back to legacy Endpoints when no EndpointSlices",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "etcd",
+					Namespace: kubeSystemNamespace,
+				},
+			},
+			legacyEndpoints: &corev1.Endpoints{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "etcd",
+					Namespace: kubeSystemNamespace,
+				},
+				Subsets: []corev1.EndpointSubset{
+					{
+						Addresses: []corev1.EndpointAddress{
+							{IP: "10.0.0.3"},
+						},
+						Ports: []corev1.EndpointPort{
+							{
+								Name: "metrics",
+								Port: 2379,
+							},
+						},
+					},
+				},
+			},
+			metricsPort:     2379,
+			scheme:          "https",
+			expectedTargets: []string{"https://10.0.0.3:2379/metrics"},
 			expectError:     false,
 			setupClientErr:  false,
 		},
@@ -895,6 +950,10 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 			// Add endpointSlice to client if needed
 			if tc.endpointSlice != nil {
 				clientBuilder = clientBuilder.WithObjects(tc.endpointSlice)
+			}
+
+			if tc.legacyEndpoints != nil {
+				clientBuilder = clientBuilder.WithObjects(tc.legacyEndpoints)
 			}
 
 			// Build the client
@@ -1329,48 +1388,81 @@ func findMetricsPortAndScheme(service *corev1.Service) (*int32, string) {
 
 func buildTargetsFromEndpoints(
 	ctx context.Context,
-	client client.Client,
+	k8sClient client.Client,
 	service *corev1.Service,
 	metricsPort int32,
 	scheme string,
 ) ([]string, error) {
-	// Get endpoint slice for the service
-	endpointSlice := &discoveryv1.EndpointSlice{}
-	if err := client.Get(ctx, types.NamespacedName{
-		Namespace: kubeSystemNamespace,
-		Name:      service.Name,
-	}, endpointSlice); err != nil {
+	endpointSlices := &discoveryv1.EndpointSliceList{}
+	if err := k8sClient.List(
+		ctx,
+		endpointSlices,
+		client.InNamespace(kubeSystemNamespace),
+		client.MatchingLabels(map[string]string{discoveryv1.LabelServiceName: service.Name}),
+	); err != nil {
 		return nil, err
 	}
 
 	targets := make([]string, 0)
 
-	// Find the metrics port in the endpoint slice
-	var endpointPort int32
-	for _, port := range endpointSlice.Ports {
-		if port.Name != nil && *port.Name == "metrics" && port.Port != nil {
-			endpointPort = *port.Port
-			break
+	for i := range endpointSlices.Items {
+		sliceTargets := buildTargetsFromEndpointSlice(&endpointSlices.Items[i], metricsPort, scheme)
+		targets = append(targets, sliceTargets...)
+	}
+
+	if len(targets) == 0 {
+		legacyTargets, err := buildTargetsFromLegacyEndpoints(
+			ctx,
+			k8sClient,
+			service,
+			metricsPort,
+			scheme,
+		)
+		if err != nil {
+			return nil, err
 		}
+		targets = append(targets, legacyTargets...)
 	}
 
-	// If no metrics port found in endpoint slice, use the service port
-	if endpointPort == 0 {
-		endpointPort = metricsPort
+	sort.Strings(targets)
+
+	return targets, nil
+}
+
+func buildTargetsFromLegacyEndpoints(
+	ctx context.Context,
+	k8sClient client.Client,
+	service *corev1.Service,
+	metricsPort int32,
+	scheme string,
+) ([]string, error) {
+	endpoints := &corev1.Endpoints{}
+	if err := k8sClient.Get(ctx, types.NamespacedName{
+		Namespace: kubeSystemNamespace,
+		Name:      service.Name,
+	}, endpoints); err != nil {
+		if apierrors.IsNotFound(err) {
+			return []string{}, nil
+		}
+		return nil, err
 	}
 
-	// Add targets for each endpoint
-	for _, endpoint := range endpointSlice.Endpoints {
-		if endpoint.Conditions.Ready != nil && *endpoint.Conditions.Ready {
-			for _, address := range endpoint.Addresses {
-				target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address, endpointPort)
-				targets = append(targets, target)
+	targets := make([]string, 0)
+
+	for _, subset := range endpoints.Subsets {
+		endpointPort := metricsPort
+		for _, port := range subset.Ports {
+			if port.Name == "metrics" {
+				endpointPort = port.Port
+				break
 			}
 		}
-	}
 
-	// Sort targets for consistent comparison with current state
-	sort.Strings(targets)
+		for _, address := range subset.Addresses {
+			target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address.IP, endpointPort)
+			targets = append(targets, target)
+		}
+	}
 
 	return targets, nil
 }
