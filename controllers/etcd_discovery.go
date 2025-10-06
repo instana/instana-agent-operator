@@ -26,6 +26,7 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
@@ -46,7 +47,10 @@ type DiscoveredETCDTargets struct {
 const kubeSystemNamespace = "kube-system"
 
 // DiscoverETCDEndpoints attempts to discover ETCD endpoints in vanilla Kubernetes clusters.
-func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+) (*DiscoveredETCDTargets, error) {
 	log := r.loggerFor(ctx, agent)
 
 	// Step 1: Check if discovery should be skipped
@@ -101,7 +105,10 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(ctx context.Context, agen
 }
 
 // shouldSkipDiscovery checks if ETCD discovery should be skipped
-func (r *InstanaAgentReconciler) shouldSkipDiscovery(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error) {
+func (r *InstanaAgentReconciler) shouldSkipDiscovery(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+) (bool, error) {
 	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent, nil)
 	isOpenShift, isOpenShiftRes := r.isOpenShift(ctx, operatorUtils)
 
@@ -115,7 +122,8 @@ func (r *InstanaAgentReconciler) shouldSkipDiscovery(ctx context.Context, agent 
 	}
 
 	if len(agent.Spec.K8sSensor.ETCD.Targets) > 0 {
-		r.loggerFor(ctx, agent).Info("Using ETCD targets from CR spec", "targets", agent.Spec.K8sSensor.ETCD.Targets)
+		r.loggerFor(ctx, agent).
+			Info("Using ETCD targets from CR spec", "targets", agent.Spec.K8sSensor.ETCD.Targets)
 		return true, nil
 	}
 
@@ -123,7 +131,10 @@ func (r *InstanaAgentReconciler) shouldSkipDiscovery(ctx context.Context, agent 
 }
 
 // findETCDService attempts to find an etcd service in the kube-system namespace
-func (r *InstanaAgentReconciler) findETCDService(ctx context.Context, log logr.Logger) (*corev1.Service, error) {
+func (r *InstanaAgentReconciler) findETCDService(
+	ctx context.Context,
+	log logr.Logger,
+) (*corev1.Service, error) {
 	// Try services with component=etcd label first
 	if service, err := r.getServiceWithLabel(ctx, "etcd", "component", "etcd"); err != nil {
 		return nil, err
@@ -158,7 +169,10 @@ func (r *InstanaAgentReconciler) findETCDService(ctx context.Context, log logr.L
 }
 
 // getServiceWithLabel gets a service with the specified name and checks if it has the expected label
-func (r *InstanaAgentReconciler) getServiceWithLabel(ctx context.Context, name, labelKey, labelValue string) (*corev1.Service, error) {
+func (r *InstanaAgentReconciler) getServiceWithLabel(
+	ctx context.Context,
+	name, labelKey, labelValue string,
+) (*corev1.Service, error) {
 	service := &corev1.Service{}
 	err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: kubeSystemNamespace,
@@ -180,7 +194,10 @@ func (r *InstanaAgentReconciler) getServiceWithLabel(ctx context.Context, name, 
 }
 
 // getServiceByName gets a service by name
-func (r *InstanaAgentReconciler) getServiceByName(ctx context.Context, name string) (*corev1.Service, error) {
+func (r *InstanaAgentReconciler) getServiceByName(
+	ctx context.Context,
+	name string,
+) (*corev1.Service, error) {
 	service := &corev1.Service{}
 	err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: kubeSystemNamespace,
@@ -225,40 +242,37 @@ func (r *InstanaAgentReconciler) findMetricsPortAndScheme(
 }
 
 // buildTargetsFromEndpoints builds targets from service endpoint slices
-func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(ctx context.Context, service *corev1.Service, metricsPort int32, scheme string) ([]string, error) {
-	// Get endpoint slice for the service
-	endpointSlice := &discoveryv1.EndpointSlice{}
-	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: kubeSystemNamespace,
-		Name:      service.Name,
-	}, endpointSlice); err != nil {
+func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(
+	ctx context.Context,
+	service *corev1.Service,
+	metricsPort int32,
+	scheme string,
+) ([]string, error) {
+	// List endpoint slices belonging to the service. EndpointSlice names include a random
+	// suffix, so we have to rely on the service label instead of the service name.
+	endpointSlices := &discoveryv1.EndpointSliceList{}
+	if err := r.client.List(
+		ctx,
+		endpointSlices,
+		client.InNamespace(kubeSystemNamespace),
+		client.MatchingLabels(map[string]string{discoveryv1.LabelServiceName: service.Name}),
+	); err != nil {
 		return nil, err
 	}
 
 	targets := make([]string, 0)
 
-	// Find the metrics port in the endpoint slice
-	var endpointPort int32
-	for _, port := range endpointSlice.Ports {
-		if port.Name != nil && *port.Name == "metrics" && port.Port != nil {
-			endpointPort = *port.Port
-			break
-		}
+	for i := range endpointSlices.Items {
+		sliceTargets := buildTargetsFromEndpointSlice(&endpointSlices.Items[i], metricsPort, scheme)
+		targets = append(targets, sliceTargets...)
 	}
 
-	// If no metrics port found in endpoint slice, use the service port
-	if endpointPort == 0 {
-		endpointPort = metricsPort
-	}
-
-	// Add targets for each endpoint
-	for _, endpoint := range endpointSlice.Endpoints {
-		if endpoint.Conditions.Ready != nil && *endpoint.Conditions.Ready {
-			for _, address := range endpoint.Addresses {
-				target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address, endpointPort)
-				targets = append(targets, target)
-			}
+	if len(targets) == 0 {
+		legacyTargets, err := r.buildTargetsFromLegacyEndpoints(ctx, service, metricsPort, scheme)
+		if err != nil {
+			return nil, err
 		}
+		targets = append(targets, legacyTargets...)
 	}
 
 	// Sort targets for consistent comparison with current state
@@ -267,8 +281,78 @@ func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(ctx context.Context, 
 	return targets, nil
 }
 
+func buildTargetsFromEndpointSlice(
+	endpointSlice *discoveryv1.EndpointSlice,
+	metricsPort int32,
+	scheme string,
+) []string {
+	targets := make([]string, 0)
+
+	// Find the metrics port in the endpoint slice
+	endpointPort := metricsPort
+	for _, port := range endpointSlice.Ports {
+		if port.Name != nil && *port.Name == "metrics" && port.Port != nil {
+			endpointPort = *port.Port
+			break
+		}
+	}
+
+	// Add targets for each ready endpoint
+	for _, endpoint := range endpointSlice.Endpoints {
+		if endpoint.Conditions.Ready != nil && !*endpoint.Conditions.Ready {
+			continue
+		}
+		for _, address := range endpoint.Addresses {
+			target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address, endpointPort)
+			targets = append(targets, target)
+		}
+	}
+
+	return targets
+}
+
+func (r *InstanaAgentReconciler) buildTargetsFromLegacyEndpoints(
+	ctx context.Context,
+	service *corev1.Service,
+	metricsPort int32,
+	scheme string,
+) ([]string, error) {
+	endpoints := &corev1.Endpoints{}
+	if err := r.client.Get(ctx, types.NamespacedName{
+		Namespace: kubeSystemNamespace,
+		Name:      service.Name,
+	}, endpoints); err != nil {
+		if apierrors.IsNotFound(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	targets := make([]string, 0)
+
+	for _, subset := range endpoints.Subsets {
+		endpointPort := metricsPort
+		for _, port := range subset.Ports {
+			if port.Name == "metrics" {
+				endpointPort = port.Port
+				break
+			}
+		}
+
+		for _, address := range subset.Addresses {
+			target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address.IP, endpointPort)
+			targets = append(targets, target)
+		}
+	}
+
+	return targets, nil
+}
+
 // checkCASecretExists checks if the etcd-ca secret exists in the agent namespace
-func (r *InstanaAgentReconciler) checkCASecretExists(ctx context.Context, agent *instanav1.InstanaAgent) bool {
+func (r *InstanaAgentReconciler) checkCASecretExists(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+) bool {
 	caSecret := &corev1.Secret{} // pragma: whitelist secret
 	err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: agent.Namespace,
