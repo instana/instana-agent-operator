@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	trap env EXIT
 	env
