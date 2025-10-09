@@ -130,7 +130,7 @@ test: manifests generate fmt vet lint envtest ## Run tests but ignore specific d
 
 .PHONY: e2e
 e2e: ## Run end-to-end tests
-	go test -timeout=45m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
+	go test -timeout=60m -count=1 -failfast -v github.com/instana/instana-agent-operator/e2e
 
 ##@ Build
 

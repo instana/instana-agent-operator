@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 set -euo pipefail
 # note: PIPELINE_CONFIG_REPO_PATH will point to config, not to the app folder with the current branch, use APP_REPO_FOLDER instead
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
