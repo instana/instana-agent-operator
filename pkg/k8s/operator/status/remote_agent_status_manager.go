@@ -116,7 +116,7 @@ func (a *instanaAgentRemoteStatusManager) getDeployment(ctx context.Context) res
 }
 
 func (a *instanaAgentRemoteStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
-	if !objectKeyHasName(a.agentSecretConfig) {
+	if objectKeyHasNoName(a.agentSecretConfig) {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
 
