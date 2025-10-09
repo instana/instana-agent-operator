@@ -20,6 +20,15 @@ var:
     password: ((instanacd-github-api-token))
 
 resources:
+  - name: gh-status
+    type: cogito
+    source:
+      owner: instana
+      repo: instana-agent-operator
+      access_token: ((instanacd-github-api-token))
+      context_prefix: concourse
+      github_host: github.com
+
   - name: slack-alert
     type: slack-notification
     source:
@@ -85,7 +94,7 @@ jobs:
         params: { state: pending, context: self-update }
       - put: gh-status
         inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: artifact-promotion }
+        params: { state: pending, context: self-update }
       - set_pipeline: self
         file: agent-operator-git-source/ci/fedramp-promotion-pipeline.yaml
 
@@ -130,10 +139,10 @@ jobs:
     max_in_flight: 1
     plan:
       - get: agent-operator-git-source
-        passed: [artifact-promotion]
+        passed: [manual-trigger]
         trigger: true
       - get: fedramp-version
-        passed: [artifact-promotion]
+        passed: [manual-trigger]
       - task: promote-artifacts
         config:
           platform: linux
@@ -164,7 +173,7 @@ jobs:
                 RELEASE_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_FEDRAMP_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_GENERIC_REPOSITORY="${ARTIFACTORY_GENERIC_FEDRAMP_URL}/instana-agent-operator"
-                ARTIFACT_VERSION=$(cat agent-operator-git-source/ci/FEDRAMP_VERSION)
+                ARTIFACT_VERSION=$(./agent-operator-git-source/ci/scripts/get-latest-fedramp-release-version.sh)
                 FEDRAMP_VERSION=$(cat fedramp-version/number)
 
                 # strip the leading "v" from the operator version for release:
