@@ -8,7 +8,7 @@ tasks:
     displayName: build-amd64-arm64-s390x-and-ppc64le-images
     runtimeClassName: x86-xlarge
     onError: stopAndFail
-    dind-image: icr.io/continuous-delivery/base-images/multiarch-dind:20251006-1749-amd64
+    #dind-image: icr.io/continuous-delivery/base-images/multiarch-dind:20251006-1749-amd64
     include:
       - dind
     steps:
