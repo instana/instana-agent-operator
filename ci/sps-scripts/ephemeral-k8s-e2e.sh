@@ -30,7 +30,7 @@ cleanup() {
     --commit-sha "$(load_repo app-repo commit)" \
     --state "${COMMIT_STATUS:-failure}" \
     --description "Kubernetes e2e test" \
-    --context "tekton/e2e-ephemeral-k8s" \
+    --context "tekton/e2e-k3s-latest" \
     --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
   
   if [[ "$(get_env pipeline_namespace 2>/dev/null)" == *"pr"* ]]; then
@@ -39,7 +39,7 @@ cleanup() {
       --commit-sha "$(load_repo app-repo commit)" \
       --state "${COMMIT_STATUS:-failure}" \
       --description "Kubernetes e2e test" \
-      --context "tekton/e2e-ephemeral-k8s" \
+      --context "tekton/e2e-k3s-latest" \
       --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
   else
     set-commit-status \
@@ -47,7 +47,7 @@ cleanup() {
       --commit-sha "$(load_repo app-repo commit)" \
       --state "${COMMIT_STATUS:-failure}" \
       --description "Kubernetes e2e test" \
-      --context "tekton/e2e-ephemeral-k8s" \
+      --context "tekton/e2e-k3s-latest" \
       --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
   fi
   
