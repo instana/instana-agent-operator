@@ -162,6 +162,10 @@ E2E_EXIT_CODE=0
 echo "=== Running e2e tests ==="
 cd "${WORKSPACE}/${APP_REPO_FOLDER}"
 
+make generate
+go install
+make build
+
 if ! make e2e; then
   echo "E2E tests failed"
   E2E_EXIT_CODE=1
