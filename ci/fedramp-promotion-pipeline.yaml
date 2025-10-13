@@ -194,9 +194,21 @@ jobs:
                 popd
                 FEDRAMP_VERSION=$(cat fedramp-version/number)
 
+                # Check if ARTIFACT_VERSION is set
+                if [ -z "$ARTIFACT_VERSION" ]; then
+                  echo "Error: ARTIFACT_VERSION is not set. Failed to get the latest FedRAMP release version."
+                  exit 1
+                fi
+
+                # Check if FEDRAMP_VERSION is set
+                if [ -z "$FEDRAMP_VERSION" ]; then
+                  echo "Error: FEDRAMP_VERSION is not set. Failed to read version from fedramp-version/number."
+                  exit 1
+                fi
+
                 # strip the leading "v" from the operator version for release:
                 export PREFIX="v"
-                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
+                export OPERATOR_DOCKER_VERSION=${ARTIFACT_VERSION#"$PREFIX"}
                 COMBINED_VERSION=${OPERATOR_DOCKER_VERSION}.fedramp-${FEDRAMP_VERSION}
 
                 echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ARTIFACTORY_REPOSITORY}"
