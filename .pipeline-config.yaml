@@ -150,6 +150,7 @@ tasks:
       - name: detect-secrets
         include:
           - docker-socket
+
   pr-code-checks-8:
     from: pr-code-checks
     displayName: redhat-preflight-scans

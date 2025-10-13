@@ -1154,4 +1154,58 @@ jobs:
           put: gh-status
           inputs: [ agent-operator-git-source ]
           params: { state: error, context: operator-olm-github-release/build }
+      - task: push-fedramp-version
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+          inputs:
+            - name: agent-operator-git-source
+          params:
+            BRANCH: ((branch))
+            GH_API_TOKEN: ((instanacd-github-api-token))
+            VERSION: ((.:operator-version))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                # Set up git configuration
+                cd agent-operator-git-source
+                git config --global user.email "instanacd@instana.com"
+                git config --global user.name "Instana CD"
+
+                # Check if we're on main branch
+                if [[ "${BRANCH}" == "main" ]]; then
+                  echo "Skipping FEDRAMP_VERSION update on main branch"
+                  exit 0
+                fi
+
+                # Check if we're on a release branch
+                if [[ "${BRANCH}" != release-* ]]; then
+                  echo "Not on a release branch (${BRANCH}), skipping FEDRAMP_VERSION update"
+                  exit 0
+                fi
+
+                echo "On release branch ${BRANCH}, updating FEDRAMP_VERSION"
+                echo "Operator version: ${VERSION}"
+
+                # Update the FEDRAMP_VERSION file
+                echo "${VERSION}" > ci/FEDRAMP_VERSION
+                echo "Updated FEDRAMP_VERSION to ${VERSION}"
+
+                # Commit the change
+                git add ci/FEDRAMP_VERSION
+                git commit -m "Update FEDRAMP_VERSION to ${VERSION}"
+
+                # Push to the current release branch
+                echo "Pushing changes to ${BRANCH}"
+                git push https://instanacd:${GH_API_TOKEN}@github.com/instana/instana-agent-operator.git HEAD:${BRANCH}
+
+                echo "FEDRAMP_VERSION update completed successfully"
 

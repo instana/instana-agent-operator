@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 set -eo pipefail
 set +u
 echo "===== setup.sh - start ====="
