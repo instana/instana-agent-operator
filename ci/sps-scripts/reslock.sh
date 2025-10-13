@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 # Helper script to calculate CI Server specific metadata to be used for locking.
 # When invoked, it generates a unique lock owner name from concourse meta-data and
 # fetched the most recent go binary from github to execute the lock or release command. 
@@ -19,7 +22,7 @@ echo "RESLOCK_LOCK_OWNER=${RESLOCK_LOCK_OWNER}"
 
 curl -s "https://${RESLOCK_GITHUB_TOKEN}@raw.github.ibm.com/instana/reslock/main/run.sh" > run.sh
 if [ "${RESLOCK_COMMAND}" == "claim" ]; then
-    bash run.sh claim k8s-clusters "${RESLOCK_RESOURCE_NAME}" -t 80m -w
+    bash run.sh claim k8s-clusters "${RESLOCK_RESOURCE_NAME}" -t 70m -w
 else
     bash run.sh "${RESLOCK_COMMAND}" k8s-clusters "${RESLOCK_RESOURCE_NAME}"
 fi

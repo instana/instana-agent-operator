@@ -11,6 +11,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -98,7 +99,7 @@ func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr
 		agentNew,
 		client.MergeFrom(a.agentOld),
 		client.FieldOwner(instanaclient.FieldOwnerName),
-	); err != nil {
+	); err != nil && !k8serrors.IsNotFound(err) {
 		errBuilder.AddSingle(err)
 	}
 
@@ -116,12 +117,20 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 }
 
 func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+	if objectKeyHasNoName(a.agentSecretConfig) {
+		return result.OfSuccess(instanav1.ResourceInfo{})
+	}
+
 	cm := a.instAgentClient.GetAsResult(ctx, a.agentSecretConfig, &corev1.Secret{})
 
 	return result.Map(cm, toResourceInfo)
 }
 
 func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+	if objectKeyHasNoName(a.agentNamespacesConfigmap) {
+		return result.OfSuccess(instanav1.ResourceInfo{})
+	}
+
 	cm := a.instAgentClient.GetAsResult(ctx, a.agentNamespacesConfigmap, &corev1.ConfigMap{})
 
 	return result.Map(cm, toResourceInfo)
@@ -230,6 +239,13 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 		Message:            "",
 	}
 
+	if objectKeyHasNoName(a.k8sSensorDeployment) {
+		condition.Status = metav1.ConditionUnknown
+		condition.Reason = "K8sSensorDeploymentNotConfigured"
+		condition.Message = "K8sSensor deployment has not been configured for this agent"
+		return result.OfSuccess(condition)
+	}
+
 	var deployment appsv1.Deployment
 
 	if res := a.instAgentClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
@@ -260,6 +276,10 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	}
 
 	return result.OfSuccess(condition)
+}
+
+func objectKeyHasNoName(key client.ObjectKey) bool {
+	return key.Name == ""
 }
 
 func (a *agentStatusManager) agentWithUpdatedStatus(
