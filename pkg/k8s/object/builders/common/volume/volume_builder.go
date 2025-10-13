@@ -26,7 +26,7 @@ const (
 	VarContainerdConfigVolume
 	SysVolume
 	VarLogVolume
-	VarLibVolume
+	//VarLibVolume(Removed for CSP requirement)
 	VarDataVolume
 	MachineIdVolume
 	ConfigVolume
@@ -121,8 +121,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.hostVolumeWithMount("sys", "/sys", &mountPropagationHostToContainer, nil)
 	case VarLogVolume:
 		return v.hostVolumeWithMount("var-log", "/var/log", &mountPropagationHostToContainer, nil)
-	case VarLibVolume:
-		return v.hostVolumeWithMount("var-lib", "/var/lib", &mountPropagationHostToContainer, nil)
+	//case VarLibVolume:(Removed for CSP requirement)
+	//return v.hostVolumeWithMount("var-lib", "/var/lib", &mountPropagationHostToContainer, nil)
 	case VarDataVolume:
 		return v.hostVolumeWithMount(
 			"var-data",
