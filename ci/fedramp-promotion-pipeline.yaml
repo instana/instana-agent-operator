@@ -189,7 +189,9 @@ jobs:
                 RELEASE_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_FEDRAMP_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_GENERIC_REPOSITORY="${ARTIFACTORY_GENERIC_FEDRAMP_URL}/instana-agent-operator"
-                ARTIFACT_VERSION=$(./agent-operator-git-source/ci/scripts/get-latest-fedramp-release-version.sh)
+                pushd agent-operator-git-source
+                  ARTIFACT_VERSION=$(./ci/scripts/get-latest-fedramp-release-version.sh)
+                popd
                 FEDRAMP_VERSION=$(cat fedramp-version/number)
 
                 # strip the leading "v" from the operator version for release:
