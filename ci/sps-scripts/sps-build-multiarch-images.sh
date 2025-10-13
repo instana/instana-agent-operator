@@ -8,10 +8,11 @@ set -e
 ICR_REGISTRY_DOMAIN="icr.io"
 ARTIFACTORY_REGISTRY_DOMAIN="delivery.instana.io"
 GIT_COMMIT=$(load_repo app-repo commit)
+BRANCH_NAME=$(load_repo app-repo branch)
 ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
 ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 
-echo "Building commit ${GIT_COMMIT}"
+echo "Building commit ${GIT_COMMIT} on branch ${BRANCH_NAME}"
 
 # Authenticate with the private registry, see https://cloud.ibm.com/docs/devsecops?topic=devsecops-cd-devsecops-build-docker#cd-devsecops-work-with-icr
 echo "[INFO] Authenticating with the $ICR_REGISTRY_DOMAIN private Docker registry..."
@@ -36,8 +37,19 @@ echo "cd into build context"
 cd "${BUILD_CONTEXT}"
 echo "pwd: $(pwd)"
 
+# Determine build platforms based on branch
+if [ "$BRANCH_NAME" = "main" ]; then
+    echo "[INFO] Building multi-architecture image for main branch..."
+    PLATFORMS="linux/amd64,linux/arm64,linux/s390x,linux/ppc64le"
+else
+    echo "[INFO] Building amd64-only image for PR branch..."
+    PLATFORMS="linux/amd64"
+fi
+
+echo "[INFO] Using platforms: ${PLATFORMS}"
+
 docker buildx build \
-    --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le \
+    --platform ${PLATFORMS} \
     -t "${REGISTRY_IMAGE_TAG_ICR}" \
     -t "${REGISTRY_IMAGE_TAG_ARTIFACTORY}" \
     --push \

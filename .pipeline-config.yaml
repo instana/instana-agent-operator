@@ -5,49 +5,8 @@ version: "2"
 
 tasks:
   pr-code-checks:
-    displayName: build-and-test
-    runtimeClassName: x86-xlarge
-    onError: stopAndFail
-    include:
-      - dind
-    steps:
-      # Run VM janitor first to clean up any orphaned VMs
-      - name: vm-janitor
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/vm-janitor.sh
-      
-      # Build and push image
-      - name: build-and-push
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/minikube.sh
-      
-      # Run e2e tests (will use ephemeral or shared cluster based on branch)
-      - name: e2e-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        script: |
-          #!/usr/bin/env bash
-          if [[ "${BRANCH_NAME}" == "main" || "${USE_SHARED_CLUSTER}" == "true" ]]; then
-            echo "Using shared cluster approach for main branch or by request"
-            export CLUSTER_ID="ocp-fyre-latest"
-            export TASK_NAME="pr-code-checks"
-            source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
-          else
-            echo "Using ephemeral cluster approach for PR testing"
-            source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/ephemeral-k8s-e2e.sh
-          fi
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks:
     displayName: build-amd64-arm64-s390x-and-ppc64le-images
-    runtimeClassName: x86-xlarge
+    runtimeClassName: large
     onError: stopAndFail
     include:
       - dind
