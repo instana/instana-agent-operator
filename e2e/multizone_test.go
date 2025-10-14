@@ -278,19 +278,29 @@ func CleanupNodeLabels() features.Func {
 		// Count how many nodes had labels removed for summary logging
 		labelsRemoved := 0
 
-		for _, nodeName := range nodes {
-			node := strings.TrimPrefix(nodeName, "node/")
+		// Debug: Print all nodes for troubleshooting
+		t.Logf("Available nodes for cleanup: %s", nodeList)
 
-			// First check if the node has a pool label
+		for _, nodeName := range nodes {
+			if nodeName == "" {
+				continue // Skip empty node names
+			}
+			// First check if the node has a pool label - use the full node name with prefix
 			nodeLabels := utils.FetchCommandOutput(
-				fmt.Sprintf("kubectl get node %s --show-labels", node),
+				fmt.Sprintf("kubectl get %s --show-labels", nodeName),
 			)
 
 			// Only try to remove the label if it exists
 			if strings.Contains(nodeLabels, "pool=") {
-				p := utils.RunCommand(fmt.Sprintf("kubectl label node %s pool- --overwrite", node))
+				// Use the full node name with prefix for the label command
+				p := utils.RunCommand(fmt.Sprintf("kubectl label %s pool- --overwrite", nodeName))
 				if p.Err() != nil {
-					t.Logf("Warning: Error removing pool label from node %s: %v", node, p.Err())
+					displayName := strings.TrimPrefix(nodeName, "node/")
+					t.Logf(
+						"Warning: Error removing pool label from node %s: %v",
+						displayName,
+						p.Err(),
+					)
 				} else {
 					labelsRemoved++
 				}
@@ -359,17 +369,29 @@ func TestMultiZones(t *testing.T) {
 				"kubectl get nodes -l '!node-role.kubernetes.io/master,!node-role.kubernetes.io/control-plane' -o name",
 			)
 			nodes := strings.Split(strings.TrimSpace(nodeList), "\n")
-			if len(nodes) == 0 {
+			if len(nodes) == 0 || nodes[0] == "" {
 				t.Log("No dedicated worker nodes found, falling back to any node")
 				nodeList = utils.FetchCommandOutput("kubectl get nodes -o name")
 				nodes = strings.Split(strings.TrimSpace(nodeList), "\n")
+				if len(nodes) == 0 || nodes[0] == "" {
+					t.Fatal("No nodes found in the cluster")
+				}
 			}
-			node := strings.TrimPrefix(nodes[0], "node/")
 
-			// Apply first label
+			// Get the node name, preserving the "node/" prefix which is required by kubectl
+			nodeName := nodes[0]
+
+			// For logging, show the node name without the prefix
+			displayName := strings.TrimPrefix(nodeName, "node/")
+			t.Logf("Selected node: %s", displayName)
+
+			// Debug: Print all nodes for troubleshooting
+			t.Logf("Available nodes: %s", nodeList)
+
+			// Apply first label - use the full node name with the "node/" prefix
 			t.Log("Applying pool-01 label to node")
 			cmd := utils.RunCommand(
-				fmt.Sprintf("kubectl label node %s pool=pool-01 --overwrite", node),
+				fmt.Sprintf("kubectl label %s pool=pool-01 --overwrite", nodeName),
 			)
 			if cmd.Err() != nil {
 				t.Fatal("Error labeling node", cmd.Err(), cmd.Out(), cmd.ExitCode())
@@ -393,16 +415,28 @@ func TestMultiZones(t *testing.T) {
 				"kubectl get nodes -l '!node-role.kubernetes.io/master,!node-role.kubernetes.io/control-plane' -o name",
 			)
 			nodes := strings.Split(strings.TrimSpace(nodeList), "\n")
-			if len(nodes) == 0 {
+			if len(nodes) == 0 || nodes[0] == "" {
 				t.Log("No dedicated worker nodes found, falling back to any node")
 				nodeList = utils.FetchCommandOutput("kubectl get nodes -o name")
 				nodes = strings.Split(strings.TrimSpace(nodeList), "\n")
+				if len(nodes) == 0 || nodes[0] == "" {
+					t.Fatal("No nodes found in the cluster")
+				}
 			}
-			node := strings.TrimPrefix(nodes[0], "node/")
 
-			// Remove first label
+			// Get the node name, preserving the "node/" prefix which is required by kubectl
+			nodeName := nodes[0]
+
+			// For logging, show the node name without the prefix
+			displayName := strings.TrimPrefix(nodeName, "node/")
+			t.Logf("Selected node: %s", displayName)
+
+			// Debug: Print all nodes for troubleshooting
+			t.Logf("Available nodes: %s", nodeList)
+
+			// Remove first label - use the full node name with the "node/" prefix
 			t.Log("Removing pool label from node")
-			cmd := utils.RunCommand(fmt.Sprintf("kubectl label node %s pool-", node))
+			cmd := utils.RunCommand(fmt.Sprintf("kubectl label %s pool-", nodeName))
 			if cmd.Err() != nil {
 				t.Fatal("Error removing label from node", cmd.Err(), cmd.Out(), cmd.ExitCode())
 			}
@@ -422,17 +456,29 @@ func TestMultiZones(t *testing.T) {
 				"kubectl get nodes -l '!node-role.kubernetes.io/master,!node-role.kubernetes.io/control-plane' -o name",
 			)
 			nodes := strings.Split(strings.TrimSpace(nodeList), "\n")
-			if len(nodes) == 0 {
+			if len(nodes) == 0 || nodes[0] == "" {
 				t.Log("No dedicated worker nodes found, falling back to any node")
 				nodeList = utils.FetchCommandOutput("kubectl get nodes -o name")
 				nodes = strings.Split(strings.TrimSpace(nodeList), "\n")
+				if len(nodes) == 0 || nodes[0] == "" {
+					t.Fatal("No nodes found in the cluster")
+				}
 			}
-			node := strings.TrimPrefix(nodes[0], "node/")
 
-			// Apply second label
+			// Get the node name, preserving the "node/" prefix which is required by kubectl
+			nodeName := nodes[0]
+
+			// For logging, show the node name without the prefix
+			displayName := strings.TrimPrefix(nodeName, "node/")
+			t.Logf("Selected node: %s", displayName)
+
+			// Debug: Print all nodes for troubleshooting
+			t.Logf("Available nodes: %s", nodeList)
+
+			// Apply second label - use the full node name with the "node/" prefix
 			t.Log("Applying pool-02 label to node")
 			cmd := utils.RunCommand(
-				fmt.Sprintf("kubectl label node %s pool=pool-02 --overwrite", node),
+				fmt.Sprintf("kubectl label %s pool=pool-02 --overwrite", nodeName),
 			)
 			if cmd.Err() != nil {
 				t.Fatal("Error labeling node", cmd.Err(), cmd.Out(), cmd.ExitCode())
