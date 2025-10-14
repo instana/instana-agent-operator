@@ -42,18 +42,14 @@ func VerifyDaemonSetsExistButNotScheduled(daemonSetNames ...string) features.Fun
 				t.Fatalf("Failed to get DaemonSet %s: %v", dsName, err)
 			}
 
-			t.Logf(
-				"DaemonSet %s exists with %d scheduled pods",
-				dsName,
-				ds.Status.CurrentNumberScheduled,
-			)
-
-			// Debug: Print the DaemonSet's node selector
-			t.Logf("DaemonSet %s node selector: %+v", dsName, ds.Spec.Template.Spec.Affinity)
-
-			// Debug: Print node labels to help diagnose scheduling issues
-			p := utils.RunCommand("kubectl get nodes --show-labels")
-			t.Logf("Current node labels: %s", p.Out())
+			// Only log detailed information if there's an issue
+			if ds.Status.CurrentNumberScheduled > 0 {
+				t.Logf(
+					"DaemonSet %s has %d scheduled pods when it should have 0",
+					dsName,
+					ds.Status.CurrentNumberScheduled,
+				)
+			}
 
 			// Verify no pods are scheduled
 			if ds.Status.CurrentNumberScheduled > 0 {
@@ -89,8 +85,6 @@ func VerifyDaemonSetsExistButNotScheduled(daemonSetNames ...string) features.Fun
 				for _, expr := range term.MatchExpressions {
 					if expr.Key == "pool" {
 						found = true
-						t.Logf("DaemonSet %s has correct node selector for pool: %s %s %v",
-							dsName, expr.Key, expr.Operator, expr.Values)
 						break
 					}
 				}
@@ -123,11 +117,14 @@ func VerifyDaemonSetScheduled(daemonSetName string) features.Func {
 			t.Fatalf("Failed to get DaemonSet %s: %v", daemonSetName, err)
 		}
 
-		t.Logf(
-			"DaemonSet %s has %d scheduled pods",
-			daemonSetName,
-			ds.Status.CurrentNumberScheduled,
-		)
+		// Only log if there's an issue
+		if ds.Status.CurrentNumberScheduled != 1 {
+			t.Logf(
+				"DaemonSet %s has %d scheduled pods, expected 1",
+				daemonSetName,
+				ds.Status.CurrentNumberScheduled,
+			)
+		}
 
 		// Verify exactly one pod is scheduled
 		if ds.Status.CurrentNumberScheduled != 1 {
@@ -164,8 +161,7 @@ func WaitForAgentDaemonSetPodsScheduled(daemonSetName string) features.Func {
 			t.Fatalf("Failed to get DaemonSet %s: %v", daemonSetName, err)
 		}
 
-		// Debug: Print the DaemonSet's node selector
-		t.Logf("DaemonSet %s node selector: %+v", daemonSetName, ds.Spec.Template.Spec.Affinity)
+		// No need to log the node selector in normal operation
 
 		// Check if the DaemonSet has node affinity
 		if ds.Spec.Template.Spec.Affinity == nil ||
@@ -186,12 +182,15 @@ func WaitForAgentDaemonSetPodsScheduled(daemonSetName string) features.Func {
 				return false, err
 			}
 
-			t.Logf(
-				"DaemonSet %s has %d scheduled pods, %d ready pods",
-				daemonSetName,
-				updatedDs.Status.CurrentNumberScheduled,
-				updatedDs.Status.NumberReady,
-			)
+			// Only log every 30 seconds to reduce verbosity
+			if time.Now().Unix()%30 == 0 {
+				t.Logf(
+					"Waiting for DaemonSet %s pods (current: %d, ready: %d)",
+					daemonSetName,
+					updatedDs.Status.CurrentNumberScheduled,
+					updatedDs.Status.NumberReady,
+				)
+			}
 
 			// Wait until exactly one pod is scheduled
 			return updatedDs.Status.CurrentNumberScheduled == 1, nil
@@ -250,11 +249,14 @@ func WaitForAgentDaemonSetPodTermination(daemonSetName string) features.Func {
 				return false, err
 			}
 
-			t.Logf(
-				"DaemonSet %s has %d scheduled pods",
-				daemonSetName,
-				ds.Status.CurrentNumberScheduled,
-			)
+			// Only log every 30 seconds to reduce verbosity
+			if time.Now().Unix()%30 == 0 {
+				t.Logf(
+					"Waiting for DaemonSet %s pods to terminate (current: %d)",
+					daemonSetName,
+					ds.Status.CurrentNumberScheduled,
+				)
+			}
 			return ds.Status.CurrentNumberScheduled == 0, nil
 		}, wait.WithTimeout(2*time.Minute), wait.WithInterval(5*time.Second))
 
@@ -273,9 +275,11 @@ func CleanupNodeLabels() features.Func {
 		nodeList := utils.FetchCommandOutput("kubectl get nodes -o name")
 		nodes := strings.Split(strings.TrimSpace(nodeList), "\n")
 
+		// Count how many nodes had labels removed for summary logging
+		labelsRemoved := 0
+
 		for _, nodeName := range nodes {
 			node := strings.TrimPrefix(nodeName, "node/")
-			t.Logf("Cleaning up pool label from node %s", node)
 
 			// First check if the node has a pool label
 			nodeLabels := utils.FetchCommandOutput(
@@ -284,22 +288,21 @@ func CleanupNodeLabels() features.Func {
 
 			// Only try to remove the label if it exists
 			if strings.Contains(nodeLabels, "pool=") {
-				t.Logf("Found pool label on node %s, removing it", node)
 				p := utils.RunCommand(fmt.Sprintf("kubectl label node %s pool- --overwrite", node))
 				if p.Err() != nil {
 					t.Logf("Warning: Error removing pool label from node %s: %v", node, p.Err())
+				} else {
+					labelsRemoved++
 				}
-			} else {
-				t.Logf("No pool label found on node %s", node)
 			}
 		}
 
 		// Verify all labels were removed
 		allNodeLabels := utils.FetchCommandOutput("kubectl get nodes --show-labels")
 		if strings.Contains(allNodeLabels, "pool=") {
-			t.Logf("Warning: Some nodes still have pool labels after cleanup: %s", allNodeLabels)
-		} else {
-			t.Logf("Successfully removed all pool labels from nodes")
+			t.Logf("Warning: Some nodes still have pool labels after cleanup")
+		} else if labelsRemoved > 0 {
+			t.Logf("Removed pool labels from %d nodes", labelsRemoved)
 		}
 
 		return ctx
@@ -319,16 +322,7 @@ func TestMultiZones(t *testing.T) {
 			}
 
 			// Verify all nodes have no pool labels
-			t.Log("Verifying nodes have no pool labels")
-			nodeList := utils.FetchCommandOutput("kubectl get nodes --show-labels")
-			if strings.Contains(nodeList, "pool=") {
-				t.Fatal("Found nodes with pool labels that should have been removed")
-			}
-
-			// Verify all nodes have no pool labels
 			nodeLabels := utils.FetchCommandOutput("kubectl get nodes --show-labels")
-			t.Logf("Node labels before creating CR: %s", nodeLabels)
-
 			if strings.Contains(nodeLabels, "pool=") {
 				t.Fatal("Found nodes with pool labels before test start - cleanup failed")
 			}
@@ -372,22 +366,16 @@ func TestMultiZones(t *testing.T) {
 			}
 			node := strings.TrimPrefix(nodes[0], "node/")
 
-			// Debug: Print current node labels
-			p := utils.RunCommand(fmt.Sprintf("kubectl get node %s --show-labels", node))
-			t.Logf("Current node labels before applying pool-01: %s", p.Out())
-
 			// Apply first label
-			t.Log("Applying first zone label")
-			p = utils.RunCommand(
+			t.Log("Applying pool-01 label to node")
+			cmd := utils.RunCommand(
 				fmt.Sprintf("kubectl label node %s pool=pool-01 --overwrite", node),
 			)
-			if p.Err() != nil {
-				t.Fatal("Error labeling node", p.Err(), p.Out(), p.ExitCode())
+			if cmd.Err() != nil {
+				t.Fatal("Error labeling node", cmd.Err(), cmd.Out(), cmd.ExitCode())
 			}
 
-			// Debug: Verify label was applied
-			p = utils.RunCommand(fmt.Sprintf("kubectl get node %s --show-labels", node))
-			t.Logf("Node labels after applying pool-01: %s", p.Out())
+			// No need to verify and log the labels in normal operation
 
 			// Wait for first DaemonSet to have pods scheduled
 			WaitForAgentDaemonSetPodsScheduled(AgentDaemonSetName+"-e2e-test-pool-01")(ctx, t, cfg)
@@ -412,20 +400,14 @@ func TestMultiZones(t *testing.T) {
 			}
 			node := strings.TrimPrefix(nodes[0], "node/")
 
-			// Debug: Print current node labels
-			p := utils.RunCommand(fmt.Sprintf("kubectl get node %s --show-labels", node))
-			t.Logf("Current node labels before removing pool label: %s", p.Out())
-
 			// Remove first label
-			t.Log("Removing first zone label")
-			p = utils.RunCommand(fmt.Sprintf("kubectl label node %s pool-", node))
-			if p.Err() != nil {
-				t.Fatal("Error removing label from node", p.Err(), p.Out(), p.ExitCode())
+			t.Log("Removing pool label from node")
+			cmd := utils.RunCommand(fmt.Sprintf("kubectl label node %s pool-", node))
+			if cmd.Err() != nil {
+				t.Fatal("Error removing label from node", cmd.Err(), cmd.Out(), cmd.ExitCode())
 			}
 
-			// Debug: Verify label was removed
-			p = utils.RunCommand(fmt.Sprintf("kubectl get node %s --show-labels", node))
-			t.Logf("Node labels after removing pool label: %s", p.Out())
+			// No need to verify and log the labels in normal operation
 
 			// Wait for first DaemonSet pod to terminate completely
 			t.Log("Waiting for first zone pod to terminate")
@@ -447,22 +429,16 @@ func TestMultiZones(t *testing.T) {
 			}
 			node := strings.TrimPrefix(nodes[0], "node/")
 
-			// Debug: Print current node labels
-			p := utils.RunCommand(fmt.Sprintf("kubectl get node %s --show-labels", node))
-			t.Logf("Current node labels before applying pool-02: %s", p.Out())
-
 			// Apply second label
-			t.Log("Applying second zone label")
-			p = utils.RunCommand(
+			t.Log("Applying pool-02 label to node")
+			cmd := utils.RunCommand(
 				fmt.Sprintf("kubectl label node %s pool=pool-02 --overwrite", node),
 			)
-			if p.Err() != nil {
-				t.Fatal("Error labeling node", p.Err(), p.Out(), p.ExitCode())
+			if cmd.Err() != nil {
+				t.Fatal("Error labeling node", cmd.Err(), cmd.Out(), cmd.ExitCode())
 			}
 
-			// Debug: Verify label was applied
-			p = utils.RunCommand(fmt.Sprintf("kubectl get node %s --show-labels", node))
-			t.Logf("Node labels after applying pool-02: %s", p.Out())
+			// No need to verify and log the labels in normal operation
 
 			// Wait for second DaemonSet to have pods scheduled
 			WaitForAgentDaemonSetPodsScheduled(AgentDaemonSetName+"-e2e-test-pool-02")(ctx, t, cfg)
