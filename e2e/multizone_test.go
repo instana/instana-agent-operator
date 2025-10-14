@@ -1,6 +1,6 @@
 /*
- * (c) Copyright IBM Corp. 2024
- * (c) Copyright Instana Inc. 2024
+ * (c) Copyright IBM Corp. 2024, 2025
+ * (c) Copyright Instana Inc. 2024, 2025
  */
 
 package e2e
