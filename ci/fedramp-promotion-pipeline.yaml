@@ -189,8 +189,9 @@ jobs:
                 RELEASE_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_FEDRAMP_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_GENERIC_REPOSITORY="${ARTIFACTORY_GENERIC_FEDRAMP_URL}/instana-agent-operator"
+                export ARTIFACT_VERSION
                 pushd agent-operator-git-source
-                  ARTIFACT_VERSION=$(./ci/scripts/get-latest-fedramp-release-version.sh)
+                  source ./ci/scripts/get-latest-fedramp-release-version.sh
                 popd
                 FEDRAMP_VERSION=$(cat fedramp-version/number)
 
@@ -210,6 +211,20 @@ jobs:
                 export PREFIX="v"
                 export OPERATOR_DOCKER_VERSION=${ARTIFACT_VERSION#"$PREFIX"}
                 COMBINED_VERSION=${OPERATOR_DOCKER_VERSION}.fedramp-${FEDRAMP_VERSION}
+
+                # Validate OPERATOR_DOCKER_VERSION before using it
+                if [ -z "$OPERATOR_DOCKER_VERSION" ]; then
+                  echo "Error: OPERATOR_DOCKER_VERSION is not set. Cannot proceed with artifact promotion."
+                  exit 1
+                fi
+
+                # Validate COMBINED_VERSION before using it
+                if [ -z "$COMBINED_VERSION" ]; then
+                  echo "Error: COMBINED_VERSION is not set. Cannot proceed with artifact promotion."
+                  exit 1
+                fi
+
+                echo "Using OPERATOR_DOCKER_VERSION=$OPERATOR_DOCKER_VERSION and COMBINED_VERSION=$COMBINED_VERSION"
 
                 echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
