@@ -20,6 +20,7 @@ git fetch --all --quiet
 # Find all release-* branches and sort them by version number
 echo "Finding latest release branch..." >&2
 LATEST_RELEASE_BRANCH=$(git branch -r | grep -E 'origin/release-[0-9]+\.[0-9]+' | sed 's/origin\///' | sort -V | tail -1)
+LATEST_RELEASE_BRANCH=$(echo "$LATEST_RELEASE_BRANCH" | xargs)
 
 if [ -z "$LATEST_RELEASE_BRANCH" ]; then
   echo "Error: No release-* branches found" >&2
@@ -28,12 +29,7 @@ fi
 
 echo "Latest release branch: $LATEST_RELEASE_BRANCH" >&2
 
-# Create a temporary branch to avoid detached HEAD state
-TEMP_BRANCH="temp-${LATEST_RELEASE_BRANCH}-$(date +%s)"
-
-# Check out the latest release branch to a temporary branch
-echo "Checking out latest release branch to temporary branch $TEMP_BRANCH..." >&2
-git checkout -b "$TEMP_BRANCH" "origin/$LATEST_RELEASE_BRANCH" --quiet
+git checkout "origin/$LATEST_RELEASE_BRANCH" --quiet
 
 # Check if the FEDRAMP_VERSION file exists
 if [ ! -f "ci/FEDRAMP_VERSION" ]; then
@@ -50,9 +46,6 @@ echo "ARTIFACT_VERSION=$ARTIFACT_VERSION" >&2
 # Return to main branch
 echo "Returning to main branch..." >&2
 git checkout main --quiet
-
-# Clean up the temporary branch
-git branch -D "$TEMP_BRANCH" --quiet
 
 # Output the version for use in scripts - this is the only output to stdout
 echo "$ARTIFACT_VERSION"
