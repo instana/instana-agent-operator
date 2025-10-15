@@ -160,7 +160,7 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.VarContainerdConfigVolume,
 		volume.SysVolume,
 		volume.VarLogVolume,
-		volume.VarLibVolume,
+		//volume.VarLibVolume,(removed as part of CSP)
 		volume.VarDataVolume,
 		volume.MachineIdVolume,
 		volume.ConfigVolume,

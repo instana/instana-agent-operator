@@ -5,8 +5,8 @@ version: "2"
 
 tasks:
   pr-code-checks:
-    displayName: build-amd64-arm64-s390x-and-ppc64le-images
-    runtimeClassName: x86-xlarge
+    displayName: build-images-and-e2e
+    runtimeClassName: large
     onError: stopAndFail
     include:
       - dind
@@ -17,7 +17,12 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
+          export TASK_NAME="pr-code-checks"
+          export SKIP_INSTALL_GCLOUD="false"
+          source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/vm-janitor.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/ephemeral-k8s-e2e.sh
       - name: detect-secrets
         include:
           - docker-socket
@@ -62,13 +67,12 @@ tasks:
         include:
           - docker-socket
 
-  # pr-code-checks-6:
+  # pr-code-checks-4:
   #   from: pr-code-checks
   #   displayName: tag-release
   #   runtimeClassName: large
   #   # runAfter: 
-  #   #   - pr-code-checks-4
-  #   #   - pr-code-checks-5
+  #   #   - pr-code-checks
   #   include:
   #     - dind
   #   steps:
@@ -83,7 +87,7 @@ tasks:
   #       include:
   #         - docker-socket
   
-  pr-code-checks-7:
+  pr-code-checks-5:
     from: pr-code-checks
     displayName: build-multiarch-manifest
     runtimeClassName: large
@@ -103,7 +107,7 @@ tasks:
         include:
           - docker-socket
 
-  pr-code-checks-8:
+  pr-code-checks-6:
     from: pr-code-checks
     displayName: redhat-preflight-scans
     runtimeClassName: large

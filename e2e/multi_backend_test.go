@@ -48,13 +48,31 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 			t.Logf("Secret created")
 
 			t.Logf("Creating dummy agent CR with external secret")
-			err = decoder.ApplyWithManifestDir(
-				ctx,
-				r,
-				"../config/samples",
-				"instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml",
-				[]resources.CreateOption{},
+
+			// Read the existing CR file
+			f, err := os.Open(
+				"../config/samples/instana_v1_instanaagent_multiple_backends_external_keyssecret.yaml",
 			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					t.Logf("Failed to close file: %v", err)
+				}
+			}()
+
+			var agent instanav1.InstanaAgent
+			err = decoder.Decode(f, &agent)
+			if err != nil {
+				t.Fatal("Could not decode agent", err)
+			}
+
+			// Set k8s_sensor replicas to 1 to not use more resources than required
+			agent.Spec.K8sSensor.DeploymentSpec.Replicas = 1
+
+			// Create the modified agent CR
+			err = decoder.CreateHandler(r)(ctx, &agent)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -124,6 +142,9 @@ func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
 			useSecretMounts := true
 			agent.Spec.UseSecretMounts = &useSecretMounts
 
+			// Set k8s_sensor replicas to 1 to not use more resources than required
+			agent.Spec.K8sSensor.DeploymentSpec.Replicas = 1
+
 			// Create the modified agent CR
 			err = decoder.CreateHandler(r)(ctx, &agent)
 			if err != nil {
@@ -175,6 +196,9 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 				t.Fatal("Could not decode agent", err)
 			}
 
+			// Set k8s_sensor replicas to 1 to not use more resources than required
+			agent.Spec.K8sSensor.DeploymentSpec.Replicas = 1
+
 			t.Logf("Creating dummy agent CR with inline key")
 
 			err = decoder.CreateHandler(r)(ctx, &agent)
@@ -215,6 +239,9 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 			Key:          "zzz",
 		},
 	)
+
+	// Set k8s_sensor replicas to 1 to not use more resources than required
+	agent.Spec.K8sSensor.DeploymentSpec.Replicas = 1
 
 	var checksum, checksum1, checksum2 string
 
@@ -262,6 +289,11 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 			Key:          "zzz",
 		},
 	)
+
+	// Set k8s_sensor replicas to 1
+	if agent2.Spec.K8sSensor.DeploymentSpec.Replicas == 0 {
+		agent2.Spec.K8sSensor.DeploymentSpec.Replicas = 1
+	}
 	checkReconciliationFeature := features.New("check reconcile works with new operator deployment").
 		Setup(UpdateAgentCr(&agent2)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).

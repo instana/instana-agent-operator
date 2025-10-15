@@ -28,7 +28,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 )
 
-const numDefinedVolumes = 16
+const numDefinedVolumes = 15
 
 func rangeUntil(n int) []Volume {
 	res := make([]Volume, 0, n)
@@ -88,12 +88,12 @@ func TestVolumeBuilderBuild(t *testing.T) {
 		{
 			name:               "isOpenShift",
 			isOpenShift:        true,
-			expectedNumVolumes: 11,
+			expectedNumVolumes: 10,
 		},
 		{
 			name:               "isNotOpenShift",
 			isOpenShift:        false,
-			expectedNumVolumes: 14,
+			expectedNumVolumes: 13,
 		},
 	} {
 		t.Run(
