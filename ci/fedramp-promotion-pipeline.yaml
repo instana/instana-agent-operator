@@ -19,6 +19,22 @@ var:
     username: instanacd
     password: ((instanacd-github-api-token))
 
+resource_types:
+  - name: cogito
+    type: registry-image
+    check_every: never
+    source:
+      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      tag: latest
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
+  - name: slack-notification
+    type: registry-image
+    source:
+      repository: cfcommunity/slack-notification-resource
+      tag: latest
+
 resources:
   - name: gh-status
     type: cogito
@@ -172,14 +188,48 @@ jobs:
 
                 RELEASE_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_FEDRAMP_DOCKER_URL}/instana-agent-operator"
-                FEDRAMP_GENERIC_REPOSITORY="${ARTIFACTORY_GENERIC_FEDRAMP_URL}/instana-agent-operator"
-                ARTIFACT_VERSION=$(./agent-operator-git-source/ci/scripts/get-latest-fedramp-release-version.sh)
+
+                DOMAIN=$(echo $ARTIFACTORY_GENERIC_FEDRAMP_URL | cut -d'/' -f1)
+                REPO_PATH=$(echo $ARTIFACTORY_GENERIC_FEDRAMP_URL | cut -d'/' -f2-)
+                FEDRAMP_GENERIC="$DOMAIN/artifactory/$REPO_PATH"
+                FEDRAMP_GENERIC_REPOSITORY="${FEDRAMP_GENERIC}/instana-agent-operator"
+
+                export ARTIFACT_VERSION
+                pushd agent-operator-git-source
+                  source ./ci/scripts/get-latest-fedramp-release-version.sh
+                popd
                 FEDRAMP_VERSION=$(cat fedramp-version/number)
+
+                # Check if ARTIFACT_VERSION is set
+                if [ -z "$ARTIFACT_VERSION" ]; then
+                  echo "Error: ARTIFACT_VERSION is not set. Failed to get the latest FedRAMP release version."
+                  exit 1
+                fi
+
+                # Check if FEDRAMP_VERSION is set
+                if [ -z "$FEDRAMP_VERSION" ]; then
+                  echo "Error: FEDRAMP_VERSION is not set. Failed to read version from fedramp-version/number."
+                  exit 1
+                fi
 
                 # strip the leading "v" from the operator version for release:
                 export PREFIX="v"
-                export OPERATOR_DOCKER_VERSION=${VERSION#"$PREFIX"}
+                export OPERATOR_DOCKER_VERSION=${ARTIFACT_VERSION#"$PREFIX"}
                 COMBINED_VERSION=${OPERATOR_DOCKER_VERSION}.fedramp-${FEDRAMP_VERSION}
+
+                # Validate OPERATOR_DOCKER_VERSION before using it
+                if [ -z "$OPERATOR_DOCKER_VERSION" ]; then
+                  echo "Error: OPERATOR_DOCKER_VERSION is not set. Cannot proceed with artifact promotion."
+                  exit 1
+                fi
+
+                # Validate COMBINED_VERSION before using it
+                if [ -z "$COMBINED_VERSION" ]; then
+                  echo "Error: COMBINED_VERSION is not set. Cannot proceed with artifact promotion."
+                  exit 1
+                fi
+
+                echo "Using OPERATOR_DOCKER_VERSION=$OPERATOR_DOCKER_VERSION and COMBINED_VERSION=$COMBINED_VERSION"
 
                 echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
@@ -212,9 +262,18 @@ jobs:
                 fi
 
                 echo "---> Pushing operator YAML to ${FEDRAMP_GENERIC_REPOSITORY} with $COMBINED_VERSION"
-                curl -u ${ARTIFACTORY_USERNAME_RELEASE}:${ARTIFACTORY_PASSWORD_RELEASE} \ 
-                      -T $MANIFEST_FILE_FEDRAMP $FEDRAMP_GENERIC_REPOSITORY/$COMBINED_VERSION/instana-agent-operator.yaml
-                
+                status_code=$(curl --silent --output /dev/stderr --write-out "%{http_code}" -u "${ARTIFACTORY_USERNAME_RELEASE}:${ARTIFACTORY_PASSWORD_RELEASE}" -X PUT "https://$FEDRAMP_GENERIC_REPOSITORY/$COMBINED_VERSION/instana-agent-operator.yaml" -T "${MANIFEST_FILE_FEDRAMP}")
+                echo # curl doesn't output a line break on error
+                if test "$status_code" -ne 201; then
+                  echo -e "[\e[1m\e[91mERROR\e[39m\e[21m] curl returned $status_code, exiting..."
+                  exit 1
+                fi
+
+
                 echo "---> Pushing operator YAML to ${FEDRAMP_GENERIC_REPOSITORY} with latest"
-                curl -u ${ARTIFACTORY_USERNAME_RELEASE}:${ARTIFACTORY_PASSWORD_RELEASE} \ 
-                      -T $MANIFEST_FILE_FEDRAMP $FEDRAMP_GENERIC_REPOSITORY/latest/instana-agent-operator.yaml
+                status_code=$(curl --silent --output /dev/stderr --write-out "%{http_code}" -u "${ARTIFACTORY_USERNAME_RELEASE}:${ARTIFACTORY_PASSWORD_RELEASE}" -X PUT "https://$FEDRAMP_GENERIC_REPOSITORY/latest/instana-agent-operator.yaml" -T "${MANIFEST_FILE_FEDRAMP}")
+                echo # curl doesn't output a line break on error
+                if test "$status_code" -ne 201; then
+                  echo -e "[\e[1m\e[91mERROR\e[39m\e[21m] curl returned $status_code, exiting..."
+                  exit 1
+                fi
