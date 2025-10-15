@@ -5,11 +5,62 @@
 set -euo pipefail
 # note: PIPELINE_CONFIG_REPO_PATH will point to config, not to the app folder with the current branch, use APP_REPO_FOLDER instead
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-    trap env EXIT
     env
     set -x
 fi
 echo "===== e2e.sh - start ====="
+
+# Define cleanup function early to ensure proper resource cleanup
+cleanup() {
+    echo "Running cleanup..."
+    # Set commit status based on test results
+    set-commit-status \
+        --repository "$(load_repo app-repo url)" \
+        --commit-sha "$(load_repo app-repo commit)" \
+        --state "${COMMIT_STATUS:-failure}" \
+        --description "Kubernetes e2e test" \
+        --context "tekton/e2e-${CLUSTER_ID}" \
+        --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
+    
+    if [[ "$(get_env pipeline_namespace 2>/dev/null)" == *"pr"* ]]; then
+        set-commit-status \
+            --repository "$(load_repo app-repo url)" \
+            --commit-sha "$(load_repo app-repo commit)" \
+            --state "${COMMIT_STATUS:-failure}" \
+            --description "Kubernetes e2e test" \
+            --context "tekton/e2e-${CLUSTER_ID}" \
+            --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
+    else
+        set-commit-status \
+            --repository "$(load_repo app-repo url)" \
+            --commit-sha "$(load_repo app-repo commit)" \
+            --state "${COMMIT_STATUS:-failure}" \
+            --description "Kubernetes e2e test" \
+            --context "tekton/e2e-${CLUSTER_ID}" \
+            --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
+    fi
+    
+    # Release the cluster lock if it was claimed
+    if [[ -n "${SOURCE_DIRECTORY:-}" && -n "${CLUSTER_ID:-}" ]]; then
+        bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}" || true
+    fi
+    
+    echo "===== e2e.sh - end ====="
+    
+    # Exit with the same code as the e2e tests
+    if [[ ${E2E_EXIT_CODE:-0} -ne 0 ]]; then
+        echo "Exiting with failure due to e2e test failure"
+        exit ${E2E_EXIT_CODE}
+    fi
+    
+    # Print environment variables if debug is enabled
+    if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then
+        env
+    fi
+}
+
+# Set up trap to ensure cleanup happens for various termination scenarios
+trap cleanup EXIT SIGINT SIGTERM
 
 echo "CLUSTER_ID=${CLUSTER_ID}, TASK_NAME=${TASK_NAME}"
 cd "${WORKSPACE}/${APP_REPO_FOLDER}"
@@ -123,43 +174,5 @@ if ! make e2e; then
 else
     COMMIT_STATUS="success"
 fi
-
-# Ensure that cluster is released after a successful claim, even if tests fail
-cleanup() {
-    set-commit-status \
-        --repository "$(load_repo app-repo url)" \
-        --commit-sha "$(load_repo app-repo commit)" \
-        --state "${COMMIT_STATUS}" \
-        --description "Kubernetes e2e test" \
-        --context "tekton/e2e-${CLUSTER_ID}" \
-        --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
-    if [[ "$(get_env pipeline_namespace)" == *"pr"* ]]; then
-        set-commit-status \
-            --repository "$(load_repo app-repo url)" \
-            --commit-sha "$(load_repo app-repo commit)" \
-            --state "${COMMIT_STATUS}" \
-            --description "Kubernetes e2e test" \
-            --context "tekton/e2e-${CLUSTER_ID}" \
-            --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/unit-test\?}"
-    else
-        set-commit-status \
-            --repository "$(load_repo app-repo url)" \
-            --commit-sha "$(load_repo app-repo commit)" \
-            --state "${COMMIT_STATUS}" \
-            --description "Kubernetes e2e test" \
-            --context "tekton/e2e-${CLUSTER_ID}" \
-            --target-url "${PIPELINE_RUN_URL//\?/\/$TASK_NAME\/deploy\?}"
-    fi
-    bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}"
-    echo "===== e2e.sh - end ====="
-
-    # Exit with the same code as the e2e tests
-    if [ $E2E_EXIT_CODE -ne 0 ]; then
-        echo "Exiting with failure due to e2e test failure"
-        exit $E2E_EXIT_CODE
-    fi
-}
-
-trap cleanup EXIT
 
 echo

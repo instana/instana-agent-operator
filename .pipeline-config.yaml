@@ -5,8 +5,8 @@ version: "2"
 
 tasks:
   pr-code-checks:
-    displayName: build-amd64-arm64-s390x-and-ppc64le-images
-    runtimeClassName: x86-xlarge
+    displayName: build-images-and-e2e
+    runtimeClassName: large
     onError: stopAndFail
     include:
       - dind
@@ -17,7 +17,12 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
+          export TASK_NAME="pr-code-checks"
+          export SKIP_INSTALL_GCLOUD="false"
+          source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/vm-janitor.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/ephemeral-k8s-e2e.sh
       - name: detect-secrets
         include:
           - docker-socket
@@ -55,54 +60,6 @@ tasks:
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-build.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-4:
-    from: pr-code-checks
-    displayName: e2e-ocp-latest
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-      - pr-code-checks-2
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          # make sure to use the git commit as id to test the correct image
-          export CLUSTER_ID="ocp-fyre-latest"
-          export TASK_NAME="pr-code-checks-4"
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-5:
-    from: pr-code-checks
-    displayName: e2e-gke-latest
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-      - pr-code-checks-2
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          export CLUSTER_ID="gke-latest"
-          export SKIP_INSTALL_GCLOUD="false"
-          export TASK_NAME="pr-code-checks-5"
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
       - name: detect-secrets
         include:
           - docker-socket
