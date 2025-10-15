@@ -31,8 +31,58 @@ func VerifyDaemonSetsExistButNotScheduled(daemonSetNames ...string) features.Fun
 			t.Fatal(err)
 		}
 
-		// Wait briefly to ensure DaemonSets are fully created and stabilized
-		time.Sleep(5 * time.Second)
+		// Wait for DaemonSets to be fully created and stabilized using polling with explicit conditions
+		err = wait.For(func(ctx context.Context) (bool, error) {
+			allReady := true
+
+			// Check each DaemonSet
+			for _, dsName := range daemonSetNames {
+				var ds appsv1.DaemonSet
+				err := r.Get(ctx, dsName, InstanaNamespace, &ds)
+
+				// If the DaemonSet doesn't exist yet, keep waiting
+				if err != nil {
+					if errors.IsNotFound(err) {
+						// Only log periodically to reduce verbosity
+						if time.Now().Unix()%10 == 0 {
+							t.Logf("Waiting for DaemonSet %s to be created...", dsName)
+						}
+						allReady = false
+						continue
+					}
+					// Return any non-NotFound errors immediately
+					return false, fmt.Errorf("failed to get DaemonSet %s: %w", dsName, err)
+				}
+
+				// Check if the DaemonSet has been processed by the controller
+				// ObservedGeneration > 0 indicates the controller has seen and processed this resource
+				if ds.Status.ObservedGeneration == 0 {
+					// Only log periodically to reduce verbosity
+					if time.Now().Unix()%10 == 0 {
+						t.Logf(
+							"Waiting for DaemonSet %s to be processed by the controller...",
+							dsName,
+						)
+					}
+					allReady = false
+					continue
+				}
+			}
+
+			return allReady, nil
+		}, wait.WithTimeout(30*time.Second), wait.WithInterval(5*time.Second))
+
+		if err != nil {
+			// If we timed out, provide detailed debug information
+			for _, dsName := range daemonSetNames {
+				p := utils.RunCommand(
+					fmt.Sprintf("kubectl describe ds %s -n %s", dsName, InstanaNamespace),
+				)
+				t.Logf("DaemonSet details for %s: %s", dsName, p.Out())
+			}
+
+			t.Fatalf("Failed waiting for DaemonSets to be fully created and stabilized: %v", err)
+		}
 
 		for _, dsName := range daemonSetNames {
 			var ds appsv1.DaemonSet
