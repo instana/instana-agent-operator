@@ -76,10 +76,10 @@ tasks:
   e2e-tests:
     displayName: run-e2e-tests
     runtimeClassName: large
+    onError: stopAndFail
     include:
       - dind
-    properties:
-      branch: "main"  # Default branch, will be overridden by trigger
+    # Remove the properties section completely
     steps:
       - name: run-e2e-tests
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
@@ -88,26 +88,48 @@ tasks:
         script: |
           #!/usr/bin/env bash
           export TASK_NAME="e2e-tests"
+          
+          # Debug information
+          echo "Current environment:"
           env
+          echo "Current directory:"
           pwd
-          ls
-
-          # Extract branch from trigger payload
+          echo "Directory contents:"
+          ls -la
+          
+          # Check if trigger payload exists and extract branch
+          echo "Trigger payload path: ${TRIGGER_PAYLOAD_PATH}"
           if [ -f "${TRIGGER_PAYLOAD_PATH}" ]; then
-            # Extract branch from payload JSON if it exists
-            BRANCH=$(jq -r '.branch // "main"' "${TRIGGER_PAYLOAD_PATH}")
+            echo "Trigger payload content:"
+            cat "${TRIGGER_PAYLOAD_PATH}"
+            
+            # Try different methods to extract branch
+            BRANCH=$(cat "${TRIGGER_PAYLOAD_PATH}" | grep -o '"branch":"[^"]*"' | cut -d'"' -f4)
+            
+            # If grep method fails, try a simpler approach
+            if [ -z "$BRANCH" ]; then
+              BRANCH=$(cat "${TRIGGER_PAYLOAD_PATH}" | tr ',' '\n' | grep '"branch"' | cut -d'"' -f4)
+            fi
+            
+            # If still empty, use default
+            if [ -z "$BRANCH" ]; then
+              BRANCH="main"
+              echo "No branch found in payload, using default: $BRANCH"
+            else
+              echo "Found branch in payload: $BRANCH"
+            fi
           else
-            # Default to main if no payload or branch specified
             BRANCH="main"
+            echo "No trigger payload found, using default branch: $BRANCH"
           fi
+          
           echo "Running E2E tests for branch: $BRANCH"
-
+          
           # Checkout the specified branch
           git fetch origin $BRANCH
           git checkout $BRANCH
-
+          
           # Run your E2E test script
           export CLUSTER_ID="gke-latest"
           export SKIP_INSTALL_GCLOUD="false"
-          export TASK_NAME="e2e-tests"
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
