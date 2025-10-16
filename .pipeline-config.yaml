@@ -27,24 +27,24 @@ tasks:
         include:
           - docker-socket
     
-  # pr-code-checks-2:
-  #   from: pr-code-checks
-  #   displayName: go-lang-unit-test
-  #   runtimeClassName: large
-  #   onError: stopAndFail
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh          
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks-2:
+    from: pr-code-checks
+    displayName: go-lang-unit-test
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh          
+      - name: detect-secrets
+        include:
+          - docker-socket
           
   pr-code-checks-3:
     from: pr-code-checks
@@ -52,7 +52,7 @@ tasks:
     runtimeClassName: large
     runAfter: 
       - pr-code-checks
-      # - pr-code-checks-2
+      - pr-code-checks-2
     include:
       - dind
     steps:
@@ -67,25 +67,26 @@ tasks:
         include:
           - docker-socket
 
-  # pr-code-checks-4:
-  #   from: pr-code-checks
-  #   displayName: tag-release
-  #   runtimeClassName: large
-  #   # runAfter: 
-  #   #   - pr-code-checks
-  #   include:
-  #     - dind
-  #   steps:
-  #     - name: unit-test
-  #       image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-  #       include:
-  #         - docker-socket
-  #       script: |
-  #         #!/usr/bin/env bash
-  #         $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/tag-new-release.sh
-  #     - name: detect-secrets
-  #       include:
-  #         - docker-socket
+  pr-code-checks-4:
+    from: pr-code-checks
+    displayName: tag-release
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+      - pr-code-checks-2
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/tag-new-release.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
   
   pr-code-checks-5:
     from: pr-code-checks
@@ -123,6 +124,26 @@ tasks:
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/pre-flight.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+    
+  pr-code-checks-7:
+    from: pr-code-checks
+    displayName: push-fedramp-version
+    runtimeClassName: large
+    runAfter: 
+      - pr-code-checks
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/push-fedramp-version.sh
       - name: detect-secrets
         include:
           - docker-socket

@@ -20,9 +20,8 @@ FEDRAMP_GENERIC="$DOMAIN/artifactory/$REPO_PATH"
 FEDRAMP_GENERIC_REPOSITORY="${FEDRAMP_GENERIC}/instana-agent-operator"
 
 export ARTIFACT_VERSION
-pushd agent-operator-git-source
-source ./ci/scripts/get-latest-fedramp-release-version.sh
-popd
+$WORKSPACE/$APP_REPO_FOLDER/ci/scripts/get-latest-fedramp-release-version.sh
+
 
 echo "==== Step 5: Bump version/FEDRAMP_VERSION with "[skip ci]" commit message and push to GitHub Enterprise ===="
 cd "${SOURCE_DIRECTORY}"
@@ -85,7 +84,7 @@ docker://${RELEASE_ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
 docker://${FEDRAMP_ARTIFACTORY_REPOSITORY}:latest
 
 echo "Pull the released manifest and replace icr.io image with FedRAMP artifactory image"
-VERSION=${OPERATOR_DOCKER_VERSION} COMBINED_VERSION=${COMBINED_VERSION} ./agent-operator-git-source/ci/scripts/fedramp-manifest-converter.sh
+VERSION=${OPERATOR_DOCKER_VERSION} COMBINED_VERSION=${COMBINED_VERSION} $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/fedramp-manifest-converter.sh
 
 MANIFEST_FILE_FEDRAMP="instana-agent-operator.yaml"
 echo "Verify the size of the instana-agent-operator.yaml before pushing"
