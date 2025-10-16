@@ -72,3 +72,42 @@ tasks:
         when: 'false'
       - name: run-stage
         when: 'false'
+
+  e2e-tests:
+    displayName: run-e2e-tests
+    runtimeClassName: large
+    include:
+      - dind
+    properties:
+      branch: "main"  # Default branch, will be overridden by trigger
+    steps:
+      - name: run-e2e-tests
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export TASK_NAME="e2e-tests"
+          env
+          pwd
+          ls
+
+          # Extract branch from trigger payload
+          if [ -f "${TRIGGER_PAYLOAD_PATH}" ]; then
+            # Extract branch from payload JSON if it exists
+            BRANCH=$(jq -r '.branch // "main"' "${TRIGGER_PAYLOAD_PATH}")
+          else
+            # Default to main if no payload or branch specified
+            BRANCH="main"
+          fi
+          echo "Running E2E tests for branch: $BRANCH"
+
+          # Checkout the specified branch
+          git fetch origin $BRANCH
+          git checkout $BRANCH
+
+          # Run your E2E test script
+          export CLUSTER_ID="gke-latest"
+          export SKIP_INSTALL_GCLOUD="false"
+          export TASK_NAME="e2e-tests"
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
