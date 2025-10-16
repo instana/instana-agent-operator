@@ -43,12 +43,6 @@ resources:
     source:
       url: ((tech-agent-delivery-notifications-slack-hook))
 
-  - name: agent-operator-git-source
-    type: git
-    icon: github
-    source:
-      <<: *instana-operator-git-repo-config
-
   - name: agent-operator-ci-git-source
     type: git
     icon: github
@@ -181,8 +175,7 @@ jobs:
           globs:
             - olm-*.zip
       - get: agent-operator-release-source
-        trigger: true
-      - get: agent-operator-git-source
+      - get: agent-operator-release-source
       - task: verify-latest-release
         config:
           platform: linux
@@ -195,7 +188,7 @@ jobs:
               password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
           inputs:
             - name: instana-agent-operator-release
-            - name: agent-operator-git-source
+            - name: agent-operator-release-source
           run:
             path: /bin/bash
             args:
@@ -262,7 +255,7 @@ jobs:
         on_success:
           do:
             - put: gh-status
-              inputs: [ agent-operator-git-source ]
+              inputs: [ agent-operator-release-source ]
               params: { state: success, context: olm-release-pr-creation/verify-latest-release }
         on_failure:
           do:
@@ -272,7 +265,7 @@ jobs:
                 text: |
                   :information_source: Skipping PR creation as the new version is not semver-greater than the latest release.
             - put: gh-status
-              inputs: [ agent-operator-git-source ]
+              inputs: [ agent-operator-release-source ]
               params: { state: success, context: olm-release-pr-creation/verify-latest-release }
         on_error:
           do:
@@ -282,11 +275,11 @@ jobs:
                 text: |
                   :x: The operator olm-release-pr-creation/verify-latest-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
             - put: gh-status
-              inputs: [ agent-operator-git-source ]
+              inputs: [ agent-operator-release-source ]
               params: { state: error, context: olm-release-pr-creation/verify-latest-release }
         on_abort:
           put: gh-status
-          inputs: [ agent-operator-git-source ]
+          inputs: [ agent-operator-release-source ]
           params: { state: error, context: olm-release-pr-creation/verify-latest-release }
       - in_parallel:
           steps:
@@ -305,7 +298,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
-                      - name: agent-operator-git-source
+                      - name: agent-operator-release-source
                     outputs:
                       - name: community-operators-repo
                     params:
@@ -313,11 +306,11 @@ jobs:
                       REPO: community-operators
                       PUBLIC_REPO_LOCAL_NAME: community-operators-repo
                     run:
-                      path: agent-operator-git-source/ci/scripts/rebase-fork-branches.sh
+                      path: agent-operator-release-source/ci/scripts/rebase-fork-branches.sh
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: success, context: olm-release-pr-creation/community-operators-rebase }
                       - put: community-operators-repo
                         params:
@@ -331,7 +324,7 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: failure, context: olm-release-pr-creation/community-operators-rebase }
                   on_error:
                     do:
@@ -341,11 +334,11 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
                   on_abort:
                     put: gh-status
-                    inputs: [ agent-operator-git-source ]
+                    inputs: [ agent-operator-release-source ]
                     params: { state: error, context: olm-release-pr-creation/community-operators-rebase }
                 - task: community-operators-commit-changes-and-create-pr
                   config:
@@ -360,7 +353,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
-                      - name: agent-operator-git-source
+                      - name: agent-operator-release-source
                     outputs:
                       - name: community-operators-repo
                     params:
@@ -371,11 +364,11 @@ jobs:
                       PUBLIC_REPO_LOCAL_NAME: community-operators-repo
                       OPERATOR_NAME: instana-agent-operator
                     run:
-                      path: agent-operator-git-source/ci/scripts/commit-changes-to-public-repo.sh
+                      path: agent-operator-release-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: success, context: olm-release-pr-creation/community-operators-commit-changes }
                   on_failure:
                     do:
@@ -385,7 +378,7 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: failure, context: olm-release-pr-creation/community-operators-commit-changes }
                   on_error:
                     do:
@@ -395,11 +388,11 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/community-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
                   on_abort:
                     put: gh-status
-                    inputs: [ agent-operator-git-source ]
+                    inputs: [ agent-operator-release-source ]
                     params: { state: error, context: olm-release-pr-creation/community-operators-commit-changes }
             - do:
                 - get: certified-operators-repo
@@ -416,7 +409,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
-                      - name: agent-operator-git-source
+                      - name: agent-operator-release-source
                     outputs:
                       - name: certified-operators-repo
                     params:
@@ -424,11 +417,11 @@ jobs:
                       REPO: certified-operators
                       PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
                     run:
-                      path: agent-operator-git-source/ci/scripts/rebase-fork-branches.sh
+                      path: agent-operator-release-source/ci/scripts/rebase-fork-branches.sh
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: success, context: olm-release-pr-creation/certified-operators-rebase }
                       - put: certified-operators-repo
                         params:
@@ -442,7 +435,7 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: failure, context: olm-release-pr-creation/certified-operators-rebase }
                   on_error:
                     do:
@@ -452,11 +445,11 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
                   on_abort:
                     put: gh-status
-                    inputs: [ agent-operator-git-source ]
+                    inputs: [ agent-operator-release-source ]
                     params: { state: error, context: olm-release-pr-creation/certified-operators-rebase }
                 - task: certified-operators-commit-changes-and-create-pr
                   config:
@@ -471,7 +464,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
-                      - name: agent-operator-git-source
+                      - name: agent-operator-release-source
                     outputs:
                       - name: certified-operators-repo
                     params:
@@ -482,11 +475,11 @@ jobs:
                       PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
                       OPERATOR_NAME: instana-agent-operator
                     run:
-                      path: agent-operator-git-source/ci/scripts/commit-changes-to-public-repo.sh
+                      path: agent-operator-release-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: success, context: olm-release-pr-creation/certified-operators-commit-changes }
                   on_failure:
                     do:
@@ -496,7 +489,7 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: failure, context: olm-release-pr-creation/certified-operators-commit-changes }
                   on_error:
                     do:
@@ -506,11 +499,11 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/certified-operators-commit-changes has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
                   on_abort:
                     put: gh-status
-                    inputs: [ agent-operator-git-source ]
+                    inputs: [ agent-operator-release-source ]
                     params: { state: error, context: olm-release-pr-creation/certified-operators-commit-changes }
             - do:
                 - get: redhat-marketplace-operators-repo
@@ -527,7 +520,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
-                      - name: agent-operator-git-source
+                      - name: agent-operator-release-source
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
@@ -535,11 +528,11 @@ jobs:
                       REPO: redhat-marketplace-operators
                       PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
                     run:
-                      path: agent-operator-git-source/ci/scripts/rebase-fork-branches.sh
+                      path: agent-operator-release-source/ci/scripts/rebase-fork-branches.sh
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
                       - put: redhat-marketplace-operators-repo
                         params:
@@ -553,7 +546,7 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
                   on_error:
                     do:
@@ -563,11 +556,11 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operators-rebase has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
                   on_abort:
                     put: gh-status
-                    inputs: [ agent-operator-git-source ]
+                    inputs: [ agent-operator-release-source ]
                     params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operators-rebase }
                 - task: redhat-marketplace-operator-commit-changes-and-create-pr
                   config:
@@ -582,7 +575,7 @@ jobs:
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
-                      - name: agent-operator-git-source
+                      - name: agent-operator-release-source
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
@@ -593,11 +586,11 @@ jobs:
                       PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
                       OPERATOR_NAME: instana-agent-operator-rhmp
                     run:
-                      path: agent-operator-git-source/ci/scripts/commit-changes-to-public-repo.sh
+                      path: agent-operator-release-source/ci/scripts/commit-changes-to-public-repo.sh
                   on_success:
                     do:
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: success, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_failure:
                     do:
@@ -607,7 +600,7 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: failure, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_error:
                     do:
@@ -617,11 +610,11 @@ jobs:
                           text: |
                             :x: The operator olm-release-pr-creation/redhat-marketplace-operator-commit-changes-and-create-pr has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
                       - put: gh-status
-                        inputs: [ agent-operator-git-source ]
+                        inputs: [ agent-operator-release-source ]
                         params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
                   on_abort:
                     put: gh-status
-                    inputs: [ agent-operator-git-source ]
+                    inputs: [ agent-operator-release-source ]
                     params: { state: error, context: olm-release-pr-creation/redhat-marketplace-operator-commit-changes }
 
   - name: build-e2e-operator-base-image
