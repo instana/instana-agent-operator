@@ -175,7 +175,6 @@ jobs:
           globs:
             - olm-*.zip
       - get: agent-operator-release-source
-      - get: agent-operator-release-source
       - task: verify-latest-release
         config:
           platform: linux
