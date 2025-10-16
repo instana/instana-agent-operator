@@ -1,0 +1,25 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+version: '2'
+
+tasks:
+  simple-execute:
+    displayName: "e2e-test"
+    include:
+      - dind
+    steps:
+    - name: execute
+      include:
+        - docker-socket
+      script: |
+        #!/usr/bin/env bash
+        echo "Hello from e2e"
+        env
+        echo "==== trigger payload ===="
+        cat "${TRIGGER_PAYLOAD_PATH}"
+        echo "==== done ===="
+        echo pwd
+        echo ls -lah
+        TARGET_CLUSTER_TYPE=$(get_env target-cluster-type)
+        echo "Targetting cluster $TARGET_CLUSTER_TYPE"
