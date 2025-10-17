@@ -55,6 +55,7 @@ type InstanaAgentClient interface {
 	DeleteAllInTimeLimit(ctx context.Context, objects []k8sClient.Object, timeout time.Duration, waitTime time.Duration, opts ...k8sClient.DeleteOption) result.Result[[]k8sClient.Object]
 	Get(ctx context.Context, key types.NamespacedName, obj k8sClient.Object, opts ...k8sClient.GetOption) error
 	GetAsResult(ctx context.Context, key k8sClient.ObjectKey, obj k8sClient.Object, opts ...k8sClient.GetOption) result.Result[k8sClient.Object]
+	List(ctx context.Context, list k8sClient.ObjectList, opts ...k8sClient.ListOption) error
 	Status() k8sClient.SubResourceWriter
 	Patch(ctx context.Context, obj k8sClient.Object, patch k8sClient.Patch, opts ...k8sClient.PatchOption) error
 	Delete(ctx context.Context, obj k8sClient.Object, opts ...k8sClient.DeleteOption) error
@@ -98,6 +99,14 @@ func (c *instanaAgentClient) Get(
 	opts ...k8sClient.GetOption,
 ) error {
 	return c.k8sClient.Get(ctx, key, obj, opts...)
+}
+
+func (c *instanaAgentClient) List(
+	ctx context.Context,
+	list k8sClient.ObjectList,
+	opts ...k8sClient.ListOption,
+) error {
+	return c.k8sClient.List(ctx, list, opts...)
 }
 
 func (c *instanaAgentClient) Patch(
