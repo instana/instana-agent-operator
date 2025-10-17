@@ -340,8 +340,10 @@ func CleanupNodeLabels() features.Func {
 				fmt.Sprintf("kubectl get %s --show-labels", nodeName),
 			)
 
-			// Only try to remove the label if it exists
-			if strings.Contains(nodeLabels, "pool=") {
+			// Only try to remove the label if it's one of our test pool labels (pool=pool-01 or pool=pool-02)
+			// This prevents removing built-in labels like cloud.google.com/gke-nodepool=default-pool
+			if strings.Contains(nodeLabels, "pool=pool-01") ||
+				strings.Contains(nodeLabels, "pool=pool-02") {
 				// Use the full node name with prefix for the label command
 				p := utils.RunCommand(fmt.Sprintf("kubectl label %s pool- --overwrite", nodeName))
 				if p.Err() != nil {
@@ -357,10 +359,11 @@ func CleanupNodeLabels() features.Func {
 			}
 		}
 
-		// Verify all labels were removed
+		// Verify our specific test pool labels were removed
 		allNodeLabels := utils.FetchCommandOutput("kubectl get nodes --show-labels")
-		if strings.Contains(allNodeLabels, "pool=") {
-			t.Logf("Warning: Some nodes still have pool labels after cleanup")
+		if strings.Contains(allNodeLabels, "pool=pool-01") ||
+			strings.Contains(allNodeLabels, "pool=pool-02") {
+			t.Logf("Warning: Some nodes still have our test pool labels after cleanup")
 		} else if labelsRemoved > 0 {
 			t.Logf("Removed pool labels from %d nodes", labelsRemoved)
 		}
@@ -381,10 +384,11 @@ func TestMultiZones(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Verify all nodes have no pool labels
+			// Verify all nodes have no test-specific pool labels
 			nodeLabels := utils.FetchCommandOutput("kubectl get nodes --show-labels")
-			if strings.Contains(nodeLabels, "pool=") {
-				t.Fatal("Found nodes with pool labels before test start - cleanup failed")
+			if strings.Contains(nodeLabels, "pool=pool-01") ||
+				strings.Contains(nodeLabels, "pool=pool-02") {
+				t.Fatal("Found nodes with our test pool labels before test start - cleanup failed")
 			}
 
 			// 2. Create the multizone CR
