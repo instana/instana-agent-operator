@@ -18,11 +18,9 @@ package e2e
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
-
-	"bytes"
-	"fmt"
 
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
@@ -94,7 +92,7 @@ func SetupInstanaAgentCR() types.StepFunc {
 			ctx,
 			r,
 			"../config/samples",
-			"instana_v1_agent.yaml",
+			"instana_v1_instanaagent.yaml",
 			[]resources.CreateOption{},
 		)
 		if err != nil {
@@ -177,33 +175,80 @@ func ValidateETCDCAMounted() features.Func {
 			t.Fatal("Error while getting k8sensor pods:", err)
 		}
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
+		pod := pods.Items[0]
 		containerName := "instana-agent"
 
-		// Check if the CA certificate file exists and validate its content
-		if err := r.ExecInPod(
-			ctx,
-			cfg.Namespace(),
-			podName,
-			containerName,
-			[]string{"cat", expectedCAAbsolutePath},
-			&stdout,
-			&stderr,
-		); err != nil {
-			t.Log(stderr.String())
-			t.Fatal("Failed to execute command in pod:", err)
+		var k8sensorContainer *corev1.Container
+		for i := range pod.Spec.Containers {
+			if pod.Spec.Containers[i].Name == containerName {
+				k8sensorContainer = &pod.Spec.Containers[i]
+				break
+			}
+		}
+		if k8sensorContainer == nil {
+			t.Fatalf("Container %s not found in pod %s", containerName, pod.Name)
 		}
 
-		output := stdout.String()
-		if strings.TrimSpace(output) != strings.TrimSpace(testCACertificateContent) {
+		expectedMountPath := filepath.Dir(expectedCAAbsolutePath)
+		var mount *corev1.VolumeMount
+		for i := range k8sensorContainer.VolumeMounts {
+			if k8sensorContainer.VolumeMounts[i].MountPath == expectedMountPath {
+				mount = &k8sensorContainer.VolumeMounts[i]
+				break
+			}
+		}
+		if mount == nil {
+			t.Fatalf(
+				"Volume mount with path %s not found on container %s",
+				expectedMountPath,
+				containerName,
+			)
+		}
+
+		var volume *corev1.Volume
+		for i := range pod.Spec.Volumes {
+			if pod.Spec.Volumes[i].Name == mount.Name {
+				volume = &pod.Spec.Volumes[i]
+				break
+			}
+		}
+		if volume == nil {
+			t.Fatalf(
+				"Volume %s referenced by mount %s not found on pod %s",
+				mount.Name,
+				expectedMountPath,
+				pod.Name,
+			)
+		}
+		if volume.Secret == nil {
+			t.Fatalf("Volume %s is not backed by a secret", mount.Name)
+		}
+		if volume.Secret.SecretName != "etcd-ca-cert" {
 			t.Errorf(
-				"CA certificate content does not match expected.\nExpected:\n%s\nActual:\n%s",
-				testCACertificateContent,
-				output,
+				"Volume %s references secret %s, expected etcd-ca-cert",
+				mount.Name,
+				volume.Secret.SecretName,
 			)
 		} else {
-			t.Logf("CA certificate content matches expected at path: %s", expectedCAAbsolutePath)
+			t.Logf("Volume %s correctly references secret etcd-ca-cert", mount.Name)
+		}
+
+		caSecret := &corev1.Secret{}
+		if err := r.Get(ctx, "etcd-ca-cert", cfg.Namespace(), caSecret); err != nil {
+			t.Fatal("Failed to fetch CA secret:", err)
+		}
+		secretContent, ok := caSecret.Data["ca.crt"]
+		if !ok {
+			t.Fatal("CA secret does not contain ca.crt key")
+		}
+		if strings.TrimSpace(string(secretContent)) != strings.TrimSpace(testCACertificateContent) {
+			t.Errorf(
+				"CA secret content does not match expected.\nExpected:\n%s\nActual:\n%s",
+				testCACertificateContent,
+				string(secretContent),
+			)
+		} else {
+			t.Logf("CA secret content matches expected value")
 		}
 
 		return ctx
@@ -228,57 +273,50 @@ func ValidateETCDEnvironmentVariables() features.Func {
 			t.Fatal("Error while getting k8sensor pods:", err)
 		}
 
-		var stdout, stderr bytes.Buffer
-		podName := pods.Items[0].Name
+		pod := pods.Items[0]
 		containerName := "instana-agent"
 
-		// Test cases for environment variables
-		envVarTests := []struct {
-			name     string
-			expected string
-		}{
-			{
-				name:     "ETCD_CA_FILE",
-				expected: expectedCAAbsolutePath,
-			},
-			{
-				name:     "ETCD_INSECURE",
-				expected: "false",
-			},
-			{
-				name:     "CONTROL_PLANE_CA_FILE",
-				expected: "/etc/ssl/control-plane/ca.crt",
-			},
-			{
-				name:     "REST_CLIENT_HOST_ALLOWLIST",
-				expected: "kubernetes.default.svc",
-			},
+		var k8sensorContainer *corev1.Container
+		for i := range pod.Spec.Containers {
+			if pod.Spec.Containers[i].Name == containerName {
+				k8sensorContainer = &pod.Spec.Containers[i]
+				break
+			}
+		}
+		if k8sensorContainer == nil {
+			t.Fatalf("Container %s not found in pod %s", containerName, pod.Name)
 		}
 
-		for _, test := range envVarTests {
-			stdout.Reset()
-			stderr.Reset()
+		expectedEnvs := map[string]string{
+			"ETCD_CA_FILE":               expectedCAAbsolutePath,
+			"ETCD_INSECURE":              "false",
+			"CONTROL_PLANE_CA_FILE":      "/etc/ssl/control-plane/ca.crt",
+			"REST_CLIENT_HOST_ALLOWLIST": "kubernetes.default.svc",
+		}
 
-			// Execute command to print environment variable
-			if err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				podName,
-				containerName,
-				[]string{"sh", "-c", fmt.Sprintf("echo $%s", test.name)},
-				&stdout,
-				&stderr,
-			); err != nil {
-				t.Log(stderr.String())
-				t.Fatal("Failed to execute command in pod:", err)
+		found := make(map[string]bool, len(expectedEnvs))
+		for _, envVar := range k8sensorContainer.Env {
+			if expectedValue, ok := expectedEnvs[envVar.Name]; ok {
+				if envVar.Value == expectedValue {
+					t.Logf(
+						"Environment variable %s has expected value: %s",
+						envVar.Name,
+						envVar.Value,
+					)
+				} else {
+					t.Errorf(
+						"Environment variable %s has unexpected value. Expected: %s, Got: %s",
+						envVar.Name,
+						expectedValue,
+						envVar.Value,
+					)
+				}
+				found[envVar.Name] = true
 			}
-
-			output := strings.TrimSpace(stdout.String())
-			if output == test.expected {
-				t.Logf("Environment variable %s has expected value: %s", test.name, output)
-			} else {
-				t.Errorf("Environment variable %s has unexpected value. Expected: %s, Got: %s",
-					test.name, test.expected, output)
+		}
+		for name := range expectedEnvs {
+			if !found[name] {
+				t.Errorf("Environment variable %s not found on container %s", name, containerName)
 			}
 		}
 
