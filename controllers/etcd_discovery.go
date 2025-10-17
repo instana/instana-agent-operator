@@ -299,6 +299,10 @@ func buildTargetsFromEndpointSlice(
 
 	// Add targets for each ready endpoint
 	for _, endpoint := range endpointSlice.Endpoints {
+		// Skip if Ready is explicitly set to false
+		// We don't need to check if endpoint.Conditions is nil (it can't be nil since it's a struct value),
+		// but we should handle the case where endpoint.Conditions.Ready is nil, which according to the
+		// documentation should be interpreted as "true"
 		if endpoint.Conditions.Ready != nil && !*endpoint.Conditions.Ready {
 			continue
 		}
