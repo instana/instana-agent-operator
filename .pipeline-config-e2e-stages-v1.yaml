@@ -1,25 +1,31 @@
 #
 # (c) Copyright IBM Corp. 2025
 #
+version: '1'
+
 e2e-gke-latest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
     Hello from e2e-gke-latest!
     env
 
 e2e-gke-lowest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
     Hello from e2e-gke-lowest!
     env
 
 e2e-ocp-latest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
     Hello from e2e-ocp-latest!
     env
 
 e2e-ocp-lowest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
     Hello from e2e-gke-lowest!
