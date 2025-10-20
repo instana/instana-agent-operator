@@ -3,16 +3,6 @@
 #
 version: '2'
 
-stages:
-  e2e-gke-latest:
-    task: e2e-gke-latest
-  e2e-gke-lowest:
-    task: e2e-gke-lowest
-  e2e-ocp-latest:
-    task: e2e-ocp-latest
-  e2e-ocp-lowest:
-    task: e2e-ocp-lowest
-
 tasks:
   simple-execute:
     displayName: "e2e-test"
@@ -31,10 +21,11 @@ tasks:
         echo "==== done ===="
         echo pwd
         echo ls -lah
-        TARGET_CLUSTER_TYPE=$(get_env target-cluster-type)
-        echo "Targetting cluster $TARGET_CLUSTER_TYPE"
-        set_env demo myvalue
-        export_env TARGET_CLUSTER_TYPE
+        RUN_GKE_LATEST=$(get_env run-gke-latest)
+        echo "run-gke-latest: $RUN_GKE_LATEST"
+        set_env pipeline-config ".pipeline-config-e2e-stages-v1.yaml"
+        export_env RUN_GKE_LATEST
+        # TODO: add conditional triggering
 
         trigger-task e2e-gke-latest
         trigger-task e2e-gke-lowest
