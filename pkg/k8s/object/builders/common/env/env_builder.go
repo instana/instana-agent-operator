@@ -70,6 +70,7 @@ const (
 	ETCDTargetsEnv
 	ControlPlaneCAFileEnv
 	RestClientHostAllowlistEnv
+	K8sSensorLogLevel
 )
 
 type EnvBuilder interface {
@@ -122,7 +123,7 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
 		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
-		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort:
+		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort, K8sSensorLogLevel:
 		return false
 	default:
 		return false
@@ -278,6 +279,11 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return e.controlPlaneCAFileEnv()
 	case RestClientHostAllowlistEnv:
 		return e.restClientHostAllowlistEnv()
+	case K8sSensorLogLevel:
+		return &corev1.EnvVar{
+			Name:  "K8S_LOG_LEVEL",
+			Value: optional.Of(e.agent.Spec.K8sSensor.LogLevel).GetOrDefault("info"),
+		}
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}

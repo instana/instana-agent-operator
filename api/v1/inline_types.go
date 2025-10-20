@@ -393,6 +393,10 @@ type K8sSpec struct {
 	// REST client configuration
 	// +kubebuilder:validation:Optional
 	RestClient RestClientSpec `json:"restClient,omitempty"`
+
+	// K8s sensor log level
+	// +kubebuilder:validation:Optional
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 type KubernetesPodSpec struct {

@@ -77,12 +77,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
-		// Add new env vars
 		env.ETCDCAFileEnv,
 		env.ETCDInsecureEnv,
 		env.ETCDTargetsEnv,
 		env.ControlPlaneCAFileEnv,
 		env.RestClientHostAllowlistEnv,
+		env.K8sSensorLogLevel,
 	)
 
 	// Add OpenShift-specific environment variables
