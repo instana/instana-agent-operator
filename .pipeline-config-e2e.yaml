@@ -23,3 +23,58 @@ tasks:
         echo ls -lah
         TARGET_CLUSTER_TYPE=$(get_env target-cluster-type)
         echo "Targetting cluster $TARGET_CLUSTER_TYPE"
+        set_env demo myvalue
+        export_env TARGET_CLUSTER_TYPE
+
+        trigger-task e2e-gke-latest
+        trigger-task e2e-gke-lowest
+        trigger-task e2e-ocp-latest
+        trigger-task e2e-ocp-lowest
+
+  e2e-gke-latest:
+    displayName: "e2e-gke-latest"
+    include:
+      - dind
+    steps:
+    - name: execute
+      include:
+        - docker-socket
+      script: |
+        #!/usr/bin/env bash
+        echo "Hello from e2e-gke-latest!"
+
+  e2e-gke-lowest:
+    displayName: "e2e-gke-lowest"
+    include:
+      - dind
+    steps:
+    - name: execute
+      include:
+        - docker-socket
+      script: |
+        #!/usr/bin/env bash
+        echo "Hello from e2e-gke-lowest!"
+
+  e2e-ocp-latest:
+    displayName: "e2e-gke-latest"
+    include:
+      - dind
+    steps:
+    - name: execute
+      include:
+        - docker-socket
+      script: |
+        #!/usr/bin/env bash
+        echo "Hello from e2e-ocp-latest!"
+
+  e2e-ocp-lowest:
+    displayName: "e2e-gke-lowest"
+    include:
+      - dind
+    steps:
+    - name: execute
+      include:
+        - docker-socket
+      script: |
+        #!/usr/bin/env bash
+        echo "Hello from e2e-ocp-lowest!"
