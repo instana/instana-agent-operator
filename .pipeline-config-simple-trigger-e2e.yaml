@@ -14,10 +14,13 @@ tasks:
         - docker-socket
       script: |
         #!/usr/bin/env bash
-        echo "Hello from e2e"
+        echo "Building images for e2e"
+        export TASK_NAME="simple-execute"
+        export SKIP_INSTALL_GCLOUD="true"
+        source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
+        source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
 
         "Triggering async e2e tasks"
-        # source "${ONE_PIPELINE_PATH}"/tools/trigger-task
 
         RUN_GKE_LATEST=$(get_env run-gke-latest)
         echo "run-gke-latest: $RUN_GKE_LATEST"
@@ -26,33 +29,39 @@ tasks:
 
         trigger-task e2e-gke-latest
         trigger-task e2e-gke-lowest
-        trigger-task e2e-ocp-latest
-        trigger-task e2e-ocp-lowest
+        trigger-task e2e-ocp-fyre-latest
+        trigger-task e2e-ocp-fyre-lowest
 
 e2e-gke-latest:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
-    Hello from e2e-gke-latest!
-    env
+    export CLUSTER_ID="gke-latest"
+    export SKIP_INSTALL_GCLOUD="false"
+    export TASK_NAME="e2e-gke-latest"
+    source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
 
 e2e-gke-lowest:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
-    Hello from e2e-gke-lowest!
-    env
+    export CLUSTER_ID="gke-lowest"
+    export SKIP_INSTALL_GCLOUD="false"
+    export TASK_NAME="e2e-gke-lowest"
+    source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
 
-e2e-ocp-latest:
+e2e-ocp-fyre-latest:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
-    Hello from e2e-ocp-latest!
-    env
+    export CLUSTER_ID="ocp-fyre-latest"
+    export TASK_NAME="e2e-ocp-fyre-latest"
+    source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
 
-e2e-ocp-lowest:
+e2e-ocp-fyre-lowest:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
-    Hello from e2e-ocp-lowest!
-    env
+    export CLUSTER_ID="ocp-fyre-lowest"
+    export TASK_NAME="e2e-ocp-fyre-lowest"
+    source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
