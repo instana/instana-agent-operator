@@ -21,6 +21,9 @@ tasks:
         echo "==== done ===="
         echo pwd
         echo ls -lah
+
+        source "${ONE_PIPELINE_PATH}"/tools/trigger-task
+
         RUN_GKE_LATEST=$(get_env run-gke-latest)
         echo "run-gke-latest: $RUN_GKE_LATEST"
         set_env pipeline-config ".pipeline-config-e2e-stages-v1.yaml"
@@ -28,8 +31,8 @@ tasks:
         export_env RUN_GKE_LATEST
         # TODO: add conditional triggering
 
-        trigger-task my-custom-task
+        trigger-task "my-custom-task"
         trigger-task e2e-gke-latest
-        trigger-task e2e-gke-lowest
-        trigger-task e2e-ocp-latest
-        trigger-task e2e-ocp-lowest
+        # trigger-task e2e-gke-lowest
+        # trigger-task e2e-ocp-latest
+        # trigger-task e2e-ocp-lowest

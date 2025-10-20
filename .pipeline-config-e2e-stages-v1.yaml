@@ -1,16 +1,6 @@
 #
 # (c) Copyright IBM Corp. 2025
 #
-setup:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-image:2.12@sha256:ff4053b0bca784d6d105fee1d008cfb20db206011453071e86b69ca3fde706a4
-  script: |
-    #!/usr/bin/env bash
-
-    source "${ONE_PIPELINE_PATH}"/tools/trigger-task
-    set_env "variable-for-my-custom-task" "foo_bar"
-    export_env "variable-for-my-custom-task"
-    trigger-task "my-custom-task"
-
 my-custom-task:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-image:2.12@sha256:ff4053b0bca784d6d105fee1d008cfb20db206011453071e86b69ca3fde706a4
   script: |
@@ -24,7 +14,7 @@ my-custom-task:
     list_repos
     list_artifacts
     get_env "variable-for-my-custom-task"
-    
+
 e2e-gke-latest:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   dind: true
