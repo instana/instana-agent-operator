@@ -15,38 +15,44 @@ tasks:
       script: |
         #!/usr/bin/env bash
         echo "Hello from e2e"
-        env
-        echo "==== trigger payload ===="
-        cat "${TRIGGER_PAYLOAD_PATH}"
-        echo "==== done ===="
-        echo pwd
-        echo ls -lah
 
-        source "${ONE_PIPELINE_PATH}"/tools/trigger-task
+        "Triggering async e2e tasks"
+        # source "${ONE_PIPELINE_PATH}"/tools/trigger-task
 
         RUN_GKE_LATEST=$(get_env run-gke-latest)
         echo "run-gke-latest: $RUN_GKE_LATEST"
-        set_env pipeline-config ".pipeline-config-e2e-stages-v1.yaml"
-        export_env pipeline-config
         export_env RUN_GKE_LATEST
         # TODO: add conditional triggering
 
-        trigger-task "my-custom-task"
         trigger-task e2e-gke-latest
-        # trigger-task e2e-gke-lowest
-        # trigger-task e2e-ocp-latest
-        # trigger-task e2e-ocp-lowest
+        trigger-task e2e-gke-lowest
+        trigger-task e2e-ocp-latest
+        trigger-task e2e-ocp-lowest
 
-my-custom-task:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-image:2.12@sha256:ff4053b0bca784d6d105fee1d008cfb20db206011453071e86b69ca3fde706a4
+e2e-gke-latest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
   script: |
     #!/usr/bin/env bash
-    if [[ "$PIPELINE_DEBUG" == 1 ]]; then
-      trap env EXIT
-      env
-      set -x
-    fi
-    printf "Test custom stage to trigger async"
-    list_repos
-    list_artifacts
-    get_env "variable-for-my-custom-task"
+    Hello from e2e-gke-latest!
+    env
+
+e2e-gke-lowest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  script: |
+    #!/usr/bin/env bash
+    Hello from e2e-gke-lowest!
+    env
+
+e2e-ocp-latest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  script: |
+    #!/usr/bin/env bash
+    Hello from e2e-ocp-latest!
+    env
+
+e2e-ocp-lowest:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+  script: |
+    #!/usr/bin/env bash
+    Hello from e2e-ocp-lowest!
+    env
