@@ -21,6 +21,12 @@ RED_HAT_REGISTRY="quay.io/redhat-isv-containers/${RED_HAT_PROJECT_ID}"
 skopeo login -u ${RED_HAT_REGISTRY_USERNAME} -p ${RED_HAT_REGISTRY_PASSWORD} --authfile $(pwd)/auth.json quay.io
 DOCKER_CFG_FILE="$(pwd)/auth.json"
 
+# Download preflight tool if it doesn't exist
+if [ ! -f "preflight-linux-amd64" ]; then
+  echo "Downloading preflight tool..."
+  PREFLIGHT_VERSION="1.14.1"
+  curl -L -o preflight-linux-amd64 "https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${PREFLIGHT_VERSION}/preflight-linux-amd64"
+fi
 
 chmod +x preflight-linux-amd64
 

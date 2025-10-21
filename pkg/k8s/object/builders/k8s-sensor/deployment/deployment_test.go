@@ -285,6 +285,8 @@ func createTestDeploymentBuilder(t *testing.T, agent *instanav1.InstanaAgent) *d
 		PodSelectorLabelGenerator: mockPodSelectorLabelGenerator,
 		backend:                   backend,
 		keysSecret:                nil,
+		deploymentContext:         nil,
+		isOpenShift:               false,
 	}
 }
 
@@ -882,7 +884,7 @@ func TestNewDeploymentBuilder(t *testing.T) {
 	}
 
 	// Act
-	builder := NewDeploymentBuilder(agent, false, mockStatusManager, backend, secret)
+	builder := NewDeploymentBuilder(agent, false, mockStatusManager, backend, secret, nil)
 
 	// Assert
 	assert.NotNil(t, builder, "NewDeploymentBuilder should return a non-nil builder")
@@ -980,7 +982,7 @@ func TestGetEnvVarsWithMultipleBackends(t *testing.T) {
 	envVars := builder.getEnvVars()
 
 	// Assert
-	agentKeyEnv := findEnvVar(envVars, "AGENT_KEY")
+	agentKeyEnv := getEnvVar(envVars, "AGENT_KEY")
 	assert.NotNil(t, agentKeyEnv, "AGENT_KEY environment variable should be present")
 
 	// The key should be from a secret reference, not a hardcoded value
@@ -992,8 +994,8 @@ func TestGetEnvVarsWithMultipleBackends(t *testing.T) {
 		"Secret key should include the backend suffix")
 }
 
-// Helper function to find an environment variable by name
-func findEnvVar(envVars []corev1.EnvVar, name string) *corev1.EnvVar {
+// Helper function to get an environment variable by name for detailed inspection
+func getEnvVar(envVars []corev1.EnvVar, name string) *corev1.EnvVar {
 	for _, env := range envVars {
 		if env.Name == name {
 			return &env

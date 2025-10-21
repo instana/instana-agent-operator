@@ -186,6 +186,8 @@ rules:
   resources:
   - clusterrolebindings
   - clusterroles
+  - rolebindings
+  - roles
   verbs:
   - bind
   - create
@@ -211,3 +213,19 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: instana-agent-clusterrole
+  namespace: kube-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  - services
+  verbs:
+  - get
+  - list
+  - watch

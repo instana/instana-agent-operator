@@ -9,6 +9,7 @@ set -e
 set -o pipefail
 
 abort_if_pr_for_latest_version_exists() {
+    set +e
     echo "Check if a PR is already open"
     pr_list_json=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
     existing_pr_info_json=$(echo "$pr_list_json" | jq ".[] | select(.title == (\"$commit_message\"))")
@@ -17,6 +18,7 @@ abort_if_pr_for_latest_version_exists() {
         exit 0
     fi
     echo "PR does not exist"
+    set -e
 }
 
 pushd instana-agent-operator-release

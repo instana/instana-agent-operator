@@ -1,11 +1,9 @@
-if [[ -f "agent-operator-image-manifest-sha/digest" ]]; then
-export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "agent-operator-image-manifest-sha/digest")
-echo "Found SHA for latest Operator Manifest: ${OPERATOR_IMAGE_MANIFEST_SHA}"
-else
-echo "No SHA found for latest Operator Manifest. Might be pre-release version"
-ls -la agent-operator-image-manifest-sha/
-exit 1
-fi
+#!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
+set -euo pipefail
+export OPERATOR_IMAGE_MANIFEST_SHA=main
 
 # Create a place to store our output for packaging up
 mkdir -p target
@@ -29,15 +27,14 @@ fi
 
 if [[ "x${OPERATOR_IMAGE_MANIFEST_SHA}" = "x" ]]; then
 echo "No Operator manifest SHA found, using version ${OLM_RELEASE_VERSION} for Operator image"
-export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}"
+export OPERATOR_IMAGE="icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}"
 else
-echo "Operator manifest SHA found, using digest ${OPERATOR_IMAGE_MANIFEST_SHA} for Operator image"
-export OPERATOR_IMAGE=" icr.io/instana/instana-agent-operator@${OPERATOR_IMAGE_MANIFEST_SHA}"
+echo "Operator manifest SHA found, using tag ${OPERATOR_IMAGE_MANIFEST_SHA} for Operator image"
+export OPERATOR_IMAGE="icr.io/instana/instana-agent-operator:${OPERATOR_IMAGE_MANIFEST_SHA}"
 fi
 
 # check that the operator image is really present before creating a release
-OPERATOR_IMAGE_TRIMMED=$(echo "$OPERATOR_IMAGE" | xargs)
-skopeo inspect docker://${OPERATOR_IMAGE_TRIMMED}
+skopeo inspect docker://${OPERATOR_IMAGE}
 # Create bundle for public operator with image:  icr.io/instana/instana-agent-operator:<version>
 make IMG="${OPERATOR_IMAGE}" \
 VERSION="${OLM_RELEASE_VERSION}" \
@@ -50,7 +47,7 @@ zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
 popd
 
 # Create the YAML for installing the Agent Operator, which we want to package with the release
-make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+make --silent IMG="icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
 
 echo "delivery.instana.io/rel-docker-agent-local/instana-agent-operator:${OLM_RELEASE_VERSION}" > target/images.txt
 echo "icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" >> target/images.txt
