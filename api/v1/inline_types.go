@@ -339,6 +339,44 @@ type KubernetesSpec struct {
 	DeploymentSpec KubernetesDeploymentSpec `json:"deployment,omitempty"`
 }
 
+type ETCDSpec struct {
+	// Whether to use insecure connection to ETCD (default: false)
+	// +kubebuilder:validation:Optional
+	Insecure *bool `json:"insecure,omitempty"`
+
+	// CA configuration for ETCD
+	// +kubebuilder:validation:Optional
+	CA CASpec `json:"ca,omitempty"`
+
+	// Optional ETCD targets for vanilla clusters
+	// +kubebuilder:validation:Optional
+	Targets []string `json:"targets,omitempty"`
+}
+
+type CASpec struct {
+	// Path where the CA should be mounted
+	// +kubebuilder:validation:Optional
+	MountPath string `json:"mountPath,omitempty"`
+
+	// Kubernetes Secret name containing the CA certificate
+	// +kubebuilder:validation:Optional
+	SecretName string `json:"secretName,omitempty"`
+
+	// Name of the file containing the CA Certificate (key in the Kubernetes Secret)
+	// +kubebuilder:validation:Optional
+	Filename string `json:"filename,omitempty"`
+}
+
+type RestClientSpec struct {
+	// List of hosts allowed for REST client connections
+	// +kubebuilder:validation:Optional
+	HostAllowlist []string `json:"hostAllowlist,omitempty"`
+
+	// CA configuration for control plane
+	// +kubebuilder:validation:Optional
+	CA CASpec `json:"ca,omitempty"`
+}
+
 type K8sSpec struct {
 	// +kubebuilder:validation:Optional
 	DeploymentSpec KubernetesDeploymentSpec `json:"deployment,omitempty"`
@@ -347,6 +385,14 @@ type K8sSpec struct {
 	// Toggles the PDB for the K8s Sensor
 	// +kubebuilder:validation:Optional
 	PodDisruptionBudget Enabled `json:"podDisruptionBudget,omitempty"`
+
+	// ETCD configuration for secure scraping
+	// +kubebuilder:validation:Optional
+	ETCD ETCDSpec `json:"etcd,omitempty"`
+
+	// REST client configuration
+	// +kubebuilder:validation:Optional
+	RestClient RestClientSpec `json:"restClient,omitempty"`
 }
 
 type KubernetesPodSpec struct {

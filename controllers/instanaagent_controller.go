@@ -189,6 +189,7 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets;configmaps;services;serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete;bind
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete;bind
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/finalizers,verbs=update
@@ -198,6 +199,7 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:urls=/version;/healthz;/metrics;/metrics/*;/metrics/cadvisor;/stats/summary,verbs=get
 // +kubebuilder:rbac:groups=extensions,resources=deployments;replicasets;ingresses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps;events;services;endpoints;namespaces;nodes;pods;pods/log;replicationcontrollers;resourcequotas;persistentvolumes;persistentvolumeclaims;nodes/metrics;nodes/stats;nodes/proxy,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services;endpoints,verbs=get;list;watch,namespace=kube-system
 // +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments;replicasets;statefulsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
