@@ -7,6 +7,7 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +31,12 @@ import (
 
 const componentName = constants.ComponentK8Sensor
 
+// DeploymentContext holds additional context for the deployment
+type DeploymentContext struct {
+	DiscoveredETCDTargets []string
+	ETCDCASecretName      string
+}
+
 type deploymentBuilder struct {
 	*instanav1.InstanaAgent
 	statusManager status.AgentStatusManager
@@ -39,8 +46,10 @@ type deploymentBuilder struct {
 	env.EnvBuilder
 	volume.VolumeBuilder
 	ports.PortsBuilder
-	backend    backends.K8SensorBackend
-	keysSecret *corev1.Secret
+	backend           backends.K8SensorBackend
+	keysSecret        *corev1.Secret
+	deploymentContext *DeploymentContext
+	isOpenShift       bool
 }
 
 func (d *deploymentBuilder) IsNamespaced() bool {
@@ -68,8 +77,54 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
+		// Add new env vars
+		env.ETCDCAFileEnv,
+		env.ETCDInsecureEnv,
+		env.ETCDTargetsEnv,
+		env.ControlPlaneCAFileEnv,
+		env.RestClientHostAllowlistEnv,
 	)
 
+	// Add OpenShift-specific environment variables
+	if d.isOpenShift {
+		envVars = append(envVars, []corev1.EnvVar{
+			{
+				Name:  constants.EnvETCDMetricsURL,
+				Value: constants.GetETCDOCPMetricsURL(),
+			},
+			{
+				Name:  constants.EnvETCDRequestTimeout,
+				Value: "15s",
+			},
+		}...)
+
+		// Add CA file env var if CA ConfigMap is available
+		if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  constants.EnvETCDCAFile,
+				Value: constants.ServiceCAMountPath + "/" + constants.ServiceCAKey,
+			})
+		}
+	} else {
+		// Add discovered ETCD targets for vanilla Kubernetes
+		if d.deploymentContext != nil && len(d.deploymentContext.DiscoveredETCDTargets) > 0 {
+			// Only add if not already specified in the CR
+			if len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
+				envVars = append(envVars, corev1.EnvVar{
+					Name:  constants.EnvETCDTargets,
+					Value: strings.Join(d.deploymentContext.DiscoveredETCDTargets, ","),
+				})
+
+				// Add CA file env var if CA secret is available
+				if d.deploymentContext.ETCDCASecretName != "" {
+					envVars = append(envVars, corev1.EnvVar{
+						Name:  constants.EnvETCDCAFile,
+						Value: constants.ETCDCAMountPath + "/ca.crt",
+					})
+				}
+			}
+		}
+	}
 	backendEnvVars := []corev1.EnvVar{
 		{
 			Name: "BACKEND",
@@ -97,10 +152,45 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 }
 
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
-	if d.Spec.UseSecretMounts != nil && *d.Spec.UseSecretMounts {
-		return d.VolumeBuilder.Build(volume.ConfigVolume, volume.K8SensorSecretsVolume)
+	volumesToBuild := []volume.Volume{
+		volume.ConfigVolume,
+		// Add new volumes
+		volume.ETCDCAVolume,
+		volume.ControlPlaneCAVolume,
 	}
-	return d.VolumeBuilder.Build(volume.ConfigVolume)
+
+	// Add secrets volume if secret mounts are enabled (default behavior)
+	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
+		volumesToBuild = append(volumesToBuild, volume.K8SensorSecretsVolume)
+	}
+
+	volumes, mounts := d.VolumeBuilder.Build(volumesToBuild...)
+
+	// Add CA cert if available from discovery
+	if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" && len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
+		volumes = append(volumes, corev1.Volume{
+			Name: "etcd-ca",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{ // pragma: allowlist secret
+					SecretName: d.deploymentContext.ETCDCASecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "ca.crt",
+							Path: "ca.crt",
+						},
+					},
+				},
+			},
+		})
+
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "etcd-ca",
+			MountPath: "/var/run/secrets/etcd",
+			ReadOnly:  true,
+		})
+	}
+
+	return volumes, mounts
 }
 
 // getAgentKeyEnvVar returns an environment variable for the AGENT_KEY that references the key from a secret
@@ -257,6 +347,7 @@ func NewDeploymentBuilder(
 	statusManager status.AgentStatusManager,
 	backend backends.K8SensorBackend,
 	keysSecret *corev1.Secret,
+	deploymentContext *DeploymentContext,
 ) builder.ObjectBuilder {
 	return &deploymentBuilder{
 		InstanaAgent:              agent,
@@ -266,9 +357,11 @@ func NewDeploymentBuilder(
 		EnvBuilder:                env.NewEnvBuilder(agent, nil),
 		VolumeBuilder: volume.NewVolumeBuilder(agent, isOpenShift).
 			WithBackendResourceSuffix(backend.ResourceSuffix),
-		PortsBuilder: ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
-		backend:      backend,
-		keysSecret:   keysSecret,
+		PortsBuilder:      ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
+		backend:           backend,
+		keysSecret:        keysSecret,
+		deploymentContext: deploymentContext,
+		isOpenShift:       isOpenShift,
 	}
 }
 

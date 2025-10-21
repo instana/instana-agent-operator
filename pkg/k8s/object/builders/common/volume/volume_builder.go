@@ -35,6 +35,8 @@ const (
 	NamespacesDetailsVolume
 	SecretsVolume
 	K8SensorSecretsVolume
+	ETCDCAVolume
+	ControlPlaneCAVolume
 )
 
 type VolumeBuilder interface {
@@ -46,15 +48,15 @@ type VolumeBuilder interface {
 type volumeBuilder struct {
 	instanaAgent          *instanav1.InstanaAgent
 	helpers               helpers.Helpers
-	isNotOpenShift        bool
+	isOpenShift           bool
 	backendResourceSuffix string
 }
 
 func NewVolumeBuilder(agent *instanav1.InstanaAgent, isOpenShift bool) VolumeBuilder {
 	return &volumeBuilder{
-		instanaAgent:   agent,
-		helpers:        helpers.NewHelpers(agent),
-		isNotOpenShift: !isOpenShift,
+		instanaAgent: agent,
+		helpers:      helpers.NewHelpers(agent),
+		isOpenShift:  isOpenShift,
 	}
 }
 
@@ -95,7 +97,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.hostVolumeWithMount("var-run", "/var/run", &mountPropagationHostToContainer, nil)
 	case VarRunKuboVolume:
 		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
+			!v.isOpenShift,
 			"var-run-kubo",
 			"/var/vcap/sys/run/docker",
 			&mountPropagationHostToContainer,
@@ -103,7 +105,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		)
 	case VarRunContainerdVolume:
 		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
+			!v.isOpenShift,
 			"var-run-containerd",
 			"/var/vcap/sys/run/containerd",
 			&mountPropagationHostToContainer,
@@ -111,7 +113,7 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		)
 	case VarContainerdConfigVolume:
 		return v.hostVolumeWithMountLiteralWhenCondition(
-			v.isNotOpenShift,
+			!v.isOpenShift,
 			"var-containerd-config",
 			"/var/vcap/jobs/containerd/config",
 			&mountPropagationHostToContainer,
@@ -144,6 +146,10 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.secretsVolume()
 	case K8SensorSecretsVolume:
 		return v.k8sensorSecretsVolume()
+	case ETCDCAVolume:
+		return v.etcdCAVolume()
+	case ControlPlaneCAVolume:
+		return v.controlPlaneCAVolume()
 	default:
 		panic(errors.New("unknown volume requested"))
 	}
@@ -366,5 +372,101 @@ func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
 		ReadOnly:  true,
 	}
 
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	if v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName == "" {
+		// For OpenShift, use the service-ca.crt from ConfigMap
+		if v.isOpenShift {
+			volumeName := constants.ETCDCASecretName
+			volume := corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: constants.ServiceCAConfigMapName,
+						},
+						Items: []corev1.KeyToPath{
+							{
+								Key:  constants.ServiceCAKey,
+								Path: constants.ServiceCAKey,
+							},
+						},
+						DefaultMode: pointer.To[int32](0440),
+					},
+				},
+			}
+			volumeMount := corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: constants.ServiceCAMountPath,
+				ReadOnly:  true,
+			}
+			return &volume, &volumeMount
+		}
+		return nil, nil
+	}
+
+	// For custom CA from secret
+	volumeName := "etcd-ca"
+	filename := v.instanaAgent.Spec.K8sSensor.ETCD.CA.Filename
+	if filename == "" {
+		filename = "ca.crt"
+	}
+
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  filename,
+						Path: "ca.crt",
+					},
+				},
+				DefaultMode: pointer.To[int32](0440),
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: v.instanaAgent.Spec.K8sSensor.ETCD.CA.MountPath,
+		ReadOnly:  true,
+	}
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) controlPlaneCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	if v.instanaAgent.Spec.K8sSensor.RestClient.CA.SecretName == "" {
+		return nil, nil
+	}
+
+	volumeName := "control-plane-ca"
+	filename := v.instanaAgent.Spec.K8sSensor.RestClient.CA.Filename
+	if filename == "" {
+		filename = "ca.crt"
+	}
+
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: v.instanaAgent.Spec.K8sSensor.RestClient.CA.SecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  filename,
+						Path: "ca.crt",
+					},
+				},
+				DefaultMode: pointer.To[int32](0440),
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: v.instanaAgent.Spec.K8sSensor.RestClient.CA.MountPath,
+		ReadOnly:  true,
+	}
 	return &volume, &volumeMount
 }

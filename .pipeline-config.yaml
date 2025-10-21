@@ -53,6 +53,7 @@ tasks:
     runAfter: 
       - pr-code-checks
       - pr-code-checks-2
+      - pr-code-checks-5
     include:
       - dind
     steps:

@@ -99,4 +99,7 @@ echo "Tagging repo with the new release tag ${new_release}"
 git config --global user.name "instanacd"
 git config --global user.email "instanacd@instana.com"
 git tag "${new_release}"
-echo "${new_release}" > ci/version
+
+# Push the tag to GitHub
+echo "Pushing tag ${new_release} to GitHub"
+git push origin "${new_release}"

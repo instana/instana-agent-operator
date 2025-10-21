@@ -73,6 +73,15 @@ func (m *MockInstanaAgentClient) Get(
 	return args.Error(0)
 }
 
+func (m *MockInstanaAgentClient) List(
+	ctx context.Context,
+	list client.ObjectList,
+	opts ...client.ListOption,
+) error {
+	args := m.Called(ctx, list, opts)
+	return args.Error(0)
+}
+
 func (m *MockInstanaAgentClient) GetAsResult(
 	ctx context.Context,
 	key client.ObjectKey,
