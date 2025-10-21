@@ -50,6 +50,7 @@ resources:
       <<: *instana-operator-git-repo-config
       paths:
       - ci/images/e2e-base-image/*
+      - ci/scripts/*
       - ci/public-pr-creation-and-e2e-image-build.yaml
 
   - name: agent-operator-release-source
