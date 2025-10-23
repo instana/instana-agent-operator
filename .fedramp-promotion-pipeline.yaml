@@ -1,0 +1,23 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+version: "2"
+
+tasks:
+  pr-code-checks:
+    displayName: promote-artifacts
+    runtimeClassName: x86-xlarge
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
