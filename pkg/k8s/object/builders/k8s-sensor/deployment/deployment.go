@@ -333,7 +333,9 @@ func (d *deploymentBuilder) Build() (res optional.Optional[client.Object]) {
 		)
 	}()
 
-	switch (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") || (d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") || !pointer.DerefOrEmpty(d.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled) {
+	switch (d.Spec.Agent.Key == "" && d.Spec.Agent.KeysSecret == "") ||
+		(d.Spec.Zone.Name == "" && d.Spec.Cluster.Name == "") ||
+		!pointer.DerefOrDefault(d.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled, true) {
 	case true:
 		return optional.Empty[client.Object]()
 	default:
