@@ -150,7 +150,8 @@ type InstanaAgentStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=agents,singular=agent,shortName=ia,scope=Namespaced,categories=monitoring;openshift-optional
+//nolint:lll
+// +kubebuilder:resource:path=agents,singular=agent,shortName=ia;instanaagent;instanaagents,scope=Namespaced,categories=monitoring;openshift-optional
 // +kubebuilder:storageversion
 // +operator-sdk:csv:customresourcedefinitions:displayName="Instana Agent", resources={{DaemonSet,v1,instana-agent},{Pod,v1,instana-agent},{Secret,v1,instana-agent}}
 
