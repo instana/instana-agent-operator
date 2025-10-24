@@ -70,11 +70,6 @@ var agent = &instanav1.InstanaAgent{
 		},
 		K8sSensor: instanav1.K8sSpec{
 			PodDisruptionBudget: instanav1.Enabled{Enabled: pointer.To(true)},
-			DeploymentSpec: instanav1.KubernetesDeploymentSpec{
-				Enabled: instanav1.Enabled{
-					Enabled: pointer.To(true),
-				},
-			},
 		},
 	},
 }
