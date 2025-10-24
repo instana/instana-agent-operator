@@ -181,6 +181,45 @@ func createInstanaAgentWithSecretMountsEnabled() *instanav1.InstanaAgent {
 			Cluster: instanav1.Name{Name: "test-cluster"},
 			K8sSensor: instanav1.K8sSpec{
 				DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+					Enabled:         instanav1.Enabled{Enabled: pointer.To(true)},
+					Replicas:        1,
+					MinReadySeconds: 10,
+					Pod:             instanav1.KubernetesPodSpec{
+						// KubernetesPodSpec doesn't have Labels and Annotations fields
+					},
+				},
+				ImageSpec: instanav1.ImageSpec{
+					Name:       "instana/k8sensor",
+					Tag:        "latest",
+					PullPolicy: corev1.PullIfNotPresent,
+				},
+			},
+		},
+	}
+}
+
+func createInstanaAgentWithSecretMountsEnabledWithK8sSensorDisabled() *instanav1.InstanaAgent {
+	return &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			UseSecretMounts: pointer.To(true),
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "443",
+				Pod: instanav1.AgentPodSpec{
+					Annotations: map[string]string{},
+					Labels:      map[string]string{},
+				},
+			},
+			Zone:    instanav1.Name{Name: "test-zone"},
+			Cluster: instanav1.Name{Name: "test-cluster"},
+			K8sSensor: instanav1.K8sSpec{
+				DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+					Enabled:         instanav1.Enabled{Enabled: pointer.To(false)},
 					Replicas:        1,
 					MinReadySeconds: 10,
 					Pod:             instanav1.KubernetesPodSpec{
@@ -834,6 +873,53 @@ func TestBuild(t *testing.T) {
 		resultNoKey.IsPresent(),
 		"Build should return an empty optional when key and zone are empty",
 	)
+
+	// Test the case where K8s sensor is disabled when the flag is set to false
+	agentK8sSensorDisabled := createInstanaAgentWithSecretMountsEnabledWithK8sSensorDisabled()
+	builderK8sSensorDisabled := createTestDeploymentBuilder(t, agentK8sSensorDisabled)
+
+	resultK8sSensorDisabled := builderK8sSensorDisabled.Build()
+	assert.False(
+		t,
+		resultK8sSensorDisabled.IsPresent(),
+		"Build should return an empty optional when k8sensor is disabled when Enabled is set to false",
+	)
+
+	// Test the case where K8s sensor is disabled when the flag is empty
+	agentK8sSensorDisabled = createInstanaAgentWithSecretMountsEnabledWithK8sSensorDisabled()
+	agentK8sSensorDisabled.Spec.K8sSensor.DeploymentSpec.Enabled = instanav1.Enabled{}
+	builderK8sSensorDisabled = createTestDeploymentBuilder(t, agentK8sSensorDisabled)
+
+	resultK8sSensorDisabled = builderK8sSensorDisabled.Build()
+	assert.False(
+		t,
+		resultK8sSensorDisabled.IsPresent(),
+		"Build should return an empty optional when k8sensor is disabled when Enabled is empty",
+	)
+
+}
+
+func TestBuildWithK8sSensorDisabled(t *testing.T) {
+	// Arrange
+	agent := createInstanaAgentWithSecretMountsEnabledWithK8sSensorDisabled()
+	builder := createTestDeploymentBuilder(t, agent)
+
+	// Setup mocks for the build method
+	configVolume := corev1.Volume{Name: "config"}
+	configMount := corev1.VolumeMount{Name: "config"}
+	secretsVolume := corev1.Volume{Name: "instana-secrets"}
+	secretsMount := corev1.VolumeMount{Name: "instana-secrets"}
+
+	builder.VolumeBuilder.(*MockVolumeBuilder).On("Build", mock.Anything).
+		Return([]corev1.Volume{configVolume, secretsVolume}, []corev1.VolumeMount{configMount, secretsMount})
+
+	builder.statusManager.(*MockStatusManager).On("SetK8sSensorDeployment", mock.Anything).Return()
+
+	// Act
+	result := builder.Build()
+
+	// Assert
+	assert.True(t, result.IsNotPresent(), "Build should return an empty optional")
 }
 
 func TestGetPodAnnotationsWithBackendChecksum(t *testing.T) {
