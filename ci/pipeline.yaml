@@ -171,10 +171,10 @@ jobs:
         params: { state: pending, context: build/docker }
       - put: gh-status
         inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-lowest }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
       - put: gh-status
         inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-latest }
+        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
       - put: gh-status
         inputs: [ agent-operator-git-source ]
         params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
@@ -451,7 +451,7 @@ jobs:
       - in_parallel:
         - do:
           - put: metadata
-          - task: reslock-claim-gke-lowest
+          - task: reslock-claim-gke-operator-lowest
             timeout: 75m
             config:
               platform: linux
@@ -460,14 +460,14 @@ jobs:
                 source: *e2e-test-base-image
               params:
                 RESLOCK_COMMAND: claim
-                RESLOCK_RESOURCE_NAME: gke-lowest
+                RESLOCK_RESOURCE_NAME: gke-operator-lowest
                 RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
               inputs:
                 - name: agent-operator-git-source
                 - name: metadata
               run:
                 path: agent-operator-git-source/ci/scripts/reslock.sh
-          - task: run-e2e-test-gke-lowest
+          - task: run-e2e-test-gke-operator-lowest
             timeout: 55m
             attempts: 1
             config: &gke-e2e-test-config
@@ -483,7 +483,7 @@ jobs:
                 GIT_COMMIT: ((.:git-commit))
                 CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
-                NAME: gke-lowest
+                NAME: gke-operator-lowest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_API_KEY: ((qa-instana-agent-key))
@@ -502,31 +502,31 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ agent-operator-git-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-lowest }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             on_failure:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-operator-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ agent-operator-git-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-lowest }
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             on_error:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-operator-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ agent-operator-git-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             on_abort:
               put: gh-status
               inputs: [ agent-operator-git-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-lowest }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             ensure:
               do:
               - task: cleanup-resources
@@ -539,13 +539,13 @@ jobs:
                   params:
                     CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-lowest
+                    NAME: gke-operator-lowest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
                     - name: pipeline-source
                   run:
                     path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - task: reslock-release-gke-lowest
+              - task: reslock-release-gke-operator-lowest
                 timeout: 5m
                 config:
                   platform: linux
@@ -554,7 +554,7 @@ jobs:
                     source: *e2e-test-base-image
                   params:
                     RESLOCK_COMMAND: release
-                    RESLOCK_RESOURCE_NAME: gke-lowest
+                    RESLOCK_RESOURCE_NAME: gke-operator-lowest
                     RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
                   inputs:
                     - name: agent-operator-git-source
@@ -564,7 +564,7 @@ jobs:
 
         - do:
           - put: metadata
-          - task: reslock-claim-gke-latest
+          - task: reslock-claim-gke-operator-latest
             timeout: 75m
             config:
               platform: linux
@@ -573,14 +573,14 @@ jobs:
                 source: *e2e-test-base-image
               params:
                 RESLOCK_COMMAND: claim
-                RESLOCK_RESOURCE_NAME: gke-latest
+                RESLOCK_RESOURCE_NAME: gke-operator-latest
                 RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
               inputs:
                 - name: agent-operator-git-source
                 - name: metadata
               run:
                 path: agent-operator-git-source/ci/scripts/reslock.sh
-          - task: run-e2e-test-gke-latest
+          - task: run-e2e-test-gke-operator-latest
             timeout: 55m
             attempts: 1
             config:
@@ -589,7 +589,7 @@ jobs:
                 GIT_COMMIT: ((.:git-commit))
                 CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
-                NAME: gke-latest
+                NAME: gke-operator-latest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
@@ -609,31 +609,31 @@ jobs:
             on_success:
               put: gh-status
               inputs: [ agent-operator-git-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-latest }
+              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             on_failure:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-operator-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ agent-operator-git-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-latest }
+                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             on_error:
               do:
               - put: slack-alert
                 params:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
-                    :x: the operator run-e2e-test-gke-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+                    :x: the operator run-e2e-test-gke-operator-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
               - put: gh-status
                 inputs: [ agent-operator-git-source ]
-                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
+                params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             on_abort:
               put: gh-status
               inputs: [ agent-operator-git-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-latest }
+              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             ensure:
               do:
               - task: cleanup-resources
@@ -646,14 +646,14 @@ jobs:
                   params:
                     CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
-                    NAME: gke-latest
+                    NAME: gke-operator-latest
 
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   inputs:
                     - name: pipeline-source
                   run:
                     path: pipeline-source/ci/scripts/cleanup-resources.sh
-              - task: reslock-release-gke-latest
+              - task: reslock-release-gke-operator-latest
                 timeout: 5m
                 config:
                   platform: linux
@@ -662,7 +662,7 @@ jobs:
                     source: *e2e-test-base-image
                   params:
                     RESLOCK_COMMAND: release
-                    RESLOCK_RESOURCE_NAME: gke-latest
+                    RESLOCK_RESOURCE_NAME: gke-operator-latest
                     RESLOCK_GITHUB_TOKEN: ((ibm-ghe-tokens.concourse-other-teams))
                   inputs:
                     - name: agent-operator-git-source
@@ -1125,7 +1125,7 @@ jobs:
                 fi
 
                 echo "**** Public release, create github.com release $VERSION. ****"
-                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR
+                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR $BRANCH
         on_success:
           put: gh-status
           inputs: [ agent-operator-git-source ]
@@ -1208,4 +1208,3 @@ jobs:
                 git push https://instanacd:${GH_API_TOKEN}@github.com/instana/instana-agent-operator.git HEAD:${BRANCH}
 
                 echo "FEDRAMP_VERSION update completed successfully"
-
