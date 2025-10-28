@@ -109,18 +109,29 @@ func (t *transformations) PreviousGenerationsSelector() labels.Selector {
 }
 
 func (t *transformations) AddOwnerReference(obj client.Object) {
-	for _, preExisting := range obj.GetOwnerReferences() {
+	// Check for existing owner references
+	existingRefs := obj.GetOwnerReferences()
+
+	// Check if our UID already exists
+	for _, preExisting := range existingRefs {
 		if preExisting.UID == t.OwnerReference.UID {
-			return
+			return // Our reference already exists, nothing to do
 		}
 	}
 
-	obj.SetOwnerReferences(
-		append(
-			obj.GetOwnerReferences(),
-			t.OwnerReference,
-		),
-	)
+	// Check if there's already a controller reference with the same name but different UID
+	newRefs := make([]metav1.OwnerReference, 0, len(existingRefs)+1)
+	for _, ref := range existingRefs {
+		// Skip any existing controller reference for the same resource name
+		if ref.Name == t.Name && ref.Kind == t.Kind && ref.Controller != nil && *ref.Controller {
+			continue
+		}
+		newRefs = append(newRefs, ref)
+	}
+
+	// Add our reference
+	newRefs = append(newRefs, t.OwnerReference)
+	obj.SetOwnerReferences(newRefs)
 }
 
 func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
