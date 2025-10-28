@@ -1,9 +1,11 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+version: "2"
 tasks:
   pr-code-checks:
     displayName: verify-latest-release
     runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
     include:
       - dind
     steps:
@@ -13,7 +15,7 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/olm-release-pr-creation.sh
+            $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-release-pr-creation.sh
       - name: detect-secrets
         include:
           - docker-socket
@@ -136,3 +138,11 @@ tasks:
       - name: detect-secrets
         include:
           - docker-socket
+  code-pr-finish:
+    steps:
+      - name: evaluate
+        when: 'false'
+      - name: prepare
+        when: 'false'
+      - name: run-stage
+        when: 'false'

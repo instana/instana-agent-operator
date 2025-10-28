@@ -17,7 +17,15 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/fedramp-promotion.sh
       - name: detect-secrets
         include:
           - docker-socket
+  code-pr-finish:
+    steps:
+      - name: evaluate
+        when: 'false'
+      - name: prepare
+        when: 'false'
+      - name: run-stage
+        when: 'false'
