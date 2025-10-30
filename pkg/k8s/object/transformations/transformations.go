@@ -108,34 +108,41 @@ func (t *transformations) PreviousGenerationsSelector() labels.Selector {
 	)
 }
 
+// AddOwnerReference ensures that the object's OwnerReferences contain exactly one
+// reference for t.OwnerReference.Name: the one with t.OwnerReference.UID. Any
+// existing owner refs with the same Name but different UID are removed. Other
+// owner refs (different names) are preserved. If our owner ref isn't present,
+// it is appended.
 func (t *transformations) AddOwnerReference(obj client.Object) {
-	// Get existing owner references
-	existingRefs := obj.GetOwnerReferences()
+	existing := obj.GetOwnerReferences()
 
-	// Filter out any references with the same name but different UIDs
-	filteredRefs := make([]metav1.OwnerReference, 0, len(existingRefs))
-	for _, ref := range existingRefs {
-		// Keep references that don't match our name or match both name and UID
-		if ref.Name != t.OwnerReference.Name || ref.UID == t.OwnerReference.UID {
-			filteredRefs = append(filteredRefs, ref)
+	// Build a new slice preserving:
+	// - any refs with different Name
+	// - any refs with same Name AND same UID (i.e. the correct one)
+	// Drop refs with same Name but different UID (they are stale).
+	newRefs := make([]metav1.OwnerReference, 0, len(existing)+1)
+	found := false
+
+	for _, ref := range existing {
+		if ref.Name == t.OwnerReference.Name {
+			// Same name: keep only if UID matches (i.e., same owner)
+			if ref.UID == t.OwnerReference.UID {
+				newRefs = append(newRefs, ref)
+				found = true
+			}
+			// else: drop the stale ref (same Name, different UID)
+			continue
 		}
+		// Different name: preserve
+		newRefs = append(newRefs, ref)
 	}
 
-	// Check if our reference already exists
-	for _, ref := range filteredRefs {
-		if ref.UID == t.OwnerReference.UID {
-			// Reference already exists, no need to add it again
-			return
-		}
+	// If our OwnerReference wasn't present, append it
+	if !found {
+		newRefs = append(newRefs, t.OwnerReference)
 	}
 
-	// Add our reference
-	obj.SetOwnerReferences(
-		append(
-			filteredRefs,
-			t.OwnerReference,
-		),
-	)
+	obj.SetOwnerReferences(newRefs)
 }
 
 func NewTransformations(agent *instanav1.InstanaAgent) Transformations {

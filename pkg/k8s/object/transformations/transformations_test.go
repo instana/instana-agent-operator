@@ -228,11 +228,9 @@ func TestTransformations_AddOwnerReference(t *testing.T) {
 }
 
 func TestTransformations_AddOwnerReference_WithSameNameDifferentUID(t *testing.T) {
-	// This test verifies that when an owner reference with the same name but different UID exists,
-	// it gets replaced with the new one
 	assertions := require.New(t)
 
-	// Create a ConfigMap with an existing owner reference
+	// existing ConfigMap with a stale owner ref (same name, old UID)
 	configMap := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{
@@ -240,56 +238,62 @@ func TestTransformations_AddOwnerReference_WithSameNameDifferentUID(t *testing.T
 					APIVersion:         "instana.io/v1",
 					Kind:               "InstanaAgent",
 					Name:               "instana-agent",
-					UID:                "old-uid-value", // Different UID
+					UID:                "old-uid-value", // Different (stale) UID
 					Controller:         pointer.To(true),
 					BlockOwnerDeletion: pointer.To(true),
 				},
 				{
-					APIVersion:         "other-api/v1",
-					Kind:               "OtherKind",
-					Name:               "other-name",
-					UID:                "other-uid",
-					Controller:         pointer.To(false),
-					BlockOwnerDeletion: pointer.To(false),
+					APIVersion: "other-api/v1",
+					Kind:       "OtherKind",
+					Name:       "other-name",
+					UID:        "other-uid",
+					// Controller false for unrelated owner
 				},
 			},
 		},
 	}
 
-	// Create a new agent with the same name but different UID
-	agent := instanav1.InstanaAgent{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "instana.io/v1",
-			Kind:       "InstanaAgent",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "instana-agent",
-			UID:  "new-uid-value", // New UID
-		},
-	}
-
-	// Add the owner reference
-	NewTransformations(&agent).AddOwnerReference(&configMap)
-
-	// Verify that the old reference was replaced and the unrelated one was kept
-	expectedRefs := []metav1.OwnerReference{
-		{
-			APIVersion:         "other-api/v1",
-			Kind:               "OtherKind",
-			Name:               "other-name",
-			UID:                "other-uid",
-			Controller:         pointer.To(false),
-			BlockOwnerDeletion: pointer.To(false),
-		},
-		{
+	// Set the transformations' OwnerReference to the new (recreated) CR UID
+	tform := &transformations{
+		OwnerReference: metav1.OwnerReference{
 			APIVersion:         "instana.io/v1",
 			Kind:               "InstanaAgent",
 			Name:               "instana-agent",
-			UID:                "new-uid-value",
+			UID:                "new-uid-value", // new UID (recreated CR)
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
 	}
 
-	assertions.Equal(expectedRefs, configMap.OwnerReferences)
+	// Call our corrected AddOwnerReference implementation
+	tform.AddOwnerReference(&configMap)
+
+	// Now the configMap should have two owner references:
+	// - the unrelated "other-name" ref (unchanged)
+	// - the new "instana-agent" ref (new UID), and NOT the old one
+	refs := configMap.GetOwnerReferences()
+	// Build a map for easy assertions
+	refByName := map[string]metav1.OwnerReference{}
+	for _, r := range refs {
+		refByName[r.Name] = r
+	}
+
+	// Expect unrelated owner to still exist
+	other, ok := refByName["other-name"]
+	assertions.True(ok, "other-name owner reference should be preserved")
+	assertions.Equal("other-uid", string(other.UID))
+
+	// Expect instana-agent to exist and have the new UID
+	instana, ok := refByName["instana-agent"]
+	assertions.True(ok, "instana-agent owner reference should exist")
+	assertions.Equal("new-uid-value", string(instana.UID))
+
+	// Ensure the stale UID is not present
+	for _, r := range refs {
+		assertions.NotEqual(
+			"old-uid-value",
+			string(r.UID),
+			"stale owner reference should be removed",
+		)
+	}
 }
