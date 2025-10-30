@@ -109,15 +109,30 @@ func (t *transformations) PreviousGenerationsSelector() labels.Selector {
 }
 
 func (t *transformations) AddOwnerReference(obj client.Object) {
-	for _, preExisting := range obj.GetOwnerReferences() {
-		if preExisting.UID == t.OwnerReference.UID {
+	// Get existing owner references
+	existingRefs := obj.GetOwnerReferences()
+
+	// Filter out any references with the same name but different UIDs
+	filteredRefs := make([]metav1.OwnerReference, 0, len(existingRefs))
+	for _, ref := range existingRefs {
+		// Keep references that don't match our name or match both name and UID
+		if ref.Name != t.OwnerReference.Name || ref.UID == t.OwnerReference.UID {
+			filteredRefs = append(filteredRefs, ref)
+		}
+	}
+
+	// Check if our reference already exists
+	for _, ref := range filteredRefs {
+		if ref.UID == t.OwnerReference.UID {
+			// Reference already exists, no need to add it again
 			return
 		}
 	}
 
+	// Add our reference
 	obj.SetOwnerReferences(
 		append(
-			obj.GetOwnerReferences(),
+			filteredRefs,
 			t.OwnerReference,
 		),
 	)

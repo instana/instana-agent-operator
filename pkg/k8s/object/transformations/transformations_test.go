@@ -1,3 +1,19 @@
+/*
+(c) Copyright IBM Corp. 2025
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package transformations
 
 import (
@@ -209,4 +225,71 @@ func TestTransformations_AddOwnerReference(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestTransformations_AddOwnerReference_WithSameNameDifferentUID(t *testing.T) {
+	// This test verifies that when an owner reference with the same name but different UID exists,
+	// it gets replaced with the new one
+	assertions := require.New(t)
+
+	// Create a ConfigMap with an existing owner reference
+	configMap := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         "instana.io/v1",
+					Kind:               "InstanaAgent",
+					Name:               "instana-agent",
+					UID:                "old-uid-value", // Different UID
+					Controller:         pointer.To(true),
+					BlockOwnerDeletion: pointer.To(true),
+				},
+				{
+					APIVersion:         "other-api/v1",
+					Kind:               "OtherKind",
+					Name:               "other-name",
+					UID:                "other-uid",
+					Controller:         pointer.To(false),
+					BlockOwnerDeletion: pointer.To(false),
+				},
+			},
+		},
+	}
+
+	// Create a new agent with the same name but different UID
+	agent := instanav1.InstanaAgent{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "instana.io/v1",
+			Kind:       "InstanaAgent",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "instana-agent",
+			UID:  "new-uid-value", // New UID
+		},
+	}
+
+	// Add the owner reference
+	NewTransformations(&agent).AddOwnerReference(&configMap)
+
+	// Verify that the old reference was replaced and the unrelated one was kept
+	expectedRefs := []metav1.OwnerReference{
+		{
+			APIVersion:         "other-api/v1",
+			Kind:               "OtherKind",
+			Name:               "other-name",
+			UID:                "other-uid",
+			Controller:         pointer.To(false),
+			BlockOwnerDeletion: pointer.To(false),
+		},
+		{
+			APIVersion:         "instana.io/v1",
+			Kind:               "InstanaAgent",
+			Name:               "instana-agent",
+			UID:                "new-uid-value",
+			Controller:         pointer.To(true),
+			BlockOwnerDeletion: pointer.To(true),
+		},
+	}
+
+	assertions.Equal(expectedRefs, configMap.OwnerReferences)
 }
