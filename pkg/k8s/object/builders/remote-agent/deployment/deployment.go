@@ -252,7 +252,7 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 					Volumes:            append(volumes, userVolumes...),
 					NodeSelector:       d.Spec.Agent.Pod.NodeSelector,
 					PriorityClassName:  d.Spec.Agent.Pod.PriorityClassName,
-					DNSPolicy:          corev1.DNSClusterFirst,
+					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
 					ImagePullSecrets:   d.ImagePullSecrets(),
 					Hostname:           d.getHostName(),
 					Containers: []corev1.Container{
