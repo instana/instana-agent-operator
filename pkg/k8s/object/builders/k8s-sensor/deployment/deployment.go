@@ -372,9 +372,11 @@ func (d *deploymentBuilder) getK8SensorArgs() []string {
 	args := []string{"-pollrate", "10s"}
 
 	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
+		// Use backend-specific secret file key to support multiple backends
+		agentKeyFile := constants.SecretFileAgentKey + d.backend.ResourceSuffix
 		args = append(args,
 			"-agent-key-file",
-			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, constants.SecretFileAgentKey))
+			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, agentKeyFile))
 
 		// Add HTTPS_PROXY file argument if proxy host is configured
 		if d.Spec.Agent.ProxyHost != "" {
