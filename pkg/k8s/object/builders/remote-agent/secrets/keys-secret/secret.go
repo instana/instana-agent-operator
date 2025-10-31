@@ -136,8 +136,10 @@ func (s *secretBuilder) getData() map[string][]byte {
 		optional.Of(backend.EndpointKey).IfPresent(
 			func(key string) {
 				data[constants.AgentKey+backend.ResourceSuffix] = []byte(key)
-				if useSecretMounts && backend.ResourceSuffix == "" {
-					data[constants.SecretFileAgentKey] = []byte(key)
+				// For all backends, also add with environment variable name for file mounting
+				// This ensures each k8sensor deployment can read the key from the mounted secret file
+				if useSecretMounts {
+					data[constants.SecretFileAgentKey+backend.ResourceSuffix] = []byte(key)
 				}
 			},
 		)
