@@ -395,6 +395,7 @@ type K8sSpec struct {
 	RestClient RestClientSpec `json:"restClient,omitempty"`
 
 	// PollRate controls the frequency at which k8sensor sends collected information to the backend.
+	// PollRate value should be provided in seconds
 	// Example: 1s, 5s, 10s, 30s
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[0-9]+s$`
