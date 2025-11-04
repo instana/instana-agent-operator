@@ -368,31 +368,22 @@ func NewDeploymentBuilder(
 	}
 }
 
-func (d *deploymentBuilder) validatePollRate(pollRate string) (bool, string) {
-	duration, err := time.ParseDuration(pollRate)
+func (d *deploymentBuilder) validatePollRate(pollRate string) bool {
+	_, err := time.ParseDuration(pollRate)
 	if err != nil {
-		return false, ""
+		return false
 	}
-
-	minPollRate := 1 * time.Second
-	maxPollRate := 30 * time.Second
-
-	if duration < minPollRate {
-		return true, minPollRate.String()
-	}
-	if duration > maxPollRate {
-		return true, maxPollRate.String()
-	}
-
-	return true, pollRate
+	return true
 }
+
+const DefaultPollRate = "10s"
 
 // getK8SensorArgs returns the command line arguments for the k8sensor
 func (d *deploymentBuilder) getK8SensorArgs() []string {
-	pollRate := "10s"
+	pollRate := DefaultPollRate
 	if d.Spec.K8sSensor.PollRate != "" {
-		if valid, validatedRate := d.validatePollRate(d.Spec.K8sSensor.PollRate); valid {
-			pollRate = validatedRate
+		if valid := d.validatePollRate(d.Spec.K8sSensor.PollRate); valid {
+			pollRate = d.Spec.K8sSensor.PollRate
 		}
 	}
 
