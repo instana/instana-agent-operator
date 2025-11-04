@@ -433,6 +433,7 @@ func TestSecretBuilder_BuildWithSecretMounts(t *testing.T) {
 					"key-2":                []byte("second-backend-key"),
 					"downloadKey":          []byte("test-download-key"),
 					"INSTANA_AGENT_KEY":    []byte("first-backend-key"),
+					"INSTANA_AGENT_KEY-2":  []byte("second-backend-key"),
 					"INSTANA_DOWNLOAD_KEY": []byte("test-download-key"),
 				},
 				Type: corev1.SecretTypeOpaque,
