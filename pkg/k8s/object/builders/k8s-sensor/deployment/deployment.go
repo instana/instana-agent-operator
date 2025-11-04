@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -367,9 +368,35 @@ func NewDeploymentBuilder(
 	}
 }
 
+func (d *deploymentBuilder) validatePollRate(pollRate string) (bool, string) {
+	duration, err := time.ParseDuration(pollRate)
+	if err != nil {
+		return false, ""
+	}
+
+	minPollRate := 1 * time.Second
+	maxPollRate := 30 * time.Second
+
+	if duration < minPollRate {
+		return true, minPollRate.String()
+	}
+	if duration > maxPollRate {
+		return true, maxPollRate.String()
+	}
+
+	return true, pollRate
+}
+
 // getK8SensorArgs returns the command line arguments for the k8sensor
 func (d *deploymentBuilder) getK8SensorArgs() []string {
-	args := []string{"-pollrate", "10s"}
+	pollRate := "10s"
+	if d.Spec.K8sSensor.PollRate != "" {
+		if valid, validatedRate := d.validatePollRate(d.Spec.K8sSensor.PollRate); valid {
+			pollRate = validatedRate
+		}
+	}
+
+	args := []string{"-pollrate", pollRate}
 
 	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
 		// Use backend-specific secret file key to support multiple backends

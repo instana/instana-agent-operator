@@ -393,6 +393,11 @@ type K8sSpec struct {
 	// REST client configuration
 	// +kubebuilder:validation:Optional
 	RestClient RestClientSpec `json:"restClient,omitempty"`
+
+	// PollRate controls the frequency at which k8sensor sends collected information to the backend.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=`^[0-9]+s$`
+	PollRate string `json:"pollrate,omitempty"`
 }
 
 type KubernetesPodSpec struct {
