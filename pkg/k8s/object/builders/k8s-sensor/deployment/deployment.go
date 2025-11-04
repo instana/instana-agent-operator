@@ -7,8 +7,8 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"regexp"
 	"strings"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -368,12 +368,13 @@ func NewDeploymentBuilder(
 	}
 }
 
+// validatePollRate checks if the pollrate matches the same pattern as the CRD validation: ^[0-9]+s$
 func (d *deploymentBuilder) validatePollRate(pollRate string) bool {
-	_, err := time.ParseDuration(pollRate)
+	matched, err := regexp.MatchString(`^[0-9]+s$`, pollRate)
 	if err != nil {
 		return false
 	}
-	return true
+	return matched
 }
 
 const DefaultPollRate = "10s"
@@ -382,7 +383,7 @@ const DefaultPollRate = "10s"
 func (d *deploymentBuilder) getK8SensorArgs() []string {
 	pollRate := DefaultPollRate
 	if d.Spec.K8sSensor.PollRate != "" {
-		if valid := d.validatePollRate(d.Spec.K8sSensor.PollRate); valid {
+		if d.validatePollRate(d.Spec.K8sSensor.PollRate) {
 			pollRate = d.Spec.K8sSensor.PollRate
 		}
 	}
