@@ -368,16 +368,21 @@ func NewDeploymentBuilder(
 	}
 }
 
-// validatePollRate checks if the pollrate matches the same pattern as the CRD validation: ^[0-9]+s$
+const (
+	// PollRateRegex defines the validation pattern for pollrate values (seconds only)
+	PollRateRegex = `^[0-9]+s$`
+	// DefaultPollRate is the default polling rate for k8sensor
+	DefaultPollRate = "10s"
+)
+
+// validatePollRate checks if the pollrate matches the same pattern as the CRD validation
 func (d *deploymentBuilder) validatePollRate(pollRate string) bool {
-	matched, err := regexp.MatchString(`^[0-9]+s$`, pollRate)
+	matched, err := regexp.MatchString(PollRateRegex, pollRate)
 	if err != nil {
 		return false
 	}
 	return matched
 }
-
-const DefaultPollRate = "10s"
 
 // getK8SensorArgs returns the command line arguments for the k8sensor
 func (d *deploymentBuilder) getK8SensorArgs() []string {
