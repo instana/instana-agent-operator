@@ -7,6 +7,7 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"regexp"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -367,9 +368,32 @@ func NewDeploymentBuilder(
 	}
 }
 
+const (
+	// PollRateRegex defines the validation pattern for pollrate values (seconds only)
+	PollRateRegex = `^[0-9]+s$`
+	// DefaultPollRate is the default polling rate for k8sensor
+	DefaultPollRate = "10s"
+)
+
+// validatePollRate checks if the pollrate matches the same pattern as the CRD validation
+func (d *deploymentBuilder) validatePollRate(pollRate string) bool {
+	matched, err := regexp.MatchString(PollRateRegex, pollRate)
+	if err != nil {
+		return false
+	}
+	return matched
+}
+
 // getK8SensorArgs returns the command line arguments for the k8sensor
 func (d *deploymentBuilder) getK8SensorArgs() []string {
-	args := []string{"-pollrate", "10s"}
+	pollRate := DefaultPollRate
+	if d.Spec.K8sSensor.PollRate != "" {
+		if d.validatePollRate(d.Spec.K8sSensor.PollRate) {
+			pollRate = d.Spec.K8sSensor.PollRate
+		}
+	}
+
+	args := []string{"-pollrate", pollRate}
 
 	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
 		// Use backend-specific secret file key to support multiple backends

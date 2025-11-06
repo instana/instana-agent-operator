@@ -224,6 +224,9 @@ spec:
     podDisruptionBudget:
       # Specifies whether or not to setup a pod disruption budget for the k8sensor deployment
       enabled: false
+    # pollrate controls the frequency at which k8sensor sends collected information to the backend.
+    # Valid values must be in seconds format between 1s and 30s. Values outside this range are clamped to nearest threshold. Default value is 10s.
+    pollrate: "10s"
 
   kubernetes:
     # Configures use of a Deployment for the Kubernetes sensor rather than as a potential member of the DaemonSet. Is only accepted if k8s_sensor.deployment.enabled=false
