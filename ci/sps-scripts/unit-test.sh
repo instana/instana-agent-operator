@@ -11,6 +11,9 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 fi
 source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh amd64
 export PATH=$PATH:/usr/local/go/bin
+echo "GIT COMMIT TO TEST:"
+git rev-parse --verify HEAD
+echo "RUNNING TESTS NOW"
 make generate
 go install
 make test
