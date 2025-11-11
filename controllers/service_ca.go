@@ -33,6 +33,11 @@ import (
 // annotation for OpenShift
 // See: https://docs.redhat.com/en/documentation/openshift_container_platform/4.9/html/security_and_compliance/
 // configuring-certificates#add-service-certificate-configmap_service-serving-certificate
+//
+// TODO: This function and ConfigMap should be removed as they are not currently used.
+// It was originally added for ETCD metrics collection, but ETCD requires etcd-metrics-ca-bundle
+// (signed by etcd-metric-signer), not service-ca.crt (signed by openshift-service-serving-signer).
+// Other control plane components use the cluster CA from the service account, not this ConfigMap.
 func CreateServiceCAConfigMap(
 	ctx context.Context,
 	c client.InstanaAgentClient,
