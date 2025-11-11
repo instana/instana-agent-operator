@@ -51,6 +51,11 @@ func TestInitialInstall(t *testing.T) {
 	testEnv.Test(t, initialInstallFeature)
 }
 func TestUpdateInstall(t *testing.T) {
+	RequireFullResetBeforeTest(
+		t,
+		"TestUpdateInstall requires clean environment before installing released operator",
+	)
+	RequireFullResetAfterTest(t, "TestUpdateInstall installs released operator versions")
 	agent := NewAgentCr()
 	installLatestFeature := features.New("deploy latest released instana-agent-operator").
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
@@ -60,7 +65,13 @@ func TestUpdateInstall(t *testing.T) {
 				fmt.Sprintf("kubectl apply -f %s", latestOperatorYamlUrl),
 			)
 			if p.Err() != nil {
-				t.Fatal("Error while applying latest operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
+				t.Fatal(
+					"Error while applying latest operator yaml",
+					p.Command(),
+					p.Err(),
+					p.Out(),
+					p.ExitCode(),
+				)
 			}
 			return ctx
 		}).

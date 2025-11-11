@@ -43,6 +43,7 @@ func TestEnvVarsWithKubernetesFormat(t *testing.T) {
 			t.Fatal("Failed to create ConfigMap:", err)
 		}
 		t.Log("ConfigMap created")
+		CleanupConfigMapAfterTest(t, cfg.Namespace(), "env-test-config")
 
 		// Create Secret
 		secret := &corev1.Secret{
@@ -59,6 +60,7 @@ func TestEnvVarsWithKubernetesFormat(t *testing.T) {
 			t.Fatal("Failed to create Secret:", err)
 		}
 		t.Log("Secret created")
+		CleanupSecretAfterTest(t, cfg.Namespace(), "env-test-secret")
 
 		return ctx
 	}

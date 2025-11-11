@@ -33,6 +33,7 @@ func TestExtraVolumeWithSecret(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			CleanupSecretAfterTest(t, cfg.Namespace(), "instana-agent-key")
 
 			// Create the my-secret Secret referenced in the environment variables
 			mySecret := &corev1.Secret{
@@ -48,6 +49,7 @@ func TestExtraVolumeWithSecret(t *testing.T) {
 			if err := r.Create(ctx, mySecret); err != nil {
 				t.Fatal("Failed to create my-secret:", err)
 			}
+			CleanupSecretAfterTest(t, cfg.Namespace(), "my-secret")
 
 			// Create the my-config ConfigMap referenced in the environment variables
 			myConfig := &corev1.ConfigMap{
@@ -62,6 +64,7 @@ func TestExtraVolumeWithSecret(t *testing.T) {
 			if err := r.Create(ctx, myConfig); err != nil {
 				t.Fatal("Failed to create my-config:", err)
 			}
+			CleanupConfigMapAfterTest(t, cfg.Namespace(), "my-config")
 
 			t.Logf("Secrets and ConfigMap created")
 
