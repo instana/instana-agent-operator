@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -59,7 +60,9 @@ func getDaemonSetBuilders(
 	statusManager status.AgentStatusManager,
 ) []builder.ObjectBuilder {
 	if len(agent.Spec.Zones) == 0 {
-		return []builder.ObjectBuilder{agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift, statusManager)}
+		return []builder.ObjectBuilder{
+			agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift, statusManager),
+		}
 	}
 
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
@@ -67,7 +70,12 @@ func getDaemonSetBuilders(
 	for _, zone := range agent.Spec.Zones {
 		builders = append(
 			builders,
-			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(agent, isOpenShift, statusManager, &zone),
+			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(
+				agent,
+				isOpenShift,
+				statusManager,
+				&zone,
+			),
 		)
 	}
 
@@ -87,7 +95,14 @@ func getK8sSensorDeployments(
 	for _, backend := range k8SensorBackends {
 		builders = append(
 			builders,
-			k8ssensordeployment.NewDeploymentBuilder(agent, isOpenShift, statusManager, backend, keysSecret, deploymentContext),
+			k8ssensordeployment.NewDeploymentBuilder(
+				agent,
+				isOpenShift,
+				statusManager,
+				backend,
+				keysSecret,
+				deploymentContext,
+			),
 		)
 	}
 
@@ -195,7 +210,53 @@ func CreateDeploymentContext(
 			Name:      constants.ETCDMetricClientSecretName,
 		}, etcdClientSecret)
 
-		// Set flag if both resources exist
+		// Validate ConfigMap contains required keys
+		if caErr == nil {
+			if etcdCAConfigMap.Data == nil {
+				logger.Info(
+					"OpenShift ETCD CA bundle ConfigMap has no data, ETCD monitoring will be disabled",
+				)
+				caErr = fmt.Errorf("etcd-metrics-ca-bundle has no data")
+			} else if _, ok := etcdCAConfigMap.Data["ca-bundle.crt"]; !ok {
+				logger.Info("OpenShift ETCD CA bundle missing ca-bundle.crt key, ETCD monitoring will be disabled")
+				caErr = fmt.Errorf("etcd-metrics-ca-bundle missing ca-bundle.crt key")
+			} else if etcdCAConfigMap.Data["ca-bundle.crt"] == "" {
+				logger.Info("OpenShift ETCD CA bundle ca-bundle.crt is empty, ETCD monitoring will be disabled")
+				caErr = fmt.Errorf("etcd-metrics-ca-bundle ca-bundle.crt is empty")
+			}
+		}
+
+		// Validate Secret contains required keys
+		if certErr == nil {
+			if etcdClientSecret.Data == nil {
+				logger.Info(
+					"OpenShift ETCD client Secret has no data, ETCD monitoring will be disabled",
+				)
+				certErr = fmt.Errorf("etcd-metric-client has no data")
+			} else {
+				// Check for tls.crt
+				if _, ok := etcdClientSecret.Data["tls.crt"]; !ok {
+					logger.Info("OpenShift ETCD client Secret missing tls.crt key, ETCD monitoring will be disabled")
+					certErr = fmt.Errorf("etcd-metric-client missing tls.crt key")
+				} else if len(etcdClientSecret.Data["tls.crt"]) == 0 {
+					logger.Info("OpenShift ETCD client Secret tls.crt is empty, ETCD monitoring will be disabled")
+					certErr = fmt.Errorf("etcd-metric-client tls.crt is empty")
+				}
+
+				// Check for tls.key
+				if certErr == nil {
+					if _, ok := etcdClientSecret.Data["tls.key"]; !ok {
+						logger.Info("OpenShift ETCD client Secret missing tls.key key, ETCD monitoring will be disabled")
+						certErr = fmt.Errorf("etcd-metric-client missing tls.key key")
+					} else if len(etcdClientSecret.Data["tls.key"]) == 0 {
+						logger.Info("OpenShift ETCD client Secret tls.key is empty, ETCD monitoring will be disabled")
+						certErr = fmt.Errorf("etcd-metric-client tls.key is empty")
+					}
+				}
+			}
+		}
+
+		// Set flag if both resources exist AND are valid
 		if caErr == nil && certErr == nil {
 			logger.Info("OpenShift ETCD resources found, enabling ETCD monitoring")
 			deploymentContext.OpenShiftETCDResourcesExist = true
@@ -209,6 +270,9 @@ func CreateDeploymentContext(
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      constants.ETCDMetricsCABundleName,
 					Namespace: agent.Namespace,
+					OwnerReferences: []metav1.OwnerReference{
+						*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
+					},
 					Labels: map[string]string{
 						"app.kubernetes.io/name":       "instana-agent",
 						"app.kubernetes.io/component":  "k8sensor",
@@ -241,6 +305,9 @@ func CreateDeploymentContext(
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      constants.ETCDMetricClientSecretName,
 					Namespace: agent.Namespace,
+					OwnerReferences: []metav1.OwnerReference{
+						*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
+					},
 					Labels: map[string]string{
 						"app.kubernetes.io/name":       "instana-agent",
 						"app.kubernetes.io/component":  "k8sensor",
@@ -260,6 +327,13 @@ func CreateDeploymentContext(
 			if _, err := c.Apply(ctx, targetClientSecret).Get(); err != nil {
 				logger.Error(err, "Failed to copy ETCD client Secret to instana-agent namespace")
 				deploymentContext.OpenShiftETCDResourcesExist = false
+
+				// NOTE: If ConfigMap copy succeeded but Secret copy fails, the ConfigMap
+				// will remain in the namespace temporarily until the next reconciliation loop,
+				// where the cleanup logic will remove it. This is acceptable because:
+				// 1. OpenShiftETCDResourcesExist=false prevents mounting incomplete resources
+				// 2. The operator reconciles frequently (default: every few minutes)
+				// 3. The ConfigMap is harmless without the Secret
 			} else {
 				logger.Info("Successfully copied/updated ETCD client Secret",
 					"sourceResourceVersion", etcdClientSecret.ResourceVersion)
@@ -362,7 +436,14 @@ func (r *InstanaAgentReconciler) applyResources(
 	log.V(1).Info("applying Kubernetes resources for agent")
 
 	// Create deployment context for k8s-sensor
-	deploymentContext, err := CreateDeploymentContext(ctx, r.client, agent, isOpenShift, log, r.DiscoverETCDEndpoints)
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		r.client,
+		agent,
+		isOpenShift,
+		log,
+		r.DiscoverETCDEndpoints,
+	)
 	if err != nil {
 		log.Error(err, "failed to create deployment context")
 		return reconcileFailure(err)
@@ -389,7 +470,16 @@ func (r *InstanaAgentReconciler) applyResources(
 		namespaces_configmap.NewConfigMapBuilder(agent, statusManager, namespacesDetails),
 	)
 
-	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret, deploymentContext)...)
+	builders = append(
+		builders,
+		getK8sSensorDeployments(
+			agent,
+			isOpenShift,
+			statusManager,
+			k8SensorBackends,
+			keysSecret,
+			deploymentContext,
+		)...)
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
