@@ -61,6 +61,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 					MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
 				},
 			},
+			PollRate: "10s",
 		},
 		OpenTelemetry: OpenTelemetry{ // Don't interfere if user explicitly has set these values
 			Enabled: Enabled{Enabled: pointer.To(false)},
@@ -122,6 +123,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 							MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
 						},
 					},
+					PollRate: "10s",
 				},
 				OpenTelemetry: OpenTelemetry{ // Expect OpenTelemetry to be enabled when no value has been set
 					Enabled: Enabled{Enabled: pointer.To(true)},
