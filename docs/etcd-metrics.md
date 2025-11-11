@@ -6,15 +6,42 @@ The Instana Agent Operator automatically configures ETCD metrics collection for 
 
 On OpenShift clusters, the operator automatically:
 
-1. Creates a ConfigMap with the `service.beta.openshift.io/inject-cabundle: "true"` annotation
-2. Mounts the injected CA certificate at `/etc/service-ca/service-ca.crt`
-3. Sets `ETCD_METRICS_URL` to point to the OpenShift etcd metrics endpoint
-4. Sets `ETCD_CA_FILE` to the mounted certificate path
-5. Sets `ETCD_REQUEST_TIMEOUT` to 15s
+1. **Discovers OpenShift ETCD resources**:
+   - Checks for `etcd-metrics-ca-bundle` ConfigMap in `openshift-etcd` namespace
+   - Checks for `etcd-metric-client` Secret in `openshift-etcd` namespace
+
+2. **Copies ETCD credentials** to `instana-agent` namespace:
+   - ConfigMap: `etcd-metrics-ca-bundle` (contains CA certificates)
+   - Secret: `etcd-metric-client` (contains mTLS client certificates)
+   - See [ADR: OpenShift ETCD Resource Copying](./adr-openshift-etcd-resource-copying.md) for architectural details
+
+3. **Configures k8sensor Deployment** with:
+   - `ETCD_METRICS_URL`: Points to OpenShift ETCD metrics endpoint
+   - `ETCD_CA_FILE`: Path to mounted CA certificate
+   - `ETCD_CERT_FILE`: Path to mounted client certificate
+   - `ETCD_KEY_FILE`: Path to mounted client key
+   - `ETCD_REQUEST_TIMEOUT`: 15s
+
+4. **Handles certificate rotation**:
+   - Tracks source `ResourceVersion` in annotations
+   - Updates copied resources when OpenShift rotates certificates
+   - Synchronizes on each reconcile (~10-60 second propagation delay)
+
+5. **Automatic cleanup**:
+   - Removes copied resources if source resources are deleted
+   - Removes copied resources when InstanaAgent CR is deleted
 
 **Note:** The 15s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
 For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
 For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
+
+### Why Resource Copying?
+
+Kubernetes does not support cross-namespace volume mounts. Since k8sensor runs in `instana-agent` namespace but ETCD credentials exist in `openshift-etcd` namespace, the operator copies these resources during reconciliation. This approach:
+- ✅ Maintains namespace isolation and security
+- ✅ Gives k8sensor only local namespace permissions
+- ✅ Leverages operator's existing cluster-level permissions
+- ✅ Handles certificate rotation automatically
 
 ## Vanilla Kubernetes Clusters
 
