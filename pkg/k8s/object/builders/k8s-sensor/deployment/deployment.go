@@ -111,10 +111,6 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 					Name:  constants.EnvETCDKeyFile,
 					Value: constants.ETCDClientCertMountPath + "/tls.key",
 				},
-				{
-					Name:  "K8SENSOR_enable_control_plane_monitoring",
-					Value: "true",
-				},
 			}...)
 		}
 	} else {
