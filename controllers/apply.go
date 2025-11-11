@@ -24,6 +24,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -199,7 +200,7 @@ func CreateDeploymentContext(
 			logger.Info("OpenShift ETCD resources found, enabling ETCD monitoring")
 			deploymentContext.OpenShiftETCDResourcesExist = true
 
-			// Copy ETCD ConfigMap to instana-agent namespace
+			// Copy ETCD ConfigMap to instana-agent namespace with synchronization tracking
 			targetCAConfigMap := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
@@ -208,15 +209,30 @@ func CreateDeploymentContext(
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      constants.ETCDMetricsCABundleName,
 					Namespace: agent.Namespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/name":       "instana-agent",
+						"app.kubernetes.io/component":  "k8sensor",
+						"app.kubernetes.io/managed-by": "instana-agent-operator",
+						"instana.io/copied-from":       constants.ETCDNamespace,
+					},
+					Annotations: map[string]string{
+						"instana.io/source-namespace":        constants.ETCDNamespace,
+						"instana.io/source-name":             constants.ETCDMetricsCABundleName,
+						"instana.io/source-resource-version": etcdCAConfigMap.ResourceVersion,
+						"instana.io/instana-agent-name":      agent.Name,
+					},
 				},
 				Data: etcdCAConfigMap.Data,
 			}
 			if _, err := c.Apply(ctx, targetCAConfigMap).Get(); err != nil {
 				logger.Error(err, "Failed to copy ETCD CA ConfigMap to instana-agent namespace")
 				deploymentContext.OpenShiftETCDResourcesExist = false
+			} else {
+				logger.Info("Successfully copied/updated ETCD CA ConfigMap",
+					"sourceResourceVersion", etcdCAConfigMap.ResourceVersion)
 			}
 
-			// Copy ETCD Secret to instana-agent namespace
+			// Copy ETCD Secret to instana-agent namespace with synchronization tracking
 			targetClientSecret := &corev1.Secret{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
@@ -225,6 +241,18 @@ func CreateDeploymentContext(
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      constants.ETCDMetricClientSecretName,
 					Namespace: agent.Namespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/name":       "instana-agent",
+						"app.kubernetes.io/component":  "k8sensor",
+						"app.kubernetes.io/managed-by": "instana-agent-operator",
+						"instana.io/copied-from":       constants.ETCDNamespace,
+					},
+					Annotations: map[string]string{
+						"instana.io/source-namespace":        constants.ETCDNamespace,
+						"instana.io/source-name":             constants.ETCDMetricClientSecretName,
+						"instana.io/source-resource-version": etcdClientSecret.ResourceVersion,
+						"instana.io/instana-agent-name":      agent.Name,
+					},
 				},
 				Type: etcdClientSecret.Type,
 				Data: etcdClientSecret.Data,
@@ -232,13 +260,43 @@ func CreateDeploymentContext(
 			if _, err := c.Apply(ctx, targetClientSecret).Get(); err != nil {
 				logger.Error(err, "Failed to copy ETCD client Secret to instana-agent namespace")
 				deploymentContext.OpenShiftETCDResourcesExist = false
+			} else {
+				logger.Info("Successfully copied/updated ETCD client Secret",
+					"sourceResourceVersion", etcdClientSecret.ResourceVersion)
 			}
 		} else {
+			// ETCD resources don't exist or feature disabled - clean up copied resources
 			if caErr != nil {
 				logger.Info("OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled", "error", caErr)
 			}
 			if certErr != nil {
 				logger.Info("OpenShift ETCD client certificate not found, ETCD monitoring will be disabled", "error", certErr)
+			}
+
+			// Clean up copied ConfigMap if it exists
+			copiedConfigMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      constants.ETCDMetricsCABundleName,
+					Namespace: agent.Namespace,
+				},
+			}
+			if err := c.Delete(ctx, copiedConfigMap); err != nil && !apierrors.IsNotFound(err) {
+				logger.Error(err, "Failed to cleanup copied ETCD CA ConfigMap")
+			} else if err == nil {
+				logger.Info("Cleaned up copied ETCD CA ConfigMap")
+			}
+
+			// Clean up copied Secret if it exists
+			copiedSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      constants.ETCDMetricClientSecretName,
+					Namespace: agent.Namespace,
+				},
+			}
+			if err := c.Delete(ctx, copiedSecret); err != nil && !apierrors.IsNotFound(err) {
+				logger.Error(err, "Failed to cleanup copied ETCD client Secret")
+			} else if err == nil {
+				logger.Info("Cleaned up copied ETCD client Secret")
 			}
 		}
 
@@ -332,14 +390,6 @@ func (r *InstanaAgentReconciler) applyResources(
 	)
 
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret, deploymentContext)...)
-
-	// Add OpenShift-specific RBAC for ETCD access
-	if isOpenShift {
-		builders = append(builders,
-			k8ssensorrbac.NewETCDRoleBuilder(agent),
-			k8ssensorrbac.NewETCDRoleBindingBuilder(agent),
-		)
-	}
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
