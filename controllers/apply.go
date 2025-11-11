@@ -204,7 +204,7 @@ func CreateDeploymentContext(
 		}, etcdCAConfigMap)
 
 		// Verify etcd-metric-client Secret exists
-		etcdClientSecret := &corev1.Secret{}
+		etcdClientSecret := &corev1.Secret{} // pragma: allowlist secret
 		certErr := c.Get(ctx, types.NamespacedName{
 			Namespace: constants.ETCDNamespace,
 			Name:      constants.ETCDMetricClientSecretName,
@@ -297,7 +297,7 @@ func CreateDeploymentContext(
 			}
 
 			// Copy ETCD Secret to instana-agent namespace with synchronization tracking
-			targetClientSecret := &corev1.Secret{
+			targetClientSecret := &corev1.Secret{ // pragma: allowlist secret
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
 					Kind:       "Secret",
@@ -361,7 +361,7 @@ func CreateDeploymentContext(
 			}
 
 			// Clean up copied Secret if it exists
-			copiedSecret := &corev1.Secret{
+			copiedSecret := &corev1.Secret{ // pragma: allowlist secret
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      constants.ETCDMetricClientSecretName,
 					Namespace: agent.Namespace,

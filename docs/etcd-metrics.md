@@ -12,7 +12,7 @@ On OpenShift clusters, the operator automatically:
 
 2. **Copies ETCD credentials** to `instana-agent` namespace:
    - ConfigMap: `etcd-metrics-ca-bundle` (contains CA certificates)
-   - Secret: `etcd-metric-client` (contains mTLS client certificates)
+   - Secret: `etcd-metric-client` (contains mTLS client certificates) <!-- pragma: allowlist secret -->
    - See [ADR: OpenShift ETCD Resource Copying](./adr-openshift-etcd-resource-copying.md) for architectural details
 
 3. **Configures k8sensor Deployment** with:
