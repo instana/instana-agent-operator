@@ -54,6 +54,22 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		// Mock the Apply method for CreateServiceCAConfigMap
 		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).Return(result.OfSuccess[client.Object](nil))
 
+		// Mock Get calls for ETCD resource checks
+		mockClient.On(
+			"Get",
+			mock.Anything,
+			mock.Anything,
+			mock.AnythingOfType("*v1.ConfigMap"),
+			mock.Anything,
+		).Return(nil)
+		mockClient.On(
+			"Get",
+			mock.Anything,
+			mock.Anything,
+			mock.AnythingOfType("*v1.Secret"),
+			mock.Anything,
+		).Return(nil)
+
 		// Mock ETCD discover function (won't be called for OpenShift)
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return nil, nil
@@ -63,7 +79,7 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, deploymentContext)
-		assert.Empty(t, deploymentContext.ETCDCASecretName)
+		assert.True(t, deploymentContext.OpenShiftETCDResourcesExist, "ETCD resources should exist when Get calls succeed")
 		mockClient.AssertExpectations(t)
 	})
 

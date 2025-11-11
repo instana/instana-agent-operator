@@ -20,8 +20,9 @@ import "fmt"
 
 const (
 	// ConfigMap names
-	ServiceCAConfigMapName = "sensor-service-ca"
-	ETCDCASecretName       = "etcd-ca"
+	ServiceCAConfigMapName   = "sensor-service-ca"
+	ETCDCASecretName         = "etcd-ca"
+	ETCDClientCertSecretName = "etcd-client-cert"
 
 	// ETCD ports
 	ETCDMetricsPortHTTPS = 2379
@@ -31,6 +32,8 @@ const (
 	// ETCD environment variables
 	EnvETCDTargets        = "ETCD_TARGETS"
 	EnvETCDCAFile         = "ETCD_CA_FILE"
+	EnvETCDCertFile       = "ETCD_CERT_FILE"
+	EnvETCDKeyFile        = "ETCD_KEY_FILE"
 	EnvETCDMetricsURL     = "ETCD_METRICS_URL"
 	EnvETCDRequestTimeout = "ETCD_REQUEST_TIMEOUT"
 	EnvETCDInsecure       = "ETCD_INSECURE"
@@ -39,6 +42,14 @@ const (
 	ServiceCAKey       = "service-ca.crt"
 	ServiceCAMountPath = "/etc/service-ca"
 	ETCDCAMountPath    = "/var/run/secrets/etcd"
+
+	// OpenShift ETCD resources
+	ETCDMetricsCABundleName    = "etcd-metrics-ca-bundle"
+	ETCDMetricClientSecretName = "etcd-metric-client"
+	ETCDNamespace              = "openshift-etcd"
+	ETCDMetricsCAMountPath     = "/etc/etcd-metrics-ca"
+	ETCDClientCertMountPath    = "/etc/etcd-client"
+
 	// Container names
 	ContainerK8Sensor = "instana-agent"
 

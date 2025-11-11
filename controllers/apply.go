@@ -24,6 +24,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -163,6 +164,12 @@ func CreateDeploymentContext(
 	var deploymentContext *k8ssensordeployment.DeploymentContext
 
 	// For OpenShift, create the service-CA ConfigMap
+	// TODO: This ConfigMap is not currently used and should be removed.
+	// It was originally added for ETCD metrics collection, but ETCD requires
+	// etcd-metrics-ca-bundle (signed by etcd-metric-signer), not service-ca.crt
+	// (signed by openshift-service-serving-signer). Other control plane components
+	// (API Server, Controller Manager, Scheduler) use the cluster CA from the
+	// service account, not this ConfigMap.
 	if isOpenShift {
 		if err := CreateServiceCAConfigMap(ctx, c, agent, logger); err != nil {
 			logger.Error(err, "Failed to create service-CA ConfigMap")
@@ -170,9 +177,71 @@ func CreateDeploymentContext(
 			return deploymentContext, nil
 		}
 
-		// Set up deployment context for OpenShift
-		// Don't set ETCDCASecretName as it's already handled by the volume builder
+		// Check if OpenShift ETCD resources are available
 		deploymentContext = &k8ssensordeployment.DeploymentContext{}
+
+		// Verify etcd-metrics-ca-bundle ConfigMap exists
+		etcdCAConfigMap := &corev1.ConfigMap{}
+		caErr := c.Get(ctx, types.NamespacedName{
+			Namespace: constants.ETCDNamespace,
+			Name:      constants.ETCDMetricsCABundleName,
+		}, etcdCAConfigMap)
+
+		// Verify etcd-metric-client Secret exists
+		etcdClientSecret := &corev1.Secret{}
+		certErr := c.Get(ctx, types.NamespacedName{
+			Namespace: constants.ETCDNamespace,
+			Name:      constants.ETCDMetricClientSecretName,
+		}, etcdClientSecret)
+
+		// Set flag if both resources exist
+		if caErr == nil && certErr == nil {
+			logger.Info("OpenShift ETCD resources found, enabling ETCD monitoring")
+			deploymentContext.OpenShiftETCDResourcesExist = true
+
+			// Copy ETCD ConfigMap to instana-agent namespace
+			targetCAConfigMap := &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      constants.ETCDMetricsCABundleName,
+					Namespace: agent.Namespace,
+				},
+				Data: etcdCAConfigMap.Data,
+			}
+			if _, err := c.Apply(ctx, targetCAConfigMap).Get(); err != nil {
+				logger.Error(err, "Failed to copy ETCD CA ConfigMap to instana-agent namespace")
+				deploymentContext.OpenShiftETCDResourcesExist = false
+			}
+
+			// Copy ETCD Secret to instana-agent namespace
+			targetClientSecret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Secret",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      constants.ETCDMetricClientSecretName,
+					Namespace: agent.Namespace,
+				},
+				Type: etcdClientSecret.Type,
+				Data: etcdClientSecret.Data,
+			}
+			if _, err := c.Apply(ctx, targetClientSecret).Get(); err != nil {
+				logger.Error(err, "Failed to copy ETCD client Secret to instana-agent namespace")
+				deploymentContext.OpenShiftETCDResourcesExist = false
+			}
+		} else {
+			if caErr != nil {
+				logger.Info("OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled", "error", caErr)
+			}
+			if certErr != nil {
+				logger.Info("OpenShift ETCD client certificate not found, ETCD monitoring will be disabled", "error", certErr)
+			}
+		}
+
 		return deploymentContext, nil
 	}
 
@@ -263,6 +332,14 @@ func (r *InstanaAgentReconciler) applyResources(
 	)
 
 	builders = append(builders, getK8sSensorDeployments(agent, isOpenShift, statusManager, k8SensorBackends, keysSecret, deploymentContext)...)
+
+	// Add OpenShift-specific RBAC for ETCD access
+	if isOpenShift {
+		builders = append(builders,
+			k8ssensorrbac.NewETCDRoleBuilder(agent),
+			k8ssensorrbac.NewETCDRoleBindingBuilder(agent),
+		)
+	}
 
 	if err := operatorUtils.ApplyAll(builders...); err != nil {
 		log.Error(err, "failed to apply kubernetes resources for agent")
