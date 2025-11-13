@@ -75,6 +75,7 @@ func SetupETCDCASecret() types.StepFunc {
 			t.Fatal("Failed to create CA certificate Secret:", err) // pragma: allowlist secret
 		}
 		t.Log("CA certificate Secret created")
+		CleanupSecretAfterTest(t, cfg.Namespace(), "etcd-ca-cert")
 
 		return ctx
 	}

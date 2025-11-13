@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/conf"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
-	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 )
 
 var testEnv env.Environment
@@ -28,17 +27,10 @@ func TestMain(m *testing.M) {
 		AdjustOcpPermissionsIfNecessary(),
 		AdjustOcpPermissionsIfNecessaryRemote(),
 	)
-	// ensure a new clean namespace before every test
-	// EnvFuncs are only allowed in testEnv.Setup, testEnv.BeforeEachTest requires TestEnvFuncs, therefore converting below
+	// ensure clean environment prior to each test run without always deleting the namespace/operator
 	testEnv.BeforeEachTest(
 		func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
-			return EnsureAgentRemoteDeletion()(ctx, cfg)
-		},
-		func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
-			return EnsureAgentNamespaceDeletion()(ctx, cfg)
-		},
-		func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
-			return envfuncs.CreateNamespace(cfg.Namespace())(ctx, cfg)
+			return EnsureReusableEnvironment()(ctx, cfg)
 		},
 	)
 	// Consider leave artifacts in cluster for easier debugging,
