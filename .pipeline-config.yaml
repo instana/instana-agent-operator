@@ -99,7 +99,7 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          export CLUSTER_ID="gke-latest"
+          export CLUSTER_ID="gke-operator-latest"
           export SKIP_INSTALL_GCLOUD="false"
           export TASK_NAME="pr-code-checks-5"
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e.sh
