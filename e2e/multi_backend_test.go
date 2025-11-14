@@ -255,6 +255,7 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 		Feature()
 
 	agent2 := NewAgentCr()
+	agent2.Spec.K8sSensor.DeploymentSpec.Replicas = 1
 	agent2.Spec.Agent.AdditionalBackends = []instanav1.BackendSpec{}
 	agent2.Spec.Agent.AdditionalBackends = append(
 		agent2.Spec.Agent.AdditionalBackends,
