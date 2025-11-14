@@ -198,6 +198,8 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 func TestRemovalOfAdditionalBackend(t *testing.T) {
 	agent := NewAgentCr()
 
+	agent.Spec.K8sSensor.DeploymentSpec.Replicas = 1
+
 	agent.Spec.Agent.AdditionalBackends = append(
 		agent.Spec.Agent.AdditionalBackends,
 		instanav1.BackendSpec{
