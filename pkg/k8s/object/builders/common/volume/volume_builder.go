@@ -285,7 +285,7 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 	}
 
 	// Create a volume with specific items for k8sensor
-	agentKeySecretKey := constants.SecretFileAgentKey
+	agentKeySecretKey := constants.SecretFileAgentKey + v.backendResourceSuffix
 	proxySecretKey := constants.SecretFileHttpsProxy
 
 	// When the user provides an external secret, the keys follow the "key", "key-1" pattern.
@@ -298,7 +298,7 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 	items := []corev1.KeyToPath{
 		{
 			Key:  agentKeySecretKey,
-			Path: constants.SecretFileAgentKey,
+			Path: constants.SecretFileAgentKey + v.backendResourceSuffix,
 		},
 	}
 
