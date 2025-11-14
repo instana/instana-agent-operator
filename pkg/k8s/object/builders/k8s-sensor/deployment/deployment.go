@@ -7,6 +7,7 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 
@@ -102,15 +103,15 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 				},
 				{
 					Name:  constants.EnvETCDCAFile,
-					Value: constants.ETCDMetricsCAMountPath + "/ca-bundle.crt",
+					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
 				},
 				{
 					Name:  constants.EnvETCDCertFile,
-					Value: constants.ETCDClientCertMountPath + "/tls.crt",
+					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientCertFileName),
 				},
 				{
 					Name:  constants.EnvETCDKeyFile,
-					Value: constants.ETCDClientCertMountPath + "/tls.key",
+					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientKeyFileName),
 				},
 			}...)
 		}

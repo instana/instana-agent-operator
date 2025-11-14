@@ -47,6 +47,11 @@ const (
 	ETCDMetricsCAMountPath     = "/etc/etcd-metrics-ca"
 	ETCDClientCertMountPath    = "/etc/etcd-client"
 
+	// ETCD certificate file names
+	ETCDCABundleFileName   = "ca-bundle.crt"
+	ETCDClientCertFileName = "tls.crt"
+	ETCDClientKeyFileName  = "tls.key"
+
 	// Container names
 	ContainerK8Sensor = "instana-agent"
 )

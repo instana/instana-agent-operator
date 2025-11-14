@@ -72,13 +72,13 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"ca-bundle.crt",
+		constants.ETCDCABundleFileName,
 		volumes[0].VolumeSource.ConfigMap.Items[0].Key,
 		"ConfigMap key should be ca-bundle.crt",
 	)
 	assert.Equal(
 		t,
-		"ca-bundle.crt",
+		constants.ETCDCABundleFileName,
 		volumes[0].VolumeSource.ConfigMap.Items[0].Path,
 		"ConfigMap path should be ca-bundle.crt",
 	)

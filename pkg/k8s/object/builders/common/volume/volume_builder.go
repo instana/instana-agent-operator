@@ -392,8 +392,8 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 						},
 						Items: []corev1.KeyToPath{
 							{
-								Key:  "ca-bundle.crt",
-								Path: "ca-bundle.crt",
+								Key:  constants.ETCDCABundleFileName,
+								Path: constants.ETCDCABundleFileName,
 							},
 						},
 						DefaultMode: pointer.To[int32](0440),
@@ -454,12 +454,12 @@ func (v *volumeBuilder) etcdClientCertVolume() (*corev1.Volume, *corev1.VolumeMo
 				SecretName: constants.ETCDMetricClientSecretName,
 				Items: []corev1.KeyToPath{
 					{
-						Key:  "tls.crt",
-						Path: "tls.crt",
+						Key:  constants.ETCDClientCertFileName,
+						Path: constants.ETCDClientCertFileName,
 					},
 					{
-						Key:  "tls.key",
-						Path: "tls.key",
+						Key:  constants.ETCDClientKeyFileName,
+						Path: constants.ETCDClientKeyFileName,
 					},
 				},
 				DefaultMode: pointer.To[int32](0440),
