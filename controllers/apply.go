@@ -246,6 +246,35 @@ func validateOpenShiftETCDResources(
 	return caErr, certErr
 }
 
+// buildETCDResourceObjectMeta creates ObjectMeta for copied ETCD resources with
+// owner references, labels, and synchronization tracking annotations
+func buildETCDResourceObjectMeta(
+	targetName string,
+	sourceName string,
+	sourceResourceVersion string,
+	agent *instanav1.InstanaAgent,
+) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      targetName,
+		Namespace: agent.Namespace,
+		OwnerReferences: []metav1.OwnerReference{
+			*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
+		},
+		Labels: map[string]string{
+			"app.kubernetes.io/name":       "instana-agent",
+			"app.kubernetes.io/component":  "k8sensor",
+			"app.kubernetes.io/managed-by": "instana-agent-operator",
+			"instana.io/copied-from":       constants.ETCDNamespace,
+		},
+		Annotations: map[string]string{
+			"instana.io/source-namespace":        constants.ETCDNamespace,
+			"instana.io/source-name":             sourceName,
+			"instana.io/source-resource-version": sourceResourceVersion,
+			"instana.io/instana-agent-name":      agent.Name,
+		},
+	}
+}
+
 // copyETCDResourcesToNamespace copies ETCD ConfigMap and Secret to the target namespace
 func copyETCDResourcesToNamespace(
 	ctx context.Context,
@@ -261,25 +290,12 @@ func copyETCDResourcesToNamespace(
 			APIVersion: "v1",
 			Kind:       "ConfigMap",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.ETCDMetricsCABundleName,
-			Namespace: agent.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
-			},
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       "instana-agent",
-				"app.kubernetes.io/component":  "k8sensor",
-				"app.kubernetes.io/managed-by": "instana-agent-operator",
-				"instana.io/copied-from":       constants.ETCDNamespace,
-			},
-			Annotations: map[string]string{
-				"instana.io/source-namespace":        constants.ETCDNamespace,
-				"instana.io/source-name":             constants.ETCDMetricsCABundleName,
-				"instana.io/source-resource-version": sourceConfigMap.ResourceVersion,
-				"instana.io/instana-agent-name":      agent.Name,
-			},
-		},
+		ObjectMeta: buildETCDResourceObjectMeta(
+			constants.ETCDMetricsCABundleName,
+			constants.ETCDMetricsCABundleName,
+			sourceConfigMap.ResourceVersion,
+			agent,
+		),
 		Data: sourceConfigMap.Data,
 	}
 	if _, err := c.Apply(ctx, targetCAConfigMap).Get(); err != nil {
@@ -295,25 +311,12 @@ func copyETCDResourcesToNamespace(
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.ETCDMetricClientSecretName,
-			Namespace: agent.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
-			},
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       "instana-agent",
-				"app.kubernetes.io/component":  "k8sensor",
-				"app.kubernetes.io/managed-by": "instana-agent-operator",
-				"instana.io/copied-from":       constants.ETCDNamespace,
-			},
-			Annotations: map[string]string{
-				"instana.io/source-namespace":        constants.ETCDNamespace,
-				"instana.io/source-name":             constants.ETCDMetricClientSecretName,
-				"instana.io/source-resource-version": sourceSecret.ResourceVersion,
-				"instana.io/instana-agent-name":      agent.Name,
-			},
-		},
+		ObjectMeta: buildETCDResourceObjectMeta(
+			constants.ETCDMetricClientSecretName,
+			constants.ETCDMetricClientSecretName,
+			sourceSecret.ResourceVersion,
+			agent,
+		),
 		Type: sourceSecret.Type,
 		Data: sourceSecret.Data,
 	}
