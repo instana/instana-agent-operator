@@ -19,8 +19,7 @@ package constants
 import "fmt"
 
 const (
-	// ConfigMap names
-	ServiceCAConfigMapName   = "sensor-service-ca"
+	// ConfigMap and Secret names
 	ETCDCASecretName         = "etcd-ca"
 	ETCDClientCertSecretName = "etcd-client-cert"
 
@@ -39,9 +38,7 @@ const (
 	EnvETCDInsecure       = "ETCD_INSECURE"
 
 	// ETCD paths
-	ServiceCAKey       = "service-ca.crt"
-	ServiceCAMountPath = "/etc/service-ca"
-	ETCDCAMountPath    = "/var/run/secrets/etcd"
+	ETCDCAMountPath = "/var/run/secrets/etcd"
 
 	// OpenShift ETCD resources
 	ETCDMetricsCABundleName    = "etcd-metrics-ca-bundle"
@@ -52,9 +49,6 @@ const (
 
 	// Container names
 	ContainerK8Sensor = "instana-agent"
-
-	// OpenShift annotations
-	OpenShiftInjectCABundleAnnotation = "service.beta.openshift.io/inject-cabundle"
 )
 
 // ETCD URLs - using functions since constants can't use fmt.Sprintf

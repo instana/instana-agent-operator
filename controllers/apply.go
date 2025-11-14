@@ -166,6 +166,282 @@ func compareAndUpdateETCDTargets(
 // ETCDDiscoverFunc is a function type for discovering ETCD endpoints
 type ETCDDiscoverFunc func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error)
 
+// validateOpenShiftETCDResources validates that the ETCD ConfigMap and Secret contain required keys
+func validateOpenShiftETCDResources(
+	configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	caErr, certErr error,
+	logger logr.Logger,
+) (error, error) {
+	// If CA already has error, skip validation
+	if caErr != nil {
+		return caErr, certErr
+	}
+
+	// Validate ConfigMap contains required keys
+	if configMap.Data == nil {
+		logger.Info(
+			"OpenShift ETCD CA bundle ConfigMap has no data, ETCD monitoring will be disabled",
+		)
+		return fmt.Errorf("etcd-metrics-ca-bundle has no data"), certErr
+	}
+
+	if _, ok := configMap.Data["ca-bundle.crt"]; !ok {
+		logger.Info(
+			"OpenShift ETCD CA bundle missing ca-bundle.crt key, ETCD monitoring will be disabled",
+		)
+		return fmt.Errorf("etcd-metrics-ca-bundle missing ca-bundle.crt key"), certErr
+	}
+
+	if configMap.Data["ca-bundle.crt"] == "" {
+		logger.Info(
+			"OpenShift ETCD CA bundle ca-bundle.crt is empty, ETCD monitoring will be disabled",
+		)
+		return fmt.Errorf("etcd-metrics-ca-bundle ca-bundle.crt is empty"), certErr
+	}
+
+	// If Secret already has error, skip validation
+	if certErr != nil {
+		return caErr, certErr
+	}
+
+	// Validate Secret contains required keys
+	if secret.Data == nil {
+		logger.Info(
+			"OpenShift ETCD client Secret has no data, ETCD monitoring will be disabled",
+		)
+		return caErr, fmt.Errorf("etcd-metric-client has no data")
+	}
+
+	// Check for tls.crt
+	if _, ok := secret.Data["tls.crt"]; !ok {
+		logger.Info(
+			"OpenShift ETCD client Secret missing tls.crt key, ETCD monitoring will be disabled",
+		)
+		return caErr, fmt.Errorf("etcd-metric-client missing tls.crt key")
+	}
+
+	if len(secret.Data["tls.crt"]) == 0 {
+		logger.Info(
+			"OpenShift ETCD client Secret tls.crt is empty, ETCD monitoring will be disabled",
+		)
+		return caErr, fmt.Errorf("etcd-metric-client tls.crt is empty")
+	}
+
+	// Check for tls.key
+	if _, ok := secret.Data["tls.key"]; !ok {
+		logger.Info(
+			"OpenShift ETCD client Secret missing tls.key key, ETCD monitoring will be disabled",
+		)
+		return caErr, fmt.Errorf("etcd-metric-client missing tls.key key")
+	}
+
+	if len(secret.Data["tls.key"]) == 0 {
+		logger.Info(
+			"OpenShift ETCD client Secret tls.key is empty, ETCD monitoring will be disabled",
+		)
+		return caErr, fmt.Errorf("etcd-metric-client tls.key is empty")
+	}
+
+	return caErr, certErr
+}
+
+// copyETCDResourcesToNamespace copies ETCD ConfigMap and Secret to the target namespace
+func copyETCDResourcesToNamespace(
+	ctx context.Context,
+	c client.InstanaAgentClient,
+	agent *instanav1.InstanaAgent,
+	sourceConfigMap *corev1.ConfigMap,
+	sourceSecret *corev1.Secret,
+	logger logr.Logger,
+) bool {
+	// Copy ETCD ConfigMap to instana-agent namespace with synchronization tracking
+	targetCAConfigMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      constants.ETCDMetricsCABundleName,
+			Namespace: agent.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
+			},
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "instana-agent",
+				"app.kubernetes.io/component":  "k8sensor",
+				"app.kubernetes.io/managed-by": "instana-agent-operator",
+				"instana.io/copied-from":       constants.ETCDNamespace,
+			},
+			Annotations: map[string]string{
+				"instana.io/source-namespace":        constants.ETCDNamespace,
+				"instana.io/source-name":             constants.ETCDMetricsCABundleName,
+				"instana.io/source-resource-version": sourceConfigMap.ResourceVersion,
+				"instana.io/instana-agent-name":      agent.Name,
+			},
+		},
+		Data: sourceConfigMap.Data,
+	}
+	if _, err := c.Apply(ctx, targetCAConfigMap).Get(); err != nil {
+		logger.Error(err, "Failed to copy ETCD CA ConfigMap to instana-agent namespace")
+		return false
+	}
+	logger.Info("Successfully copied/updated ETCD CA ConfigMap",
+		"sourceResourceVersion", sourceConfigMap.ResourceVersion)
+
+	// Copy ETCD Secret to instana-agent namespace with synchronization tracking
+	targetClientSecret := &corev1.Secret{ // pragma: allowlist secret
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      constants.ETCDMetricClientSecretName,
+			Namespace: agent.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
+			},
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "instana-agent",
+				"app.kubernetes.io/component":  "k8sensor",
+				"app.kubernetes.io/managed-by": "instana-agent-operator",
+				"instana.io/copied-from":       constants.ETCDNamespace,
+			},
+			Annotations: map[string]string{
+				"instana.io/source-namespace":        constants.ETCDNamespace,
+				"instana.io/source-name":             constants.ETCDMetricClientSecretName,
+				"instana.io/source-resource-version": sourceSecret.ResourceVersion,
+				"instana.io/instana-agent-name":      agent.Name,
+			},
+		},
+		Type: sourceSecret.Type,
+		Data: sourceSecret.Data,
+	}
+	if _, err := c.Apply(ctx, targetClientSecret).Get(); err != nil {
+		logger.Error(err, "Failed to copy ETCD client Secret to instana-agent namespace")
+
+		// NOTE: If ConfigMap copy succeeded but Secret copy fails, the ConfigMap
+		// will remain in the namespace temporarily until the next reconciliation loop,
+		// where the cleanup logic will remove it. This is acceptable because:
+		// 1. OpenShiftETCDResourcesExist=false prevents mounting incomplete resources
+		// 2. The operator reconciles frequently (default: every few minutes)
+		// 3. The ConfigMap is harmless without the Secret
+		return false
+	}
+	logger.Info("Successfully copied/updated ETCD client Secret",
+		"sourceResourceVersion", sourceSecret.ResourceVersion)
+
+	return true
+}
+
+// cleanupCopiedETCDResources removes copied ETCD resources from the target namespace
+func cleanupCopiedETCDResources(
+	ctx context.Context,
+	c client.InstanaAgentClient,
+	agent *instanav1.InstanaAgent,
+	logger logr.Logger,
+) {
+	// Clean up copied ConfigMap if it exists
+	copiedConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      constants.ETCDMetricsCABundleName,
+			Namespace: agent.Namespace,
+		},
+	}
+	if err := c.Delete(ctx, copiedConfigMap); err != nil && !apierrors.IsNotFound(err) {
+		logger.Error(err, "Failed to cleanup copied ETCD CA ConfigMap")
+	} else if err == nil {
+		logger.Info("Cleaned up copied ETCD CA ConfigMap")
+	}
+
+	// Clean up copied Secret if it exists
+	copiedSecret := &corev1.Secret{ // pragma: allowlist secret
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      constants.ETCDMetricClientSecretName,
+			Namespace: agent.Namespace,
+		},
+	}
+	if err := c.Delete(ctx, copiedSecret); err != nil && !apierrors.IsNotFound(err) {
+		logger.Error(err, "Failed to cleanup copied ETCD client Secret")
+	} else if err == nil {
+		logger.Info("Cleaned up copied ETCD client Secret")
+	}
+}
+
+// logAndCleanupETCDErrors logs ETCD resource errors and performs cleanup
+func logAndCleanupETCDErrors(
+	ctx context.Context,
+	c client.InstanaAgentClient,
+	agent *instanav1.InstanaAgent,
+	caErr, certErr error,
+	logger logr.Logger,
+) {
+	if caErr != nil {
+		logger.Info(
+			"OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled",
+			"error",
+			caErr,
+		)
+	}
+	if certErr != nil {
+		logger.Info(
+			"OpenShift ETCD client certificate not found, ETCD monitoring will be disabled",
+			"error",
+			certErr,
+		)
+	}
+
+	cleanupCopiedETCDResources(ctx, c, agent, logger)
+}
+
+// setupOpenShiftETCDMonitoring sets up ETCD monitoring for OpenShift clusters
+func setupOpenShiftETCDMonitoring(
+	ctx context.Context,
+	c client.InstanaAgentClient,
+	agent *instanav1.InstanaAgent,
+	logger logr.Logger,
+) *k8ssensordeployment.DeploymentContext {
+	deploymentContext := &k8ssensordeployment.DeploymentContext{}
+
+	// Fetch ETCD resources from openshift-etcd namespace
+	etcdCAConfigMap := &corev1.ConfigMap{}
+	caErr := c.Get(ctx, types.NamespacedName{
+		Namespace: constants.ETCDNamespace,
+		Name:      constants.ETCDMetricsCABundleName,
+	}, etcdCAConfigMap)
+
+	etcdClientSecret := &corev1.Secret{} // pragma: allowlist secret
+	certErr := c.Get(ctx, types.NamespacedName{
+		Namespace: constants.ETCDNamespace,
+		Name:      constants.ETCDMetricClientSecretName,
+	}, etcdClientSecret)
+
+	// Validate resources contain required keys
+	caErr, certErr = validateOpenShiftETCDResources(
+		etcdCAConfigMap,
+		etcdClientSecret,
+		caErr,
+		certErr,
+		logger,
+	)
+
+	// If either resource is invalid, log errors, cleanup, and return early
+	if caErr != nil || certErr != nil {
+		logAndCleanupETCDErrors(ctx, c, agent, caErr, certErr, logger)
+		return deploymentContext
+	}
+
+	// Happy path - both resources are valid
+	logger.Info("OpenShift ETCD resources found, enabling ETCD monitoring")
+
+	// Copy resources to instana-agent namespace
+	if copyETCDResourcesToNamespace(ctx, c, agent, etcdCAConfigMap, etcdClientSecret, logger) {
+		deploymentContext.OpenShiftETCDResourcesExist = true
+	}
+
+	return deploymentContext
+}
+
 // CreateDeploymentContext creates a deployment context for the k8s-sensor deployment.
 // It handles both OpenShift and vanilla Kubernetes cases, setting up the appropriate
 // ETCD configuration based on the environment.
@@ -177,204 +453,8 @@ func CreateDeploymentContext(
 	logger logr.Logger,
 	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
-	var deploymentContext *k8ssensordeployment.DeploymentContext
-
-	// For OpenShift, create the service-CA ConfigMap
-	// TODO: This ConfigMap is not currently used and should be removed.
-	// It was originally added for ETCD metrics collection, but ETCD requires
-	// etcd-metrics-ca-bundle (signed by etcd-metric-signer), not service-ca.crt
-	// (signed by openshift-service-serving-signer). Other control plane components
-	// (API Server, Controller Manager, Scheduler) use the cluster CA from the
-	// service account, not this ConfigMap.
 	if isOpenShift {
-		if err := CreateServiceCAConfigMap(ctx, c, agent, logger); err != nil {
-			logger.Error(err, "Failed to create service-CA ConfigMap")
-			// Continue with reconciliation, don't fail the whole process
-			return deploymentContext, nil
-		}
-
-		// Check if OpenShift ETCD resources are available
-		deploymentContext = &k8ssensordeployment.DeploymentContext{}
-
-		// Verify etcd-metrics-ca-bundle ConfigMap exists
-		etcdCAConfigMap := &corev1.ConfigMap{}
-		caErr := c.Get(ctx, types.NamespacedName{
-			Namespace: constants.ETCDNamespace,
-			Name:      constants.ETCDMetricsCABundleName,
-		}, etcdCAConfigMap)
-
-		// Verify etcd-metric-client Secret exists
-		etcdClientSecret := &corev1.Secret{} // pragma: allowlist secret
-		certErr := c.Get(ctx, types.NamespacedName{
-			Namespace: constants.ETCDNamespace,
-			Name:      constants.ETCDMetricClientSecretName,
-		}, etcdClientSecret)
-
-		// Validate ConfigMap contains required keys
-		if caErr == nil {
-			if etcdCAConfigMap.Data == nil {
-				logger.Info(
-					"OpenShift ETCD CA bundle ConfigMap has no data, ETCD monitoring will be disabled",
-				)
-				caErr = fmt.Errorf("etcd-metrics-ca-bundle has no data")
-			} else if _, ok := etcdCAConfigMap.Data["ca-bundle.crt"]; !ok {
-				logger.Info("OpenShift ETCD CA bundle missing ca-bundle.crt key, ETCD monitoring will be disabled")
-				caErr = fmt.Errorf("etcd-metrics-ca-bundle missing ca-bundle.crt key")
-			} else if etcdCAConfigMap.Data["ca-bundle.crt"] == "" {
-				logger.Info("OpenShift ETCD CA bundle ca-bundle.crt is empty, ETCD monitoring will be disabled")
-				caErr = fmt.Errorf("etcd-metrics-ca-bundle ca-bundle.crt is empty")
-			}
-		}
-
-		// Validate Secret contains required keys
-		if certErr == nil {
-			if etcdClientSecret.Data == nil {
-				logger.Info(
-					"OpenShift ETCD client Secret has no data, ETCD monitoring will be disabled",
-				)
-				certErr = fmt.Errorf("etcd-metric-client has no data")
-			} else {
-				// Check for tls.crt
-				if _, ok := etcdClientSecret.Data["tls.crt"]; !ok {
-					logger.Info("OpenShift ETCD client Secret missing tls.crt key, ETCD monitoring will be disabled")
-					certErr = fmt.Errorf("etcd-metric-client missing tls.crt key")
-				} else if len(etcdClientSecret.Data["tls.crt"]) == 0 {
-					logger.Info("OpenShift ETCD client Secret tls.crt is empty, ETCD monitoring will be disabled")
-					certErr = fmt.Errorf("etcd-metric-client tls.crt is empty")
-				}
-
-				// Check for tls.key
-				if certErr == nil {
-					if _, ok := etcdClientSecret.Data["tls.key"]; !ok {
-						logger.Info("OpenShift ETCD client Secret missing tls.key key, ETCD monitoring will be disabled")
-						certErr = fmt.Errorf("etcd-metric-client missing tls.key key")
-					} else if len(etcdClientSecret.Data["tls.key"]) == 0 {
-						logger.Info("OpenShift ETCD client Secret tls.key is empty, ETCD monitoring will be disabled")
-						certErr = fmt.Errorf("etcd-metric-client tls.key is empty")
-					}
-				}
-			}
-		}
-
-		// Set flag if both resources exist AND are valid
-		if caErr == nil && certErr == nil {
-			logger.Info("OpenShift ETCD resources found, enabling ETCD monitoring")
-			deploymentContext.OpenShiftETCDResourcesExist = true
-
-			// Copy ETCD ConfigMap to instana-agent namespace with synchronization tracking
-			targetCAConfigMap := &corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      constants.ETCDMetricsCABundleName,
-					Namespace: agent.Namespace,
-					OwnerReferences: []metav1.OwnerReference{
-						*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
-					},
-					Labels: map[string]string{
-						"app.kubernetes.io/name":       "instana-agent",
-						"app.kubernetes.io/component":  "k8sensor",
-						"app.kubernetes.io/managed-by": "instana-agent-operator",
-						"instana.io/copied-from":       constants.ETCDNamespace,
-					},
-					Annotations: map[string]string{
-						"instana.io/source-namespace":        constants.ETCDNamespace,
-						"instana.io/source-name":             constants.ETCDMetricsCABundleName,
-						"instana.io/source-resource-version": etcdCAConfigMap.ResourceVersion,
-						"instana.io/instana-agent-name":      agent.Name,
-					},
-				},
-				Data: etcdCAConfigMap.Data,
-			}
-			if _, err := c.Apply(ctx, targetCAConfigMap).Get(); err != nil {
-				logger.Error(err, "Failed to copy ETCD CA ConfigMap to instana-agent namespace")
-				deploymentContext.OpenShiftETCDResourcesExist = false
-			} else {
-				logger.Info("Successfully copied/updated ETCD CA ConfigMap",
-					"sourceResourceVersion", etcdCAConfigMap.ResourceVersion)
-			}
-
-			// Copy ETCD Secret to instana-agent namespace with synchronization tracking
-			targetClientSecret := &corev1.Secret{ // pragma: allowlist secret
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Secret",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      constants.ETCDMetricClientSecretName,
-					Namespace: agent.Namespace,
-					OwnerReferences: []metav1.OwnerReference{
-						*metav1.NewControllerRef(agent, instanav1.GroupVersion.WithKind("InstanaAgent")),
-					},
-					Labels: map[string]string{
-						"app.kubernetes.io/name":       "instana-agent",
-						"app.kubernetes.io/component":  "k8sensor",
-						"app.kubernetes.io/managed-by": "instana-agent-operator",
-						"instana.io/copied-from":       constants.ETCDNamespace,
-					},
-					Annotations: map[string]string{
-						"instana.io/source-namespace":        constants.ETCDNamespace,
-						"instana.io/source-name":             constants.ETCDMetricClientSecretName,
-						"instana.io/source-resource-version": etcdClientSecret.ResourceVersion,
-						"instana.io/instana-agent-name":      agent.Name,
-					},
-				},
-				Type: etcdClientSecret.Type,
-				Data: etcdClientSecret.Data,
-			}
-			if _, err := c.Apply(ctx, targetClientSecret).Get(); err != nil {
-				logger.Error(err, "Failed to copy ETCD client Secret to instana-agent namespace")
-				deploymentContext.OpenShiftETCDResourcesExist = false
-
-				// NOTE: If ConfigMap copy succeeded but Secret copy fails, the ConfigMap
-				// will remain in the namespace temporarily until the next reconciliation loop,
-				// where the cleanup logic will remove it. This is acceptable because:
-				// 1. OpenShiftETCDResourcesExist=false prevents mounting incomplete resources
-				// 2. The operator reconciles frequently (default: every few minutes)
-				// 3. The ConfigMap is harmless without the Secret
-			} else {
-				logger.Info("Successfully copied/updated ETCD client Secret",
-					"sourceResourceVersion", etcdClientSecret.ResourceVersion)
-			}
-		} else {
-			// ETCD resources don't exist or feature disabled - clean up copied resources
-			if caErr != nil {
-				logger.Info("OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled", "error", caErr)
-			}
-			if certErr != nil {
-				logger.Info("OpenShift ETCD client certificate not found, ETCD monitoring will be disabled", "error", certErr)
-			}
-
-			// Clean up copied ConfigMap if it exists
-			copiedConfigMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      constants.ETCDMetricsCABundleName,
-					Namespace: agent.Namespace,
-				},
-			}
-			if err := c.Delete(ctx, copiedConfigMap); err != nil && !apierrors.IsNotFound(err) {
-				logger.Error(err, "Failed to cleanup copied ETCD CA ConfigMap")
-			} else if err == nil {
-				logger.Info("Cleaned up copied ETCD CA ConfigMap")
-			}
-
-			// Clean up copied Secret if it exists
-			copiedSecret := &corev1.Secret{ // pragma: allowlist secret
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      constants.ETCDMetricClientSecretName,
-					Namespace: agent.Namespace,
-				},
-			}
-			if err := c.Delete(ctx, copiedSecret); err != nil && !apierrors.IsNotFound(err) {
-				logger.Error(err, "Failed to cleanup copied ETCD client Secret")
-			} else if err == nil {
-				logger.Info("Cleaned up copied ETCD client Secret")
-			}
-		}
-
-		return deploymentContext, nil
+		return setupOpenShiftETCDMonitoring(ctx, c, agent, logger), nil
 	}
 
 	// For vanilla Kubernetes, discover ETCD endpoints
@@ -382,11 +462,11 @@ func CreateDeploymentContext(
 	if err != nil {
 		logger.Error(err, "Failed to discover ETCD endpoints")
 		// Continue with reconciliation, don't fail the whole process
-		return deploymentContext, nil
+		return nil, nil
 	}
 
 	if discoveredETCD == nil || len(discoveredETCD.Targets) == 0 {
-		return deploymentContext, nil
+		return nil, nil
 	}
 
 	// Check if we need to update the Deployment with new ETCD targets
@@ -412,7 +492,7 @@ func CreateDeploymentContext(
 	sortedTargets := getSortedTargets(discoveredETCD.Targets)
 
 	logger.Info("Using discovered ETCD targets", "targets", sortedTargets)
-	deploymentContext = &k8ssensordeployment.DeploymentContext{
+	deploymentContext := &k8ssensordeployment.DeploymentContext{
 		DiscoveredETCDTargets: sortedTargets,
 	}
 	if discoveredETCD.CAFound {
