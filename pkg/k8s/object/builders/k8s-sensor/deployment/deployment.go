@@ -7,6 +7,7 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 
@@ -34,8 +35,9 @@ const componentName = constants.ComponentK8Sensor
 
 // DeploymentContext holds additional context for the deployment
 type DeploymentContext struct {
-	DiscoveredETCDTargets []string
-	ETCDCASecretName      string
+	DiscoveredETCDTargets       []string
+	ETCDCASecretName            string
+	OpenShiftETCDResourcesExist bool
 }
 
 type deploymentBuilder struct {
@@ -88,23 +90,30 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 	// Add OpenShift-specific environment variables
 	if d.isOpenShift {
-		envVars = append(envVars, []corev1.EnvVar{
-			{
-				Name:  constants.EnvETCDMetricsURL,
-				Value: constants.GetETCDOCPMetricsURL(),
-			},
-			{
-				Name:  constants.EnvETCDRequestTimeout,
-				Value: "15s",
-			},
-		}...)
-
-		// Add CA file env var if CA ConfigMap is available
-		if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  constants.EnvETCDCAFile,
-				Value: constants.ServiceCAMountPath + "/" + constants.ServiceCAKey,
-			})
+		// Only add ETCD configuration if resources are available
+		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
+			envVars = append(envVars, []corev1.EnvVar{
+				{
+					Name:  constants.EnvETCDMetricsURL,
+					Value: constants.GetETCDOCPMetricsURL(),
+				},
+				{
+					Name:  constants.EnvETCDRequestTimeout,
+					Value: "15s",
+				},
+				{
+					Name:  constants.EnvETCDCAFile,
+					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
+				},
+				{
+					Name:  constants.EnvETCDCertFile,
+					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientCertFileName),
+				},
+				{
+					Name:  constants.EnvETCDKeyFile,
+					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientKeyFileName),
+				},
+			}...)
 		}
 	} else {
 		// Add discovered ETCD targets for vanilla Kubernetes
@@ -155,9 +164,15 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	volumesToBuild := []volume.Volume{
 		volume.ConfigVolume,
-		// Add new volumes
-		volume.ETCDCAVolume,
+		volume.ETCDCAVolume, // Always include for custom ETCD CA configuration
 		volume.ControlPlaneCAVolume,
+	}
+
+	// Add ETCD client certificate volume for OpenShift if resources exist
+	if d.isOpenShift &&
+		d.deploymentContext != nil &&
+		d.deploymentContext.OpenShiftETCDResourcesExist {
+		volumesToBuild = append(volumesToBuild, volume.ETCDClientCertVolume)
 	}
 
 	// Add secrets volume if secret mounts are enabled (default behavior)
