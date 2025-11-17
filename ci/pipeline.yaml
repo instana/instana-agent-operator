@@ -1125,7 +1125,7 @@ jobs:
                 fi
 
                 echo "**** Public release, create github.com release $VERSION. ****"
-                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR
+                ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR $BRANCH
         on_success:
           put: gh-status
           inputs: [ agent-operator-git-source ]
