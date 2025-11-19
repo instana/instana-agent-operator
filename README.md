@@ -27,13 +27,24 @@ There are two ways to install the operator:
 
 #### OpenShift Clusters
 
-On OpenShift clusters, the operator automatically:
+On OpenShift clusters, the operator automatically discovers and configures ETCD mTLS authentication:
 
-1. Creates a ConfigMap with the `service.beta.openshift.io/inject-cabundle: "true"` annotation
-2. Mounts the injected CA certificate at `/etc/service-ca/service-ca.crt`
-3. Sets `ETCD_METRICS_URL` to point to the OpenShift etcd metrics endpoint
-4. Sets `ETCD_CA_FILE` to the mounted certificate path
-5. Sets `ETCD_REQUEST_TIMEOUT` to 15s
+1. Discovers ETCD resources in the `openshift-etcd` namespace:
+   - `etcd-metrics-ca-bundle` ConfigMap (CA certificate signed by etcd-metric-signer)
+   - `etcd-metric-client` Secret (mTLS client certificates)
+2. Copies these resources to the `instana-agent` namespace for pod access
+3. Mounts certificates in the k8sensor pod:
+   - CA bundle at `/etc/etcd-metrics-ca/ca-bundle.crt`
+   - Client certificate at `/etc/etcd-client/tls.crt`
+   - Client key at `/etc/etcd-client/tls.key`
+4. Sets environment variables:
+   - `ETCD_METRICS_URL` = `https://etcd.openshift-etcd.svc.cluster.local:9979/metrics`
+   - `ETCD_CA_FILE` = `/etc/etcd-metrics-ca/ca-bundle.crt`
+   - `ETCD_CERT_FILE` = `/etc/etcd-client/tls.crt`
+   - `ETCD_KEY_FILE` = `/etc/etcd-client/tls.key`
+   - `ETCD_REQUEST_TIMEOUT` = `15s`
+
+If ETCD resources are not found or are invalid, ETCD monitoring is gracefully disabled and the operator continues normal operation.
 
 **Note:** The 15s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
 For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.

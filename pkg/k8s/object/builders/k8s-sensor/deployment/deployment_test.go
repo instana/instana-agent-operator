@@ -1047,3 +1047,50 @@ func getEnvVar(envVars []corev1.EnvVar, name string) *corev1.EnvVar {
 	}
 	return nil
 }
+
+// Test pollrate configuration: custom value overrides default
+func TestGetK8SensorArgsWithCustomPollRate(t *testing.T) {
+	// Arrange
+	agent := createInstanaAgentWithSecretMountsEnabled()
+	agent.Spec.K8sSensor.PollRate = "15s"
+	builder := createTestDeploymentBuilder(t, agent)
+
+	// Act
+	args := builder.getK8SensorArgs()
+
+	// Assert
+	assert.Contains(t, args, "-pollrate", "Should contain -pollrate argument")
+	pollRateIndex := indexOf(args, "-pollrate")
+	assert.Equal(t, "15s", args[pollRateIndex+1], "Should use custom pollrate value")
+}
+
+// Test pollrate configuration: uses default when not set
+func TestGetK8SensorArgsWithDefaultPollRate(t *testing.T) {
+	// Arrange
+	agent := createInstanaAgentWithSecretMountsEnabled()
+	// Don't set PollRate - should use default
+	builder := createTestDeploymentBuilder(t, agent)
+
+	// Act
+	args := builder.getK8SensorArgs()
+
+	// Assert
+	assert.Contains(t, args, "-pollrate", "Should contain -pollrate argument")
+	pollRateIndex := indexOf(args, "-pollrate")
+	assert.Equal(t, "10s", args[pollRateIndex+1], "Should use default pollrate of 10s")
+}
+
+// Test pollrate validation: accepts valid seconds format
+func TestValidatePollRateAcceptsSeconds(t *testing.T) {
+	// Arrange
+	agent := createInstanaAgentWithSecretMountsEnabled()
+	builder := createTestDeploymentBuilder(t, agent)
+
+	// Act & Assert
+	assert.True(t, builder.validatePollRate("5s"), "Should accept valid seconds format")
+	assert.True(t, builder.validatePollRate("30s"), "Should accept valid seconds format")
+
+	assert.False(t, builder.validatePollRate("30sec"), "Should reject suffix with sec")
+	assert.False(t, builder.validatePollRate(""), "Should reject empty string")
+	assert.False(t, builder.validatePollRate("1m"), "Should reject minute format")
+}

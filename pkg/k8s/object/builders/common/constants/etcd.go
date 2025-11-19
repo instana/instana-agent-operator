@@ -19,9 +19,9 @@ package constants
 import "fmt"
 
 const (
-	// ConfigMap names
-	ServiceCAConfigMapName = "sensor-service-ca"
-	ETCDCASecretName       = "etcd-ca"
+	// ConfigMap and Secret names
+	ETCDCASecretName         = "etcd-ca"
+	ETCDClientCertSecretName = "etcd-client-cert"
 
 	// ETCD ports
 	ETCDMetricsPortHTTPS = 2379
@@ -31,19 +31,29 @@ const (
 	// ETCD environment variables
 	EnvETCDTargets        = "ETCD_TARGETS"
 	EnvETCDCAFile         = "ETCD_CA_FILE"
+	EnvETCDCertFile       = "ETCD_CERT_FILE"
+	EnvETCDKeyFile        = "ETCD_KEY_FILE"
 	EnvETCDMetricsURL     = "ETCD_METRICS_URL"
 	EnvETCDRequestTimeout = "ETCD_REQUEST_TIMEOUT"
 	EnvETCDInsecure       = "ETCD_INSECURE"
 
 	// ETCD paths
-	ServiceCAKey       = "service-ca.crt"
-	ServiceCAMountPath = "/etc/service-ca"
-	ETCDCAMountPath    = "/var/run/secrets/etcd"
+	ETCDCAMountPath = "/var/run/secrets/etcd"
+
+	// OpenShift ETCD resources
+	ETCDMetricsCABundleName    = "etcd-metrics-ca-bundle"
+	ETCDMetricClientSecretName = "etcd-metric-client"
+	ETCDNamespace              = "openshift-etcd"
+	ETCDMetricsCAMountPath     = "/etc/etcd-metrics-ca"
+	ETCDClientCertMountPath    = "/etc/etcd-client"
+
+	// ETCD certificate file names
+	ETCDCABundleFileName   = "ca-bundle.crt"
+	ETCDClientCertFileName = "tls.crt"
+	ETCDClientKeyFileName  = "tls.key"
+
 	// Container names
 	ContainerK8Sensor = "instana-agent"
-
-	// OpenShift annotations
-	OpenShiftInjectCABundleAnnotation = "service.beta.openshift.io/inject-cabundle"
 )
 
 // ETCD URLs - using functions since constants can't use fmt.Sprintf

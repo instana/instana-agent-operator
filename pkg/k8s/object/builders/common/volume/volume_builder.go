@@ -36,6 +36,7 @@ const (
 	SecretsVolume
 	K8SensorSecretsVolume
 	ETCDCAVolume
+	ETCDClientCertVolume
 	ControlPlaneCAVolume
 )
 
@@ -148,6 +149,8 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.k8sensorSecretsVolume()
 	case ETCDCAVolume:
 		return v.etcdCAVolume()
+	case ETCDClientCertVolume:
+		return v.etcdClientCertVolume()
 	case ControlPlaneCAVolume:
 		return v.controlPlaneCAVolume()
 	default:
@@ -291,7 +294,7 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 	}
 
 	// Create a volume with specific items for k8sensor
-	agentKeySecretKey := constants.SecretFileAgentKey
+	agentKeySecretKey := constants.SecretFileAgentKey + v.backendResourceSuffix
 	proxySecretKey := constants.SecretFileHttpsProxy
 
 	// When the user provides an external secret, the keys follow the "key", "key-1" pattern.
@@ -304,7 +307,7 @@ func (v *volumeBuilder) k8sensorSecretsVolume() (*corev1.Volume, *corev1.VolumeM
 	items := []corev1.KeyToPath{
 		{
 			Key:  agentKeySecretKey,
-			Path: constants.SecretFileAgentKey,
+			Path: constants.SecretFileAgentKey + v.backendResourceSuffix,
 		},
 	}
 
@@ -377,7 +380,7 @@ func (v *volumeBuilder) secretsVolume() (*corev1.Volume, *corev1.VolumeMount) {
 
 func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	if v.instanaAgent.Spec.K8sSensor.ETCD.CA.SecretName == "" {
-		// For OpenShift, use the service-ca.crt from ConfigMap
+		// For OpenShift, use the etcd-metrics-ca-bundle ConfigMap from openshift-etcd namespace
 		if v.isOpenShift {
 			volumeName := constants.ETCDCASecretName
 			volume := corev1.Volume{
@@ -385,12 +388,12 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
-							Name: constants.ServiceCAConfigMapName,
+							Name: constants.ETCDMetricsCABundleName,
 						},
 						Items: []corev1.KeyToPath{
 							{
-								Key:  constants.ServiceCAKey,
-								Path: constants.ServiceCAKey,
+								Key:  constants.ETCDCABundleFileName,
+								Path: constants.ETCDCABundleFileName,
 							},
 						},
 						DefaultMode: pointer.To[int32](0440),
@@ -399,7 +402,7 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 			}
 			volumeMount := corev1.VolumeMount{
 				Name:      volumeName,
-				MountPath: constants.ServiceCAMountPath,
+				MountPath: constants.ETCDMetricsCAMountPath,
 				ReadOnly:  true,
 			}
 			return &volume, &volumeMount
@@ -432,6 +435,40 @@ func (v *volumeBuilder) etcdCAVolume() (*corev1.Volume, *corev1.VolumeMount) {
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: v.instanaAgent.Spec.K8sSensor.ETCD.CA.MountPath,
+		ReadOnly:  true,
+	}
+	return &volume, &volumeMount
+}
+
+func (v *volumeBuilder) etcdClientCertVolume() (*corev1.Volume, *corev1.VolumeMount) {
+	// Only for OpenShift - mount etcd-metric-client secret from openshift-etcd namespace
+	if !v.isOpenShift {
+		return nil, nil
+	}
+
+	volumeName := constants.ETCDClientCertSecretName
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: constants.ETCDMetricClientSecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  constants.ETCDClientCertFileName,
+						Path: constants.ETCDClientCertFileName,
+					},
+					{
+						Key:  constants.ETCDClientKeyFileName,
+						Path: constants.ETCDClientKeyFileName,
+					},
+				},
+				DefaultMode: pointer.To[int32](0440),
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: constants.ETCDClientCertMountPath,
 		ReadOnly:  true,
 	}
 	return &volume, &volumeMount

@@ -1,3 +1,8 @@
+#
+# (c) Copyright IBM Corp. 2024, 2025
+# (c) Copyright Instana Inc.
+#
+
 apiVersion: instana.io/v1
 kind: InstanaAgent
 metadata:
@@ -140,6 +145,30 @@ spec:
     #    host:
     #      repository: ""
 
+    # Proxy configuration for the Instana agent
+    # proxyHost: ""
+    # proxyPort: ""
+    # proxyProtocol: ""
+    # proxyUser: ""
+    # proxyPassword: ""
+    # proxyUseDNS: false
+
+    # redactKubernetesSecrets sets the INSTANA_KUBERNETES_REDACT_SECRETS environment variable
+    # redactKubernetesSecrets: ""
+
+    # Maven repository configuration (alternative to host.repository)
+    # instanaMvnRepoUrl: ""
+    # instanaMvnRepoFeaturesPath: ""
+    # instanaMvnRepoSharedPath: ""
+
+    # Mirror repository configuration for air-gapped environments
+    # agentReleaseRepoMirrorUrl: ""
+    # agentReleaseRepoMirrorUsername: ""
+    # agentReleaseRepoMirrorPassword: ""
+    # instanaSharedRepoMirrorUrl: ""
+    # instanaSharedRepoMirrorUsername: ""
+    # instanaSharedRepoMirrorPassword: ""
+
     configuration_yaml: |
     # You can leave this empty, or use this to configure your instana agent.
     # See https://ibm.biz/monitoring-k8s
@@ -207,6 +236,14 @@ spec:
           memory: 2048Mi
           # k8s_sensor.deployment.pod.limits.cpu sets the CPU units allocation limits for the agent pods.
           cpu: 500m
+        # k8s_sensor.deployment.pod.tolerations are tolerations to influence k8s sensor pod assignment.
+        # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+        tolerations: []
+        # k8s_sensor.deployment.pod.nodeSelector allows you to constrain k8s sensor pods to nodes with specific labels
+        # nodeSelector: {}
+        # k8s_sensor.deployment.pod.priorityClassName is the name of an existing PriorityClass that should be set on the k8s sensor pods
+        # https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+        # priorityClassName: ""
         affinity:
           podAntiAffinity:
             # Soft anti-affinity policy: try not to schedule multiple kubernetes-sensor pods on the same node.
@@ -224,6 +261,32 @@ spec:
     podDisruptionBudget:
       # Specifies whether or not to setup a pod disruption budget for the k8sensor deployment
       enabled: false
+    # pollrate controls the frequency at which k8sensor sends collected information to the backend.
+    # Valid values must be in seconds format between 1s and 30s. Values outside this range are clamped to nearest threshold. Default value is 10s.
+    pollrate: "10s"
+    # ETCD configuration for secure scraping
+    # etcd:
+    #   # Whether to use insecure connection to ETCD (default: false)
+    #   insecure: false
+    #   # CA configuration for ETCD
+    #   ca:
+    #     # Path where the CA should be mounted (default: /var/run/secrets/kubernetes.io/serviceaccount)
+    #     mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+    #     # Kubernetes Secret name containing the CA certificate
+    #     secretName: ""
+    #     # Name of the file containing the CA Certificate (key in the Kubernetes Secret)
+    #     filename: ""
+    #   # Optional ETCD targets for vanilla clusters
+    #   targets: []
+    # REST client configuration for control plane
+    # restClient:
+    #   # List of hosts allowed for REST client connections
+    #   hostAllowlist: []
+    #   # CA configuration for control plane
+    #   ca:
+    #     mountPath: ""
+    #     secretName: ""
+    #     filename: ""
 
   kubernetes:
     # Configures use of a Deployment for the Kubernetes sensor rather than as a potential member of the DaemonSet. Is only accepted if k8s_sensor.deployment.enabled=false

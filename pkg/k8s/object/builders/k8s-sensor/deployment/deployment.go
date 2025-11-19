@@ -7,6 +7,8 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"path"
+	"regexp"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,8 +35,9 @@ const componentName = constants.ComponentK8Sensor
 
 // DeploymentContext holds additional context for the deployment
 type DeploymentContext struct {
-	DiscoveredETCDTargets []string
-	ETCDCASecretName      string
+	DiscoveredETCDTargets       []string
+	ETCDCASecretName            string
+	OpenShiftETCDResourcesExist bool
 }
 
 type deploymentBuilder struct {
@@ -87,23 +90,30 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 	// Add OpenShift-specific environment variables
 	if d.isOpenShift {
-		envVars = append(envVars, []corev1.EnvVar{
-			{
-				Name:  constants.EnvETCDMetricsURL,
-				Value: constants.GetETCDOCPMetricsURL(),
-			},
-			{
-				Name:  constants.EnvETCDRequestTimeout,
-				Value: "15s",
-			},
-		}...)
-
-		// Add CA file env var if CA ConfigMap is available
-		if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  constants.EnvETCDCAFile,
-				Value: constants.ServiceCAMountPath + "/" + constants.ServiceCAKey,
-			})
+		// Only add ETCD configuration if resources are available
+		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
+			envVars = append(envVars, []corev1.EnvVar{
+				{
+					Name:  constants.EnvETCDMetricsURL,
+					Value: constants.GetETCDOCPMetricsURL(),
+				},
+				{
+					Name:  constants.EnvETCDRequestTimeout,
+					Value: "15s",
+				},
+				{
+					Name:  constants.EnvETCDCAFile,
+					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
+				},
+				{
+					Name:  constants.EnvETCDCertFile,
+					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientCertFileName),
+				},
+				{
+					Name:  constants.EnvETCDKeyFile,
+					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientKeyFileName),
+				},
+			}...)
 		}
 	} else {
 		// Add discovered ETCD targets for vanilla Kubernetes
@@ -154,9 +164,15 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	volumesToBuild := []volume.Volume{
 		volume.ConfigVolume,
-		// Add new volumes
-		volume.ETCDCAVolume,
+		volume.ETCDCAVolume, // Always include for custom ETCD CA configuration
 		volume.ControlPlaneCAVolume,
+	}
+
+	// Add ETCD client certificate volume for OpenShift if resources exist
+	if d.isOpenShift &&
+		d.deploymentContext != nil &&
+		d.deploymentContext.OpenShiftETCDResourcesExist {
+		volumesToBuild = append(volumesToBuild, volume.ETCDClientCertVolume)
 	}
 
 	// Add secrets volume if secret mounts are enabled (default behavior)
@@ -367,14 +383,39 @@ func NewDeploymentBuilder(
 	}
 }
 
+const (
+	// PollRateRegex defines the validation pattern for pollrate values (seconds only)
+	PollRateRegex = `^[0-9]+s$`
+	// DefaultPollRate is the default polling rate for k8sensor
+	DefaultPollRate = "10s"
+)
+
+// validatePollRate checks if the pollrate matches the same pattern as the CRD validation
+func (d *deploymentBuilder) validatePollRate(pollRate string) bool {
+	matched, err := regexp.MatchString(PollRateRegex, pollRate)
+	if err != nil {
+		return false
+	}
+	return matched
+}
+
 // getK8SensorArgs returns the command line arguments for the k8sensor
 func (d *deploymentBuilder) getK8SensorArgs() []string {
-	args := []string{"-pollrate", "10s"}
+	pollRate := DefaultPollRate
+	if d.Spec.K8sSensor.PollRate != "" {
+		if d.validatePollRate(d.Spec.K8sSensor.PollRate) {
+			pollRate = d.Spec.K8sSensor.PollRate
+		}
+	}
+
+	args := []string{"-pollrate", pollRate}
 
 	if d.Spec.UseSecretMounts == nil || *d.Spec.UseSecretMounts {
+		// Use backend-specific secret file key to support multiple backends
+		agentKeyFile := constants.SecretFileAgentKey + d.backend.ResourceSuffix
 		args = append(args,
 			"-agent-key-file",
-			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, constants.SecretFileAgentKey))
+			fmt.Sprintf("%s/%s", constants.InstanaSecretsDirectory, agentKeyFile))
 
 		// Add HTTPS_PROXY file argument if proxy host is configured
 		if d.Spec.Agent.ProxyHost != "" {

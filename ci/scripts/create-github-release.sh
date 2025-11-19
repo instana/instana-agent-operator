@@ -10,10 +10,25 @@ set -e
 VERSION=$1
 GITHUB_OAUTH_TOKEN=$2
 TARGET_DIR=$3
+BRANCH=$4
 
 if [[ -z ${VERSION} ]] || [[ -z ${GITHUB_OAUTH_TOKEN} ]]; then
   echo "Please ensure VERSION and GITHUB_OAUTH_TOKEN are set so a GitHub Release can be created"
   exit 1
+fi
+
+# Default to main if no branch is provided
+if [[ -z ${BRANCH} ]]; then
+  BRANCH="main"
+fi
+
+# Determine if this should be marked as latest (only for main branch)
+MAKE_LATEST="true"
+if [[ "${BRANCH}" != "main" ]]; then
+  MAKE_LATEST="false"
+  echo "Creating release from branch ${BRANCH} - will NOT be marked as latest"
+else
+  echo "Creating release from main branch - will be marked as latest"
 fi
 
 OPERATOR_RESOURCE_FILENAME="instana-agent-operator.yaml"
@@ -30,7 +45,7 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   GITHUB_RELEASE_RESPONSE=$(curl -X POST \
     -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
     -H 'Content-Type: application/json' \
-    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"main\", \"name\": \"v${VERSION}\" }" \
+    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"${BRANCH}\", \"name\": \"v${VERSION}\", \"make_latest\": \"${MAKE_LATEST}\" }" \
     ${GITHUB_RELEASES_URL})
 
   GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)

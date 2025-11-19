@@ -44,6 +44,7 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			CleanupSecretAfterTest(t, cfg.Namespace(), "instana-agent-key")
 
 			t.Logf("Secret created")
 
@@ -114,6 +115,7 @@ func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			CleanupSecretAfterTest(t, cfg.Namespace(), "instana-agent-key")
 
 			t.Logf("Secret created")
 

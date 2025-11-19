@@ -7,6 +7,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -21,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -97,7 +98,7 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		// Check if namespace exist, otherwise just skip over it
 		agentNamespace := &corev1.Namespace{}
 		err = r.Get(ctx, InstanaNamespace, InstanaNamespace, agentNamespace)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			log.Infof("Namespace %s was not found, skipping deletion", cfg.Namespace())
 			return ctx, nil
 		}
@@ -155,7 +156,7 @@ func DeleteAgentCRIfPresent() env.Func {
 		// to remove the finalizer. Afterwards, it can be successfully deleted.
 		agent := &v1.InstanaAgent{}
 		err = r.Get(ctx, AgentCustomResourceName, InstanaNamespace, agent)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// No agent cr found, skip this cleanup step
 			log.Info("No agent CR present, skipping deletion")
 			return ctx, nil
@@ -198,6 +199,213 @@ func DeleteAgentCRIfPresent() env.Func {
 		log.Info("Agent CR is gone")
 		return ctx, nil
 	}
+}
+
+func EnsureReusableEnvironment() env.Func {
+	return func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
+		log.Info("Ensuring reusable Instana environment for next test")
+		if resetRequested, reason := FullResetRequested(); resetRequested {
+			log.Infof("Full reset requested: %s", reason)
+			if err := runFullReset(ctx, cfg); err != nil {
+				return ctx, err
+			}
+			ClearFullResetRequest()
+			return ctx, nil
+		}
+
+		if err := fastResetInstanaResources(ctx, cfg); err != nil {
+			if errors.Is(err, ErrFullResetRequired) {
+				log.Infof("Fast reset unavailable (%v). Falling back to full cleanup", err)
+				if err := runFullReset(ctx, cfg); err != nil {
+					return ctx, err
+				}
+				ClearFullResetRequest()
+				return ctx, nil
+			}
+			return ctx, err
+		}
+
+		if err := ensureInstanaNamespaceExists(ctx, cfg); err != nil {
+			return ctx, fmt.Errorf("ensure namespace after fast cleanup: %w", err)
+		}
+		return ctx, nil
+	}
+}
+
+// RequireFullResetAfterTest ensures that the next test run performs a full cleanup, regardless of the fast-path state.
+func RequireFullResetAfterTest(t *testing.T, reason string) {
+	t.Helper()
+	t.Cleanup(func() {
+		t.Logf("Test requested full reset: %s", reason)
+		MarkFullResetRequired(reason)
+	})
+}
+
+func RequireFullResetBeforeTest(t *testing.T, reason string) {
+	t.Helper()
+	t.Logf("Requesting full reset before test: %s", reason)
+	MarkFullResetRequired(reason)
+}
+
+func CleanupSecretAfterTest(t *testing.T, namespace, name string) {
+	t.Helper()
+	t.Cleanup(func() {
+		cmd := fmt.Sprintf("kubectl delete secret %s -n %s --ignore-not-found", name, namespace)
+		p := utils.RunCommand(cmd)
+		if p.Err() != nil {
+			t.Logf(
+				"Cleanup: Failed to delete secret %s/%s: %v (%s)",
+				namespace,
+				name,
+				p.Err(),
+				p.Out(),
+			)
+		} else {
+			t.Logf("Cleanup: Deleted secret %s/%s", namespace, name)
+		}
+	})
+}
+
+func CleanupConfigMapAfterTest(t *testing.T, namespace, name string) {
+	t.Helper()
+	t.Cleanup(func() {
+		cmd := fmt.Sprintf("kubectl delete configmap %s -n %s --ignore-not-found", name, namespace)
+		p := utils.RunCommand(cmd)
+		if p.Err() != nil {
+			t.Logf(
+				"Cleanup: Failed to delete configmap %s/%s: %v (%s)",
+				namespace,
+				name,
+				p.Err(),
+				p.Out(),
+			)
+		} else {
+			t.Logf("Cleanup: Deleted configmap %s/%s", namespace, name)
+		}
+	})
+}
+
+func runFullReset(ctx context.Context, cfg *envconf.Config) error {
+	if _, err := EnsureAgentRemoteDeletion()(ctx, cfg); err != nil {
+		return err
+	}
+	if _, err := EnsureAgentNamespaceDeletion()(ctx, cfg); err != nil {
+		return err
+	}
+	return ensureInstanaNamespaceExists(ctx, cfg)
+}
+
+func fastResetInstanaResources(ctx context.Context, cfg *envconf.Config) error {
+	log.Info("Attempting fast cleanup of agent workloads")
+	exists, err := namespaceExists(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("namespace %s missing: %w", cfg.Namespace(), ErrFullResetRequired)
+	}
+
+	image, err := currentOperatorImage(ctx, cfg)
+	if err != nil {
+		if errors.Is(err, ErrOperatorDeploymentNotFound) {
+			return ErrFullResetRequired
+		}
+		return err
+	}
+
+	if desired := desiredDevBuildImage(); image != desired {
+		log.Infof("Operator image %s does not match desired %s", image, desired)
+		return ErrFullResetRequired
+	}
+
+	if _, err := DeleteAgentRemoteCRIfPresent()(ctx, cfg); err != nil {
+		return fmt.Errorf("fast cleanup: delete agent remote CR failed: %w", err)
+	}
+
+	if _, err := DeleteAgentCRIfPresent()(ctx, cfg); err != nil {
+		return fmt.Errorf("fast cleanup: delete agent CR failed: %w", err)
+	}
+
+	if err := waitForAgentWorkloadsToDisappear(ctx, cfg); err != nil {
+		return err
+	}
+
+	log.Info("Fast cleanup completed")
+	return nil
+}
+
+func waitForAgentWorkloadsToDisappear(ctx context.Context, cfg *envconf.Config) error {
+	r, err := resources.New(cfg.Client().RESTConfig())
+	if err != nil {
+		return fmt.Errorf("initialize client for workload cleanup: %w", err)
+	}
+	r.WithNamespace(cfg.Namespace())
+	conds := conditions.New(r)
+
+	waitForDS := func(name string) error {
+		ds := &appsv1.DaemonSet{}
+		if err := r.Get(ctx, name, cfg.Namespace(), ds); apierrors.IsNotFound(err) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		dsList := &appsv1.DaemonSetList{Items: []appsv1.DaemonSet{*ds}}
+		return wait.For(conds.ResourcesDeleted(dsList), wait.WithTimeout(2*time.Minute))
+	}
+
+	waitForDeployment := func(name string) error {
+		dep := &appsv1.Deployment{}
+		if err := r.Get(ctx, name, cfg.Namespace(), dep); apierrors.IsNotFound(err) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		depList := &appsv1.DeploymentList{Items: []appsv1.Deployment{*dep}}
+		return wait.For(conds.ResourcesDeleted(depList), wait.WithTimeout(2*time.Minute))
+	}
+
+	if err := waitForDS(AgentDaemonSetName); err != nil {
+		return fmt.Errorf("waiting for daemonset deletion (%v): %w", err, ErrFullResetRequired)
+	}
+	if err := waitForDeployment(K8sensorDeploymentName); err != nil {
+		return fmt.Errorf("waiting for deployment deletion (%v): %w", err, ErrFullResetRequired)
+	}
+	return nil
+}
+
+func namespaceExists(ctx context.Context, cfg *envconf.Config) (bool, error) {
+	r, err := resources.New(cfg.Client().RESTConfig())
+	if err != nil {
+		return false, fmt.Errorf("initialize client for namespace lookup: %w", err)
+	}
+	ns := &corev1.Namespace{}
+	err = r.Get(ctx, cfg.Namespace(), cfg.Namespace(), ns)
+	if apierrors.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func ensureInstanaNamespaceExists(ctx context.Context, cfg *envconf.Config) error {
+	r, err := resources.New(cfg.Client().RESTConfig())
+	if err != nil {
+		return fmt.Errorf("initialize client to ensure namespace: %w", err)
+	}
+	ns := &corev1.Namespace{}
+	err = r.Get(ctx, cfg.Namespace(), cfg.Namespace(), ns)
+	if apierrors.IsNotFound(err) {
+		log.Infof("Namespace %s missing, recreating", cfg.Namespace())
+		ns = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: cfg.Namespace(),
+			},
+		}
+		return r.Create(ctx, ns)
+	}
+	return err
 }
 
 // On OpenShift we need to ensure the instana-agent service account gets permission to the privilged security context
@@ -311,78 +519,118 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 // Setup functions
 func SetupOperatorDevBuild() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		// Create pull secret for custom registry
-		t.Logf("Creating custom pull secret for %s", InstanaTestCfg.ContainerRegistry.Host)
-		p := utils.RunCommand(
-			fmt.Sprintf(
-				"kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
-				cfg.Namespace(),
-				InstanaTestCfg.ContainerRegistry.Name,
-				InstanaTestCfg.ContainerRegistry.Host,
-				InstanaTestCfg.ContainerRegistry.User,
-				InstanaTestCfg.ContainerRegistry.Password,
-			),
-		)
-		if p.Err() != nil {
-			t.Fatal("Error while creating pull secret", p.Err(), p.Out(), p.ExitCode())
-		}
-		t.Log("Pull secret created")
+		ensureRegistrySecret(t, cfg)
 
-		// Use make logic to ensure that local dev commands and test commands are in sync
-		cmd := fmt.Sprintf(
-			"bash -c 'cd .. && IMG=%s:%s make install deploy'",
-			InstanaTestCfg.OperatorImage.Name,
-			InstanaTestCfg.OperatorImage.Tag,
-		)
-		t.Logf("Deploy new dev build by running: %s", cmd)
-		p = utils.RunCommand(cmd)
-		if p.Err() != nil {
-			t.Fatal(
-				"Error while deploying custom operator build during update installation",
-				p.Command(),
-				p.Err(),
-				p.Out(),
-				p.ExitCode(),
+		desiredImage := desiredDevBuildImage()
+		imageMatches, err := operatorImageMatches(ctx, cfg, desiredImage)
+		if err != nil {
+			t.Fatalf("Failed to verify operator image: %v", err)
+		}
+
+		if !imageMatches {
+			cmd := fmt.Sprintf(
+				"bash -c 'cd .. && IMG=%s make install deploy'",
+				desiredImage,
 			)
-		}
-		t.Log("Deployment submitted")
-
-		// Inject image pull secret into deployment, ensure to scale to 0 replicas and back to 2 replicas, otherwise pull secrets are not propagated correctly
-		t.Log("Patch instana operator deployment to redeploy pods with image pull secret")
-		r, err := resources.New(cfg.Client().RESTConfig())
-		if err != nil {
-			t.Fatal("Cleanup: Error initializing client", err)
-		}
-		r.WithNamespace(cfg.Namespace())
-		agent := &appsv1.Deployment{}
-		err = r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), agent)
-		replicas := agent.Spec.Replicas
-		if err != nil {
-			t.Fatal("Failed to get deployment-manager deployment", err)
-		}
-		err = r.Patch(ctx, agent, k8s.Patch{
-			PatchType: types.MergePatchType,
-			Data: []byte(
-				fmt.Sprintf(
-					`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
-					InstanaTestCfg.ContainerRegistry.Name,
-				),
-			),
-		})
-		if err != nil {
-			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+			t.Logf("Deploy dev build by running: %s", cmd)
+			p := utils.RunCommand(cmd)
+			if p.Err() != nil {
+				t.Fatal(
+					"Error while deploying custom operator build",
+					p.Command(),
+					p.Err(),
+					p.Out(),
+					p.ExitCode(),
+				)
+			}
+			t.Log("Deployment submitted")
+		} else {
+			t.Logf("Operator already running desired image %s, skipping redeploy", desiredImage)
 		}
 
-		err = r.Patch(ctx, agent, k8s.Patch{
-			PatchType: types.MergePatchType,
-			Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, *replicas)),
-		})
-		if err != nil {
-			t.Fatal("Failed to patch deployment to include pull secret and 0 replicas", err)
+		if err := ensureOperatorHasPullSecret(ctx, cfg); err != nil {
+			t.Fatalf("Failed to ensure operator pull secret: %v", err)
 		}
-		t.Log("Patching completed")
 		return ctx
 	}
+}
+
+func ensureRegistrySecret(t *testing.T, cfg *envconf.Config) {
+	deleteCmd := fmt.Sprintf(
+		"kubectl delete secret %s -n %s --ignore-not-found",
+		InstanaTestCfg.ContainerRegistry.Name,
+		cfg.Namespace(),
+	)
+	if p := utils.RunCommand(deleteCmd); p.Err() != nil {
+		t.Fatalf("Error while deleting existing pull secret: %v (%s)", p.Err(), p.Out())
+	}
+
+	createCmd := fmt.Sprintf(
+		"kubectl create secret -n %s docker-registry %s --docker-server=%s --docker-username=%s --docker-password=%s",
+		cfg.Namespace(),
+		InstanaTestCfg.ContainerRegistry.Name,
+		InstanaTestCfg.ContainerRegistry.Host,
+		InstanaTestCfg.ContainerRegistry.User,
+		InstanaTestCfg.ContainerRegistry.Password,
+	)
+	if p := utils.RunCommand(createCmd); p.Err() != nil {
+		t.Fatalf("Error while creating pull secret: %v (%s)", p.Err(), p.Out())
+	}
+	t.Log("Pull secret ready")
+}
+
+func operatorImageMatches(ctx context.Context, cfg *envconf.Config, expected string) (bool, error) {
+	image, err := currentOperatorImage(ctx, cfg)
+	if err != nil {
+		if errors.Is(err, ErrOperatorDeploymentNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return image == expected, nil
+}
+
+func ensureOperatorHasPullSecret(ctx context.Context, cfg *envconf.Config) error {
+	r, err := resources.New(cfg.Client().RESTConfig())
+	if err != nil {
+		return fmt.Errorf("initialize client for operator patch: %w", err)
+	}
+	r.WithNamespace(cfg.Namespace())
+	dep := &appsv1.Deployment{}
+	if err := r.Get(ctx, InstanaOperatorDeploymentName, cfg.Namespace(), dep); err != nil {
+		return fmt.Errorf("fetch operator deployment: %w", err)
+	}
+
+	for _, secret := range dep.Spec.Template.Spec.ImagePullSecrets {
+		if secret.Name == InstanaTestCfg.ContainerRegistry.Name {
+			return nil
+		}
+	}
+
+	var replicas int32 = 1
+	if dep.Spec.Replicas != nil {
+		replicas = *dep.Spec.Replicas
+	}
+
+	if err := r.Patch(ctx, dep, k8s.Patch{
+		PatchType: types.MergePatchType,
+		Data: []byte(
+			fmt.Sprintf(
+				`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
+				InstanaTestCfg.ContainerRegistry.Name,
+			),
+		),
+	}); err != nil {
+		return fmt.Errorf("patch deployment to inject pull secret: %w", err)
+	}
+
+	if err := r.Patch(ctx, dep, k8s.Patch{
+		PatchType: types.MergePatchType,
+		Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, replicas)),
+	}); err != nil {
+		return fmt.Errorf("scale deployment back after pull secret patch: %w", err)
+	}
+	return nil
 }
 
 func DeployAgentCr(agent *v1.InstanaAgent) e2etypes.StepFunc {

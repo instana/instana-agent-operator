@@ -60,9 +60,9 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		constants.ServiceCAConfigMapName,
+		constants.ETCDMetricsCABundleName,
 		volumes[0].VolumeSource.ConfigMap.LocalObjectReference.Name,
-		"ConfigMap name should be sensor-service-ca",
+		"ConfigMap name should be etcd-metrics-ca-bundle",
 	)
 	assert.Len(
 		t,
@@ -72,15 +72,15 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		constants.ServiceCAKey,
+		constants.ETCDCABundleFileName,
 		volumes[0].VolumeSource.ConfigMap.Items[0].Key,
-		"ConfigMap key should be service-ca.crt",
+		"ConfigMap key should be ca-bundle.crt",
 	)
 	assert.Equal(
 		t,
-		constants.ServiceCAKey,
+		constants.ETCDCABundleFileName,
 		volumes[0].VolumeSource.ConfigMap.Items[0].Path,
-		"ConfigMap path should be service-ca.crt",
+		"ConfigMap path should be ca-bundle.crt",
 	)
 
 	assert.Equal(
@@ -91,9 +91,9 @@ func TestVolumeBuilder_ETCDCAVolume_OpenShift(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		constants.ServiceCAMountPath,
+		constants.ETCDMetricsCAMountPath,
 		mounts[0].MountPath,
-		"Mount path should be /etc/service-ca",
+		"Mount path should be /etc/etcd-metrics-ca",
 	)
 	assert.True(
 		t,

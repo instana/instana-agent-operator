@@ -19,7 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	log "k8s.io/klog/v2"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -282,7 +282,7 @@ func DeleteAgentRemoteCRIfPresent() env.Func {
 		// to remove the finalizer. Afterwards, it can be successfully deleted.
 		agent := &v1.InstanaAgentRemote{}
 		err = r.Get(ctx, AgentRemoteCustomResourceName, InstanaNamespace, agent)
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// No agent cr found, skip this cleanup step
 			log.Info("No agent remote CR present, skipping deletion")
 			return ctx, nil

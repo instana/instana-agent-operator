@@ -60,7 +60,7 @@ fi
 echo "Download complete to $MANIFEST_FILE. Converting registry paths for FedRAMP..."
 
 # Replace the container registry path and version
-sed -e 's|icr.io/instana/|artifact-public.instana.io/rel-docker-agent-fedramp-virtual/|g' \
+sed -e 's|icr.io/instana/|containers.instana.io/instana/release/fedramp/agent/|g' \
     -e "s|:${VERSION}|:${COMBINED_VERSION}|g" \
     "$MANIFEST_FILE" > "$MANIFEST_FILE_FEDRAMP"
 

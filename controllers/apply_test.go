@@ -48,22 +48,65 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.New()
 
-	t.Run("OpenShift creates service CA", func(t *testing.T) {
+	t.Run("OpenShift discovers and copies ETCD resources", func(t *testing.T) {
 		mockClient := &mocks.MockInstanaAgentClient{}
 
-		// Mock the Apply method for CreateServiceCAConfigMap
-		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).Return(result.OfSuccess[client.Object](nil))
+		// Mock the Apply method for copying ETCD ConfigMap and Secret
+		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).
+			Return(result.OfSuccess[client.Object](nil))
+		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+			Return(result.OfSuccess[client.Object](nil))
+
+		// Mock Get calls for ETCD resource checks with valid data
+		mockClient.On(
+			"Get",
+			mock.Anything,
+			mock.Anything,
+			mock.AnythingOfType("*v1.ConfigMap"),
+			mock.Anything,
+		).Run(func(args mock.Arguments) {
+			cm := args.Get(2).(*corev1.ConfigMap)
+			cm.Data = map[string]string{
+				"ca-bundle.crt": "test-ca-cert-data",
+			}
+			cm.ResourceVersion = "12345"
+		}).Return(nil)
+		mockClient.On(
+			"Get",
+			mock.Anything,
+			mock.Anything,
+			mock.AnythingOfType("*v1.Secret"),
+			mock.Anything,
+		).Run(func(args mock.Arguments) {
+			secret := args.Get(2).(*corev1.Secret)
+			secret.Data = map[string][]byte{
+				"tls.crt": []byte("test-cert-data"),
+				"tls.key": []byte("test-key-data"),
+			}
+			secret.ResourceVersion = "67890"
+		}).Return(nil)
 
 		// Mock ETCD discover function (won't be called for OpenShift)
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return nil, nil
 		}
 
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, true, logger, mockDiscoverETCD)
+		deploymentContext, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			true,
+			logger,
+			mockDiscoverETCD,
+		)
 
 		require.NoError(t, err)
 		require.NotNil(t, deploymentContext)
-		assert.Empty(t, deploymentContext.ETCDCASecretName)
+		assert.True(
+			t,
+			deploymentContext.OpenShiftETCDResourcesExist,
+			"ETCD resources should exist when Get calls succeed",
+		)
 		mockClient.AssertExpectations(t)
 	})
 
@@ -75,7 +118,14 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			return nil, nil
 		}
 
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, false, logger, mockDiscoverETCD)
+		deploymentContext, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			false,
+			logger,
+			mockDiscoverETCD,
+		)
 
 		require.NoError(t, err)
 		assert.Nil(t, deploymentContext)
@@ -93,13 +143,25 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			}, nil
 		}
 
-		mockClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
+		mockClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
 
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, false, logger, mockDiscoverETCD)
+		deploymentContext, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			false,
+			logger,
+			mockDiscoverETCD,
+		)
 
 		require.NoError(t, err)
 		require.NotNil(t, deploymentContext)
-		assert.Equal(t, []string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"}, deploymentContext.DiscoveredETCDTargets)
+		assert.Equal(
+			t,
+			[]string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"},
+			deploymentContext.DiscoveredETCDTargets,
+		)
 		assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
 		mockClient.AssertExpectations(t)
 	})
@@ -136,12 +198,21 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			},
 		}
 
-		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-			deployment := args.Get(2).(*appsv1.Deployment)
-			*deployment = *existingDeployment
-		})
+		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				deployment := args.Get(2).(*appsv1.Deployment)
+				*deployment = *existingDeployment
+			})
 
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, false, logger, mockDiscoverETCD)
+		deploymentContext, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			false,
+			logger,
+			mockDiscoverETCD,
+		)
 
 		require.NoError(t, err)
 		assert.Nil(t, deploymentContext) // Should return nil when no update needed
@@ -180,35 +251,30 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			},
 		}
 
-		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-			deployment := args.Get(2).(*appsv1.Deployment)
-			*deployment = *existingDeployment
-		})
+		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				deployment := args.Get(2).(*appsv1.Deployment)
+				*deployment = *existingDeployment
+			})
 
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, false, logger, mockDiscoverETCD)
+		deploymentContext, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			false,
+			logger,
+			mockDiscoverETCD,
+		)
 
 		require.NoError(t, err)
 		require.NotNil(t, deploymentContext)
-		assert.Equal(t, []string{"https://etcd-3:2379/metrics", "https://etcd-4:2379/metrics"}, deploymentContext.DiscoveredETCDTargets)
+		assert.Equal(
+			t,
+			[]string{"https://etcd-3:2379/metrics", "https://etcd-4:2379/metrics"},
+			deploymentContext.DiscoveredETCDTargets,
+		)
 		assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
-		mockClient.AssertExpectations(t)
-	})
-
-	t.Run("Error handling in service CA creation", func(t *testing.T) {
-		mockClient := &mocks.MockInstanaAgentClient{}
-
-		// Mock Apply to return an error
-		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).Return(result.OfFailure[client.Object](assert.AnError))
-
-		// Mock ETCD discover function (won't be called for OpenShift)
-		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
-			return nil, nil
-		}
-
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, true, logger, mockDiscoverETCD)
-
-		require.NoError(t, err) // Function continues on error
-		assert.Nil(t, deploymentContext)
 		mockClient.AssertExpectations(t)
 	})
 
@@ -220,7 +286,14 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			return nil, assert.AnError
 		}
 
-		deploymentContext, err := CreateDeploymentContext(ctx, mockClient, agent, false, logger, mockDiscoverETCD)
+		deploymentContext, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			false,
+			logger,
+			mockDiscoverETCD,
+		)
 
 		require.NoError(t, err) // Function continues on error
 		assert.Nil(t, deploymentContext)
