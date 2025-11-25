@@ -3,142 +3,220 @@
 #
 version: "2"
 tasks:
-  pr-code-checks:
+  code-checks:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  code-build:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  deploy-checks:
     displayName: verify-latest-release
     runtimeClassName: large
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-release-pr-creation.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
 
-  pr-code-checks-1:
+  deploy-checks-2:
+    from: deploy-checks
     displayName: redhat-marketplace-operator-commit-changes-and-create-pr
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - deploy-checks
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
   
-  pr-code-checks-2:
-    from: pr-code-checks
+  deploy-checks-3:
+    from: deploy-checks
     displayName: redhat-marketplace-operators-rebase
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - deploy-checks
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
   
-  pr-code-checks-3:
-    from: pr-code-checks
+  deploy-checks-4:
+    from: deploy-checks
     displayName: community-operators-rebase
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - deploy-checks
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
     
-  pr-code-checks-4:
-    from: pr-code-checks
+  deploy-checks-5:
+    from: deploy-checks
     displayName: certified-operators-rebase
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - deploy-checks
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
 
-  pr-code-checks-5:
-    from: pr-code-checks
+  deploy-checks-6:
+    from: deploy-checks
     displayName: certified-operators-commit-changes-and-create-pr
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - deploy-checks
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
     
-  pr-code-checks-6:
-    from: pr-code-checks
+  deploy-checks-7:
+    from: deploy-checks
     displayName: community-operators-commit-changes-and-create-pr
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - deploy-checks
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
-  code-pr-finish:
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+  code-ci-finish:
     steps:
       - name: evaluate
         when: 'false'
