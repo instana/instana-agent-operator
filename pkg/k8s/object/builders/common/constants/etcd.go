@@ -26,7 +26,7 @@ const (
 	// ETCD ports
 	ETCDMetricsPortHTTPS = 2379
 	ETCDMetricsPortHTTP  = 2381
-	ETCDOCPMetricsPort   = 9979
+	ETCDOCPMetricsPort   = 9978
 
 	// ETCD environment variables
 	EnvETCDTargets        = "ETCD_TARGETS"
@@ -41,8 +41,8 @@ const (
 	ETCDCAMountPath = "/var/run/secrets/etcd"
 
 	// OpenShift ETCD resources
-	ETCDMetricsCABundleName    = "etcd-metrics-ca-bundle"
-	ETCDMetricClientSecretName = "etcd-metric-client"
+	ETCDMetricsCABundleName    = "etcd-ca-bundle"
+	ETCDMetricClientSecretName = "etcd-client"
 	ETCDNamespace              = "openshift-etcd"
 	ETCDMetricsCAMountPath     = "/etc/etcd-metrics-ca"
 	ETCDClientCertMountPath    = "/etc/etcd-client"
