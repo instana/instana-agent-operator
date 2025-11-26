@@ -70,7 +70,7 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 }
 
 func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
-	// Build common env vars - exclude ETCDCAFileEnv for OpenShift as it's set in OpenShift-specific section
+	// Build common env vars - exclude ETCDCAFileEnv for OpenShift only when using auto-discovered resources
 	envVarsToInclude := []env.EnvVar{
 		env.BackendURLEnv,
 		env.AgentZoneEnv,
@@ -87,9 +87,13 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.RestClientHostAllowlistEnv,
 	}
 
-	// For vanilla Kubernetes, include ETCDCAFileEnv (for custom CA configuration)
-	// For OpenShift, skip it here as it's added in the OpenShift-specific section below
-	if !d.isOpenShift {
+	// Include ETCDCAFileEnv unless we're on OpenShift with auto-discovered ETCD resources
+	// (in that case, it's added in the OpenShift-specific section below)
+	includeETCDCAFileEnv := !d.isOpenShift ||
+		d.deploymentContext == nil ||
+		!d.deploymentContext.OpenShiftETCDResourcesExist
+
+	if includeETCDCAFileEnv {
 		envVarsToInclude = append(envVarsToInclude, env.ETCDCAFileEnv)
 	}
 
