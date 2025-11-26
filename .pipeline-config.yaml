@@ -4,7 +4,21 @@
 version: "2"
 
 tasks:
-  pr-code-checks:
+  code-checks:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  code-build:
     displayName: build-images-and-e2e
     runtimeClassName: large
     onError: stopAndFail
@@ -12,6 +26,14 @@ tasks:
       - dind
     steps:
       - name: unit-test
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          echo "tests are executed in go-lang-unit-test"
+      - name: build-artifact
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
@@ -23,12 +45,11 @@ tasks:
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/vm-janitor.sh
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/ephemeral-k8s-e2e.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
+      - name: sign-artifact
+        when: false
     
-  pr-code-checks-2:
-    from: pr-code-checks
+  code-build-2:
+    from: code-build
     displayName: go-lang-unit-test
     runtimeClassName: large
     onError: stopAndFail
@@ -41,115 +62,135 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh          
-      - name: detect-secrets
-        include:
-          - docker-socket
-          
-  pr-code-checks-3:
-    from: pr-code-checks
-    displayName: operator-olm-github-release
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-      - pr-code-checks-2
-      - pr-code-checks-5
-    include:
-      - dind
-    steps:
-      - name: unit-test
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh
+      - name: build-artifact
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-github-release.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-
-  pr-code-checks-4:
-    from: pr-code-checks
-    displayName: tag-release
-    runtimeClassName: large
-    runAfter: 
-      - pr-code-checks
-      - pr-code-checks-2
-    include:
-      - dind
-    steps:
-      - name: unit-test
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
-        include:
-          - docker-socket
-        script: |
-          #!/usr/bin/env bash
-          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/tag-new-release.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
+          echo "build are executed in build-images-and-e2e"      
+      - name: sign-artifact
+        when: false
   
-  pr-code-checks-5:
-    from: pr-code-checks
+  code-build-3:
+    from: code-build
     displayName: build-multiarch-manifest
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - code-build
     include:
       - dind
     steps:
       - name: unit-test
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          echo "tests are executed in go-lang-unit-test"
+      - name: build-artifact
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
           #!/usr/bin/env bash
           $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-multiarch-manifest.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
+      - name: sign-artifact
+        when: false
 
-  pr-code-checks-6:
-    from: pr-code-checks
+  code-build-4:
+    from: code-build
     displayName: redhat-preflight-scans
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - code-build
     include:
       - dind
     steps:
       - name: unit-test
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          echo "tests are executed in go-lang-unit-test"
+      - name: build-artifact
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/pre-flight.sh
-      - name: detect-secrets
-        include:
-          - docker-socket
-    
-  pr-code-checks-7:
-    from: pr-code-checks
-    displayName: push-fedramp-version
+      - name: sign-artifact
+        when: false
+
+          
+  deploy-release:
+    displayName: operator-olm-github-release
     runtimeClassName: large
     runAfter: 
-      - pr-code-checks
+      - code-build
+      - code-build-2
+      - code-build-3
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: run-stage
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-github-release.sh
+
+  deploy-release-1:
+    from: deploy-release
+    displayName: tag-release
+    runtimeClassName: large
+    runAfter: 
+      - code-build
+      - code-build-2
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/tag-new-release.sh
+      
+  deploy-checks:
+    displayName: push-fedramp-version
+    runtimeClassName: large
+    runAfter: 
+      - code-build
+    include:
+      - dind
+    steps:
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
             #!/usr/bin/env bash
             $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/push-fedramp-version.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
 
-  code-pr-finish:
+  code-ci-finish:
     steps:
       - name: evaluate
         when: 'false'
