@@ -70,7 +70,8 @@ func (d *deploymentBuilder) getPodTemplateLabels() map[string]string {
 }
 
 func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
-	envVars := d.EnvBuilder.Build(
+	// Build common env vars - exclude ETCDCAFileEnv for OpenShift only when using auto-discovered resources
+	envVarsToInclude := []env.EnvVar{
 		env.BackendURLEnv,
 		env.AgentZoneEnv,
 		env.PodUIDEnv,
@@ -80,13 +81,23 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.NoProxyEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
-		// Add new env vars
-		env.ETCDCAFileEnv,
 		env.ETCDInsecureEnv,
 		env.ETCDTargetsEnv,
 		env.ControlPlaneCAFileEnv,
 		env.RestClientHostAllowlistEnv,
-	)
+	}
+
+	// Include ETCDCAFileEnv unless we're on OpenShift with auto-discovered ETCD resources
+	// (in that case, it's added in the OpenShift-specific section below)
+	includeETCDCAFileEnv := !d.isOpenShift ||
+		d.deploymentContext == nil ||
+		!d.deploymentContext.OpenShiftETCDResourcesExist
+
+	if includeETCDCAFileEnv {
+		envVarsToInclude = append(envVarsToInclude, env.ETCDCAFileEnv)
+	}
+
+	envVars := d.EnvBuilder.Build(envVarsToInclude...)
 
 	// Add OpenShift-specific environment variables
 	if d.isOpenShift {
