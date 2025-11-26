@@ -4,24 +4,59 @@
 version: "2"
 
 tasks:
-  pr-code-checks:
+  code-checks:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  code-build:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  deploy-checks:
     displayName: promote-artifacts
     runtimeClassName: x86-xlarge
     onError: stopAndFail
     include:
       - dind
     steps:
-      - name: unit-test
+      - name: deploy
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/fedramp-promotion.sh
-      - name: detect-secrets
+      - name: dynamic-scan
         include:
           - docker-socket
-  code-pr-finish:
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+  code-ci-finish:
     steps:
       - name: evaluate
         when: 'false'

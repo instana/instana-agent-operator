@@ -124,6 +124,9 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="certified-operators"
+            export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
