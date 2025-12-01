@@ -21,6 +21,15 @@ collect_pr_branches() {
     fi
 }
 
+clone_repo() {
+    if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+        echo "Cloning the forked repository"
+        git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+    else
+        echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+    fi
+}
+
 rebase_branches() {
     echo "Rebasing the forked main and the found PR branches from the upstream main branch"
     pushd "$PUBLIC_REPO_LOCAL_NAME"
@@ -50,4 +59,5 @@ if [ "$REPO" == "redhat-marketplace-operators" ]; then
 fi
 
 collect_pr_branches
+clone_repo
 rebase_branches

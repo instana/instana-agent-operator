@@ -33,7 +33,7 @@ git add version/FEDRAMP_VERSION
 git commit -m "[skip ci] Bump the fedramp version to ${NEW_VERSION}"
 git push origin "${BRANCH}"
 
-FEDRAMP_VERSION=$(cat version/FEDRAMP_VERSION")
+FEDRAMP_VERSION=$(cat version/FEDRAMP_VERSION)
 
 # Check if ARTIFACT_VERSION is set
 if [ -z "$ARTIFACT_VERSION" ]; then

@@ -87,3 +87,5 @@ curl \
     -d "{\"title\":\"$commit_message\",\"head\":\"instana:${new_release_branch}\",\"base\":\"main\"}"
 
 popd
+
+# Made with Bob

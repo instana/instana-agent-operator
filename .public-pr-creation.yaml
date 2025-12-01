@@ -43,7 +43,7 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
-            $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-release-pr-creation.sh
+            ./ci/sps-scripts/olm-release-pr-creation.sh
       - name: dynamic-scan
         include:
           - docker-socket
@@ -59,7 +59,7 @@ tasks:
     from: deploy-checks
     displayName: redhat-marketplace-operator-commit-changes-and-create-pr
     runtimeClassName: large
-    runAfter: 
+    runAfter:
       - deploy-checks
     include:
       - dind
@@ -70,6 +70,12 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
+            export USERNAME="instanacd"
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="redhat-marketplace-operators"
+            export PUBLIC_REPO_LOCAL_NAME="redhat-marketplace-operators-repo"
+            export OPERATOR_NAME="instana-agent-operator-rhmp"
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
       - name: dynamic-scan
         include:
@@ -97,6 +103,18 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="redhat-marketplace-operators"
+            export PUBLIC_REPO_LOCAL_NAME="redhat-marketplace-operators-repo"
+            
+            # Clone the repository if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository"
+                git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+            fi
+            
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
@@ -111,9 +129,9 @@ tasks:
   
   deploy-checks-4:
     from: deploy-checks
-    displayName: community-operators-rebase
+    displayName: certified-operators-rebase
     runtimeClassName: large
-    runAfter: 
+    runAfter:
       - deploy-checks
     include:
       - dind
@@ -127,6 +145,15 @@ tasks:
             export OWNER="redhat-openshift-ecosystem"
             export REPO="certified-operators"
             export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
+            
+            # Clone the repository if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository"
+                git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+            fi
+            
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
@@ -141,9 +168,9 @@ tasks:
     
   deploy-checks-5:
     from: deploy-checks
-    displayName: certified-operators-rebase
+    displayName: community-operators-rebase
     runtimeClassName: large
-    runAfter: 
+    runAfter:
       - deploy-checks
     include:
       - dind
@@ -154,6 +181,18 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export OWNER="k8s-operatorhub"
+            export REPO="community-operators"
+            export PUBLIC_REPO_LOCAL_NAME="community-operators-repo"
+            
+            # Clone the repository if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository"
+                git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+            fi
+            
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
@@ -181,6 +220,12 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
+            export USERNAME="instanacd"
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="certified-operators"
+            export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
+            export OPERATOR_NAME="instana-agent-operator"
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
       - name: dynamic-scan
         include:
@@ -208,6 +253,12 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
+            export USERNAME="instanacd"
+            export OWNER="k8s-operatorhub"
+            export REPO="community-operators"
+            export PUBLIC_REPO_LOCAL_NAME="community-operators-repo"
+            export OPERATOR_NAME="instana-agent-operator"
             $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
       - name: dynamic-scan
         include:

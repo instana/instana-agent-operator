@@ -1,6 +1,47 @@
 #!/bin/bash
 set -euo pipefail
 
+echo "=== Downloading Latest GitHub Release Artifacts ==="
+
+# Create directory for release artifacts
+mkdir -p instana-agent-operator-release
+
+# Get the latest release information from GitHub
+echo "Fetching latest release from GitHub..."
+LATEST_RELEASE_JSON=$(curl -s https://api.github.com/repos/instana/instana-agent-operator/releases/latest)
+LATEST_TAG=$(echo "$LATEST_RELEASE_JSON" | jq -r '.tag_name')
+
+if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+    echo "ERROR: Failed to fetch latest release tag from GitHub"
+    exit 1
+fi
+
+echo "Latest release tag: $LATEST_TAG"
+
+# Download the OLM bundle zip from the latest release
+OLM_ZIP_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r '.assets[] | select(.name | startswith("olm-")) | .browser_download_url')
+
+if [ -z "$OLM_ZIP_URL" ] || [ "$OLM_ZIP_URL" = "null" ]; then
+    echo "ERROR: Failed to find OLM bundle zip in latest release"
+    exit 1
+fi
+
+echo "Downloading OLM bundle from: $OLM_ZIP_URL"
+OLM_ZIP_FILENAME=$(basename "$OLM_ZIP_URL")
+curl -L -o "instana-agent-operator-release/$OLM_ZIP_FILENAME" "$OLM_ZIP_URL"
+
+# Verify the download
+if [ ! -f "instana-agent-operator-release/$OLM_ZIP_FILENAME" ]; then
+    echo "ERROR: Failed to download OLM bundle"
+    exit 1
+fi
+
+echo "Successfully downloaded OLM bundle: $OLM_ZIP_FILENAME"
+echo "Contents of instana-agent-operator-release directory:"
+ls -lh instana-agent-operator-release/
+
+echo "=== Download Complete ==="
+
 # Extract the new version from the release
 NEW_VERSION=$(ls instana-agent-operator-release/olm-*.zip | grep -oP 'olm-\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
 if [ -z "$NEW_VERSION" ]; then
