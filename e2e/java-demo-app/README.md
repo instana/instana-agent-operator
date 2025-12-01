@@ -18,8 +18,7 @@ skopeo copy --all --dest-username iamapikey --dest-password "xxx" docker-daemon:
 
 ## Deploying to Kubernetes
 
-1. Ensure to be logged in into the delivery.instana.io registry with docker
-
+1. Deploy the app
 ```
 export NAMESPACE=selective-monitoring-no-label
 kubectl create ns ${NAMESPACE}
