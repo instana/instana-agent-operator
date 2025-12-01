@@ -26,27 +26,31 @@ resource_types:
     type: registry-image
     check_every: never
     source:
-      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      repository: icr.io/instana-int/int-docker-cogito-instana-local/cogito
       tag: latest
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: key-value
     type: registry-image
     source:
-      repository: gstack/keyval-resource
+      repository: icr.io/instana-int/int-docker-gstack/keyval-resource:latest
+      tag: latest
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: slack-notification
     type: registry-image
     source:
-      repository: cfcommunity/slack-notification-resource
+      repository: icr.io/instana-int/int-docker-cfcommunity/slack-notification-resource
       tag: latest
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: metadata
     type: registry-image
     source:
-      repository: delivery.instana.io/int-docker-private-virtual/olhtbr/metadata-resource
+      repository: icr.io/instana-int/int-docker-olhtbr/metadata-resource
       tag: 2.0.1
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
-
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
 
 resources:
   - name: slack-alert
@@ -73,34 +77,34 @@ resources:
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: agent-operator-image-arm64
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: agent-operator-image-ppc64le
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: agent-operator-image-s390x
     type: registry-image
     icon: docker
     source:
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+      repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((concourse-icr-containers-public.password))
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
@@ -197,10 +201,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           outputs:
             - name: increment-type
           run:
@@ -225,10 +229,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           inputs:
             - name: agent-operator-git-source
           params:
@@ -257,10 +261,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           outputs:
             - name: increment-type
           run:
@@ -402,27 +406,27 @@ jobs:
           image_resource:
             type: registry-image
             source: &e2e-test-base-image
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           outputs:
             - name: manifest-list
           params:
             GIT_COMMIT: ((.:git-commit))
-            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            ICR_USERNAME_INTERNAL: iamapikey
+            ICR_PASSWORD_INTERNAL: ((concourse-icr-containers-public.password))
           run:
             path: bash
             args:
               - -ceu
               - |
                 IMAGE_TAG=${GIT_COMMIT}
-                OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                OPERATOR_IMAGE_NAME=icr.io/instana-agent-dev/instana-agent-operator
 
                 manifest-tool \
-                  --username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --username ${ICR_USERNAME_INTERNAL} \
+                  --password ${ICR_PASSWORD_INTERNAL} \
                   push from-args \
                   --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
                   --template ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}-ARCH \
@@ -475,10 +479,10 @@ jobs:
               image_resource: &e2e-test-image-resource
                 type: registry-image
                 source:
-                  repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                  repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                   tag: main
-                  username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                  password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                  username: iamapikey
+                  password: ((concourse-icr-containers-public.password))
               params:
                 GIT_COMMIT: ((.:git-commit))
                 CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
@@ -487,8 +491,8 @@ jobs:
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_API_KEY: ((qa-instana-agent-key))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                ICR_USERNAME: iamapikey
+                ICR_PASSWORD: ((concourse-icr-containers-public.password))
               inputs:
                 - name: agent-operator-git-source
               run:
@@ -594,8 +598,8 @@ jobs:
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
                 INSTANA_API_KEY: ((qa-instana-agent-key))
-                ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                ICR_USERNAME: iamapikey
+                ICR_PASSWORD: ((concourse-icr-containers-public.password))
               inputs:
                 - name: agent-operator-git-source
               run:
@@ -791,10 +795,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           inputs:
             - name: agent-operator-git-source
           outputs:
@@ -838,10 +842,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           inputs:
             - name: agent-operator-image-manifest-sha
           params:
@@ -852,29 +856,27 @@ jobs:
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((concourse-icr-containers-public.password))
             ICR_USERNAME: iamapikey
-            ARTIFACTORY_USERNAME_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-            ARTIFACTORY_PASSWORD_INTERNAL: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
             ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
-            ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
             ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
           run:
             path: bash
             args:
               - -ceu
               - |
-                DEV_BUILD_IMAGE=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+                DEV_BUILD_IMAGE=icr.io/instana-agent-dev/instana-agent-operator
                 ICR_REPOSITORY=icr.io/instana/instana-agent-operator
+                ICR_REL_REPO=icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator
                 ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
                 echo ${DIGEST}
                 skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
-                  --dest-username ${ARTIFACTORY_USERNAME} \
-                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
+                  --dest-username ${ICR_USERNAME} \
+                  --dest-password ${ICR_USERNAME} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${DEV_BUILD_IMAGE}:${BRANCH}
 
@@ -893,8 +895,8 @@ jobs:
 
                 echo "---> Pushing multi-architectural manifest to icr.io with version tag"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
                   --dest-username ${ICR_USERNAME} \
                   --dest-password ${ICR_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -904,8 +906,8 @@ jobs:
                 if [[ "${BRANCH}" == "main" ]]; then
                   echo "---> Pushing multi-architectural manifest to icr.io with the latest tag"
                   skopeo copy -a --preserve-digests \
-                    --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                    --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                    --src-username ${ICR_USERNAME} \
+                    --src-password ${ICR_PASSWORD} \
                     --dest-username ${ICR_USERNAME} \
                     --dest-password ${ICR_PASSWORD} \
                     docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -916,17 +918,27 @@ jobs:
 
                 echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
                   --dest-username ${ARTIFACTORY_USERNAME} \
                   --dest-password ${ARTIFACTORY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
+                echo "---> Pushing multi-architectural manifest to rel repo in icr.io with version tag"
+                # introduced during artifactory migration
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
+                  --dest-username ${ICR_USERNAME} \
+                  --dest-password ${ICR_PASSWORD} \
+                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
+                  docker://${ICR_REL_REPO}:${OPERATOR_DOCKER_VERSION}
+
                 echo "---> pushing images to Red Hat Container Registry"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_INTERNAL} \
-                  --src-password ${ARTIFACTORY_PASSWORD_INTERNAL} \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
                   --dest-username ${RED_HAT_REGISTRY_USERNAME} \
                   --dest-password ${RED_HAT_REGISTRY_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
@@ -971,10 +983,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           inputs:
             - name: preflight
           params:
@@ -1032,10 +1044,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           inputs:
             - name: agent-operator-git-source
             - name: agent-operator-image-manifest-sha
@@ -1051,7 +1063,6 @@ jobs:
             args:
               - -ceu
               - |
-
                 if [[ -f "agent-operator-image-manifest-sha/digest" ]]; then
                   export OPERATOR_IMAGE_MANIFEST_SHA=$(cat "agent-operator-image-manifest-sha/digest")
                   echo "Found SHA for latest Operator Manifest: ${OPERATOR_IMAGE_MANIFEST_SHA}"
@@ -1160,10 +1171,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((concourse-icr-containers-public.password))
           inputs:
             - name: agent-operator-git-source
           params:
@@ -1208,4 +1219,3 @@ jobs:
                 git push https://instanacd:${GH_API_TOKEN}@github.com/instana/instana-agent-operator.git HEAD:${BRANCH}
 
                 echo "FEDRAMP_VERSION update completed successfully"
-

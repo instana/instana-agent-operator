@@ -7,13 +7,13 @@ This is a simple Java application that runs a web server for testing monitoring 
 To build the Docker image:
 
 ```bash
-docker build -t delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest .
+docker build -t java-demo-app:latest .
 ```
 
 If you need to push to a registry:
 
 ```bash
-docker push delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest
+skopeo copy --all --dest-username iamapikey --dest-password "xxx" docker-daemon:java-demo-app:latest docker://icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest
 ```
 
 ## Deploying to Kubernetes
@@ -22,7 +22,12 @@ docker push delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2
 
 ```
 export NAMESPACE=selective-monitoring-no-label
-./deploy.sh
+kubectl create ns ${NAMESPACE}
+kubectl -n ${NAMESPACE} create secret docker-registry icr-io-pull-secret \
+    --docker-server=icr.io \
+    --docker-username=iamapikey \
+    --docker-password=xxx
+kubectl apply -f deployment.yaml -n ${NAMESPACE}
 ```
 
 2. Verify the deployment:
