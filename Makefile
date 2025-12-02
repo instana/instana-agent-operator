@@ -1,7 +1,6 @@
 #
 # (c) Copyright IBM Corp. 2025
 #
-
 # Detect operating system and architecture
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m)
