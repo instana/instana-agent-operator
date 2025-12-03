@@ -149,7 +149,7 @@ func init() {
 
 	InstanaTestCfg = InstanaTestConfig{
 		ContainerRegistry: &ContainerRegistry{
-			Name:     "delivery-instana",
+			Name:     "icr-io-pull-secret",
 			User:     containerRegistryUser,
 			Password: containerRegistryPassword,
 			Host:     containerRegistryHost,
