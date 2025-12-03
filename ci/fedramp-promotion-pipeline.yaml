@@ -27,7 +27,7 @@ resource_types:
       repository: icr.io/instana-int/int-docker-cogito-instana-local/cogito
       tag: latest
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
 
   - name: slack-notification
     type: registry-image
@@ -168,7 +168,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           params:
             ARTIFACTORY_USERNAME_RELEASE: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD_RELEASE: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))

@@ -29,28 +29,28 @@ resource_types:
       repository: icr.io/instana-int/int-docker-cogito-instana-local/cogito
       tag: latest
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: key-value
     type: registry-image
     source:
       repository: icr.io/instana-int/int-docker-gstack/keyval-resource:latest
       tag: latest
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: slack-notification
     type: registry-image
     source:
       repository: icr.io/instana-int/int-docker-cfcommunity/slack-notification-resource
       tag: latest
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: metadata
     type: registry-image
     source:
       repository: icr.io/instana-int/int-docker-olhtbr/metadata-resource
       tag: 2.0.1
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
 
 resources:
   - name: slack-alert
@@ -80,7 +80,7 @@ resources:
       repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: agent-operator-image-arm64
     type: registry-image
     icon: docker
@@ -88,7 +88,7 @@ resources:
       repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: agent-operator-image-ppc64le
     type: registry-image
     icon: docker
@@ -96,7 +96,7 @@ resources:
       repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: agent-operator-image-s390x
     type: registry-image
     icon: docker
@@ -104,7 +104,7 @@ resources:
       repository: icr.io/instana-agent-dev/instana-agent-operator
       tag: main
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: latest-agent-image-manifest
     type: registry-image
     icon: docker
@@ -112,7 +112,7 @@ resources:
       repository: icr.io/instana/agent
       tag: latest
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: agent-operator-image-manifest-sha
     type: key-value
     icon: zip-disk
@@ -204,7 +204,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           outputs:
             - name: increment-type
           run:
@@ -232,7 +232,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: agent-operator-git-source
           params:
@@ -264,7 +264,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           outputs:
             - name: increment-type
           run:
@@ -409,13 +409,13 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           outputs:
             - name: manifest-list
           params:
             GIT_COMMIT: ((.:git-commit))
             ICR_USERNAME_INTERNAL: iamapikey
-            ICR_PASSWORD_INTERNAL: ((concourse-icr-containers-public.password))
+            ICR_PASSWORD_INTERNAL: ((icr-api-key.password))
           run:
             path: bash
             args:
@@ -482,7 +482,7 @@ jobs:
                   repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                   tag: main
                   username: iamapikey
-                  password: ((concourse-icr-containers-public.password))
+                  password: ((icr-api-key.password))
               params:
                 GIT_COMMIT: ((.:git-commit))
                 CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
@@ -492,7 +492,7 @@ jobs:
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_API_KEY: ((qa-instana-agent-key))
                 ICR_USERNAME: iamapikey
-                ICR_PASSWORD: ((concourse-icr-containers-public.password))
+                ICR_PASSWORD: ((icr-api-key.password))
               inputs:
                 - name: agent-operator-git-source
               run:
@@ -599,7 +599,7 @@ jobs:
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
                 INSTANA_API_KEY: ((qa-instana-agent-key))
                 ICR_USERNAME: iamapikey
-                ICR_PASSWORD: ((concourse-icr-containers-public.password))
+                ICR_PASSWORD: ((icr-api-key.password))
               inputs:
                 - name: agent-operator-git-source
               run:
@@ -798,7 +798,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: agent-operator-git-source
           outputs:
@@ -845,7 +845,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: agent-operator-image-manifest-sha
           params:
@@ -854,7 +854,7 @@ jobs:
             BRANCH: ((branch))
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
-            ICR_PASSWORD: ((concourse-icr-containers-public.password))
+            ICR_PASSWORD: ((icr-api-key.password))
             ICR_USERNAME: iamapikey
             ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
@@ -986,7 +986,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: preflight
           params:
@@ -1047,7 +1047,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: agent-operator-git-source
             - name: agent-operator-image-manifest-sha
@@ -1118,7 +1118,6 @@ jobs:
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
                 make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
 
-                echo "delivery.instana.io/rel-docker-agent-local/instana-agent-operator:${OLM_RELEASE_VERSION}" > target/images.txt
                 echo "icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" >> target/images.txt
                 
                 # Only include the latest tag when running on main branch
@@ -1174,7 +1173,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: agent-operator-git-source
           params:

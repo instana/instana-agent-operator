@@ -16,7 +16,7 @@ image_resource:
     repository: icr.io/instana-int/int-docker-private-virtual/concourse/oci-build-task
     tag: main
     username: iamapikey
-    password: ((concourse-icr-containers-public.password))
+    password: ((icr-api-key.password))
 inputs:
   - name: source
 outputs:

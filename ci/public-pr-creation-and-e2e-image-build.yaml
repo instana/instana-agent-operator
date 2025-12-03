@@ -26,7 +26,7 @@ resource_types:
       repository: icr.io/instana-int/int-docker-cogito-instana-local/cogito
       tag: latest
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
   - name: key-value
     type: registry-image
     source:
@@ -94,7 +94,7 @@ resources:
     source: &e2e-test-base-image
       repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
       username: iamapikey
-      password: ((concourse-icr-containers-public.password))
+      password: ((icr-api-key.password))
       tag: main
 
   - name: community-operators-repo
@@ -185,7 +185,7 @@ jobs:
               repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
               username: iamapikey
-              password: ((concourse-icr-containers-public.password))
+              password: ((icr-api-key.password))
           inputs:
             - name: instana-agent-operator-release
             - name: agent-operator-release-source
@@ -294,7 +294,7 @@ jobs:
                         repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
                         username: iamapikey
-                        password: ((concourse-icr-containers-public.password))
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
@@ -349,7 +349,7 @@ jobs:
                         repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
                         username: iamapikey
-                        password: ((concourse-icr-containers-public.password))
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
@@ -405,7 +405,7 @@ jobs:
                         repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
                         username: iamapikey
-                        password: ((concourse-icr-containers-public.password))
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
@@ -460,7 +460,7 @@ jobs:
                         repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
                         username: iamapikey
-                        password: ((concourse-icr-containers-public.password))
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
@@ -516,7 +516,7 @@ jobs:
                         repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
                         username: iamapikey
-                        password: ((concourse-icr-containers-public.password))
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
@@ -571,7 +571,7 @@ jobs:
                         repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
                         username: iamapikey
-                        password: ((concourse-icr-containers-public.password))
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
