@@ -15,6 +15,8 @@ echo "Building commit ${GIT_COMMIT}"
 
 # Authenticate with the private registry, see https://cloud.ibm.com/docs/devsecops?topic=devsecops-cd-devsecops-build-docker#cd-devsecops-work-with-icr
 echo "[INFO] Authenticating with the $ICR_REGISTRY_DOMAIN private Docker registry..."
+# see: https://instana.slack.com/archives/CP56J2USY/p1763054646373449?thread_ts=1762872461.330849&cid=CP56J2USY
+export DOCKER_API_VERSION="1.41"
 docker login -u iamapikey --password-stdin "$ICR_REGISTRY_DOMAIN" < /config/api-key
 
 echo "[INFO] Authenticating with artifactory registry..."
