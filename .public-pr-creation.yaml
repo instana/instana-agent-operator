@@ -70,13 +70,29 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            set -euo pipefail
+            
+            # Set environment variables
             export GH_API_TOKEN=$(get_env github-token)
             export USERNAME="instanacd"
             export OWNER="redhat-openshift-ecosystem"
             export REPO="redhat-marketplace-operators"
             export PUBLIC_REPO_LOCAL_NAME="redhat-marketplace-operators-repo"
             export OPERATOR_NAME="instana-agent-operator-rhmp"
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
+            
+            # Clone the repository with authentication if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository with authentication"
+                git clone "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+                # Update the remote URL to use authentication
+                cd "$PUBLIC_REPO_LOCAL_NAME"
+                git remote set-url origin "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/${REPO}.git"
+                cd -
+            fi
+            
+            ./ci/scripts/commit-changes-to-public-repo.sh
       - name: dynamic-scan
         include:
           - docker-socket
@@ -92,7 +108,7 @@ tasks:
     from: deploy-checks
     displayName: redhat-marketplace-operators-rebase
     runtimeClassName: large
-    runAfter: 
+    runAfter:
       - deploy-checks
     include:
       - dind
@@ -103,6 +119,7 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
             export OWNER="redhat-openshift-ecosystem"
             export REPO="redhat-marketplace-operators"
             export PUBLIC_REPO_LOCAL_NAME="redhat-marketplace-operators-repo"
@@ -115,7 +132,7 @@ tasks:
                 echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
             fi
             
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
+            ./ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
           - docker-socket
@@ -142,6 +159,7 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
             export OWNER="redhat-openshift-ecosystem"
             export REPO="certified-operators"
             export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
@@ -154,7 +172,7 @@ tasks:
                 echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
             fi
             
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
+            ./ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
           - docker-socket
@@ -181,6 +199,7 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
             export OWNER="k8s-operatorhub"
             export REPO="community-operators"
             export PUBLIC_REPO_LOCAL_NAME="community-operators-repo"
@@ -193,7 +212,7 @@ tasks:
                 echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
             fi
             
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/rebase-fork-branches.sh
+            ./ci/scripts/rebase-fork-branches.sh
       - name: dynamic-scan
         include:
           - docker-socket
@@ -209,7 +228,7 @@ tasks:
     from: deploy-checks
     displayName: certified-operators-commit-changes-and-create-pr
     runtimeClassName: large
-    runAfter: 
+    runAfter:
       - deploy-checks
     include:
       - dind
@@ -220,13 +239,29 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            set -euo pipefail
+            
+            # Set environment variables
             export GH_API_TOKEN=$(get_env github-token)
             export USERNAME="instanacd"
             export OWNER="redhat-openshift-ecosystem"
             export REPO="certified-operators"
             export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
             export OPERATOR_NAME="instana-agent-operator"
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
+            
+            # Clone the repository with authentication if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository with authentication"
+                git clone "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+                # Update the remote URL to use authentication
+                cd "$PUBLIC_REPO_LOCAL_NAME"
+                git remote set-url origin "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/${REPO}.git"
+                cd -
+            fi
+            
+            ./ci/scripts/commit-changes-to-public-repo.sh
       - name: dynamic-scan
         include:
           - docker-socket
@@ -242,7 +277,7 @@ tasks:
     from: deploy-checks
     displayName: community-operators-commit-changes-and-create-pr
     runtimeClassName: large
-    runAfter: 
+    runAfter:
       - deploy-checks
     include:
       - dind
@@ -253,13 +288,29 @@ tasks:
           - docker-socket
         script: |
             #!/usr/bin/env bash
+            set -euo pipefail
+            
+            # Set environment variables
             export GH_API_TOKEN=$(get_env github-token)
             export USERNAME="instanacd"
             export OWNER="k8s-operatorhub"
             export REPO="community-operators"
             export PUBLIC_REPO_LOCAL_NAME="community-operators-repo"
             export OPERATOR_NAME="instana-agent-operator"
-            $WORKSPACE/$APP_REPO_FOLDER/ci/scripts/commit-changes-to-public-repo.sh
+            
+            # Clone the repository with authentication if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository with authentication"
+                git clone "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+                # Update the remote URL to use authentication
+                cd "$PUBLIC_REPO_LOCAL_NAME"
+                git remote set-url origin "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/${REPO}.git"
+                cd -
+            fi
+            
+            ./ci/scripts/commit-changes-to-public-repo.sh
       - name: dynamic-scan
         include:
           - docker-socket

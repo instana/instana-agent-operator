@@ -45,7 +45,7 @@ tasks:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/fedramp-promotion.sh
+          ./ci/sps-scripts/fedramp-promotion.sh
       - name: dynamic-scan
         include:
           - docker-socket

@@ -10,7 +10,16 @@ set -o pipefail
 
 collect_pr_branches() {
     echo "Collect all open PR branches"
-    pr_list_json=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
+    
+    # Build curl command with authentication if token is available
+    if [ -n "${GH_API_TOKEN:-}" ]; then
+        echo "Using authenticated GitHub API request"
+        pr_list_json=$(curl -fH "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_API_TOKEN" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
+    else
+        echo "Warning: No GH_API_TOKEN found, using unauthenticated request (subject to rate limits)"
+        pr_list_json=$(curl -fH "Accept: application/vnd.github+json" https://api.github.com/repos/"$OWNER"/"$REPO"/pulls)
+    fi
+    
     pr_branches=$(echo "$pr_list_json" | jq -r ".[] | select(.title | contains(\"$operator_public_pr_name\")) | .head.ref")
 
     if [ -z "$pr_branches" ]; then 
