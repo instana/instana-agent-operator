@@ -24,10 +24,10 @@ resource_types:
     type: registry-image
     check_every: never
     source:
-      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      repository: icr.io/instana-int/int-docker-cogito-instana-local/cogito
       tag: latest
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((icr-api-key.password))
 
   - name: slack-notification
     type: registry-image
@@ -165,10 +165,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((icr-api-key.password))
           params:
             ARTIFACTORY_USERNAME_RELEASE: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD_RELEASE: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))

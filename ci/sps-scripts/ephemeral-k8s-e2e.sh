@@ -134,9 +134,8 @@ kubectl get nodes
 
 # Setup container registry credentials
 echo "Setting up container registry credentials..."
-ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
-ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
-ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
+ICR_USERNAME=iamapikey
+ICR_PASSWORD=$(cat /config/api-key)
 
 # Setup Instana backend details
 echo "Setting up Instana backend details..."
@@ -148,7 +147,7 @@ INSTANA_API_URL=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_url")
 INSTANA_API_TOKEN=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_token")
 
 export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_API_KEY INSTANA_API_URL INSTANA_API_TOKEN
-export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD
+export ICR_USERNAME ICR_PASSWORD
 
 # Get the Git commit for image tagging
 GIT_COMMIT="$(load_repo app-repo commit)"

@@ -73,13 +73,12 @@ fi
 CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
 CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
 CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
-ARTIFACTORY_CREDENTIALS=$(get_env artifactory)
-ARTIFACTORY_USERNAME=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".username")
-ARTIFACTORY_PASSWORD=$(echo "${ARTIFACTORY_CREDENTIALS}" | jq -r ".password")
+ICR_USERNAME=iamapikey
+ICR_PASSWORD=$(cat /config/api-key)
 
 # make sure to set the GIT_COMMIT to deploy the correct image in the e2e test
 GIT_COMMIT="$(load_repo app-repo commit)"
-export ARTIFACTORY_USERNAME ARTIFACTORY_PASSWORD GIT_COMMIT
+export ICR_USERNAME ICR_PASSWORD GIT_COMMIT
 # required in e2e test, therefore exporting variable
 export CLUSTER_NAME
 

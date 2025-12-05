@@ -23,10 +23,10 @@ resource_types:
     type: registry-image
     check_every: never
     source:
-      repository: delivery.instana.io/int-docker-cogito-instana-local/cogito
+      repository: icr.io/instana-int/int-docker-cogito-instana-local/cogito
       tag: latest
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      username: iamapikey
+      password: ((icr-api-key.password))
   - name: key-value
     type: registry-image
     source:
@@ -92,9 +92,9 @@ resources:
     type: registry-image
     icon: cube
     source: &e2e-test-base-image
-      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
-      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+      repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+      username: iamapikey
+      password: ((icr-api-key.password))
       tag: main
 
   - name: community-operators-repo
@@ -182,10 +182,10 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
               tag: main
-              username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-              password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+              username: iamapikey
+              password: ((icr-api-key.password))
           inputs:
             - name: instana-agent-operator-release
             - name: agent-operator-release-source
@@ -291,10 +291,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                        repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                        username: iamapikey
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
@@ -346,10 +346,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                        repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                        username: iamapikey
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: community-operators-repo
@@ -402,10 +402,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                        repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                        username: iamapikey
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
@@ -457,10 +457,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                        repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                        username: iamapikey
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: certified-operators-repo
@@ -513,10 +513,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                        repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                        username: iamapikey
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
@@ -568,10 +568,10 @@ jobs:
                     image_resource:
                       type: registry-image
                       source:
-                        repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+                        repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
                         tag: main
-                        username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
-                        password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+                        username: iamapikey
+                        password: ((icr-api-key.password))
                     inputs:
                       - name: instana-agent-operator-release
                       - name: redhat-marketplace-operators-repo
