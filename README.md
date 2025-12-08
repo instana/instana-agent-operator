@@ -67,7 +67,7 @@ Developing (and running) the Operator is easiest in two ways:
 
    > [!NOTE] Macs
    > Macs using Podman have been successfully run with using `minikube start --driver=podman --container-runtime=cri-o`. More info [here](https://minikube.sigs.k8s.io/docs/drivers/podman/). Make sure to be able to reach outside podman. With default install, one can reach outside by: `podman system connection default podman-machine-default-root`
-   
+
 
    ```shell
    minikube start
@@ -138,7 +138,7 @@ Kubernetes cluster. Therefore, follow the below steps:
 
 1. Create a copy of the file `config/samples/instana_v1_instanaagent.yaml`, for the below steps we're assuming `config/samples/instana_v1_instanaagent_demo.yaml`
 2. In this file, put correct values for e.g. the Agent `key`, `endpointHost` and `endpointPort`.
-3. Overwrite the default image name with a dev build `export IMG=delivery.instana.io/dev-sandbox-docker-all/${USER}/instana-agent-operator:latest` and build the Operator image: `make docker-build`
+3. Overwrite the default image name with a dev build `export IMG=icr.io/instana-agent-dev/${USER}/instana-agent-operator:latest` and build the Operator image: `make docker-build`
 4. For deploying on Minikube, there's a convenient target `make deploy-minikube`. For any other environment you would
    need to first push the Docker image to a valid repository using `make docker-push`, then do the deployment
    using `make deploy` to deploy the Operator to the cluster configured for `kubectl`. Note: For non-public registries you might need to create a pull secret first, see `make create-pull-secret` for Instana's Artifactory usage.

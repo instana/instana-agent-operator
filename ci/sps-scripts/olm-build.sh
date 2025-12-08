@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	trap env EXIT
 	env
 	set -x
 fi
 export GIT_COMMIT="$(get_env branch || echo "latest")"
-export ARTIFACTORY_INTERNAL_USERNAME=$(get_env ARTIFACTORY_INTERNAL_USERNAME)
-export ARTIFACTORY_INTERNAL_PASSWORD=$(get_env ARTIFACTORY_INTERNAL_PASSWORD)
 
 dnf -y install microdnf
 ./installGolang.sh amd64
@@ -15,9 +16,8 @@ export PATH=$PATH:/usr/local/go/bin
 IMAGE_TAG=${GIT_COMMIT}
 echo "Using IMAGE_TAG=${IMAGE_TAG}"
 unset HISTFILE
-skopeo login -u ${ARTIFACTORY_INTERNAL_USERNAME} -p ${ARTIFACTORY_INTERNAL_PASSWORD} delivery.instana.io
 
-OPERATOR_IMAGE_NAME=delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build
+OPERATOR_IMAGE_NAME=icr.io/instana-agent-dev/instana-agent-operator
 OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
 echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
 
@@ -50,7 +50,7 @@ echo "Fetching digest for ${AGENT_IMAGE_NAME}:${AGENT_IMAGE_TAG}"
 export AGENT_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${AGENT_IMAGE_NAME}:${AGENT_IMAGE_TAG})
 echo "AGENT_IMG_DIGEST=$AGENT_IMG_DIGEST"
 
-# Create bundle for public operator with image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build:<version>
+# Create bundle for public operator with image: icr.io/instana-agent-dev/instana-agent-operator:<version>
 make IMG="${OPERATOR_IMAGE}" \
 	VERSION="${OLM_RELEASE_VERSION}" \
 	PREV_VERSION="${PREV_VERSION}" \
