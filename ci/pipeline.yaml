@@ -33,7 +33,7 @@ resource_types:
   - name: key-value
     type: registry-image
     source:
-      repository: icr.io/instana-int/int-docker-gstack/keyval-resource:latest
+      repository: icr.io/instana-int/int-docker-gstack/keyval-resource
       tag: latest
       username: iamapikey
       password: ((icr-api-key.password))
