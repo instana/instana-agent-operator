@@ -2,8 +2,6 @@ module github.com/instana/instana-agent-operator
 
 go 1.25
 
-toolchain go1.25.4
-
 require (
 	github.com/Masterminds/goutils v1.1.1
 	github.com/Masterminds/semver/v3 v3.4.0

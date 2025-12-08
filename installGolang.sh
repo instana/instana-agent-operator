@@ -1,7 +1,8 @@
 #!/bin/bash
 # (c) Copyright IBM Corp. 2025
 set -euo pipefail
-GO_VERSION="$(grep "^toolchain go" go.mod | cut -d' ' -f2 | sed 's/go//')"
+# renovate: datasource=golang-version depName=golang
+GO_VERSION="1.25.5"
 ARCHITECTURE="${1}"
 
 echo "=== Installing Golang ${GO_VERSION} ==="
