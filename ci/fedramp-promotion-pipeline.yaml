@@ -178,8 +178,8 @@ jobs:
             ARTIFACTORY_GENERIC_FEDRAMP_URL: ((delivery-artifactory-generic-agent-fedramp-url))
             ARTIFACTORY_TAAS_USERNAME: ((taas-artifactory-read-writer-creds.username))
             ARTIFACTORY_TAAS_PASSWORD: ((taas-artifactory-read-writer-creds.password))
-            ICR_PASSWORD: ((icr-api-key.password))
             ICR_USERNAME: ((icr-api-key.username))
+            ICR_PASSWORD: ((icr-api-key.password))
           inputs:
             - name: agent-operator-git-source
             - name: fedramp-version
@@ -259,8 +259,8 @@ jobs:
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_RELEASE} \
                   --src-password ${ARTIFACTORY_PASSWORD_RELEASE} \
-                  --dest-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --dest-password ${ARTIFACTORY_PASSWORD_RELEASE} \
+                  --dest-username ${ICR_USERNAME} \
+                  --dest-password ${ICR_PASSWORD} \
                   docker://${RELEASE_ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
                   docker://${FEDRAMP_ICR_REPOSITORY}:${COMBINED_VERSION}
 
@@ -268,8 +268,8 @@ jobs:
                 skopeo copy -a --preserve-digests \
                   --src-username ${ARTIFACTORY_USERNAME_RELEASE} \
                   --src-password ${ARTIFACTORY_PASSWORD_RELEASE} \
-                  --dest-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --dest-password ${ARTIFACTORY_PASSWORD_RELEASE} \
+                  --dest-username ${ICR_USERNAME} \
+                  --dest-password ${ICR_PASSWORD} \
                   docker://${RELEASE_ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
                   docker://${FEDRAMP_ICR_REPOSITORY}:latest
                 
