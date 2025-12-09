@@ -20,10 +20,10 @@ spec:
         e2etest: selective-monitoring
     spec:
       imagePullSecrets:
-        - name: delivery-instana
+        - name: icr-io-pull-secret
       containers:
       - name: java-demo-app
-        image: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest
+        image: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e/java-demo-app:latest
         imagePullPolicy: IfNotPresent
         env:
         - name: INSTANA_TEST_NAMESPACE_TYPE

@@ -56,7 +56,10 @@ func init() {
 
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Warningln("Warning: an error occurred while attempting to load dotenv-file expected in location: BASE_DIR/e2e/.env", err)
+		log.Warningln(
+			"Warning: an error occurred while attempting to load dotenv-file expected in location: BASE_DIR/e2e/.env",
+			err,
+		)
 	}
 
 	instanaApiKey, found = os.LookupEnv("INSTANA_API_KEY")
@@ -64,20 +67,41 @@ func init() {
 		log.Errorln("Required: $INSTANA_API_KEY not defined")
 		fatal = true
 	}
-	containerRegistryUser, found = os.LookupEnv("ARTIFACTORY_USERNAME")
+
+	containerRegistryUser, found = os.LookupEnv("ICR_USERNAME")
 	if !found {
-		log.Errorln("Required: $ARTIFACTORY_USERNAME not defined")
-		fatal = true
+		log.Errorln(
+			"Required: $ICR_USERNAME not defined, trying to fallback to $ARTIFACTORY_USERNAME",
+		)
+		containerRegistryUser, found = os.LookupEnv("ARTIFACTORY_USERNAME")
+		if !found {
+			log.Errorln("Required: $ARTIFACTORY_USERNAME also not defined")
+			fatal = true
+		}
 	}
-	containerRegistryPassword, found = os.LookupEnv("ARTIFACTORY_PASSWORD")
+
+	containerRegistryPassword, found = os.LookupEnv("ICR_PASSWORD")
 	if !found {
-		log.Errorln("Required: $ARTIFACTORY_PASSWORD not defined")
-		fatal = true
+		log.Errorln(
+			"Required: $ICR_PASSWORD not defined, trying to fallback to $ARTIFACTORY_PASSWORD",
+		)
+		containerRegistryPassword, found = os.LookupEnv("ARTIFACTORY_PASSWORD")
+		if !found {
+			log.Errorln("Required: $ARTIFACTORY_PASSWORD also not defined")
+			fatal = true
+		}
 	}
-	containerRegistryHost, found = os.LookupEnv("ARTIFACTORY_HOST")
+
+	containerRegistryHost, found = os.LookupEnv("ICR_HOST")
 	if !found {
-		log.Warningln("Optional: $ARTIFACTORY_HOST not defined, using default")
-		containerRegistryHost = "delivery.instana.io"
+		log.Warningln("Optional: $ICR_HOST not defined, checking for $ARTIFACTORY_HOST")
+		containerRegistryHost, found = os.LookupEnv("ARTIFACTORY_HOST")
+		if !found {
+			log.Warningln(
+				"Optional: $ARTIFACTORY_HOST also not defined, using default ICR host icr.io",
+			)
+			containerRegistryHost = "icr.io"
+		}
 	}
 	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
 	if !found {
@@ -87,7 +111,7 @@ func init() {
 	operatorImageName, found = os.LookupEnv("OPERATOR_IMAGE_NAME")
 	if !found {
 		log.Warningln("Optional: $OPERATOR_IMAGE_NAME not defined, using default")
-		operatorImageName = "delivery.instana.io/int-docker-agent-local/instana-agent-operator/dev-build"
+		operatorImageName = "icr.io/instana-agent-dev/instana-agent-operator"
 	}
 
 	operatorImageTag, found = os.LookupEnv("OPERATOR_IMAGE_TAG")
@@ -95,11 +119,21 @@ func init() {
 		log.Warningln("Optional: $OPERATOR_IMAGE_TAG not defined, falling back to $GIT_COMMIT")
 		operatorImageTag, found = os.LookupEnv("GIT_COMMIT")
 		if !found {
-			log.Warningln("Optional: $GIT_COMMIT is not defined, falling back to git cli to resolve last commit")
+			log.Warningln(
+				"Optional: $GIT_COMMIT is not defined, falling back to git cli to resolve last commit",
+			)
 			p := utils.RunCommand("git rev-parse HEAD")
 			if p.Err() != nil {
-				log.Warningf("Error while getting git commit via cli: %v, %v, %v, %v\n", p.Command(), p.Err(), p.Out(), p.ExitCode())
-				log.Fatalln("Required: Either $OPERATOR_IMAGE_TAG or $GIT_COMMIT must be set to be able to deploy a custom operator build")
+				log.Warningf(
+					"Error while getting git commit via cli: %v, %v, %v, %v\n",
+					p.Command(),
+					p.Err(),
+					p.Out(),
+					p.ExitCode(),
+				)
+				log.Fatalln(
+					"Required: Either $OPERATOR_IMAGE_TAG or $GIT_COMMIT must be set to be able to deploy a custom operator build",
+				)
 				fatal = true
 			}
 			// using short commit as tag (default)
@@ -108,12 +142,14 @@ func init() {
 	}
 
 	if fatal {
-		log.Fatalln("Fatal: Required configuration is missing, tests woud not work without those settings, terminating execution")
+		log.Fatalln(
+			"Fatal: Required configuration is missing, tests woud not work without those settings, terminating execution",
+		)
 	}
 
 	InstanaTestCfg = InstanaTestConfig{
 		ContainerRegistry: &ContainerRegistry{
-			Name:     "delivery-instana",
+			Name:     "icr-io-pull-secret",
 			User:     containerRegistryUser,
 			Password: containerRegistryPassword,
 			Host:     containerRegistryHost,

@@ -14,7 +14,6 @@ oc get project instana || oc new-project instana
 # oc extract secret/$(oc get ingresscontroller -n openshift-ingress-operator default -o json | jq '.spec.defaultCertificate.name // "router-certs-default"' -r) -n openshift-ingress --confirm
 skopeo login -u kubeadmin -p "$(oc whoami -t)" "${HOST}" --tls-verify=false
 skopeo login -u _ -p "${INSTANA_API_KEY}" containers.instana.io
-skopeo login -u "${ARTIFACTORY_USERNAME}" -p "${ARTIFACTORY_PASSWORD}" delivery.instana.io
 set -x
 skopeo copy docker://icr.io/instana/instana-agent-operator:latest "docker://${HOST}/instana/instana-agent-operator:latest" --dest-tls-verify=false
 skopeo copy docker://containers.instana.io/instana/release/agent/static:latest "docker://${HOST}/instana/instana-agent-static:latest" --dest-tls-verify=false

@@ -236,37 +236,44 @@ create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (
 	kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml
 
 .PHONY: create-pull-secret
-create-pull-secret: ## Creates image pull secret for delivery.instana.io from your local docker config
-	@echo "Filtering Docker config for delivery.instana.io settings, ensure to login locally first..."
-	@mkdir -p .tmp
-	@jq '{auths: {"delivery.instana.io": .auths["delivery.instana.io"]}}' ${HOME}/.docker/config.json > .tmp/filtered-docker-config.json
-	@echo "Checking if secret delivery-instana-io-pull-secret exists in namespace $(NAMESPACE)..."
-	@if kubectl get secret delivery-instana-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
-		echo "Updating existing secret delivery-instana-io-pull-secret..."; \
-		kubectl delete secret delivery-instana-io-pull-secret -n $(NAMESPACE); \
-	else \
-		echo "Creating new secret delivery-instana-io-pull-secret..."; \
+create-pull-secret: ## Creates image pull secret for icr.io using credentials from e2e/.env
+	@echo "Creating pull secret for icr.io using credentials from e2e/.env..."
+	@if [ ! -f e2e/.env ]; then \
+		echo "Error: e2e/.env file not found"; \
+		exit 1; \
 	fi
-	@kubectl create secret generic delivery-instana-io-pull-secret \
-		--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
-		--type=kubernetes.io/dockerconfigjson \
+	@. e2e/.env && \
+	if [ -z "$$ICR_USERNAME" ] || [ -z "$$ICR_PASSWORD" ]; then \
+		echo "Error: ICR_USERNAME or ICR_PASSWORD not set in e2e/.env"; \
+		exit 1; \
+	fi; \
+	echo "Checking if secret icr-io-pull-secret exists in namespace $(NAMESPACE)..."; \
+	if kubectl get secret icr-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Updating existing secret icr-io-pull-secret..."; \
+		kubectl delete secret icr-io-pull-secret -n $(NAMESPACE); \
+	else \
+		echo "Creating new secret icr-io-pull-secret..."; \
+	fi; \
+	kubectl create secret docker-registry icr-io-pull-secret \
+		--docker-server=icr.io \
+		--docker-username=$$ICR_USERNAME \
+		--docker-password=$$ICR_PASSWORD \
 		-n $(NAMESPACE)
 	@echo "Patching service accounts with pull secret..."
 	@echo "Checking and patching operator service account..."
 	@kubectl patch serviceaccount instana-agent-operator \
-		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-p '{"imagePullSecrets": [{"name": "icr-io-pull-secret"}]}' \
 		-n instana-agent || echo "Service account instana-agent-operator not found, skipping"
 	@echo "Checking and patching agent service account..."
 	@kubectl get serviceaccount instana-agent -n $(NAMESPACE) >/dev/null 2>&1 && \
 		kubectl patch serviceaccount instana-agent \
-		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-p '{"imagePullSecrets": [{"name": "icr-io-pull-secret"}]}' \
 		-n $(NAMESPACE) || echo "Service account instana-agent not found, skipping"
 	@echo "Checking and patching k8sensor service account..."
 	@kubectl get serviceaccount instana-agent-k8sensor -n $(NAMESPACE) >/dev/null 2>&1 && \
 		kubectl patch serviceaccount instana-agent-k8sensor \
-		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-p '{"imagePullSecrets": [{"name": "icr-io-pull-secret"}]}' \
 		-n $(NAMESPACE) || echo "Service account instana-agent-k8sensor not found, skipping"
-	@rm -rf .tmp
 	@echo "Restarting all pods in namespace $(NAMESPACE) to apply the new pull secret..."
 	@kubectl delete pods --all -n $(NAMESPACE) 2>/dev/null || echo "No pods found to restart"
 
