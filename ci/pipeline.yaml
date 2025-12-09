@@ -598,7 +598,7 @@ jobs:
                 INSTANA_ENDPOINT_HOST: ((instana-qa.endpoint_host))
                 INSTANA_DOWNLOAD_KEY: ((instana-qa.agent_key))
                 INSTANA_API_KEY: ((qa-instana-agent-key))
-                ICR_username: ((icr-api-key.username))
+                ICR_USERNAME: ((icr-api-key.username))
                 ICR_PASSWORD: ((icr-api-key.password))
               inputs:
                 - name: agent-operator-git-source
@@ -855,7 +855,7 @@ jobs:
             RED_HAT_REGISTRY_PASSWORD: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.password))
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((icr-api-key.password))
-            ICR_username: ((icr-api-key.username))
+            ICR_USERNAME: ((icr-api-key.username))
             ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
             ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
             ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
