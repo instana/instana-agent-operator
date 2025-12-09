@@ -876,7 +876,7 @@ jobs:
                   --src-username ${ICR_USERNAME} \
                   --src-password ${ICR_PASSWORD} \
                   --dest-username ${ICR_USERNAME} \
-                  --dest-password ${ICR_USERNAME} \
+                  --dest-password ${ICR_PASSWORD} \
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${DEV_BUILD_IMAGE}:${BRANCH}
 
