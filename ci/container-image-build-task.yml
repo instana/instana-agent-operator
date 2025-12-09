@@ -13,9 +13,9 @@ platform: linux
 image_resource:
   type: registry-image
   source:
-    repository: icr.io/instana-int/int-docker-private-virtual/concourse/oci-build-task
-    tag: main
-    username: iamapikey
+    repository: icr.io/instana-int/int-docker-dockerhub-images-local/concourse/oci-build-task
+    tag: 0.11.0
+    username: ((icr-api-key.username))
     password: ((icr-api-key.password))
 inputs:
   - name: source
