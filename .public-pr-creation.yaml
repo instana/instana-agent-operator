@@ -1,0 +1,331 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+version: "2"
+tasks:
+  code-checks:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  code-build:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  deploy-checks:
+    displayName: verify-latest-release
+    runtimeClassName: large
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            ./ci/sps-scripts/olm-release-pr-creation.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+
+  deploy-checks-2:
+    from: deploy-checks
+    displayName: redhat-marketplace-operator-commit-changes-and-create-pr
+    runtimeClassName: large
+    runAfter:
+      - deploy-checks
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+            
+            # Set environment variables
+            export GH_API_TOKEN=$(get_env github-token)
+            export USERNAME="instanacd"
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="redhat-marketplace-operators"
+            export PUBLIC_REPO_LOCAL_NAME="redhat-marketplace-operators-repo"
+            export OPERATOR_NAME="instana-agent-operator-rhmp"
+            
+            # Clone the repository with authentication if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository with authentication"
+                git clone "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+                # Update the remote URL to use authentication
+                cd "$PUBLIC_REPO_LOCAL_NAME"
+                git remote set-url origin "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/${REPO}.git"
+                cd -
+            fi
+            
+            ./ci/sps-scripts/commit-changes-to-public-repo.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+  
+  deploy-checks-3:
+    from: deploy-checks
+    displayName: redhat-marketplace-operators-rebase
+    runtimeClassName: large
+    runAfter:
+      - deploy-checks
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="redhat-marketplace-operators"
+            export PUBLIC_REPO_LOCAL_NAME="redhat-marketplace-operators-repo"
+            
+            # Clone the repository if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository"
+                git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+            fi
+            
+            ./ci/sps-scripts/rebase-fork-branches.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+  
+  deploy-checks-4:
+    from: deploy-checks
+    displayName: certified-operators-rebase
+    runtimeClassName: large
+    runAfter:
+      - deploy-checks
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="certified-operators"
+            export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
+            
+            # Clone the repository if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository"
+                git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+            fi
+            
+            ./ci/sps-scripts/rebase-fork-branches.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+    
+  deploy-checks-5:
+    from: deploy-checks
+    displayName: community-operators-rebase
+    runtimeClassName: large
+    runAfter:
+      - deploy-checks
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            export GH_API_TOKEN=$(get_env github-token)
+            export OWNER="k8s-operatorhub"
+            export REPO="community-operators"
+            export PUBLIC_REPO_LOCAL_NAME="community-operators-repo"
+            
+            # Clone the repository if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository"
+                git clone "https://github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+            fi
+            
+            ./ci/sps-scripts/rebase-fork-branches.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+
+  deploy-checks-6:
+    from: deploy-checks
+    displayName: certified-operators-commit-changes-and-create-pr
+    runtimeClassName: large
+    runAfter:
+      - deploy-checks
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+            
+            # Set environment variables
+            export GH_API_TOKEN=$(get_env github-token)
+            export USERNAME="instanacd"
+            export OWNER="redhat-openshift-ecosystem"
+            export REPO="certified-operators"
+            export PUBLIC_REPO_LOCAL_NAME="certified-operators-repo"
+            export OPERATOR_NAME="instana-agent-operator"
+            
+            # Clone the repository with authentication if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository with authentication"
+                git clone "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+                # Update the remote URL to use authentication
+                cd "$PUBLIC_REPO_LOCAL_NAME"
+                git remote set-url origin "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/${REPO}.git"
+                cd -
+            fi
+            
+            ./ci/sps-scripts/commit-changes-to-public-repo.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+    
+  deploy-checks-7:
+    from: deploy-checks
+    displayName: community-operators-commit-changes-and-create-pr
+    runtimeClassName: large
+    runAfter:
+      - deploy-checks
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+            
+            # Set environment variables
+            export GH_API_TOKEN=$(get_env github-token)
+            export USERNAME="instanacd"
+            export OWNER="k8s-operatorhub"
+            export REPO="community-operators"
+            export PUBLIC_REPO_LOCAL_NAME="community-operators-repo"
+            export OPERATOR_NAME="instana-agent-operator"
+            
+            # Clone the repository with authentication if it doesn't exist
+            if [ ! -d "$PUBLIC_REPO_LOCAL_NAME" ]; then
+                echo "Cloning the forked repository with authentication"
+                git clone "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/$REPO.git" "$PUBLIC_REPO_LOCAL_NAME"
+            else
+                echo "Repository already exists at $PUBLIC_REPO_LOCAL_NAME"
+                # Update the remote URL to use authentication
+                cd "$PUBLIC_REPO_LOCAL_NAME"
+                git remote set-url origin "https://${USERNAME}:${GH_API_TOKEN}@github.com/instana/${REPO}.git"
+                cd -
+            fi
+            
+            ./ci/sps-scripts/commit-changes-to-public-repo.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+  code-ci-finish:
+    steps:
+      - name: evaluate
+        when: 'false'
+      - name: prepare
+        when: 'false'
+      - name: run-stage
+        when: 'false'

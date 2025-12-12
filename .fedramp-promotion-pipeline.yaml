@@ -1,0 +1,66 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+version: "2"
+
+tasks:
+  code-checks:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  code-build:
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  deploy-checks:
+    displayName: promote-artifacts
+    runtimeClassName: x86-xlarge
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: deploy
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          ./ci/sps-scripts/fedramp-promotion.sh
+      - name: dynamic-scan
+        include:
+          - docker-socket
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+      - name: acceptance-test
+        onError: continue
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        when: false
+  code-ci-finish:
+    steps:
+      - name: evaluate
+        when: 'false'
+      - name: prepare
+        when: 'false'
+      - name: run-stage
+        when: 'false'
