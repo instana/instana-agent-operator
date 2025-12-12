@@ -195,10 +195,11 @@ jobs:
                 FEDRAMP_ICR_REPOSITORY="icr.io/instana-rel/rel-docker-agent-fedramp-local/instana-agent-operator"
 
                 DOMAIN=$(echo $ARTIFACTORY_GENERIC_FEDRAMP_URL | cut -d'/' -f1)
+                echo $DOMAIN
                 REPO_PATH=$(echo $ARTIFACTORY_GENERIC_FEDRAMP_URL | cut -d'/' -f2-)
                 FEDRAMP_GENERIC="$DOMAIN/artifactory/$REPO_PATH"
                 FEDRAMP_GENERIC_REPOSITORY="${FEDRAMP_GENERIC}/instana-agent-operator"
-                FEDRAMP_GENERIC_REPOSITORY_TAAS="https://na.artifactory.swg-devops.com/artifactory/instana-team-release-agent-fedramp-generic-local/instana-agent-operator"
+                FEDRAMP_GENERIC_REPOSITORY_TAAS="na.artifactory.swg-devops.com/artifactory/instana-team-release-agent-fedramp-generic-local/instana-agent-operator"
 
                 export ARTIFACT_VERSION
                 pushd agent-operator-git-source
