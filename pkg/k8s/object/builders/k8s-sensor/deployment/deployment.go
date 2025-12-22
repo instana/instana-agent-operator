@@ -175,8 +175,15 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	volumesToBuild := []volume.Volume{
 		volume.ConfigVolume,
-		volume.ETCDCAVolume, // Always include for custom ETCD CA configuration
 		volume.ControlPlaneCAVolume,
+	}
+
+	// Add ETCD CA volume for OpenShift if resources exist, or for custom ETCD CA configuration
+	if (d.isOpenShift &&
+		d.deploymentContext != nil &&
+		d.deploymentContext.OpenShiftETCDResourcesExist) ||
+		d.Spec.K8sSensor.ETCD.CA.SecretName != "" {
+		volumesToBuild = append(volumesToBuild, volume.ETCDCAVolume)
 	}
 
 	// Add ETCD client certificate volume for OpenShift if resources exist
