@@ -400,6 +400,8 @@ type K8sSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[0-9]+s$`
 	PollRate string `json:"pollrate,omitempty"`
+
+	CrdMonitoring *bool `json:"crdMonitoring,omitempty"`
 }
 
 type KubernetesPodSpec struct {
