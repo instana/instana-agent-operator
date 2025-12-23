@@ -91,9 +91,11 @@ INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"crd/agents.instana.io" \
 	"crd/agentsremote.instana.io" \
 	"clusterrole/leader-election-role" \
-	"clusterrole/instana-agent-clusterrole" \
+	"clusterrole/instana-agent" \
+	"clusterrole/instana-agent-k8sensor" \
 	"clusterrolebinding/leader-election-rolebinding" \
-	"clusterrolebinding/instana-agent-clusterrolebinding"
+	"clusterrolebinding/instana-agent" \
+	"clusterrolebinding/instana-agent-k8sensor"
 
 all: build
 
@@ -198,7 +200,7 @@ purge: ## Full purge of the agent in the cluster
 	done
 	@echo "Cleanup complete!"
 	@echo "=== Removing instana-agent namespace, if present ==="
-	kubectl delete ns $(NAMESPACE) --wait || true
+	kubectl get ns $(NAMESPACE) >/dev/null 2>&1 && kubectl delete ns $(NAMESPACE) --wait || true
 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
