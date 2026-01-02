@@ -401,6 +401,10 @@ type K8sSpec struct {
 	// +kubebuilder:validation:Pattern=`^[0-9]+s$`
 	PollRate string `json:"pollrate,omitempty"`
 
+	FeatureFlags K8sFeatureFlagsSpec `json:"featureFlags,omitempty"`
+}
+
+type K8sFeatureFlagsSpec struct {
 	CrdMonitoring *bool `json:"crdMonitoring,omitempty"`
 }
 

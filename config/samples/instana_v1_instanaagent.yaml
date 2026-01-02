@@ -18,7 +18,8 @@ spec:
       # You can leave this empty, or use this to configure your instana agent.
       # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
   k8s_sensor:
-    crdMonitoring: true
+    featureFlags:
+      crdMonitoring: true
   opentelemetry:
     grpc:
       enabled: true
