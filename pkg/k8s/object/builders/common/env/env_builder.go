@@ -280,7 +280,7 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case RestClientHostAllowlistEnv:
 		return e.restClientHostAllowlistEnv()
 	case CrdMonitoring:
-		return boolToEnvVar("K8SENSOR_enable_crd_cr_monitoring", true) //*e.agent.Spec.K8sSensor.CrdMonitoring)
+		return boolToEnvVar("K8SENSOR_enable_crd_cr_monitoring", *e.agent.Spec.K8sSensor.CrdMonitoring)
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
