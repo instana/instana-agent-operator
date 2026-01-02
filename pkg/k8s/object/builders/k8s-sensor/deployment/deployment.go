@@ -85,6 +85,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.ETCDTargetsEnv,
 		env.ControlPlaneCAFileEnv,
 		env.RestClientHostAllowlistEnv,
+		env.CrdMonitoring,
 	}
 
 	// Include ETCDCAFileEnv unless we're on OpenShift with auto-discovered ETCD resources
