@@ -142,8 +142,8 @@ Developing (and running) the Operator is easiest in two ways:
    ```shell
    # Install command in root of the repository (installs custom resource to k8s)
    make install
-   # List CRD to verify it appears in the list
-   kubectl get crd
+   # List CRD to verify that instana appears in the list
+   kubectl get crd | grep instana
    ```
 
 3. Create `instana-agent` namespace on the cluster:
@@ -151,7 +151,7 @@ Developing (and running) the Operator is easiest in two ways:
    ```shell
    kubectl apply -f config/samples/instana_agent_namespace.yaml
    # List namespaces to verify it appears in the list
-   kubectl get ns -n instana-agent
+   kubectl get ns instana-agent
    ```
 
 4. Run the `instana-agent-operator` Go application, either from your IDE, or from command-line: `make run`.
