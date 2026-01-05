@@ -31,7 +31,7 @@ export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
 # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
 # Uses jq to filter out non-release versions
-export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags |
+export PREV_VERSION=$(curl --silent --fail --show-error -L -H "Authorization: Bearer ${GH_API_TOKEN}" https://api.github.com/repos/instana/instana-agent-operator/tags |
 	jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' |
 	sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 
