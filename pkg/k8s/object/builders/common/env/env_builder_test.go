@@ -306,7 +306,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 		},
 		{
-			name: "Should set K8SENSOR_enable_crd_cr_monitoring to true when CrdMonitoring is enabled",
+			name: "Should set K8SENSOR_ENABLE_CRD_CR_MONITORING to true when CrdMonitoring is enabled",
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
 					K8sSensor: instanav1.K8sSpec{
@@ -318,11 +318,11 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 			envVars: []EnvVar{CrdMonitoring},
 			expected: []corev1.EnvVar{
-				{Name: "K8SENSOR_enable_crd_cr_monitoring", Value: "true"},
+				{Name: "K8SENSOR_ENABLE_CRD_CR_MONITORING", Value: "true"},
 			},
 		},
 		{
-			name: "Should set K8SENSOR_enable_crd_cr_monitoring to false when CrdMonitoring is disabled",
+			name: "Should set K8SENSOR_ENABLE_CRD_CR_MONITORING to false when CrdMonitoring is disabled",
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
 					K8sSensor: instanav1.K8sSpec{
@@ -334,11 +334,11 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 			envVars: []EnvVar{CrdMonitoring},
 			expected: []corev1.EnvVar{
-				{Name: "K8SENSOR_enable_crd_cr_monitoring", Value: "false"},
+				{Name: "K8SENSOR_ENABLE_CRD_CR_MONITORING", Value: "false"},
 			},
 		},
 		{
-			name: "Should not set K8SENSOR_enable_crd_cr_monitoring when CrdMonitoring is nil",
+			name: "Should not set K8SENSOR_ENABLE_CRD_CR_MONITORING when CrdMonitoring is nil",
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
 					K8sSensor: instanav1.K8sSpec{
@@ -352,7 +352,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 			expected: []corev1.EnvVar{},
 		},
 		{
-			name: "Should not set K8SENSOR_enable_crd_cr_monitoring when K8sFeatureFlagsSpec is missing",
+			name: "Should not set K8SENSOR_ENABLE_CRD_CR_MONITORING when K8sFeatureFlagsSpec is missing",
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{
 					K8sSensor: instanav1.K8sSpec{},

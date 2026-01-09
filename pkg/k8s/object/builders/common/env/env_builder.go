@@ -284,7 +284,7 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 			return nil
 		}
 		return &corev1.EnvVar{
-			Name:  "K8SENSOR_enable_crd_cr_monitoring",
+			Name:  "K8SENSOR_ENABLE_CRD_CR_MONITORING",
 			Value: strconv.FormatBool(*e.agent.Spec.K8sSensor.FeatureFlags.CrdMonitoring),
 		}
 	default:
