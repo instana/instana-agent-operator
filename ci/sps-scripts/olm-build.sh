@@ -39,6 +39,10 @@ export PREFIX="v"
 export VERSION="0.0.0"
 export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
+# Load GitHub API token from secret
+GH_API_TOKEN=$(get_env github-token)
+export GH_API_TOKEN
+
 # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
 # Uses jq to filter out non-release versions
 export PREV_VERSION=$(curl --silent --fail --show-error -L -H "Authorization: Bearer ${GH_API_TOKEN}" https://api.github.com/repos/instana/instana-agent-operator/tags |
