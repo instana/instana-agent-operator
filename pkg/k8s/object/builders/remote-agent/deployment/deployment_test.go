@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
@@ -443,12 +444,10 @@ func TestGetLivenessProbe_DefaultValues(t *testing.T) {
 	probe := builder.getLivenessProbe()
 
 	require.NotNil(t, probe)
-	assert.NotNil(t, probe.Exec)
-	assert.Equal(
-		t,
-		[]string{"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1"},
-		probe.Exec.Command,
-	)
+	assert.NotNil(t, probe.HTTPGet)
+	assert.Equal(t, "127.0.0.1", probe.HTTPGet.Host)
+	assert.Equal(t, "/status", probe.HTTPGet.Path)
+	assert.Equal(t, int32(42699), probe.HTTPGet.Port.IntVal)
 	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(5), probe.TimeoutSeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
@@ -458,8 +457,10 @@ func TestGetLivenessProbe_DefaultValues(t *testing.T) {
 func TestGetLivenessProbe_CustomValues(t *testing.T) {
 	customProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1"},
+			HTTPGet: &corev1.HTTPGetAction{
+				Host: "127.0.0.1",
+				Path: "/status",
+				Port: intstr.FromInt(42699),
 			},
 		},
 		InitialDelaySeconds: 900,
@@ -501,8 +502,10 @@ func TestGetLivenessProbe_CustomValues(t *testing.T) {
 func TestGetLivenessProbe_PartialCustomValues(t *testing.T) {
 	customProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1"},
+			HTTPGet: &corev1.HTTPGetAction{
+				Host: "127.0.0.1",
+				Path: "/status",
+				Port: intstr.FromInt(42699),
 			},
 		},
 		InitialDelaySeconds: 1200,

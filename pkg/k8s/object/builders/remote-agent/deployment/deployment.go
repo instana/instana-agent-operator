@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -231,10 +232,10 @@ func (d *deploymentBuilder) getLivenessProbe() *corev1.Probe {
 	// Otherwise, return the default liveness probe
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{
-					"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1",
-				},
+			HTTPGet: &corev1.HTTPGetAction{
+				Host: "127.0.0.1",
+				Path: "/status",
+				Port: intstr.FromInt(42699),
 			},
 		},
 		InitialDelaySeconds: 600,
