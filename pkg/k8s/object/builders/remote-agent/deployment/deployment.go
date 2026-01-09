@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2025
+(c) Copyright IBM Corp. 2025, 2026
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -222,6 +222,28 @@ func (d *deploymentBuilder) getTolerations() []corev1.Toleration {
 	}
 }
 
+func (d *deploymentBuilder) getLivenessProbe() *corev1.Probe {
+	// If a custom liveness probe is provided, use it
+	if d.Spec.Agent.Pod.LivenessProbe != nil {
+		return d.Spec.Agent.Pod.LivenessProbe
+	}
+
+	// Otherwise, return the default liveness probe
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1",
+				},
+			},
+		},
+		InitialDelaySeconds: 600,
+		TimeoutSeconds:      5,
+		PeriodSeconds:       10,
+		FailureThreshold:    3,
+	}
+}
+
 func (d *deploymentBuilder) build() *appsv1.Deployment {
 	volumes, volumeMounts := d.getVolumes()
 	userVolumes, userVolumeMounts := d.getUserVolumes()
@@ -262,20 +284,8 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
 							VolumeMounts:    append(volumeMounts, userVolumeMounts...),
 							Env:             d.getEnvVars(),
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									Exec: &corev1.ExecAction{
-										Command: []string{
-											"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1",
-										},
-									},
-								},
-								InitialDelaySeconds: 600,
-								TimeoutSeconds:      5,
-								PeriodSeconds:       10,
-								FailureThreshold:    3,
-							},
-							Resources: d.Spec.Agent.Pod.GetOrDefault(),
+							LivenessProbe:   d.getLivenessProbe(),
+							Resources:       d.Spec.Agent.Pod.GetOrDefault(),
 						},
 					},
 					Tolerations: d.getTolerations(),

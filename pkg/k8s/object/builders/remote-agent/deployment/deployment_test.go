@@ -421,3 +421,146 @@ func TestDeploymentBuilder_Build(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLivenessProbe_DefaultValues(t *testing.T) {
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.NotNil(t, probe.Exec)
+	assert.Equal(
+		t,
+		[]string{"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1"},
+		probe.Exec.Command,
+	)
+	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(5), probe.TimeoutSeconds)
+	assert.Equal(t, int32(10), probe.PeriodSeconds)
+	assert.Equal(t, int32(3), probe.FailureThreshold)
+}
+
+func TestGetLivenessProbe_CustomValues(t *testing.T) {
+	customProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1"},
+			},
+		},
+		InitialDelaySeconds: 900,
+		TimeoutSeconds:      10,
+		PeriodSeconds:       20,
+		FailureThreshold:    5,
+	}
+
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+				Pod: instanav1.AgentPodSpec{
+					LivenessProbe: customProbe,
+				},
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.Equal(t, customProbe, probe)
+	assert.Equal(t, int32(900), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(10), probe.TimeoutSeconds)
+	assert.Equal(t, int32(20), probe.PeriodSeconds)
+	assert.Equal(t, int32(5), probe.FailureThreshold)
+}
+
+func TestGetLivenessProbe_PartialCustomValues(t *testing.T) {
+	customProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-c", "curl -f http://127.0.0.1:42699/status || exit 1"},
+			},
+		},
+		InitialDelaySeconds: 1200,
+		// Other fields will be zero values
+	}
+
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+				Pod: instanav1.AgentPodSpec{
+					LivenessProbe: customProbe,
+				},
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.Equal(t, int32(1200), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(0), probe.TimeoutSeconds)
+	assert.Equal(t, int32(0), probe.PeriodSeconds)
+	assert.Equal(t, int32(0), probe.FailureThreshold)
+}
+
+func TestGetLivenessProbe_NilPointerSafety(t *testing.T) {
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+				Pod: instanav1.AgentPodSpec{
+					LivenessProbe: nil,
+				},
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
+}
