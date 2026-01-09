@@ -451,7 +451,7 @@ func TestGetLivenessProbe_DefaultValues(t *testing.T) {
 	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(5), probe.TimeoutSeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
-	assert.Equal(t, int32(3), probe.FailureThreshold)
+	assert.Equal(t, int32(6), probe.FailureThreshold)
 }
 
 func TestGetLivenessProbe_CustomValues(t *testing.T) {

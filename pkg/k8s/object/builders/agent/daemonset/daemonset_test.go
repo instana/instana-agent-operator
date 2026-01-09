@@ -652,7 +652,7 @@ func TestGetLivenessProbe_DefaultValues(t *testing.T) {
 	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(5), probe.TimeoutSeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
-	assert.Equal(t, int32(3), probe.FailureThreshold)
+	assert.Equal(t, int32(6), probe.FailureThreshold)
 
 	// Assert HTTPGet configuration
 	require.NotNil(t, probe.HTTPGet)
@@ -1001,7 +1001,7 @@ func TestBuild_DefaultLivenessProbeInDaemonSet(t *testing.T) {
 	assert.Equal(t, int32(600), container.LivenessProbe.InitialDelaySeconds)
 	assert.Equal(t, int32(5), container.LivenessProbe.TimeoutSeconds)
 	assert.Equal(t, int32(10), container.LivenessProbe.PeriodSeconds)
-	assert.Equal(t, int32(3), container.LivenessProbe.FailureThreshold)
+	assert.Equal(t, int32(6), container.LivenessProbe.FailureThreshold)
 }
 
 func TestGetLivenessProbe_NilPointer(t *testing.T) {
@@ -1043,7 +1043,7 @@ func TestGetLivenessProbe_NilPointer(t *testing.T) {
 	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(5), probe.TimeoutSeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
-	assert.Equal(t, int32(3), probe.FailureThreshold)
+	assert.Equal(t, int32(6), probe.FailureThreshold)
 }
 
 func TestGetLivenessProbe_WithSuccessThreshold(t *testing.T) {

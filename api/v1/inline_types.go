@@ -240,7 +240,7 @@ type AgentPodSpec struct {
 
 	// Override the liveness probe configuration for the agent container.
 	// If not specified, default values will be used (initialDelaySeconds: 600, timeoutSeconds: 5,
-	// periodSeconds: 10, failureThreshold: 3).
+	// periodSeconds: 10, failureThreshold: 6).
 	// +kubebuilder:validation:Optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 }

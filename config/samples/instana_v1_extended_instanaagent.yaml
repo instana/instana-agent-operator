@@ -141,7 +141,7 @@ spec:
       #   initialDelaySeconds: 600
       #   timeoutSeconds: 5
       #   periodSeconds: 10
-      #   failureThreshold: 3
+      #   failureThreshold: 6
       # livenessProbe:
       #   httpGet:
       #     host: 127.0.0.1

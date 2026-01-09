@@ -241,7 +241,7 @@ func (d *deploymentBuilder) getLivenessProbe() *corev1.Probe {
 		InitialDelaySeconds: 600,
 		TimeoutSeconds:      5,
 		PeriodSeconds:       10,
-		FailureThreshold:    3,
+		FailureThreshold:    6,
 	}
 }
 
