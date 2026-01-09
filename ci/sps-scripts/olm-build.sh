@@ -7,7 +7,11 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
-export GIT_COMMIT="$(get_env branch || echo "latest")"
+# Load environment variables - use commit hash, not branch name
+GIT_COMMIT=$(load_repo app-repo commit)
+BRANCH_NAME=$(load_repo app-repo branch)
+
+echo "Building for commit ${GIT_COMMIT} on branch ${BRANCH_NAME}"
 
 dnf -y install microdnf
 ./installGolang.sh amd64
@@ -16,6 +20,12 @@ export PATH=$PATH:/usr/local/go/bin
 IMAGE_TAG=${GIT_COMMIT}
 echo "Using IMAGE_TAG=${IMAGE_TAG}"
 unset HISTFILE
+
+# Authenticate with the private registry
+ICR_REGISTRY_DOMAIN="icr.io"
+echo "[INFO] Authenticating with the $ICR_REGISTRY_DOMAIN private Docker registry..."
+export DOCKER_API_VERSION="1.41"
+docker login -u iamapikey --password-stdin "$ICR_REGISTRY_DOMAIN" < /config/api-key
 
 OPERATOR_IMAGE_NAME=icr.io/instana-agent-dev/instana-agent-operator
 OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
