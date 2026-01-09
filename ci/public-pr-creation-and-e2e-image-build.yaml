@@ -189,6 +189,8 @@ jobs:
           inputs:
             - name: instana-agent-operator-release
             - name: agent-operator-release-source
+          params:
+            GH_API_TOKEN: ((instanacd-github-api-token))
           run:
             path: /bin/bash
             args:
@@ -207,7 +209,7 @@ jobs:
                 echo "New version: $NEW_VERSION"
 
                 # Get the latest release version from GitHub API
-                LATEST_RELEASE=$(curl -s https://api.github.com/repos/instana/instana-agent-operator/releases/latest | jq -r '.tag_name' | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+                LATEST_RELEASE=$(curl -s -H "Authorization: Bearer ${GH_API_TOKEN}" https://api.github.com/repos/instana/instana-agent-operator/releases/latest | jq -r '.tag_name' | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
                 if [ -z "$LATEST_RELEASE" ]; then
                   echo "Failed to get latest release version, proceeding with PR creation"
                   exit 0
@@ -302,6 +304,7 @@ jobs:
                     outputs:
                       - name: community-operators-repo
                     params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: k8s-operatorhub
                       REPO: community-operators
                       PUBLIC_REPO_LOCAL_NAME: community-operators-repo
@@ -413,6 +416,7 @@ jobs:
                     outputs:
                       - name: certified-operators-repo
                     params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
                       PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
@@ -524,6 +528,7 @@ jobs:
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
+                      GH_API_TOKEN: ((instanacd-github-api-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
                       PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
