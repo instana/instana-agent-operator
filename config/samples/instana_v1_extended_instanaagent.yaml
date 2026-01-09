@@ -1,5 +1,5 @@
 #
-# (c) Copyright IBM Corp. 2024, 2025
+# (c) Copyright IBM Corp. 2024, 2026
 # (c) Copyright Instana Inc.
 #
 
@@ -135,6 +135,22 @@ spec:
             configMapKeyRef:
               name: my-config
               key: value
+      
+      # Override the default liveness probe settings
+      # Default values are:
+      #   initialDelaySeconds: 600
+      #   timeoutSeconds: 5
+      #   periodSeconds: 10
+      #   failureThreshold: 3
+      # livenessProbe:
+      #   httpGet:
+      #     host: 127.0.0.1
+      #     path: /status
+      #     port: 42699
+      #   initialDelaySeconds: 900  # Wait 15 minutes before first check
+      #   timeoutSeconds: 10         # Allow 10 seconds for the probe to complete
+      #   periodSeconds: 15          # Check every 15 seconds
+      #   failureThreshold: 5        # Allow 5 consecutive failures before restart
 
     serviceMesh:
       # agent.serviceMesh.enabled sets the Instana agent's communication direction with JVMs.

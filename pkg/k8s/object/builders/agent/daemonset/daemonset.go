@@ -1,5 +1,5 @@
 /*
-(c) Copyright IBM Corp. 2024, 2025
+(c) Copyright IBM Corp. 2024, 2026
 */
 
 package daemonset
@@ -218,6 +218,27 @@ func (d *daemonSetBuilder) getTolerations() []corev1.Toleration {
 		return d.zone.Tolerations
 	}
 }
+func (d *daemonSetBuilder) getLivenessProbe() *corev1.Probe {
+	// If user provided a custom liveness probe, use it
+	if d.Spec.Agent.Pod.LivenessProbe != nil {
+		return d.Spec.Agent.Pod.LivenessProbe
+	}
+
+	// Otherwise, return the default liveness probe
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Host: "127.0.0.1",
+				Path: "/status",
+				Port: intstr.FromInt32(ports.InstanaAgentAPIPortConfig.Port),
+			},
+		},
+		InitialDelaySeconds: 600,
+		TimeoutSeconds:      5,
+		PeriodSeconds:       10,
+		FailureThreshold:    3,
+	}
+}
 
 func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 	volumes, volumeMounts := d.getVolumes()
@@ -262,21 +283,9 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: pointer.To(true),
 							},
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Host: "127.0.0.1",
-										Path: "/status",
-										Port: intstr.FromInt32(ports.InstanaAgentAPIPortConfig.Port),
-									},
-								},
-								InitialDelaySeconds: 600,
-								TimeoutSeconds:      5,
-								PeriodSeconds:       10,
-								FailureThreshold:    3,
-							},
-							Resources: d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
-							Ports:     d.portsBuilder.GetContainerPorts(),
+							LivenessProbe: d.getLivenessProbe(),
+							Resources:     d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
+							Ports:         d.portsBuilder.GetContainerPorts(),
 						},
 					},
 					Tolerations: d.getTolerations(),
