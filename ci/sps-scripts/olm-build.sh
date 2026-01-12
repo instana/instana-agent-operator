@@ -28,8 +28,30 @@ export DOCKER_API_VERSION="1.41"
 docker login -u iamapikey --password-stdin "$ICR_REGISTRY_DOMAIN" < /config/api-key
 
 OPERATOR_IMAGE_NAME=icr.io/instana-agent-dev/instana-agent-operator
-OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
-echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+
+# Poll for the operator image for up to 10 minutes (parallel job should push it)
+echo "Waiting for operator image ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} to be available..."
+MAX_WAIT_SECONDS=600
+POLL_INTERVAL=10
+ELAPSED=0
+
+while [ $ELAPSED -lt $MAX_WAIT_SECONDS ]; do
+	if OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} 2>/dev/null); then
+		echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+		echo "Operator image found after ${ELAPSED} seconds"
+		break
+	fi
+	
+	echo "Image not yet available, waiting ${POLL_INTERVAL} seconds... (${ELAPSED}/${MAX_WAIT_SECONDS}s elapsed)"
+	sleep $POLL_INTERVAL
+	ELAPSED=$((ELAPSED + POLL_INTERVAL))
+done
+
+if [ -z "$OPERATOR_IMG_DIGEST" ]; then
+	echo "ERROR: Operator image ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} not found after ${MAX_WAIT_SECONDS} seconds"
+	echo "The parallel image build job may have failed or is taking longer than expected"
+	exit 1
+fi
 
 mkdir -p target
 mkdir -p bundle
