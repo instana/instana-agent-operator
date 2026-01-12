@@ -1,15 +1,21 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended"
+  ],
   "branchPrefix": "renovate_",
-  "reviewers": ["team:eng-agent"],
+  "reviewers": [
+    "team:eng-agent"
+  ],
   "prConcurrentLimit": 2,
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^Makefile$"],
+      "managerFilePatterns": [
+        "/^Makefile$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
@@ -18,7 +24,9 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^installGolang\\.sh$"],
+      "managerFilePatterns": [
+        "/^installGolang\\.sh$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*GO_VERSION=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
