@@ -217,6 +217,9 @@ spec:
       tag: latest
       # k8s_sensor.image.pullPolicy specifies when to pull the image container.
       pullPolicy: Always
+    featureFlags:
+      # Specifies whether or not to enable the CR/CRD monitoring feature in k8sensor
+      crdMonitoring: false
     deployment:
       # Specifies whether or not to enable the Deployment and turn off the Kubernetes sensor in the DaemonSet
       enabled: true
