@@ -234,6 +234,8 @@ spec:
       # k8s_sensor.image.pullPolicy specifies when to pull the image container.
       pullPolicy: Always
     featureFlags:
+      # Specifies whether or not to enable the Control plane monitoring feature in k8sensor
+      controlPlaneMonitoring: false
       # Specifies whether or not to enable the CR/CRD monitoring feature in k8sensor
       crdMonitoring: false
     deployment:

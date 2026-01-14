@@ -411,7 +411,8 @@ type K8sSpec struct {
 }
 
 type K8sFeatureFlagsSpec struct {
-	CrdMonitoring *bool `json:"crdMonitoring,omitempty"`
+	ControlPlaneMonitoring *bool `json:"controlPlaneMonitoring,omitempty"`
+	CrdMonitoring          *bool `json:"crdMonitoring,omitempty"`
 }
 
 type KubernetesPodSpec struct {

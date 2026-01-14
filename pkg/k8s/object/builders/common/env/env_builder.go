@@ -70,6 +70,7 @@ const (
 	ETCDTargetsEnv
 	ControlPlaneCAFileEnv
 	RestClientHostAllowlistEnv
+	ControlPlaneMonitoring
 	CrdMonitoring
 )
 
@@ -123,7 +124,8 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
 		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
-		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort, CrdMonitoring:
+		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort,
+		ControlPlaneMonitoring, CrdMonitoring:
 		return false
 	default:
 		return false
@@ -286,6 +288,14 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{
 			Name:  "K8SENSOR_ENABLE_CRD_CR_MONITORING",
 			Value: strconv.FormatBool(*e.agent.Spec.K8sSensor.FeatureFlags.CrdMonitoring),
+		}
+	case ControlPlaneMonitoring:
+		if e.agent.Spec.K8sSensor.FeatureFlags.ControlPlaneMonitoring == nil {
+			return nil
+		}
+		return &corev1.EnvVar{
+			Name:  "K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING",
+			Value: strconv.FormatBool(*e.agent.Spec.K8sSensor.FeatureFlags.ControlPlaneMonitoring),
 		}
 	default:
 		panic(errors.New("unknown environment variable requested"))

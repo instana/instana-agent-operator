@@ -19,6 +19,7 @@ spec:
       # See https://github.com/instana/instana-agent-operator/blob/main/config/samples/instana_v1_extended_instanaagent.yaml for the extended version.
   k8s_sensor:
     featureFlags:
+      controlPlaneMonitoring: true
       crdMonitoring: true
   opentelemetry:
     grpc:

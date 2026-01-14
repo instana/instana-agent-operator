@@ -361,6 +361,62 @@ func TestEnvBuilderBuild(t *testing.T) {
 			envVars:  []EnvVar{CrdMonitoring},
 			expected: []corev1.EnvVar{},
 		},
+		{
+			name: "Should set K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING to true when ControlPlaneMonitoring is enabled",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					K8sSensor: instanav1.K8sSpec{
+						FeatureFlags: instanav1.K8sFeatureFlagsSpec{
+							ControlPlaneMonitoring: pointer.To(true),
+						},
+					},
+				},
+			},
+			envVars: []EnvVar{ControlPlaneMonitoring},
+			expected: []corev1.EnvVar{
+				{Name: "K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING", Value: "true"},
+			},
+		},
+		{
+			name: "Should set K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING to false when ControlPlaneMonitoring is disabled",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					K8sSensor: instanav1.K8sSpec{
+						FeatureFlags: instanav1.K8sFeatureFlagsSpec{
+							ControlPlaneMonitoring: pointer.To(false),
+						},
+					},
+				},
+			},
+			envVars: []EnvVar{ControlPlaneMonitoring},
+			expected: []corev1.EnvVar{
+				{Name: "K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING", Value: "false"},
+			},
+		},
+		{
+			name: "Should not set K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING when ControlPlaneMonitoring is nil",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					K8sSensor: instanav1.K8sSpec{
+						FeatureFlags: instanav1.K8sFeatureFlagsSpec{
+							ControlPlaneMonitoring: nil,
+						},
+					},
+				},
+			},
+			envVars:  []EnvVar{ControlPlaneMonitoring},
+			expected: []corev1.EnvVar{},
+		},
+		{
+			name: "Should not set K8SENSOR_ENABLE_CONTROL_PLANE_MONITORING when K8sFeatureFlagsSpec is missing",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					K8sSensor: instanav1.K8sSpec{},
+				},
+			},
+			envVars:  []EnvVar{ControlPlaneMonitoring},
+			expected: []corev1.EnvVar{},
+		},
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {

@@ -85,6 +85,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.ETCDTargetsEnv,
 		env.ControlPlaneCAFileEnv,
 		env.RestClientHostAllowlistEnv,
+		env.ControlPlaneMonitoring,
 		env.CrdMonitoring,
 	}
 
