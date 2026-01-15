@@ -93,9 +93,11 @@ INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"clusterrole/leader-election-role" \
 	"clusterrole/instana-agent" \
 	"clusterrole/instana-agent-k8sensor" \
+	"clusterrole/instana-crmon-aggregated" \
 	"clusterrolebinding/leader-election-rolebinding" \
 	"clusterrolebinding/instana-agent" \
-	"clusterrolebinding/instana-agent-k8sensor"
+	"clusterrolebinding/instana-agent-k8sensor" \
+	"clusterrolebinding/instana-crmon-aggregated"
 
 all: build
 

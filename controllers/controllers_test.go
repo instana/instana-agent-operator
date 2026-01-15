@@ -198,6 +198,28 @@ var (
 			Namespace: agentNamespace.Namespace,
 		},
 	}
+	crmonClusterRole = object{
+		gvk: schema.GroupVersionKind{
+			Group:   "rbac.authorization.k8s.io",
+			Version: "v1",
+			Kind:    "ClusterRole",
+		},
+		key: client.ObjectKey{
+			Name:      "instana-crmon-aggregated",
+			Namespace: agentNamespace.Namespace,
+		},
+	}
+	crmonClusterRoleBinding = object{
+		gvk: schema.GroupVersionKind{
+			Group:   "rbac.authorization.k8s.io",
+			Version: "v1",
+			Kind:    "ClusterRoleBinding",
+		},
+		key: client.ObjectKey{
+			Name:      "instana-crmon-aggregated",
+			Namespace: agentNamespace.Namespace,
+		},
+	}
 	k8SensorServiceAccount = object{
 		gvk: schema.GroupVersionKind{
 			Version: "v1",
@@ -356,6 +378,8 @@ func (suite *InstanaAgentControllerTestSuite) TearDownSuite() {
 					k8SensorServiceAccount,
 					k8SensorClusterRole,
 					k8SensorClusterRoleBinding,
+					crmonClusterRole,
+					crmonClusterRoleBinding,
 					k8SensorPdb,
 				)
 			}
@@ -411,6 +435,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 		k8SensorServiceAccount,
 		k8SensorClusterRole,
 		k8SensorClusterRoleBinding,
+		crmonClusterRole,
+		crmonClusterRoleBinding,
 		k8SensorPdb,
 	)
 
@@ -428,6 +454,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorServiceAccount,
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
+			crmonClusterRole,
+			crmonClusterRoleBinding,
 			k8SensorPdb,
 		),
 		60*time.Second, // Increased timeout from 10s to 60s for CI environments
@@ -463,6 +491,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 		k8SensorServiceAccount,
 		k8SensorClusterRole,
 		k8SensorClusterRoleBinding,
+		crmonClusterRole,
+		crmonClusterRoleBinding,
 	)
 
 	require.Eventually(suite.T(),
@@ -479,6 +509,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorServiceAccount,
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
+			crmonClusterRole,
+			crmonClusterRoleBinding,
 		),
 		60*time.Second, // Increased timeout from 10s to 60s for CI environments
 		time.Second,
@@ -518,6 +550,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 		k8SensorServiceAccount,
 		k8SensorClusterRole,
 		k8SensorClusterRoleBinding,
+		crmonClusterRole,
+		crmonClusterRoleBinding,
 		k8SensorPdb,
 	)
 
@@ -536,6 +570,8 @@ func (suite *InstanaAgentControllerTestSuite) TestInstanaAgentCR() {
 			k8SensorServiceAccount,
 			k8SensorClusterRole,
 			k8SensorClusterRoleBinding,
+			crmonClusterRole,
+			crmonClusterRoleBinding,
 			k8SensorPdb,
 		),
 		60*time.Second, // Increased timeout from 10s to 60s for CI environments
