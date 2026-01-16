@@ -2,7 +2,7 @@
 # (c) Copyright IBM Corp. 2025
 set -euo pipefail
 # renovate: datasource=golang-version depName=golang
-GO_VERSION="1.25.5"
+GO_VERSION="1.25.6"
 ARCHITECTURE="${1}"
 
 echo "=== Installing Golang ${GO_VERSION} ==="
