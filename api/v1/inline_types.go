@@ -410,6 +410,7 @@ type K8sSpec struct {
 	FeatureFlags K8sFeatureFlagsSpec `json:"featureFlags,omitempty"`
 }
 
+// K8sFeatureFlagsSpec is DEPRECATED so do not use! Kept for backwards compatibility.
 type K8sFeatureFlagsSpec struct {
 	CrdMonitoring *bool `json:"crdMonitoring,omitempty"`
 }

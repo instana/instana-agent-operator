@@ -280,13 +280,8 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case RestClientHostAllowlistEnv:
 		return e.restClientHostAllowlistEnv()
 	case CrdMonitoring:
-		if e.agent.Spec.K8sSensor.FeatureFlags.CrdMonitoring == nil {
-			return nil
-		}
-		return &corev1.EnvVar{
-			Name:  "K8SENSOR_ENABLE_CRD_CR_MONITORING",
-			Value: strconv.FormatBool(*e.agent.Spec.K8sSensor.FeatureFlags.CrdMonitoring),
-		}
+		// Silently ignore as it is deprecated
+		return nil
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}
