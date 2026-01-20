@@ -1,0 +1,75 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+version: "2"
+
+tasks:
+  pr-code-checks:
+    displayName: build-images-and-e2e
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export TASK_NAME="pr-code-checks"
+          export SKIP_INSTALL_GCLOUD="false"
+          source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/setup.sh"
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/sps-build-multiarch-images.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/vm-janitor.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/ephemeral-k8s-e2e.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+    
+  pr-code-checks-2:
+    from: pr-code-checks
+    displayName: go-lang-unit-test
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh          
+      - name: detect-secrets
+        include:
+          - docker-socket
+          
+  pr-code-checks-3:
+    displayName: operator-olm-build
+    runAfter:
+      - pr-code-checks
+    runtimeClassName: large
+    include:
+      - dind
+    steps:
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-build.sh
+      - name: detect-secrets
+        include:
+          - docker-socket
+
+  code-pr-finish:
+    steps:
+      - name: evaluate
+        when: 'false'
+      - name: prepare
+        when: 'false'
+      - name: run-stage
+        when: 'false'
