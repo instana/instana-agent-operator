@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
@@ -420,4 +421,149 @@ func TestDeploymentBuilder_Build(t *testing.T) {
 			assertions.Equal(test.expectPresent, result.IsPresent())
 		})
 	}
+}
+
+func TestGetLivenessProbe_DefaultValues(t *testing.T) {
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.NotNil(t, probe.HTTPGet)
+	assert.Equal(t, "127.0.0.1", probe.HTTPGet.Host)
+	assert.Equal(t, "/status", probe.HTTPGet.Path)
+	assert.Equal(t, int32(42699), probe.HTTPGet.Port.IntVal)
+	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(5), probe.TimeoutSeconds)
+	assert.Equal(t, int32(10), probe.PeriodSeconds)
+	assert.Equal(t, int32(6), probe.FailureThreshold)
+}
+
+func TestGetLivenessProbe_CustomValues(t *testing.T) {
+	customProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Host: "127.0.0.1",
+				Path: "/status",
+				Port: intstr.FromInt(42699),
+			},
+		},
+		InitialDelaySeconds: 900,
+		TimeoutSeconds:      10,
+		PeriodSeconds:       20,
+		FailureThreshold:    5,
+	}
+
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+				Pod: instanav1.AgentPodSpec{
+					LivenessProbe: customProbe,
+				},
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.Equal(t, customProbe, probe)
+	assert.Equal(t, int32(900), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(10), probe.TimeoutSeconds)
+	assert.Equal(t, int32(20), probe.PeriodSeconds)
+	assert.Equal(t, int32(5), probe.FailureThreshold)
+}
+
+func TestGetLivenessProbe_PartialCustomValues(t *testing.T) {
+	customProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Host: "127.0.0.1",
+				Path: "/status",
+				Port: intstr.FromInt(42699),
+			},
+		},
+		InitialDelaySeconds: 1200,
+		// Other fields will be zero values
+	}
+
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+				Pod: instanav1.AgentPodSpec{
+					LivenessProbe: customProbe,
+				},
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.Equal(t, int32(1200), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(0), probe.TimeoutSeconds)
+	assert.Equal(t, int32(0), probe.PeriodSeconds)
+	assert.Equal(t, int32(0), probe.FailureThreshold)
+}
+
+func TestGetLivenessProbe_NilPointerSafety(t *testing.T) {
+	agent := &instanav1.InstanaAgentRemote{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentRemoteSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+				Pod: instanav1.AgentPodSpec{
+					LivenessProbe: nil,
+				},
+			},
+			Zone: instanav1.Name{Name: "test-zone"},
+		},
+	}
+
+	builder := &deploymentBuilder{
+		InstanaAgentRemote: agent,
+	}
+
+	probe := builder.getLivenessProbe()
+
+	require.NotNil(t, probe)
+	assert.Equal(t, int32(600), probe.InitialDelaySeconds)
 }

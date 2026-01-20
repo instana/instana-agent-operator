@@ -12,6 +12,7 @@ instana_v1_instanaagent_demo.yaml
 instana-agent.yaml
 .env
 .direnv
+mocks/
 
 # macOS files
 .DS_Store
@@ -29,6 +30,7 @@ testbin/
 *.dylib
 bin/**
 !bin/.gitkeep
+instana-agent-operator
 
 # Tests, debugging, coverage etc
 *.test

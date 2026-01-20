@@ -60,6 +60,11 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 					Resources:       []string{},
 				},
 				{
+					APIGroups: []string{"apiextensions.k8s.io"},
+					Resources: []string{"customresourcedefinitions"},
+					Verbs:     constants.ReaderVerbs(),
+				},
+				{
 					APIGroups: []string{"extensions"},
 					Resources: []string{"deployments", "replicasets", "ingresses"},
 					Verbs:     constants.ReaderVerbs(),

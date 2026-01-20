@@ -1,5 +1,5 @@
 /*
- (c) Copyright IBM Corp. 2021, 2025
+ (c) Copyright IBM Corp. 2021, 2026
 */
 
 package v1
@@ -237,6 +237,12 @@ type AgentPodSpec struct {
 	// Set additional environment variables for the agent pod.
 	// +kubebuilder:validation:Optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Override the liveness probe configuration for the agent container.
+	// If not specified, default values will be used (initialDelaySeconds: 600, timeoutSeconds: 5,
+	// periodSeconds: 10, failureThreshold: 6).
+	// +kubebuilder:validation:Optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 }
 
 type TlsSpec struct {
@@ -400,6 +406,12 @@ type K8sSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[0-9]+s$`
 	PollRate string `json:"pollrate,omitempty"`
+
+	FeatureFlags K8sFeatureFlagsSpec `json:"featureFlags,omitempty"`
+}
+
+type K8sFeatureFlagsSpec struct {
+	CrdMonitoring *bool `json:"crdMonitoring,omitempty"`
 }
 
 type KubernetesPodSpec struct {

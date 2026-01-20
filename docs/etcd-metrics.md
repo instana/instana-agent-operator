@@ -87,6 +87,7 @@ The operator automatically sets these environment variables:
 - **No ETCD metrics appearing**: Ensure the ETCD service exists in `kube-system` namespace with proper labels
 - **TLS connection errors**: Verify CA certificates are properly mounted
 - **Timeout errors**: Check network connectivity and consider adjusting `ETCD_REQUEST_TIMEOUT`
+- **k8sensor pod fails with "configmap 'etcd-ca-bundle' not found"**: This occurs on OpenShift when ETCD monitoring resources are missing from the `openshift-etcd` namespace. The operator will log "OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled" but the pod should start successfully without ETCD monitoring. If the pod fails to start, this indicates the source ETCD resources (`etcd-metrics-ca-bundle` ConfigMap and `etcd-metric-client` Secret) need to be restored in the `openshift-etcd` namespace, or you can create empty placeholder resources in the `instana-agent` namespace as a temporary workaround.
 
 ### Debugging
 

@@ -171,6 +171,183 @@ func findEnvVar(envVars []corev1.EnvVar, name string) *corev1.EnvVar {
 	return nil
 }
 
+func TestDeploymentBuilder_GetVolumes_OpenShiftWithoutETCDResources(t *testing.T) {
+	// Given - OpenShift cluster but ETCD resources don't exist
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-ns",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{
+				Name: "test-zone",
+			},
+		},
+	}
+
+	mockStatusManager := &status.MockAgentStatusManager{}
+	backendObj := backend.NewK8SensorBackend(
+		"",
+		"test-key",
+		"",
+		"test-host",
+		"443",
+	)
+
+	// OpenShift=true but deploymentContext indicates resources don't exist
+	deploymentContext := &DeploymentContext{
+		OpenShiftETCDResourcesExist: false,
+	}
+
+	builder := NewDeploymentBuilder(
+		agent,
+		true,
+		mockStatusManager,
+		*backendObj,
+		nil,
+		deploymentContext,
+	).(*deploymentBuilder)
+
+	// When
+	volumes, mounts := builder.getVolumes()
+
+	// Then - ETCD CA volume should NOT be present
+	etcdCAVolume := findVolume(volumes, "etcd-ca")
+	assert.Nil(
+		t,
+		etcdCAVolume,
+		"etcd-ca volume should NOT be present when OpenShift ETCD resources don't exist",
+	)
+
+	etcdCAMount := findVolumeMount(mounts, "etcd-ca")
+	assert.Nil(
+		t,
+		etcdCAMount,
+		"etcd-ca mount should NOT be present when OpenShift ETCD resources don't exist",
+	)
+
+	// Config volume should still be present
+	configVolume := findVolume(volumes, "config")
+	assert.NotNil(t, configVolume, "config volume should be present")
+}
+
+func TestDeploymentBuilder_GetVolumes_OpenShiftWithETCDResources(t *testing.T) {
+	// Given - OpenShift cluster with ETCD resources available
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-ns",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{
+				Name: "test-zone",
+			},
+		},
+	}
+
+	mockStatusManager := &status.MockAgentStatusManager{}
+	backendObj := backend.NewK8SensorBackend(
+		"",
+		"test-key",
+		"",
+		"test-host",
+		"443",
+	)
+
+	// OpenShift=true and deploymentContext indicates resources exist
+	deploymentContext := &DeploymentContext{
+		OpenShiftETCDResourcesExist: true,
+	}
+
+	builder := NewDeploymentBuilder(
+		agent,
+		true,
+		mockStatusManager,
+		*backendObj,
+		nil,
+		deploymentContext,
+	).(*deploymentBuilder)
+
+	// When
+	volumes, mounts := builder.getVolumes()
+
+	// Then - ETCD CA volume SHOULD be present
+	etcdCAVolume := findVolume(volumes, "etcd-ca")
+	assert.NotNil(
+		t,
+		etcdCAVolume,
+		"etcd-ca volume should be present when OpenShift ETCD resources exist",
+	)
+	assert.NotNil(t, etcdCAVolume.ConfigMap, "etcd-ca volume should be a ConfigMap volume")
+	assert.Equal(t, "etcd-ca-bundle", etcdCAVolume.ConfigMap.Name)
+
+	etcdCAMount := findVolumeMount(mounts, "etcd-ca")
+	assert.NotNil(
+		t,
+		etcdCAMount,
+		"etcd-ca mount should be present when OpenShift ETCD resources exist",
+	)
+	assert.Equal(t, "/etc/etcd-metrics-ca", etcdCAMount.MountPath)
+	assert.True(t, etcdCAMount.ReadOnly)
+}
+
+func TestDeploymentBuilder_GetVolumes_CustomETCDCA(t *testing.T) {
+	// Given - Custom ETCD CA secret configured (non-OpenShift)
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-ns",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{
+				Name: "test-zone",
+			},
+			K8sSensor: instanav1.K8sSpec{
+				ETCD: instanav1.ETCDSpec{
+					CA: instanav1.CASpec{
+						SecretName: "custom-etcd-ca",
+						MountPath:  "/custom/etcd/ca",
+					},
+				},
+			},
+		},
+	}
+
+	mockStatusManager := &status.MockAgentStatusManager{}
+	backendObj := backend.NewK8SensorBackend(
+		"",
+		"test-key",
+		"",
+		"test-host",
+		"443",
+	)
+
+	builder := NewDeploymentBuilder(agent, false, mockStatusManager, *backendObj, nil, nil).(*deploymentBuilder)
+
+	// When
+	volumes, mounts := builder.getVolumes()
+
+	// Then - ETCD CA volume SHOULD be present with custom secret
+	etcdCAVolume := findVolume(volumes, "etcd-ca")
+	assert.NotNil(t, etcdCAVolume, "etcd-ca volume should be present when custom CA is configured")
+	assert.NotNil(t, etcdCAVolume.Secret, "etcd-ca volume should be a Secret volume")
+	assert.Equal(t, "custom-etcd-ca", etcdCAVolume.Secret.SecretName)
+
+	etcdCAMount := findVolumeMount(mounts, "etcd-ca")
+	assert.NotNil(t, etcdCAMount, "etcd-ca mount should be present when custom CA is configured")
+	assert.Equal(t, "/custom/etcd/ca", etcdCAMount.MountPath)
+	assert.True(t, etcdCAMount.ReadOnly)
+}
+
 func findVolume(volumes []corev1.Volume, name string) *corev1.Volume {
 	for _, vol := range volumes {
 		if vol.Name == name {

@@ -7,7 +7,11 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
-export GIT_COMMIT="$(get_env branch || echo "latest")"
+# Load environment variables - use commit hash, not branch name
+GIT_COMMIT=$(load_repo app-repo commit)
+BRANCH_NAME=$(load_repo app-repo branch)
+
+echo "Building for commit ${GIT_COMMIT} on branch ${BRANCH_NAME}"
 
 dnf -y install microdnf
 ./installGolang.sh amd64
@@ -17,9 +21,37 @@ IMAGE_TAG=${GIT_COMMIT}
 echo "Using IMAGE_TAG=${IMAGE_TAG}"
 unset HISTFILE
 
+# Authenticate with the private registry
+ICR_REGISTRY_DOMAIN="icr.io"
+echo "[INFO] Authenticating with the $ICR_REGISTRY_DOMAIN private Docker registry..."
+export DOCKER_API_VERSION="1.41"
+docker login -u iamapikey --password-stdin "$ICR_REGISTRY_DOMAIN" < /config/api-key
+
 OPERATOR_IMAGE_NAME=icr.io/instana-agent-dev/instana-agent-operator
-OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG})
-echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+
+# Poll for the operator image for up to 10 minutes (parallel job should push it)
+echo "Waiting for operator image ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} to be available..."
+MAX_WAIT_SECONDS=600
+POLL_INTERVAL=10
+ELAPSED=0
+
+while [ $ELAPSED -lt $MAX_WAIT_SECONDS ]; do
+	if OPERATOR_IMG_DIGEST=$(skopeo inspect --format "{{.Digest}}" docker://${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} 2>/dev/null); then
+		echo "OPERATOR_IMG_DIGEST=$OPERATOR_IMG_DIGEST"
+		echo "Operator image found after ${ELAPSED} seconds"
+		break
+	fi
+	
+	echo "Image not yet available, waiting ${POLL_INTERVAL} seconds... (${ELAPSED}/${MAX_WAIT_SECONDS}s elapsed)"
+	sleep $POLL_INTERVAL
+	ELAPSED=$((ELAPSED + POLL_INTERVAL))
+done
+
+if [ -z "$OPERATOR_IMG_DIGEST" ]; then
+	echo "ERROR: Operator image ${OPERATOR_IMAGE_NAME}:${IMAGE_TAG} not found after ${MAX_WAIT_SECONDS} seconds"
+	echo "The parallel image build job may have failed or is taking longer than expected"
+	exit 1
+fi
 
 mkdir -p target
 mkdir -p bundle
@@ -29,9 +61,13 @@ export PREFIX="v"
 export VERSION="0.0.0"
 export OLM_RELEASE_VERSION=${VERSION#"$PREFIX"}
 
+# Load GitHub API token from secret
+GH_API_TOKEN=$(get_env github-token)
+export GH_API_TOKEN
+
 # Get currently published version of the OLM bundle in the community operators project, so we can correctly set the 'replaces' field
 # Uses jq to filter out non-release versions
-export PREV_VERSION=$(curl --silent --fail --show-error -L https://api.github.com/repos/instana/instana-agent-operator/tags |
+export PREV_VERSION=$(curl --silent --fail --show-error -L -H "Authorization: Bearer ${GH_API_TOKEN}" https://api.github.com/repos/instana/instana-agent-operator/tags |
 	jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[1].name' |
 	sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 
