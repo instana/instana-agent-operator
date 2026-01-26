@@ -1,20 +1,21 @@
 /*
- * (c) Copyright IBM Corp. 2021
- * (c) Copyright Instana Inc. 2021
+ * (c) Copyright IBM Corp. 2021, 2026
+ * (c) Copyright Instana Inc. 2021, 2026
  */
 
 package helm
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/cli"
+	"helm.sh/helm/v4/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -50,16 +51,30 @@ func (h *helmReconciliation) initHelmConfig() error {
 		settings.RESTClientGetter(),
 		settings.Namespace(),
 		os.Getenv("HELM_DRIVER"),
-		h.debugLog,
 	); err != nil {
 		return fmt.Errorf("failure initializing Helm configuration: %w", err)
 	}
+	// In Helm v4, logging is configured via SetLogger with an slog.Handler
+	h.helmCfg.SetLogger(h.newSlogHandler())
 	return nil
 }
 
-// debugLog provides a logging function so that the Helm driver will send all output via our logging pipeline
-func (h *helmReconciliation) debugLog(format string, v ...interface{}) {
-	h.log.WithName("helm").V(1).Info(fmt.Sprintf(format, v...))
+// newSlogHandler creates an slog.Handler that bridges to our logr.Logger
+func (h *helmReconciliation) newSlogHandler() slog.Handler {
+	return slog.NewTextHandler(
+		&logrWriter{log: h.log.WithName("helm").V(1)},
+		&slog.HandlerOptions{Level: slog.LevelDebug},
+	)
+}
+
+// logrWriter adapts logr.Logger to io.Writer for slog
+type logrWriter struct {
+	log logr.Logger
+}
+
+func (w *logrWriter) Write(p []byte) (n int, err error) {
+	w.log.Info(string(p))
+	return len(p), nil
 }
 
 type helmReconciliation struct {
