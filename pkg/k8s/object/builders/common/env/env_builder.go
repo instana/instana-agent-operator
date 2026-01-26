@@ -10,12 +10,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
 	corev1 "k8s.io/api/core/v1"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type EnvVar int
@@ -81,6 +83,7 @@ type envBuilder struct {
 	agent   *instanav1.InstanaAgent
 	zone    *instanav1.Zone
 	helpers helpers.Helpers
+	logger  logr.Logger
 }
 
 func NewEnvBuilder(agent *instanav1.InstanaAgent, zone *instanav1.Zone) EnvBuilder {
@@ -88,6 +91,7 @@ func NewEnvBuilder(agent *instanav1.InstanaAgent, zone *instanav1.Zone) EnvBuild
 		agent:   agent,
 		zone:    zone,
 		helpers: helpers.NewHelpers(agent),
+		logger:  logf.Log.WithName("env-builder"),
 	}
 }
 
@@ -280,7 +284,11 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case RestClientHostAllowlistEnv:
 		return e.restClientHostAllowlistEnv()
 	case CrdMonitoring:
-		// Silently ignore as it is deprecated
+		// Log deprecation warning when crdMonitoring is configured
+		e.logger.Info(
+			"The crdMonitoring configuration field is deprecated and will be ignored. " +
+				"Please remove it from your InstanaAgent configuration.",
+		)
 		return nil
 	default:
 		panic(errors.New("unknown environment variable requested"))
