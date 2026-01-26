@@ -284,11 +284,13 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case RestClientHostAllowlistEnv:
 		return e.restClientHostAllowlistEnv()
 	case CrdMonitoring:
-		// Log deprecation warning when crdMonitoring is configured
-		e.logger.Info(
-			"The crdMonitoring configuration field is deprecated and will be ignored. " +
-				"Please remove it from your InstanaAgent configuration.",
-		)
+		// Log deprecation warning only when crdMonitoring is actually configured
+		if e.agent.Spec.K8sSensor.FeatureFlags.CrdMonitoring != nil {
+			e.logger.Info(
+				"The crdMonitoring configuration field is deprecated and will be ignored. " +
+					"Please remove it from your InstanaAgent configuration.",
+			)
+		}
 		return nil
 	default:
 		panic(errors.New("unknown environment variable requested"))
