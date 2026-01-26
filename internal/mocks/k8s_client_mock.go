@@ -175,3 +175,12 @@ func (m *MockSubResourceWriter) Patch(
 	args := m.Called(ctx, obj, patch, opts)
 	return args.Error(0)
 }
+
+func (m *MockSubResourceWriter) Apply(
+	ctx context.Context,
+	obj runtime.ApplyConfiguration,
+	opts ...client.SubResourceApplyOption,
+) error {
+	args := m.Called(ctx, obj, opts)
+	return args.Error(0)
+}
