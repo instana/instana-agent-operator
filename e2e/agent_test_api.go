@@ -126,7 +126,7 @@ func EnsureAgentNamespaceDeletion() env.Func {
 			return ctx, fmt.Errorf("error while waiting for namespace deletion: %v", err)
 		}
 		log.Infof("Namespace %s is gone", cfg.Namespace())
-		log.Info("==== Cleanup compleated ====")
+		log.Info("==== Cleanup completed ====")
 		return ctx, nil
 	}
 }

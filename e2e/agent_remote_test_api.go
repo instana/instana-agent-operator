@@ -161,7 +161,7 @@ func EnsureAgentRemoteDeletion() env.Func {
 			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
 		}
 
-		log.Info("==== Cleanup compleated ====")
+		log.Info("==== Cleanup completed ====")
 		return ctx, nil
 	}
 }
