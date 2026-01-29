@@ -79,7 +79,7 @@ resources:
     icon: docker
     source:
       repository: icr.io/instana-agent-dev/instana-agent-operator
-      tag: main
+      tag: ((branch))
       username: ((icr-api-key.username))
       password: ((icr-api-key.password))
   - name: agent-operator-image-arm64
@@ -87,7 +87,7 @@ resources:
     icon: docker
     source:
       repository: icr.io/instana-agent-dev/instana-agent-operator
-      tag: main
+      tag: ((branch))
       username: ((icr-api-key.username))
       password: ((icr-api-key.password))
   - name: agent-operator-image-ppc64le
@@ -95,7 +95,7 @@ resources:
     icon: docker
     source:
       repository: icr.io/instana-agent-dev/instana-agent-operator
-      tag: main
+      tag: ((branch))
       username: ((icr-api-key.username))
       password: ((icr-api-key.password))
   - name: agent-operator-image-s390x
@@ -103,7 +103,7 @@ resources:
     icon: docker
     source:
       repository: icr.io/instana-agent-dev/instana-agent-operator
-      tag: main
+      tag: ((branch))
       username: ((icr-api-key.username))
       password: ((icr-api-key.password))
   - name: latest-agent-image-manifest
