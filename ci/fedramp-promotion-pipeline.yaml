@@ -180,12 +180,6 @@ jobs:
               username: ((icr-api-key.username))
               password: ((icr-api-key.password))
           params:
-            ARTIFACTORY_USERNAME_RELEASE: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
-            ARTIFACTORY_PASSWORD_RELEASE: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
-            ARTIFACTORY_BASE_URL: ((delivery-artifactory-base-url))
-            ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
-            ARTIFACTORY_CONTAINER_FEDRAMP_DOCKER_URL: ((delivery-artifactory-docker-agent-fedramp-url))
-            ARTIFACTORY_GENERIC_FEDRAMP_URL: ((delivery-artifactory-generic-agent-fedramp-url))
             ARTIFACTORY_TAAS_USERNAME: ((taas-artifactory-read-writer-creds.username))
             ARTIFACTORY_TAAS_PASSWORD: ((taas-artifactory-read-writer-creds.password))
             ICR_USERNAME: ((icr-api-key.username))
@@ -201,14 +195,7 @@ jobs:
                 #!/bin/bash
 
                 RELEASE_ICR_REPOSITORY="icr.io/instana/instana-agent-operator"
-                FEDRAMP_ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_FEDRAMP_DOCKER_URL}/instana-agent-operator"
                 FEDRAMP_ICR_REPOSITORY="icr.io/instana-rel/rel-docker-agent-fedramp-local/instana-agent-operator"
-
-                DOMAIN=$(echo $ARTIFACTORY_GENERIC_FEDRAMP_URL | cut -d'/' -f1)
-                echo $DOMAIN
-                REPO_PATH=$(echo $ARTIFACTORY_GENERIC_FEDRAMP_URL | cut -d'/' -f2-)
-                FEDRAMP_GENERIC="$DOMAIN/artifactory/$REPO_PATH"
-                FEDRAMP_GENERIC_REPOSITORY="${FEDRAMP_GENERIC}/instana-agent-operator"
                 FEDRAMP_GENERIC_REPOSITORY_TAAS="na.artifactory.swg-devops.com/artifactory/instana-team-release-agent-fedramp-generic-local/instana-agent-operator"
 
                 export ARTIFACT_VERSION
@@ -248,28 +235,10 @@ jobs:
 
                 echo "Using OPERATOR_DOCKER_VERSION=$OPERATOR_DOCKER_VERSION and COMBINED_VERSION=$COMBINED_VERSION"
 
-                echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ARTIFACTORY_REPOSITORY}"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --src-password ${ARTIFACTORY_PASSWORD_RELEASE} \
-                  --dest-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --dest-password ${ARTIFACTORY_PASSWORD_RELEASE} \
-                  docker://${RELEASE_ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
-                  docker://${FEDRAMP_ARTIFACTORY_REPOSITORY}:${COMBINED_VERSION}
-                
-                echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ARTIFACTORY_REPOSITORY} with latest tag"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --src-password ${ARTIFACTORY_PASSWORD_RELEASE} \
-                  --dest-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --dest-password ${ARTIFACTORY_PASSWORD_RELEASE} \
-                  docker://${RELEASE_ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
-                  docker://${FEDRAMP_ARTIFACTORY_REPOSITORY}:latest
-
                 echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ICR_REPOSITORY}"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --src-password ${ARTIFACTORY_PASSWORD_RELEASE} \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
                   --dest-username ${ICR_USERNAME} \
                   --dest-password ${ICR_PASSWORD} \
                   docker://${RELEASE_ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
@@ -277,8 +246,8 @@ jobs:
 
                 echo "---> Pushing multi-architectural manifest to ${FEDRAMP_ICR_REPOSITORY} with latest tag"
                 skopeo copy -a --preserve-digests \
-                  --src-username ${ARTIFACTORY_USERNAME_RELEASE} \
-                  --src-password ${ARTIFACTORY_PASSWORD_RELEASE} \
+                  --src-username ${ICR_USERNAME} \
+                  --src-password ${ICR_PASSWORD} \
                   --dest-username ${ICR_USERNAME} \
                   --dest-password ${ICR_PASSWORD} \
                   docker://${RELEASE_ICR_REPOSITORY}:${OPERATOR_DOCKER_VERSION} \
@@ -293,23 +262,6 @@ jobs:
                   echo "File exists and it's not empty"
                 else
                   echo "Download failed or file is empty. Aborting"
-                  exit 1
-                fi
-
-                echo "---> Pushing operator YAML to ${FEDRAMP_GENERIC_REPOSITORY} with $COMBINED_VERSION"
-                status_code=$(curl --silent --output /dev/stderr --write-out "%{http_code}" -u "${ARTIFACTORY_USERNAME_RELEASE}:${ARTIFACTORY_PASSWORD_RELEASE}" -X PUT "https://$FEDRAMP_GENERIC_REPOSITORY/$COMBINED_VERSION/instana-agent-operator.yaml" -T "${MANIFEST_FILE_FEDRAMP}")
-                echo # curl doesn't output a line break on error
-                if test "$status_code" -ne 201; then
-                  echo -e "[\e[1m\e[91mERROR\e[39m\e[21m] curl returned $status_code, exiting..."
-                  exit 1
-                fi
-
-
-                echo "---> Pushing operator YAML to ${FEDRAMP_GENERIC_REPOSITORY} with latest"
-                status_code=$(curl --silent --output /dev/stderr --write-out "%{http_code}" -u "${ARTIFACTORY_USERNAME_RELEASE}:${ARTIFACTORY_PASSWORD_RELEASE}" -X PUT "https://$FEDRAMP_GENERIC_REPOSITORY/latest/instana-agent-operator.yaml" -T "${MANIFEST_FILE_FEDRAMP}")
-                echo # curl doesn't output a line break on error
-                if test "$status_code" -ne 201; then
-                  echo -e "[\e[1m\e[91mERROR\e[39m\e[21m] curl returned $status_code, exiting..."
                   exit 1
                 fi
 

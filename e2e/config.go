@@ -70,38 +70,20 @@ func init() {
 
 	containerRegistryUser, found = os.LookupEnv("ICR_USERNAME")
 	if !found {
-		log.Errorln(
-			"Required: $ICR_USERNAME not defined, trying to fallback to $ARTIFACTORY_USERNAME",
-		)
-		containerRegistryUser, found = os.LookupEnv("ARTIFACTORY_USERNAME")
-		if !found {
-			log.Errorln("Required: $ARTIFACTORY_USERNAME also not defined")
-			fatal = true
-		}
+		log.Errorln("Required: $ICR_USERNAME not defined")
+		fatal = true
 	}
 
 	containerRegistryPassword, found = os.LookupEnv("ICR_PASSWORD")
 	if !found {
-		log.Errorln(
-			"Required: $ICR_PASSWORD not defined, trying to fallback to $ARTIFACTORY_PASSWORD",
-		)
-		containerRegistryPassword, found = os.LookupEnv("ARTIFACTORY_PASSWORD")
-		if !found {
-			log.Errorln("Required: $ARTIFACTORY_PASSWORD also not defined")
-			fatal = true
-		}
+		log.Errorln("Required: $ICR_PASSWORD not defined")
+		fatal = true
 	}
 
 	containerRegistryHost, found = os.LookupEnv("ICR_HOST")
 	if !found {
-		log.Warningln("Optional: $ICR_HOST not defined, checking for $ARTIFACTORY_HOST")
-		containerRegistryHost, found = os.LookupEnv("ARTIFACTORY_HOST")
-		if !found {
-			log.Warningln(
-				"Optional: $ARTIFACTORY_HOST also not defined, using default ICR host icr.io",
-			)
-			containerRegistryHost = "icr.io"
-		}
+		log.Warningln("Optional: $ICR_HOST not defined, using default ICR host icr.io")
+		containerRegistryHost = "icr.io"
 	}
 	endpointHost, found = os.LookupEnv("INSTANA_ENDPOINT_HOST")
 	if !found {
