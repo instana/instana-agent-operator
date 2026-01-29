@@ -856,9 +856,6 @@ jobs:
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((icr-api-key.password))
             ICR_USERNAME: iamapikey
-            ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
-            ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
-            ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
           run:
             path: bash
             args:
@@ -867,7 +864,6 @@ jobs:
                 DEV_BUILD_IMAGE=icr.io/instana-agent-dev/instana-agent-operator
                 ICR_REPOSITORY=icr.io/instana/instana-agent-operator
                 ICR_REL_REPO=icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator
-                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
@@ -915,15 +911,6 @@ jobs:
                 else
                   echo "---> Skipping push with latest tag as not running on main branch"
                 fi
-
-                echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ICR_USERNAME} \
-                  --src-password ${ICR_PASSWORD} \
-                  --dest-username ${ARTIFACTORY_USERNAME} \
-                  --dest-password ${ARTIFACTORY_PASSWORD} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
                 echo "---> Pushing multi-architectural manifest to rel repo in icr.io with version tag"
                 # introduced during artifactory migration
