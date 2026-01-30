@@ -1203,6 +1203,11 @@ jobs:
                 echo "On release branch ${BRANCH}, updating FEDRAMP_VERSION"
                 echo "Operator version: ${VERSION}"
 
+                # Fetch and pull latest changes from the release branch
+                echo "Fetching latest changes from ${BRANCH}"
+                git fetch origin ${BRANCH}
+                git pull --rebase origin ${BRANCH}
+
                 # Update the FEDRAMP_VERSION file
                 echo "${VERSION}" > ci/FEDRAMP_VERSION
                 echo "Updated FEDRAMP_VERSION to ${VERSION}"
