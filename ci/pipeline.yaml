@@ -1013,7 +1013,7 @@ jobs:
 
                 chmod +x preflight-linux-amd64
 
-                ./preflight-linux-amd64 check container --artifacts preflight-output "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-project-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
+                ./preflight-linux-amd64 check container --artifacts preflight-output "$RED_HAT_REGISTRY:$OPERATOR_DOCKER_VERSION" --certification-component-id=$RED_HAT_PROJECT_ID --docker-config $DOCKER_CFG_FILE --submit --pyxis-api-token=$RED_HAT_API_TOKEN
 
                 popd
 
