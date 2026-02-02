@@ -56,6 +56,15 @@ resources:
     source:
       <<: *instana-operator-git-repo-config
 
+  - name: artifactory-to-cos-mirroring
+    type: git
+    icon: github
+    source:
+      uri: https://github.ibm.com/instana/artifactory-to-cos-mirroring.git
+      username: ((ibm-ghe-tokens.concourse-other-teams))
+      password: x-oauth-basic
+      branch: main
+
   - name: fedramp-version
     type: semver
     icon: alpha
@@ -159,6 +168,7 @@ jobs:
         trigger: true
       - get: fedramp-version
         passed: [manual-trigger]
+      - get: artifactory-to-cos-mirroring
       - task: promote-artifacts
         config:
           platform: linux
@@ -319,3 +329,45 @@ jobs:
                   echo -e "[\e[1m\e[91mERROR\e[39m\e[21m] curl returned $status_code, exiting..."
                   exit 1
                 fi
+      - task: sync-fedramp-artifacts-to-cos
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.access.redhat.com/ubi8/ubi
+          params:
+            API_URL: ((artifactory-mirror-api-key.url))
+            API_BASIC_AUTH_USERNAME: ((artifactory-mirror-api-key.username))
+            API_BASIC_AUTH_PASSWORD: ((artifactory-mirror-api-key.password))
+          inputs:
+            - name: artifactory-to-cos-mirroring
+          run:
+            path: /bin/bash
+            args:
+              - -c
+              - |
+                set -e
+                yum install -y jq curl
+                
+                REPO="instana-team-release-agent-fedramp-generic-local"
+                PATH_PREFIX="instana-agent-operator"
+                echo "Syncing ${REPO} (path: ${PATH_PREFIX}) to COS..."
+                
+                if artifactory-to-cos-mirroring/util/trigger-sync-and-wait.sh "${REPO}" --path-prefix "${PATH_PREFIX}"; then
+                  echo "SUCCESS: COS sync completed for ${REPO}/${PATH_PREFIX}"
+                  exit 0
+                fi
+                
+                echo "WARNING: First sync attempt failed, retrying once..."
+                sleep 5
+                
+                if artifactory-to-cos-mirroring/util/trigger-sync-and-wait.sh "${REPO}" --path-prefix "${PATH_PREFIX}"; then
+                  echo "SUCCESS: COS sync completed on retry for ${REPO}/${PATH_PREFIX}"
+                  exit 0
+                fi
+                
+                echo "ERROR: COS sync failed after retry for ${REPO}/${PATH_PREFIX}"
+                echo "Artifacts are available in Artifactory but not yet mirrored to COS"
+                echo "Please trigger manual sync: ./util/trigger-sync-and-wait.sh ${REPO} --path-prefix ${PATH_PREFIX}"
+                exit 1
