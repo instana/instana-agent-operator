@@ -335,7 +335,8 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi
+              repository: registry.access.redhat.com/ubi9/ubi
+              tag: latest
           params:
             API_URL: ((artifactory-mirror-api-key.url))
             API_BASIC_AUTH_USERNAME: ((artifactory-mirror-api-key.username))
