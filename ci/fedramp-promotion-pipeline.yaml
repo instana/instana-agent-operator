@@ -336,6 +336,10 @@ jobs:
             type: registry-image
             source:
               repository: registry.access.redhat.com/ubi8/ubi
+          params:
+            API_URL: ((artifactory-mirror-api-key.url))
+            API_BASIC_AUTH_USERNAME: ((artifactory-mirror-api-key.username))
+            API_BASIC_AUTH_PASSWORD: ((artifactory-mirror-api-key.password))
           inputs:
             - name: artifactory-to-cos-mirroring
           run:
