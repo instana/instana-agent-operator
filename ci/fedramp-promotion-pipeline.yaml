@@ -351,6 +351,9 @@ jobs:
                 set -e
                 yum install -y jq
                 
+                # Remove trailing slash from API_URL to prevent double slashes in URLs
+                export API_URL="${API_URL%/}"
+
                 REPO="instana-team-release-agent-fedramp-generic-virtual"
                 PATH_PREFIX="instana-agent-operator"
                 echo "Syncing ${REPO} (path: ${PATH_PREFIX}) to COS..."
