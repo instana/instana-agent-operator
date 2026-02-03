@@ -335,7 +335,8 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: registry.access.redhat.com/ubi8/ubi
+              repository: registry.access.redhat.com/ubi9/ubi
+              tag: latest
           params:
             API_URL: ((artifactory-mirror-api-key.url))
             API_BASIC_AUTH_USERNAME: ((artifactory-mirror-api-key.username))
@@ -350,7 +351,7 @@ jobs:
                 set -e
                 yum install -y jq curl
                 
-                REPO="instana-team-release-agent-fedramp-generic-local"
+                REPO="instana-team-release-agent-fedramp-generic-virtual"
                 PATH_PREFIX="instana-agent-operator"
                 echo "Syncing ${REPO} (path: ${PATH_PREFIX}) to COS..."
                 
