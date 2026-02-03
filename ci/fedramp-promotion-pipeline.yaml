@@ -349,7 +349,7 @@ jobs:
               - -c
               - |
                 set -e
-                yum install -y jq curl
+                yum install -y jq
                 
                 REPO="instana-team-release-agent-fedramp-generic-virtual"
                 PATH_PREFIX="instana-agent-operator"
