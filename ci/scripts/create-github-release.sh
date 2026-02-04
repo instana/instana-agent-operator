@@ -12,6 +12,11 @@ GITHUB_OAUTH_TOKEN=$2
 TARGET_DIR=$3
 BRANCH=$4
 
+echo "=== GitHub Release Creation Script ==="
+echo "VERSION: ${VERSION}"
+echo "TARGET_DIR: ${TARGET_DIR}"
+echo "BRANCH: ${BRANCH}"
+
 if [[ -z ${VERSION} ]] || [[ -z ${GITHUB_OAUTH_TOKEN} ]]; then
   echo "Please ensure VERSION and GITHUB_OAUTH_TOKEN are set so a GitHub Release can be created"
   exit 1
@@ -19,16 +24,17 @@ fi
 
 # Default to main if no branch is provided
 if [[ -z ${BRANCH} ]]; then
+  echo "WARNING: BRANCH parameter not provided, defaulting to 'main'"
   BRANCH="main"
 fi
 
 # Determine if this should be marked as latest (only for main branch)
-MAKE_LATEST="true"
 if [[ "${BRANCH}" != "main" ]]; then
   MAKE_LATEST="false"
-  echo "Creating release from branch ${BRANCH} - will NOT be marked as latest"
+  echo "==> Branch is '${BRANCH}' (not main) - release will NOT be marked as latest (make_latest=false)"
 else
-  echo "Creating release from main branch - will be marked as latest"
+  MAKE_LATEST="true"
+  echo "==> Branch is 'main' - release will be marked as latest (make_latest=true)"
 fi
 
 OPERATOR_RESOURCE_FILENAME="instana-agent-operator.yaml"
@@ -41,11 +47,16 @@ GITHUB_RELEASE_RESPONSE=$(curl -X GET \
 
 GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
 if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
-  printf "\n%s" "Creating GitHub Release..."
+  printf "\n%s\n" "Creating GitHub Release..."
+  
+  # Construct the JSON payload
+  RELEASE_JSON="{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"${BRANCH}\", \"name\": \"v${VERSION}\", \"make_latest\": \"${MAKE_LATEST}\" }"
+  echo "Release JSON payload: ${RELEASE_JSON}"
+  
   GITHUB_RELEASE_RESPONSE=$(curl -X POST \
     -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
     -H 'Content-Type: application/json' \
-    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"${BRANCH}\", \"name\": \"v${VERSION}\", \"make_latest\": \"${MAKE_LATEST}\" }" \
+    -d "${RELEASE_JSON}" \
     ${GITHUB_RELEASES_URL})
 
   GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
@@ -53,6 +64,11 @@ if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
     echo "Unable to determine GitHub Release id. Please check on https://github.com/instana/instana-agent-operator/releases if it was created"
     exit 0
   fi
+else
+  # Release already exists - skip asset upload to avoid re-tagging
+  printf "\n%s\n" "Release v${VERSION} already exists with ID ${GITHUB_RELEASE_ID}"
+  echo "Skipping asset upload to prevent modifying existing release"
+  exit 0
 fi
 
 upload_github_asset() {
