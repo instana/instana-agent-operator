@@ -358,7 +358,7 @@ jobs:
                 PATH_PREFIX="instana-agent-operator"
                 echo "Syncing ${REPO} (path: ${PATH_PREFIX}) to COS..."
                 
-                if artifactory-to-cos-mirroring/util/trigger-sync-and-wait.sh "${REPO}" --path-prefix "${PATH_PREFIX}"; then
+                if artifactory-to-cos-mirroring/util/trigger-sync-and-wait.sh "${REPO}"; then
                   echo "SUCCESS: COS sync completed for ${REPO}/${PATH_PREFIX}"
                   exit 0
                 fi
@@ -366,12 +366,12 @@ jobs:
                 echo "WARNING: First sync attempt failed, retrying once..."
                 sleep 5
                 
-                if artifactory-to-cos-mirroring/util/trigger-sync-and-wait.sh "${REPO}" --path-prefix "${PATH_PREFIX}"; then
+                if artifactory-to-cos-mirroring/util/trigger-sync-and-wait.sh "${REPO}"; then
                   echo "SUCCESS: COS sync completed on retry for ${REPO}/${PATH_PREFIX}"
                   exit 0
                 fi
                 
                 echo "ERROR: COS sync failed after retry for ${REPO}/${PATH_PREFIX}"
                 echo "Artifacts are available in Artifactory but not yet mirrored to COS"
-                echo "Please trigger manual sync: ./util/trigger-sync-and-wait.sh ${REPO} --path-prefix ${PATH_PREFIX}"
+                echo "Please trigger manual sync: ./util/trigger-sync-and-wait.sh ${REPO}"
                 exit 1
