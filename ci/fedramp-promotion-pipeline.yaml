@@ -61,8 +61,8 @@ resources:
     icon: github
     source:
       uri: https://github.ibm.com/instana/artifactory-to-cos-mirroring.git
-      username: ((ibm-ghe-tokens.concourse-other-teams))
-      password: x-oauth-basic
+      username: x-oauth-basic
+      password: ((ibm-ghe-tokens.concourse-other-teams))
       branch: main
 
   - name: fedramp-version
