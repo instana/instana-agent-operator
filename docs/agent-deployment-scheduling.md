@@ -14,7 +14,7 @@ In basic configurations without custom scheduling rules, agents are deployed on 
 
 ### Host Coverage
 
-The "host coverage" metric shown in the Kubernetes cluster dashboard represents the percentage of nodes that have an agent pod running. A coverage of less than 100% indicates that some nodes do not have agents, which can occur for several reasons explained below.
+The "host coverage" metric shown in the Kubernetes cluster dashboard represents the percentage of nodes that have an agent pod running. Coverage below 100% means some nodes do not have agents. This is often intentional and expected, as explained in the sections below.
 
 ## Factors Affecting Agent Deployment
 
@@ -59,7 +59,7 @@ Even if a node is eligible for agent deployment, the agent pod may not be schedu
 
 ### Adding Tolerations
 
-To deploy agents on tainted nodes, you must add tolerations to your [`InstanaAgent`](../api/v1/instanaagent_types.go) custom resource:
+To deploy agents on tainted nodes, you must add tolerations to your `InstanaAgent` custom resource:
 
 ```yaml
 apiVersion: instana.io/v1
@@ -187,9 +187,56 @@ When zones are configured:
 - Each DaemonSet uses the affinity and toleration rules defined for its zone
 - This allows fine-grained control over which agents run on which nodes
 
-## Troubleshooting Low Host Coverage
+## Understanding Host Coverage
 
-If your host coverage is below 100%, follow these steps:
+Host coverage below 100% is often intentional and expected in many cluster configurations. This typically occurs when:
+- Master/control plane nodes are excluded from monitoring (common practice)
+- Infrastructure nodes are dedicated to cluster management
+- Specialized nodes (GPU, high-memory) are reserved for specific workloads
+
+If you need to investigate your host coverage, you can use either Instana's UI or kubectl commands.
+
+## Troubleshooting with Instana
+
+### 1. Identify Nodes Without Agents
+
+**Using Instana UI:**
+1. Navigate to your Kubernetes cluster dashboard
+2. Go to the **Nodes** tab
+3. Review the list of nodes and their agent status
+4. Nodes without agents will be clearly indicated (nodes with agents show "Monitored by Instana")
+
+### 2. Check Node Taints
+
+**Using Instana UI:**
+1. From the Nodes tab, select a specific node
+2. Navigate to the **Details/Spec** tab
+3. Review the node's taints and labels
+4. This helps identify why an agent may not be scheduled on that node
+
+### 3. Check DaemonSet Status and Configuration
+
+**Using Instana UI:**
+1. Navigate to your Kubernetes cluster dashboard
+2. Go to **DaemonSets** and search for `instana-agent`
+3. Click on the DaemonSet to view details
+4. Review any issues or events displayed
+5. Check the desired vs. current pod counts
+6. Navigate to the **Details > Spec** tab to view the DaemonSet configuration including tolerations, affinity rules, and node selectors
+7. Any scheduling or deployment issues should be visible here
+
+### 4. Common Issues and Solutions
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| **Tainted nodes** | Nodes have taints, no tolerations configured | Add appropriate tolerations to `spec.agent.pod.tolerations` |
+| **Node selector mismatch** | Nodes don't match selector | Update `spec.agent.pod.nodeSelector` or add labels to nodes |
+| **Resource constraints** | Insufficient CPU/memory | Increase node resources or adjust `spec.agent.pod.requests` |
+| **Affinity rules** | Nodes don't match affinity | Update `spec.agent.pod.affinity` rules |
+
+## Troubleshooting with kubectl
+
+If you prefer using kubectl or need more detailed information:
 
 ### 1. Identify Nodes Without Agents
 
@@ -220,30 +267,41 @@ kubectl describe daemonset instana-agent -n instana-agent
 kubectl get events -n instana-agent --sort-by='.lastTimestamp'
 ```
 
-### 4. Common Issues and Solutions
+### 4. Verify Agent Configuration
 
-| Issue | Symptom | Solution |
-|-------|---------|----------|
-| **Tainted nodes** | Nodes have taints, no tolerations configured | Add appropriate tolerations to `spec.agent.pod.tolerations` |
-| **Node selector mismatch** | Nodes don't match selector | Update `spec.agent.pod.nodeSelector` or add labels to nodes |
-| **Resource constraints** | Insufficient CPU/memory | Increase node resources or adjust `spec.agent.pod.requests` |
-| **Affinity rules** | Nodes don't match affinity | Update `spec.agent.pod.affinity` rules |
+**DaemonSet Configuration:**
 
-### 5. Verify Agent Configuration
+You can view the DaemonSet configuration using Instana UI (see step 3 above) or kubectl:
 
 ```bash
-# Check the current agent configuration
-kubectl get instanaagent instana-agent -n instana-agent -o yaml
-
 # Verify DaemonSet configuration
 kubectl get daemonset instana-agent -n instana-agent -o yaml
+```
+
+**Agent Secret Configuration:**
+
+The agent configuration is stored in a Kubernetes secret and is not displayed in the Instana UI. To view it, use kubectl:
+
+```bash
+# View the agent configuration secret
+kubectl get secret instana-agent-config -n instana-agent -o yaml
+
+# Decode and view the configuration
+kubectl get secret instana-agent-config -n instana-agent -o jsonpath='{.data.configuration\.yaml}' | base64 -d
+```
+
+**InstanaAgent Custom Resource:**
+
+```bash
+# Check the InstanaAgent custom resource
+kubectl get instanaagent instana-agent -n instana-agent -o yaml
 ```
 
 ## Best Practices
 
 1. **Start Simple**: Begin with default configuration and add tolerations only as needed
 2. **Document Taints**: Maintain documentation of custom taints in your cluster
-3. **Monitor Coverage**: Regularly check host coverage metrics and investigate drops
+3. **Monitor Coverage**: Regularly check host coverage metrics and investigate unexpected changes
 4. **Test Changes**: Test scheduling configuration changes in non-production environments first
 5. **Use Zones for Complexity**: For clusters with diverse node types, use zone-based configuration rather than complex global rules
 
