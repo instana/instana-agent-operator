@@ -21,6 +21,7 @@ There are two ways to install the operator:
 
 #### Configuration
 
+- [Agent Deployment and Scheduling](docs/agent-deployment-scheduling.md): Explains where agents are deployed and how to configure scheduling for different node types, including handling taints, tolerations, and host coverage.
 - [Secret Mounts](docs/secret-mounts.md): Improves security by mounting sensitive information as files instead of exposing them as environment variables.
 - [Liveness Probe Configuration](docs/liveness-probe-configuration.md): Customize liveness probe settings for the agent container to match your environment's requirements.
 
