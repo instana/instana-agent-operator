@@ -75,7 +75,7 @@ func TestDaemonSetBuilder_PodEnvVars(t *testing.T) {
 	}
 
 	statusManager := status.NewAgentStatusManager(nil, nil)
-	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager)
+	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager, false)
 
 	// When
 	obj := dsBuilder.Build()
@@ -155,7 +155,7 @@ func TestDaemonSetBuilder_EnvVarPrecedence(t *testing.T) {
 	}
 
 	statusManager := status.NewAgentStatusManager(nil, nil)
-	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager)
+	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager, false)
 
 	// When
 	obj := dsBuilder.Build()
