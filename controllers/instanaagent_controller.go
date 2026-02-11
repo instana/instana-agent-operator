@@ -153,6 +153,20 @@ func (r *InstanaAgentReconciler) reconcile(
 		return isOpenShiftRes
 	}
 
+	// Determine whether to set INSTANA_APPEND_FQDN_TO_AGENT_ID for non-zoned deployments
+	shouldSetAppendFQDNEnvVar := false
+	if len(agent.Spec.Zones) == 0 {
+		var shouldSetRes reconcileReturn
+		shouldSetAppendFQDNEnvVar, shouldSetRes = r.shouldSetAppendFQDNToAgentIDEnvVar(
+			ctx,
+			agent,
+			nil,
+		)
+		if shouldSetRes.suppliesReconcileResult() {
+			return shouldSetRes
+		}
+	}
+
 	keysSecret := &corev1.Secret{}
 	if agent.Spec.Agent.KeysSecret != "" {
 		if err := r.client.Get(ctx, client.ObjectKey{Name: agent.Spec.Agent.KeysSecret, Namespace: agent.Namespace}, keysSecret); err != nil {
@@ -171,6 +185,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		ctx,
 		agent,
 		isOpenShift,
+		shouldSetAppendFQDNEnvVar,
 		operatorUtils,
 		statusManager,
 		keysSecret,
