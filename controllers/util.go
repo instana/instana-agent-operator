@@ -52,13 +52,13 @@ func (r *InstanaAgentReconciler) isOpenShift(
 	return isOpenShiftRes, reconcileContinue()
 }
 
-// shouldSetAppendFQDNToAgentIDEnvVar determines whether to set the
-// INSTANA_APPEND_FQDN_TO_AGENT_ID environment variable.
+// shouldSetPersistHostUniqueIDEnvVar determines whether to set the
+// INSTANA_PERSIST_HOST_UNIQUE_ID environment variable.
 // The logic is:
 // - If DaemonSet doesn't exist: set it (new deployment)
 // - If DaemonSet exists and already has the env var: keep it
 // - If DaemonSet exists but doesn't have the env var: don't add it (upgrade scenario)
-func (r *InstanaAgentReconciler) shouldSetAppendFQDNToAgentIDEnvVar(
+func (r *InstanaAgentReconciler) shouldSetPersistHostUniqueIDEnvVar(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 	zone *instanav1.Zone,
@@ -82,13 +82,13 @@ func (r *InstanaAgentReconciler) shouldSetAppendFQDNToAgentIDEnvVar(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.V(1).
-				Info("DaemonSet not found, will set INSTANA_APPEND_FQDN_TO_AGENT_ID", "daemonset", dsName)
+				Info("DaemonSet not found, will set INSTANA_PERSIST_HOST_UNIQUE_ID", "daemonset", dsName)
 			return true, reconcileContinue()
 		}
 		// On other errors, log and default to not setting it to be safe
 		log.Error(
 			err,
-			"failed to check existing DaemonSet, will not set INSTANA_APPEND_FQDN_TO_AGENT_ID",
+			"failed to check existing DaemonSet, will not set INSTANA_PERSIST_HOST_UNIQUE_ID",
 			"daemonset",
 			dsName,
 		)
@@ -99,17 +99,17 @@ func (r *InstanaAgentReconciler) shouldSetAppendFQDNToAgentIDEnvVar(
 	for _, container := range existingDS.Spec.Template.Spec.Containers {
 		if container.Name == "instana-agent" {
 			for _, env := range container.Env {
-				if env.Name == "INSTANA_APPEND_FQDN_TO_AGENT_ID" {
+				if env.Name == "INSTANA_PERSIST_HOST_UNIQUE_ID" {
 					// Env var already exists, keep it
 					log.V(1).
-						Info("DaemonSet already has INSTANA_APPEND_FQDN_TO_AGENT_ID, will keep it", "daemonset", dsName)
+						Info("DaemonSet already has INSTANA_PERSIST_HOST_UNIQUE_ID, will keep it", "daemonset", dsName)
 					return true, reconcileContinue()
 				}
 			}
 			// Container found but env var doesn't exist - don't add it (upgrade scenario)
 			log.V(1).
 				Info(
-					"DaemonSet exists without INSTANA_APPEND_FQDN_TO_AGENT_ID, will not add it (upgrade)",
+					"DaemonSet exists without INSTANA_PERSIST_HOST_UNIQUE_ID, will not add it (upgrade)",
 					"daemonset",
 					dsName,
 				)
@@ -120,7 +120,7 @@ func (r *InstanaAgentReconciler) shouldSetAppendFQDNToAgentIDEnvVar(
 	// Container not found (shouldn't happen), default to not setting it
 	log.V(1).
 		Info(
-			"instana-agent container not found in DaemonSet, will not set INSTANA_APPEND_FQDN_TO_AGENT_ID",
+			"instana-agent container not found in DaemonSet, will not set INSTANA_PERSIST_HOST_UNIQUE_ID",
 			"daemonset",
 			dsName,
 		)
