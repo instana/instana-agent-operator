@@ -35,14 +35,14 @@ func NewDaemonSetBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenshift bool,
 	statusManager status.AgentStatusManager,
-	shouldSetAppendFQDNEnvVar bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 ) builder.ObjectBuilder {
 	return NewDaemonSetBuilderWithZoneInfo(
 		agent,
 		isOpenshift,
 		statusManager,
 		nil,
-		shouldSetAppendFQDNEnvVar,
+		shouldSetPersistHostUniqueIDEnvVar,
 	)
 }
 
@@ -51,12 +51,12 @@ func NewDaemonSetBuilderWithZoneInfo(
 	isOpenshift bool,
 	statusManager status.AgentStatusManager,
 	zone *instanav1.Zone,
-	shouldSetAppendFQDNEnvVar bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 ) builder.ObjectBuilder {
 	return &daemonSetBuilder{
-		InstanaAgent:              agent,
-		statusManager:             statusManager,
-		shouldSetAppendFQDNEnvVar: shouldSetAppendFQDNEnvVar,
+		InstanaAgent:                       agent,
+		statusManager:                      statusManager,
+		shouldSetPersistHostUniqueIDEnvVar: shouldSetPersistHostUniqueIDEnvVar,
 
 		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(
 			agent,
@@ -74,8 +74,8 @@ func NewDaemonSetBuilderWithZoneInfo(
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
-	statusManager             status.AgentStatusManager
-	shouldSetAppendFQDNEnvVar bool
+	statusManager                      status.AgentStatusManager
+	shouldSetPersistHostUniqueIDEnvVar bool
 
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
@@ -149,11 +149,11 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		envVarMap[envVar.Name] = envVar
 	}
 
-	// Add INSTANA_APPEND_FQDN_TO_AGENT_ID if the flag is set
+	// Add INSTANA_PERSIST_HOST_UNIQUE_ID if the flag is set
 	// This env var is only added on new deployments, not on upgrades
-	if d.shouldSetAppendFQDNEnvVar {
-		envVarMap["INSTANA_APPEND_FQDN_TO_AGENT_ID"] = corev1.EnvVar{
-			Name:  "INSTANA_APPEND_FQDN_TO_AGENT_ID",
+	if d.shouldSetPersistHostUniqueIDEnvVar {
+		envVarMap["INSTANA_PERSIST_HOST_UNIQUE_ID"] = corev1.EnvVar{
+			Name:  "INSTANA_PERSIST_HOST_UNIQUE_ID",
 			Value: "true",
 		}
 	}

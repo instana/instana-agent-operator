@@ -59,7 +59,7 @@ func getDaemonSetBuilders(
 	r *InstanaAgentReconciler,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
-	shouldSetAppendFQDNEnvVar bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 	statusManager status.AgentStatusManager,
 ) []builder.ObjectBuilder {
 	if len(agent.Spec.Zones) == 0 {
@@ -68,7 +68,7 @@ func getDaemonSetBuilders(
 				agent,
 				isOpenShift,
 				statusManager,
-				shouldSetAppendFQDNEnvVar,
+				shouldSetPersistHostUniqueIDEnvVar,
 			),
 		}
 	}
@@ -77,7 +77,7 @@ func getDaemonSetBuilders(
 
 	for _, zone := range agent.Spec.Zones {
 		// For zoned deployments, check each zone's DaemonSet individually
-		shouldSetForZone, _ := r.shouldSetAppendFQDNToAgentIDEnvVar(ctx, agent, &zone)
+		shouldSetForZone, _ := r.shouldSetPersistHostUniqueIDEnvVar(ctx, agent, &zone)
 		builders = append(
 			builders,
 			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(
@@ -520,7 +520,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
-	shouldSetAppendFQDNEnvVar bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 	operatorUtils operator_utils.OperatorUtils,
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
@@ -545,7 +545,14 @@ func (r *InstanaAgentReconciler) applyResources(
 	}
 
 	builders := append(
-		getDaemonSetBuilders(ctx, r, agent, isOpenShift, shouldSetAppendFQDNEnvVar, statusManager),
+		getDaemonSetBuilders(
+			ctx,
+			r,
+			agent,
+			isOpenShift,
+			shouldSetPersistHostUniqueIDEnvVar,
+			statusManager,
+		),
 		headlessservice.NewHeadlessServiceBuilder(agent),
 		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),

@@ -153,11 +153,11 @@ func (r *InstanaAgentReconciler) reconcile(
 		return isOpenShiftRes
 	}
 
-	// Determine whether to set INSTANA_APPEND_FQDN_TO_AGENT_ID for non-zoned deployments
-	shouldSetAppendFQDNEnvVar := false
+	// Determine whether to set INSTANA_PERSIST_HOST_UNIQUE_ID for non-zoned deployments
+	shouldSetPersistHostUniqueIDEnvVar := false
 	if len(agent.Spec.Zones) == 0 {
 		var shouldSetRes reconcileReturn
-		shouldSetAppendFQDNEnvVar, shouldSetRes = r.shouldSetAppendFQDNToAgentIDEnvVar(
+		shouldSetPersistHostUniqueIDEnvVar, shouldSetRes = r.shouldSetPersistHostUniqueIDEnvVar(
 			ctx,
 			agent,
 			nil,
@@ -185,7 +185,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		ctx,
 		agent,
 		isOpenShift,
-		shouldSetAppendFQDNEnvVar,
+		shouldSetPersistHostUniqueIDEnvVar,
 		operatorUtils,
 		statusManager,
 		keysSecret,

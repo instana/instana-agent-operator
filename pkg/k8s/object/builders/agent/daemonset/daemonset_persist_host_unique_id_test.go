@@ -29,23 +29,23 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 )
 
-func TestDaemonSetBuilder_AppendFQDNToAgentID(t *testing.T) {
+func TestDaemonSetBuilder_PersistHostUniqueID(t *testing.T) {
 	tests := []struct {
-		name                      string
-		shouldSetAppendFQDNEnvVar bool
-		expectedEnvVarPresent     bool
-		expectedEnvVarValue       string
+		name                               string
+		shouldSetPersistHostUniqueIDEnvVar bool
+		expectedEnvVarPresent              bool
+		expectedEnvVarValue                string
 	}{
 		{
-			name:                      "Should set INSTANA_APPEND_FQDN_TO_AGENT_ID when flag is true",
-			shouldSetAppendFQDNEnvVar: true,
-			expectedEnvVarPresent:     true,
-			expectedEnvVarValue:       "true",
+			name:                               "Should set INSTANA_PERSIST_HOST_UNIQUE_ID when flag is true",
+			shouldSetPersistHostUniqueIDEnvVar: true,
+			expectedEnvVarPresent:              true,
+			expectedEnvVarValue:                "true",
 		},
 		{
-			name:                      "Should not set INSTANA_APPEND_FQDN_TO_AGENT_ID when flag is false",
-			shouldSetAppendFQDNEnvVar: false,
-			expectedEnvVarPresent:     false,
+			name:                               "Should not set INSTANA_PERSIST_HOST_UNIQUE_ID when flag is false",
+			shouldSetPersistHostUniqueIDEnvVar: false,
+			expectedEnvVarPresent:              false,
 		},
 	}
 
@@ -74,7 +74,7 @@ func TestDaemonSetBuilder_AppendFQDNToAgentID(t *testing.T) {
 				agent,
 				false,
 				statusManager,
-				tt.shouldSetAppendFQDNEnvVar,
+				tt.shouldSetPersistHostUniqueIDEnvVar,
 			)
 
 			// When
@@ -87,11 +87,11 @@ func TestDaemonSetBuilder_AppendFQDNToAgentID(t *testing.T) {
 
 			envVars := ds.Spec.Template.Spec.Containers[0].Env
 
-			// Check if INSTANA_APPEND_FQDN_TO_AGENT_ID is present
+			// Check if INSTANA_PERSIST_HOST_UNIQUE_ID is present
 			found := false
 			var actualValue string
 			for _, env := range envVars {
-				if env.Name == "INSTANA_APPEND_FQDN_TO_AGENT_ID" {
+				if env.Name == "INSTANA_PERSIST_HOST_UNIQUE_ID" {
 					found = true
 					actualValue = env.Value
 					break
@@ -99,17 +99,17 @@ func TestDaemonSetBuilder_AppendFQDNToAgentID(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expectedEnvVarPresent, found,
-				"INSTANA_APPEND_FQDN_TO_AGENT_ID presence mismatch")
+				"INSTANA_PERSIST_HOST_UNIQUE_ID presence mismatch")
 
 			if tt.expectedEnvVarPresent {
 				assert.Equal(t, tt.expectedEnvVarValue, actualValue,
-					"INSTANA_APPEND_FQDN_TO_AGENT_ID value mismatch")
+					"INSTANA_PERSIST_HOST_UNIQUE_ID value mismatch")
 			}
 		})
 	}
 }
 
-func TestDaemonSetBuilder_AppendFQDNToAgentID_WithPodEnv(t *testing.T) {
+func TestDaemonSetBuilder_PersistHostUniqueID_WithPodEnv(t *testing.T) {
 	// Given - agent with pod.env that should take precedence
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -124,7 +124,7 @@ func TestDaemonSetBuilder_AppendFQDNToAgentID_WithPodEnv(t *testing.T) {
 				Pod: instanav1.AgentPodSpec{
 					Env: []corev1.EnvVar{
 						{
-							Name:  "INSTANA_APPEND_FQDN_TO_AGENT_ID",
+							Name:  "INSTANA_PERSIST_HOST_UNIQUE_ID",
 							Value: "false",
 						},
 					},
@@ -154,14 +154,14 @@ func TestDaemonSetBuilder_AppendFQDNToAgentID_WithPodEnv(t *testing.T) {
 	found := false
 	var actualValue string
 	for _, env := range envVars {
-		if env.Name == "INSTANA_APPEND_FQDN_TO_AGENT_ID" {
+		if env.Name == "INSTANA_PERSIST_HOST_UNIQUE_ID" {
 			found = true
 			actualValue = env.Value
 			break
 		}
 	}
 
-	assert.True(t, found, "INSTANA_APPEND_FQDN_TO_AGENT_ID should be present")
+	assert.True(t, found, "INSTANA_PERSIST_HOST_UNIQUE_ID should be present")
 	assert.Equal(t, "false", actualValue,
 		"pod.env value should take precedence over builder flag")
 }
