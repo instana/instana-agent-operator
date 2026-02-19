@@ -85,14 +85,14 @@ func (r *InstanaAgentReconciler) shouldSetPersistHostUniqueIDEnvVar(
 				Info("DaemonSet not found, will set INSTANA_PERSIST_HOST_UNIQUE_ID", "daemonset", dsName)
 			return true, reconcileContinue()
 		}
-		// On other errors, log and default to not setting it to be safe
+		// On other errors, abort reconcile to avoid removing an existing env var.
 		log.Error(
 			err,
-			"failed to check existing DaemonSet, will not set INSTANA_PERSIST_HOST_UNIQUE_ID",
+			"failed to check existing DaemonSet",
 			"daemonset",
 			dsName,
 		)
-		return false, reconcileContinue()
+		return false, reconcileFailure(err)
 	}
 
 	// DaemonSet exists - check if it already has the env var
