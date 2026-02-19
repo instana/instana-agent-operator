@@ -61,7 +61,7 @@ func getDaemonSetBuilders(
 	isOpenShift bool,
 	shouldSetPersistHostUniqueIDEnvVar bool,
 	statusManager status.AgentStatusManager,
-) []builder.ObjectBuilder {
+) ([]builder.ObjectBuilder, reconcileReturn) {
 	if len(agent.Spec.Zones) == 0 {
 		return []builder.ObjectBuilder{
 			agentdaemonset.NewDaemonSetBuilder(
@@ -70,14 +70,17 @@ func getDaemonSetBuilders(
 				statusManager,
 				shouldSetPersistHostUniqueIDEnvVar,
 			),
-		}
+		}, reconcileContinue()
 	}
 
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
 
 	for _, zone := range agent.Spec.Zones {
 		// For zoned deployments, check each zone's DaemonSet individually
-		shouldSetForZone, _ := r.shouldSetPersistHostUniqueIDEnvVar(ctx, agent, &zone)
+		shouldSetForZone, shouldSetRes := r.shouldSetPersistHostUniqueIDEnvVar(ctx, agent, &zone)
+		if shouldSetRes.suppliesReconcileResult() {
+			return nil, shouldSetRes
+		}
 		builders = append(
 			builders,
 			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(
@@ -90,7 +93,7 @@ func getDaemonSetBuilders(
 		)
 	}
 
-	return builders
+	return builders, reconcileContinue()
 }
 
 func getK8sSensorDeployments(
@@ -544,15 +547,20 @@ func (r *InstanaAgentReconciler) applyResources(
 		return reconcileFailure(err)
 	}
 
+	daemonSetBuilders, daemonSetBuildersRes := getDaemonSetBuilders(
+		ctx,
+		r,
+		agent,
+		isOpenShift,
+		shouldSetPersistHostUniqueIDEnvVar,
+		statusManager,
+	)
+	if daemonSetBuildersRes.suppliesReconcileResult() {
+		return daemonSetBuildersRes
+	}
+
 	builders := append(
-		getDaemonSetBuilders(
-			ctx,
-			r,
-			agent,
-			isOpenShift,
-			shouldSetPersistHostUniqueIDEnvVar,
-			statusManager,
-		),
+		daemonSetBuilders,
 		headlessservice.NewHeadlessServiceBuilder(agent),
 		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
