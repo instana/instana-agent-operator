@@ -153,6 +153,20 @@ func (r *InstanaAgentReconciler) reconcile(
 		return isOpenShiftRes
 	}
 
+	// Determine whether to set INSTANA_PERSIST_HOST_UNIQUE_ID for non-zoned deployments
+	shouldSetPersistHostUniqueIDEnvVar := false
+	if len(agent.Spec.Zones) == 0 {
+		var shouldSetRes reconcileReturn
+		shouldSetPersistHostUniqueIDEnvVar, shouldSetRes = r.shouldSetPersistHostUniqueIDEnvVar(
+			ctx,
+			agent,
+			nil,
+		)
+		if shouldSetRes.suppliesReconcileResult() {
+			return shouldSetRes
+		}
+	}
+
 	keysSecret := &corev1.Secret{}
 	if agent.Spec.Agent.KeysSecret != "" {
 		if err := r.client.Get(ctx, client.ObjectKey{Name: agent.Spec.Agent.KeysSecret, Namespace: agent.Namespace}, keysSecret); err != nil {
@@ -171,6 +185,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		ctx,
 		agent,
 		isOpenShift,
+		shouldSetPersistHostUniqueIDEnvVar,
 		operatorUtils,
 		statusManager,
 		keysSecret,

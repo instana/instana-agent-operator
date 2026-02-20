@@ -35,8 +35,15 @@ func NewDaemonSetBuilder(
 	agent *instanav1.InstanaAgent,
 	isOpenshift bool,
 	statusManager status.AgentStatusManager,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 ) builder.ObjectBuilder {
-	return NewDaemonSetBuilderWithZoneInfo(agent, isOpenshift, statusManager, nil)
+	return NewDaemonSetBuilderWithZoneInfo(
+		agent,
+		isOpenshift,
+		statusManager,
+		nil,
+		shouldSetPersistHostUniqueIDEnvVar,
+	)
 }
 
 func NewDaemonSetBuilderWithZoneInfo(
@@ -44,24 +51,31 @@ func NewDaemonSetBuilderWithZoneInfo(
 	isOpenshift bool,
 	statusManager status.AgentStatusManager,
 	zone *instanav1.Zone,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 ) builder.ObjectBuilder {
 	return &daemonSetBuilder{
-		InstanaAgent:  agent,
-		statusManager: statusManager,
+		InstanaAgent:                       agent,
+		statusManager:                      statusManager,
+		shouldSetPersistHostUniqueIDEnvVar: shouldSetPersistHostUniqueIDEnvVar,
 
-		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(agent, componentName, zone),
-		JsonHasher:                hash.NewJsonHasher(),
-		Helpers:                   helpers.NewHelpers(agent),
-		portsBuilder:              ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
-		EnvBuilder:                env.NewEnvBuilder(agent, zone),
-		VolumeBuilder:             volume.NewVolumeBuilder(agent, isOpenshift),
-		zone:                      zone,
+		PodSelectorLabelGenerator: transformations.PodSelectorLabelsWithZoneInfo(
+			agent,
+			componentName,
+			zone,
+		),
+		JsonHasher:    hash.NewJsonHasher(),
+		Helpers:       helpers.NewHelpers(agent),
+		portsBuilder:  ports.NewPortsBuilder(agent.Spec.OpenTelemetry),
+		EnvBuilder:    env.NewEnvBuilder(agent, zone),
+		VolumeBuilder: volume.NewVolumeBuilder(agent, isOpenshift),
+		zone:          zone,
 	}
 }
 
 type daemonSetBuilder struct {
 	*instanav1.InstanaAgent
-	statusManager status.AgentStatusManager
+	statusManager                      status.AgentStatusManager
+	shouldSetPersistHostUniqueIDEnvVar bool
 
 	transformations.PodSelectorLabelGenerator
 	hash.JsonHasher
@@ -83,7 +97,9 @@ func (d *daemonSetBuilder) IsNamespaced() bool {
 
 func (d *daemonSetBuilder) getPodTemplateLabels() map[string]string {
 	podLabels := optional.Of(d.InstanaAgent.Spec.Agent.Pod.Labels).GetOrDefault(map[string]string{})
-	podLabels[constants.LabelAgentMode] = string(optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM))
+	podLabels[constants.LabelAgentMode] = string(
+		optional.Of(d.InstanaAgent.Spec.Agent.Mode).GetOrDefault(instanav1.APM),
+	)
 
 	return d.GetPodLabels(podLabels)
 }
@@ -131,6 +147,15 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 	// Add base environment variables to the map
 	for _, envVar := range baseEnvVars {
 		envVarMap[envVar.Name] = envVar
+	}
+
+	// Add INSTANA_PERSIST_HOST_UNIQUE_ID if the flag is set
+	// This env var is only added on new deployments, not on upgrades
+	if d.shouldSetPersistHostUniqueIDEnvVar {
+		envVarMap["INSTANA_PERSIST_HOST_UNIQUE_ID"] = corev1.EnvVar{
+			Name:  "INSTANA_PERSIST_HOST_UNIQUE_ID",
+			Value: "true",
+		}
 	}
 
 	// Add user-defined environment variables from the pod.env field
