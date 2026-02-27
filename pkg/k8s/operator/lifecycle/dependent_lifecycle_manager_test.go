@@ -42,7 +42,7 @@ import (
 
 func genMockObjs(amount int) []client.Object {
 	objects := []client.Object{}
-	for i := 0; i < amount; i++ {
+	for i := range amount {
 		unstrctrd := &unstructured.Unstructured{}
 		unstrctrd.SetName("i" + strconv.Itoa(i))
 		unstrctrd.SetKind("agent-data")
@@ -61,8 +61,7 @@ func TestAsObjectConversion(t *testing.T) {
 // contains more than the current generated key to hold data in, the code will
 // remove that field from the array
 func TestCleanupDependentsDeletesUnmatchedData(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	instanaAgentClient := &mocks.MockInstanaAgentClient{}
 	defer instanaAgentClient.AssertExpectations(t)
@@ -113,8 +112,7 @@ func TestCleanupDependentsDeletesUnmatchedData(t *testing.T) {
 // delete all and returns that correctly back to the caller
 func TestCleanupDependentsDeleteAllReturnsError(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	instanaAgentClient := &mocks.MockInstanaAgentClient{}
 	defer instanaAgentClient.AssertExpectations(t)
@@ -227,8 +225,7 @@ func TestCleanupDependents(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+				ctx := t.Context()
 
 				instanaAgentClient := &mocks.MockInstanaAgentClient{}
 				defer instanaAgentClient.AssertExpectations(t)
@@ -350,8 +347,7 @@ func TestUpdateLifecycleInfo(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+				ctx := t.Context()
 
 				instanaAgentClient := &mocks.MockInstanaAgentClient{}
 				defer instanaAgentClient.AssertExpectations(t)

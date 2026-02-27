@@ -5,7 +5,6 @@
 package status
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -26,8 +25,7 @@ import (
 func TestUpdateAgentStatusReturnsErrorOnPatchFailure(t *testing.T) {
 	assertions := require.New(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	writer := &mocks.MockSubResourceWriter{}
 	defer writer.AssertExpectations(t)
@@ -282,8 +280,7 @@ func TestUpdateAgentStatus(t *testing.T) {
 				}
 
 				assertions := require.New(t)
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+				ctx := t.Context()
 
 				writer := &mocks.MockSubResourceWriter{}
 				defer writer.AssertExpectations(t)

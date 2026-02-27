@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -197,11 +198,8 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 		// check if it has an API group "instana.io"
 		hasInstanaApiGroup := false
 		for _, rule := range oldRole.Rules {
-			for _, apiGroup := range rule.APIGroups {
-				if apiGroup == "instana.io" {
-					hasInstanaApiGroup = true
-					break
-				}
+			if slices.Contains(rule.APIGroups, "instana.io") {
+				hasInstanaApiGroup = true
 			}
 			if hasInstanaApiGroup {
 				break

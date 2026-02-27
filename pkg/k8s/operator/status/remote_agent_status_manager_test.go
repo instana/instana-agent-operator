@@ -5,7 +5,6 @@
 package status
 
 import (
-	"context"
 	"testing"
 
 	"github.com/go-errors/errors"
@@ -24,8 +23,7 @@ import (
 func TestUpdateInstanaAgentRemoteStatusReturnsErrorOnPatchFailure(t *testing.T) {
 	assertions := require.New(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	writer := &mocks.MockSubResourceWriter{}
 	defer writer.AssertExpectations(t)

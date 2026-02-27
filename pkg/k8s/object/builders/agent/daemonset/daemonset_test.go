@@ -357,7 +357,7 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 			defer volumeBuilder.AssertExpectations(t)
 
 			// Create the base volumes list
-			baseVolumes := []interface{}{
+			baseVolumes := []any{
 				volume.DevVolume,
 				volume.RunVolume,
 				volume.VarRunVolume,

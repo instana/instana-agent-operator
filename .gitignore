@@ -12,7 +12,6 @@ instana_v1_instanaagent_demo.yaml
 instana-agent.yaml
 .env
 .direnv
-mocks/
 
 # macOS files
 .DS_Store

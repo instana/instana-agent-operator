@@ -25,7 +25,7 @@ type MockJsonHasher struct {
 	mock.Mock
 }
 
-func (m *MockJsonHasher) HashJsonOrDie(obj interface{}) string {
+func (m *MockJsonHasher) HashJsonOrDie(obj any) string {
 	args := m.Called(obj)
 	return args.String(0)
 }

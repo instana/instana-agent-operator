@@ -18,7 +18,6 @@ limitations under the License.
 package client
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -37,8 +36,7 @@ import (
 )
 
 func TestInstanaAgentClientApply(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	cm := corev1.ConfigMap{}
 	opts := []k8sclient.PatchOption{k8sclient.DryRunAll}
 	expectedErr := errors.New("awojsgeoisegoijsdg")
@@ -67,8 +65,7 @@ func TestInstanaAgentClientApply(t *testing.T) {
 
 func TestInstanaAgentClientGetAsResult(t *testing.T) {
 	assertions := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	key := types.NamespacedName{
 		Namespace: "adsf",
@@ -135,8 +132,7 @@ func TestInstanaAgentClientExists(t *testing.T) {
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
 
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+				ctx := t.Context()
 
 				key := types.NamespacedName{
 					Name: "some-resource",
