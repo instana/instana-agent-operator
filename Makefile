@@ -19,6 +19,7 @@ KUSTOMIZE = ${GOBIN}/kustomize
 ENVTEST = ${GOBIN}/setup-envtest
 GOLANGCI_LINT = ${GOBIN}/golangci-lint
 OPERATOR_SDK = ${GOBIN}/operator-sdk
+OPERATOR_MANIFEST_TOOLS = ${GOBIN}/operator-manifest-tools
 BUILDCTL =  ${GOBIN}/buildctl
 
 # Current Operator version (override when executing Make target, e.g. like `make VERSION=2.0.0 bundle`)
@@ -29,8 +30,10 @@ PREV_VERSION ?= 0.0.0
 
 # Tool versions
 CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
-KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
+KUSTOMIZE_VERSION ?= v5.7.1 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
 GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+OPERATOR_SDK_VERSION ?= v1.41.1 # renovate: datasource=github-releases depName=operator-framework/operator-sdk
+OPERATOR_MANIFEST_TOOLS_VERSION ?= v0.10.0 # renovate: datasource=github-releases depName=operator-framework/operator-manifest-tools
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
 BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
@@ -91,11 +94,9 @@ INSTANA_AGENT_CLUSTER_WIDE_RESOURCES := \
 	"crd/agents.instana.io" \
 	"crd/agentsremote.instana.io" \
 	"clusterrole/leader-election-role" \
-	"clusterrole/instana-agent" \
-	"clusterrole/instana-agent-k8sensor" \
+	"clusterrole/instana-agent-clusterrole" \
 	"clusterrolebinding/leader-election-rolebinding" \
-	"clusterrolebinding/instana-agent" \
-	"clusterrolebinding/instana-agent-k8sensor"
+	"clusterrolebinding/instana-agent-clusterrolebinding"
 
 all: build
 
@@ -109,7 +110,7 @@ setup: ## sets git hooks path to .githook
 	git config core.hooksPath .githooks
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=instana-agent-clusterrole webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object paths="./..."
@@ -137,11 +138,11 @@ e2e: ## Run end-to-end tests
 ##@ Build
 
 build: setup generate fmt vet ## Build manager binary.
-	go build -o bin/manager ./cmd/
+	go build -o bin/manager cmd/main.go
 
 run: export DEBUG_MODE=true
 run: generate fmt vet manifests ## Run against the configured Kubernetes cluster in ~/.kube/config (run the "install" target to install CRDs into the cluster)
-	go run ./cmd/
+	go run ./cmd/main.go
 
 docker-build: test container-build ## Build docker image with the manager.
 
@@ -200,7 +201,7 @@ purge: ## Full purge of the agent in the cluster
 	done
 	@echo "Cleanup complete!"
 	@echo "=== Removing instana-agent namespace, if present ==="
-	kubectl get ns $(NAMESPACE) >/dev/null 2>&1 && kubectl delete ns $(NAMESPACE) --wait || true
+	kubectl delete ns $(NAMESPACE) --wait || true
 
 deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image instana/instana-agent-operator=${IMG}
@@ -221,63 +222,42 @@ undeploy: ## Undeploy controller from the configured Kubernetes cluster in ~/.ku
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 .PHONY: namespace
-namespace: ## Generate namespace instana-agent for manual testing
-	@echo "Creating namespace $(NAMESPACE) if it doesn't exist..."
-	kubectl create namespace $(NAMESPACE) 2>/dev/null || true
-	@echo "Detecting cluster type (OCP or standard K8s)..."
-	@if command -v oc >/dev/null 2>&1 && oc get projects >/dev/null 2>&1; then \
-		echo "OpenShift cluster detected, applying OCP-specific security policies..."; \
-		oc adm policy add-scc-to-user privileged -z instana-agent -n $(NAMESPACE) || true; \
-		oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n $(NAMESPACE) || true; \
-	else \
-		echo "Standard Kubernetes cluster detected (GKE or other), no OCP-specific policies needed."; \
-	fi
+namespace: ## Generate namespace instana-agent on OCP for manual testing
+	oc new-project instana-agent || true
+	oc adm policy add-scc-to-user privileged -z instana-agent -n instana-agent
+	oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent
 
 .PHONY: create-cr
 create-cr: ## Deploys CR from config/samples/instana_v1_instanaagent_demo.yaml (needs to be created in the workspace first)
 	kubectl apply -f config/samples/instana_v1_instanaagent_demo.yaml
 
 .PHONY: create-pull-secret
-create-pull-secret: ## Creates image pull secret for icr.io using credentials from e2e/.env
-	@echo "Creating pull secret for icr.io using credentials from e2e/.env..."
-	@if [ ! -f e2e/.env ]; then \
-		echo "Error: e2e/.env file not found"; \
-		exit 1; \
-	fi
-	@. e2e/.env && \
-	if [ -z "$$ICR_USERNAME" ] || [ -z "$$ICR_PASSWORD" ]; then \
-		echo "Error: ICR_USERNAME or ICR_PASSWORD not set in e2e/.env"; \
-		exit 1; \
-	fi; \
-	echo "Checking if secret icr-io-pull-secret exists in namespace $(NAMESPACE)..."; \
-	if kubectl get secret icr-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
-		echo "Updating existing secret icr-io-pull-secret..."; \
-		kubectl delete secret icr-io-pull-secret -n $(NAMESPACE); \
+create-pull-secret: ## Creates image pull secret for delivery.instana.io from your local docker config
+	@echo "Filtering Docker config for delivery.instana.io settings, ensure to login locally first..."
+	@mkdir -p .tmp
+	@jq '{auths: {"delivery.instana.io": .auths["delivery.instana.io"]}}' ${HOME}/.docker/config.json > .tmp/filtered-docker-config.json
+	@echo "Checking if secret delivery-instana-io-pull-secret exists in namespace $(NAMESPACE)..."
+	@if kubectl get secret delivery-instana-io-pull-secret -n $(NAMESPACE) >/dev/null 2>&1; then \
+		echo "Updating existing secret delivery-instana-io-pull-secret..."; \
+		kubectl delete secret delivery-instana-io-pull-secret -n $(NAMESPACE); \
+		kubectl create secret generic delivery-instana-io-pull-secret \
+			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+			--type=kubernetes.io/dockerconfigjson \
+			-n $(NAMESPACE); \
 	else \
-		echo "Creating new secret icr-io-pull-secret..."; \
-	fi; \
-	kubectl create secret docker-registry icr-io-pull-secret \
-		--docker-server=icr.io \
-		--docker-username=$$ICR_USERNAME \
-		--docker-password=$$ICR_PASSWORD \
-		-n $(NAMESPACE)
-	@echo "Patching service accounts with pull secret..."
-	@echo "Checking and patching operator service account..."
+		echo "Creating new secret delivery-instana-io-pull-secret..."; \
+		kubectl create secret generic delivery-instana-io-pull-secret \
+			--from-file=.dockerconfigjson=.tmp/filtered-docker-config.json \
+			--type=kubernetes.io/dockerconfigjson \
+			-n $(NAMESPACE); \
+	fi
+	@echo "Patching serviceaccount..."
 	@kubectl patch serviceaccount instana-agent-operator \
-		-p '{"imagePullSecrets": [{"name": "icr-io-pull-secret"}]}' \
-		-n instana-agent || echo "Service account instana-agent-operator not found, skipping"
-	@echo "Checking and patching agent service account..."
-	@kubectl get serviceaccount instana-agent -n $(NAMESPACE) >/dev/null 2>&1 && \
-		kubectl patch serviceaccount instana-agent \
-		-p '{"imagePullSecrets": [{"name": "icr-io-pull-secret"}]}' \
-		-n $(NAMESPACE) || echo "Service account instana-agent not found, skipping"
-	@echo "Checking and patching k8sensor service account..."
-	@kubectl get serviceaccount instana-agent-k8sensor -n $(NAMESPACE) >/dev/null 2>&1 && \
-		kubectl patch serviceaccount instana-agent-k8sensor \
-		-p '{"imagePullSecrets": [{"name": "icr-io-pull-secret"}]}' \
-		-n $(NAMESPACE) || echo "Service account instana-agent-k8sensor not found, skipping"
-	@echo "Restarting all pods in namespace $(NAMESPACE) to apply the new pull secret..."
-	@kubectl delete pods --all -n $(NAMESPACE) 2>/dev/null || echo "No pods found to restart"
+		-p '{"imagePullSecrets": [{"name": "delivery-instana-io-pull-secret"}]}' \
+		-n instana-agent
+	@rm -rf .tmp
+	@echo "Restarting operator deployment..."
+	@kubectl delete pods -l app.kubernetes.io/name=instana-agent-operator -n $(NAMESPACE)
 
 .PHONY: pre-pull-images
 pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow network situations to run tests reliably)
@@ -316,26 +296,18 @@ pre-pull-images: ## Pre-pulls images on the target cluster (useful in slow netwo
 setup-ocp-mirror: ## Setup ocp internal registry and define ImageContentSourcePolicy to pull from internal registry
 	./ci/scripts/setup-ocp-mirror.sh
 
-.PHONY: dev-run-cluster
-dev-run-cluster: namespace install create-cr run ## Creates a full dev deployment on any cluster from scratch, also useful after purge
+.PHONY: dev-run-ocp
+dev-run-ocp: namespace install create-cr run ## Creates a full dev deployment on OCP from scratch, also useful after purge
 
 .PHONY: logs
 logs: ## Tail operator logs
 	kubectl logs -f deployment/instana-agent-controller-manager -n $(NAMESPACE)
 
-.PHONY: debug-pod
-debug-pod: ## Debug a pod by name using kubectl debug with UBI9 image
-	@if [ -z "$(POD_NAME)" ]; then \
-		echo "Error: POD_NAME is required. Usage: make debug-pod POD_NAME=<pod-name>"; \
-		exit 1; \
-	fi
-	kubectl debug $(POD_NAME) -it --image=registry.access.redhat.com/ubi9/ubi --target=instana-agent -n $(NAMESPACE)
-
 ##@ OLM
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Create the OLM bundle
+bundle: operator-sdk manifests kustomize operator-manifest-tools ## Create the OLM bundle
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
 	$(KUSTOMIZE) build config/manifests \
@@ -345,7 +317,18 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 		| sed -e 's|\(image:[[:space:]]*\).*agent:latest|\1$(AGENT_IMG)|' \
 		| $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
+	$(OPERATOR_MANIFEST_TOOLS) pinning pin ./bundle/manifests
 	$(OPERATOR_SDK) bundle validate ./bundle
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional name=good-practices
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
+	@echo "Validating relatedImages in CSV..."
+	@if ! grep -q "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; then \
+		echo "ERROR: relatedImages section not found in CSV file"; \
+		exit 1; \
+	else \
+		echo "relatedImages section found in CSV file:"; \
+		grep -A 10 "relatedImages" ./bundle/manifests/instana-agent-operator.clusterserviceversion.yaml; \
+	fi
 
 .PHONY: bundle-build
 bundle-build: buildctl ## Build the bundle image for OLM.
@@ -353,8 +336,8 @@ bundle-build: buildctl ## Build the bundle image for OLM.
 	$(BUILDCTL) --addr=${CONTAINER_CMD}-container://buildkitd build --frontend gateway.v0 --opt source=docker/dockerfile --opt filename=./bundle.Dockerfile --local context=. --local dockerfile=. --output type=oci,name=${BUNDLE_IMG} | $(CONTAINER_CMD) load
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
-	@cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)" > /dev/null
-	@$(KUSTOMIZE) build config/default
+	cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)"
+	$(KUSTOMIZE) build config/default
 
 CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
 
@@ -363,33 +346,33 @@ CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controll
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	@if [ -f $(CONTROLLER_GEN) ]; then \
-		echo "Controller-gen binary found in $(CONTROLLER_GEN)" >&2; \
+		echo "Controller-gen binary found in $(CONTROLLER_GEN)"; \
 		version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
 		if [ "$$version" = "$(CONTROLLER_GEN_VERSION)" ]; then \
-			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed" >&2; \
+			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed"; \
 		else \
-			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)" >&2; \
+			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)"; \
 			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
 		fi \
 	else \
-		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)" >&2; \
+		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)"; \
 		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
 	fi
 
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	@if [ -f $(KUSTOMIZE) ]; then \
-		echo "Kustomize binary found in $(KUSTOMIZE)" >&2; \
+		echo "Kustomize binary found in $(KUSTOMIZE)"; \
 		version=$$($(KUSTOMIZE) version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
 		if [ "$$version" = "$(KUSTOMIZE_VERSION)" ]; then \
-			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed" >&2; \
+			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed"; \
 		else \
-			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)" >&2; \
-			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)"; \
+			go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION); \
 		fi \
 	else \
-		echo "Installing kustomize $(KUSTOMIZE_VERSION)" >&2; \
-		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		echo "Installing kustomize $(KUSTOMIZE_VERSION)"; \
+		go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION); \
 	fi
 
 .PHONY: envtest
@@ -419,14 +402,33 @@ golangci-lint: ## Download the golangci-lint linter locally if necessary.
 
 .PHONY: operator-sdk
 operator-sdk: ## Download the Operator SDK binary locally if necessary.
-	@if [ -f $(OPERATOR_SDK) ]; then \
+	@SDK_VERSION=$$(echo "$(OPERATOR_SDK_VERSION)" | tr -d ' '); \
+	if [ -f $(OPERATOR_SDK) ] && [ -x $(OPERATOR_SDK) ]; then \
 		echo "Operator SDK binary found in $(OPERATOR_SDK)"; \
+		if $(OPERATOR_SDK) version 2>/dev/null | grep -q "$$SDK_VERSION"; then \
+			echo "Operator SDK version $$SDK_VERSION is already installed"; \
+		else \
+			echo "Updating operator-sdk to $$SDK_VERSION"; \
+			curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$$SDK_VERSION/operator-sdk_$(OS)_$(ARCH); \
+			chmod +x $(OPERATOR_SDK); \
+		fi \
 	else \
-		echo "DOwnload Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
-		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.16.0/operator-sdk_${OS}_${ARCH}; \
+		echo "Download Operator SDK for $(OS)/$(ARCH) to $(OPERATOR_SDK)"; \
+		curl -Lo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$$SDK_VERSION/operator-sdk_$(OS)_$(ARCH); \
 		chmod +x $(OPERATOR_SDK); \
 	fi
 
+.PHONY: operator-manifest-tools
+operator-manifest-tools: ## Download the Operator Manifest Tools binary locally if necessary.
+	@if [ -f $(OPERATOR_MANIFEST_TOOLS) ]; then \
+		echo "Operator Manifest Tools binary found in $(OPERATOR_MANIFEST_TOOLS)"; \
+		echo "Note: operator-manifest-tools does not provide version information in its output"; \
+		echo "Installing operator-manifest-tools $(OPERATOR_MANIFEST_TOOLS_VERSION) to ensure correct version"; \
+		go install github.com/operator-framework/operator-manifest-tools@$(OPERATOR_MANIFEST_TOOLS_VERSION); \
+	else \
+		echo "Installing operator-manifest-tools $(OPERATOR_MANIFEST_TOOLS_VERSION)"; \
+		go install github.com/operator-framework/operator-manifest-tools@$(OPERATOR_MANIFEST_TOOLS_VERSION); \
+	fi
 
 .PHONY: buildctl
 BUILDKITD_CONTAINER_NAME = buildkitd

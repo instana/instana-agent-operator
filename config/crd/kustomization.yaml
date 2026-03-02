@@ -7,5 +7,4 @@
 resources:
 - bases/instana.io_agents.yaml
 - bases/instana.io_agentsremote.yaml
-- bases/instana.io_instanaagents.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
