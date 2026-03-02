@@ -162,7 +162,7 @@ echo "=== Running e2e tests ==="
 cd "${WORKSPACE}/${APP_REPO_FOLDER}"
 
 make generate
-go install
+go install ./cmd/...
 make build
 
 if ! make e2e; then
