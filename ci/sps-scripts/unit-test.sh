@@ -16,5 +16,5 @@ cd $WORKSPACE/$APP_REPO_FOLDER
 pwd
 echo "GIT COMMIT TO TEST: $(git rev-parse --verify HEAD)"
 make generate
-go install
+go install ./cmd/...
 make test
