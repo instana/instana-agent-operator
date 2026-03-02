@@ -1,5 +1,10 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - instana_v1beta1_instanaagent.yaml
 - instana_v1_instanaagent.yaml
+- v1_instanaagent.yaml
+- v1_instanaagentremote.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

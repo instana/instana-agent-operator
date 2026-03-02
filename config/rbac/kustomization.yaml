@@ -1,3 +1,6 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
 resources:
 # All RBAC will be applied under this service account in
 # the deployment namespace. You may comment out this resource
@@ -16,3 +19,14 @@ resources:
 #- auth_proxy_role.yaml
 #- auth_proxy_role_binding.yaml
 #- auth_proxy_client_clusterrole.yaml
+# For each CRD, "Admin", "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the instana-agent-operator itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- instanaagentremote_admin_role.yaml
+- instanaagentremote_editor_role.yaml
+- instanaagentremote_viewer_role.yaml
+- instanaagent_admin_role.yaml
+- instanaagent_editor_role.yaml
+- instanaagent_viewer_role.yaml
+
