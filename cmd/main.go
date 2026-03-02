@@ -33,7 +33,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/controllers"
+	"github.com/instana/instana-agent-operator/internal/controller"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/version"
 	// +kubebuilder:scaffold:imports
@@ -107,12 +107,12 @@ func main() {
 		os.Exit(1)
 	}
 	// Add our own Agent Controller to the manager
-	if err := controllers.Add(mgr); err != nil {
+	if err := controller.Add(mgr); err != nil {
 		log.Error(err, "Failure setting up Instana Agent Controller")
 		os.Exit(1)
 	}
 	// Add our own Instana Agent Remote Controller to the manager
-	if err := controllers.AddRemote(mgr); err != nil {
+	if err := controller.AddRemote(mgr); err != nil {
 		log.Error(err, "Failure setting up Remote Instana Agent Controller")
 		os.Exit(1)
 	}
