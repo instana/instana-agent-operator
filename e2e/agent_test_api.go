@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -475,13 +476,7 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 				InstanaNamespace,
 				"instana-agent",
 			)
-			userFound := false
-			for _, user := range users {
-				if user == serviceAccountId {
-					userFound = true
-					break
-				}
-			}
+			userFound := slices.Contains(users, serviceAccountId)
 
 			if userFound {
 				log.Infof(
@@ -614,11 +609,9 @@ func ensureOperatorHasPullSecret(ctx context.Context, cfg *envconf.Config) error
 
 	if err := r.Patch(ctx, dep, k8s.Patch{
 		PatchType: types.MergePatchType,
-		Data: []byte(
-			fmt.Sprintf(
-				`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
-				InstanaTestCfg.ContainerRegistry.Name,
-			),
+		Data: fmt.Appendf(nil,
+			`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
+			InstanaTestCfg.ContainerRegistry.Name,
 		),
 	}); err != nil {
 		return fmt.Errorf("patch deployment to inject pull secret: %w", err)
@@ -626,7 +619,7 @@ func ensureOperatorHasPullSecret(ctx context.Context, cfg *envconf.Config) error
 
 	if err := r.Patch(ctx, dep, k8s.Patch{
 		PatchType: types.MergePatchType,
-		Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, replicas)),
+		Data:      fmt.Appendf(nil, `{"spec":{ "replicas": %d }}`, replicas),
 	}); err != nil {
 		return fmt.Errorf("scale deployment back after pull secret patch: %w", err)
 	}
@@ -880,7 +873,7 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
-		for i := 0; i < 9; i++ {
+		for range 9 {
 			t.Log("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")

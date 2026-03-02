@@ -33,7 +33,7 @@ const numDefinedVolumes = 15
 func rangeUntil(n int) []Volume {
 	res := make([]Volume, 0, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		res = append(res, Volume(i))
 	}
 

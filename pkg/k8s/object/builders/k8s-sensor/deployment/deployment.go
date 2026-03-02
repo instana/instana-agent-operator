@@ -7,6 +7,7 @@ package deployment
 import (
 	"crypto/sha256"
 	"fmt"
+	"maps"
 	"path"
 	"regexp"
 	"strings"
@@ -254,9 +255,7 @@ func addAppLabel(labels map[string]string) map[string]string {
 func (d *deploymentBuilder) getPodAnnotationsWithBackendChecksum() map[string]string {
 	// Deep copy annotations to extend them with a checksum
 	annotations := make(map[string]string, len(d.Spec.Agent.Pod.Annotations)+1)
-	for k, v := range d.Spec.Agent.Pod.Annotations {
-		annotations[k] = v
-	}
+	maps.Copy(annotations, d.Spec.Agent.Pod.Annotations)
 
 	h := sha256.New()
 	if d.Spec.Agent.KeysSecret != "" {

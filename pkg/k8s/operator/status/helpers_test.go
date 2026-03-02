@@ -292,7 +292,7 @@ func TestTruncateMessageWhenLengthIsTooLong(t *testing.T) {
 
 	var builder strings.Builder
 	baseString := "This is a part of the long string. "
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		builder.Write([]byte(baseString))
 	}
 

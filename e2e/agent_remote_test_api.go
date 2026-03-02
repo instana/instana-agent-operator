@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -105,7 +106,7 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
-		for i := 0; i < 9; i++ {
+		for range 9 {
 			log.Info("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			log.Info("Fetching logs")
@@ -225,13 +226,7 @@ func AdjustOcpPermissionsIfNecessaryRemote() env.Func {
 
 			// Check if service account is already in the list
 			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", InstanaNamespace, "instana-agent-remote")
-			userFound := false
-			for _, user := range users {
-				if user == serviceAccountId {
-					userFound = true
-					break
-				}
-			}
+			userFound := slices.Contains(users, serviceAccountId)
 
 			if userFound {
 				log.Infof("Security Context Constraint \"anyuid\" already lists service account user: %v\n", serviceAccountId)

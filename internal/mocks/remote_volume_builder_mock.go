@@ -32,7 +32,7 @@ func (m *MockRemoteVolumeBuilder) Build(
 	volumes ...volume.RemoteVolume,
 ) ([]corev1.Volume, []corev1.VolumeMount) {
 	// Convert variadic args to slice for mock matching
-	varArgs := make([]interface{}, len(volumes))
+	varArgs := make([]any, len(volumes))
 	for i, v := range volumes {
 		varArgs[i] = v
 	}
