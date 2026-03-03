@@ -1,6 +1,10 @@
-# permissions to do leader election.
+#
+#(c) Copyright IBM Corp. 2025
+#(c) Copyright Instana Inc.
+#
+---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: leader-election-role
 rules:

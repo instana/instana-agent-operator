@@ -123,19 +123,13 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 					Resources:     []string{"securitycontextconstraints"},
 					Verbs:         []string{"use"},
 				},
-				{
-					APIGroups:     []string{"policy"},
-					ResourceNames: []string{sensorResourcesName},
-					Resources:     []string{"podsecuritypolicies"},
-					Verbs:         []string{"use"},
-				},
 			},
 		},
 	)
 
 	helpers := &mocks.MockHelpers{}
 	defer helpers.AssertExpectations(t)
-	helpers.On("K8sSensorResourcesName").Return(sensorResourcesName).Times(2)
+	helpers.On("K8sSensorResourcesName").Return(sensorResourcesName).Once()
 
 	cb := &clusterRoleBuilder{
 		Helpers: helpers,

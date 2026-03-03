@@ -86,13 +86,6 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 					},
 					Verbs: []string{"use"},
 				},
-				{
-					APIGroups: []string{"policy"},
-					Resources: []string{
-						"podsecuritypolicies",
-					},
-					Verbs: []string{"use"},
-				},
 			},
 		},
 	)
