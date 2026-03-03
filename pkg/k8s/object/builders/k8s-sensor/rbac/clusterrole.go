@@ -121,12 +121,6 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 					Resources:     []string{"securitycontextconstraints"},
 					Verbs:         []string{"use"},
 				},
-				{
-					APIGroups:     []string{"policy"},
-					ResourceNames: []string{c.K8sSensorResourcesName()},
-					Resources:     []string{"podsecuritypolicies"},
-					Verbs:         []string{"use"},
-				},
 			},
 		},
 	)
