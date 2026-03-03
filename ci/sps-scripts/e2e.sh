@@ -16,6 +16,8 @@ cd "${WORKSPACE}/${APP_REPO_FOLDER}"
 pwd
 if [[ $(get_env run-"${CLUSTER_ID}") == "false" ]]; then
     echo "skipping tests due to run-${CLUSTER_ID} being false"
+    # Exit without setting commit status when tests are skipped
+    trap - EXIT
     exit 0
 fi
 
