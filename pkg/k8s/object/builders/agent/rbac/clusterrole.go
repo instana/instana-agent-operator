@@ -85,13 +85,6 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 					},
 					Verbs: []string{"use"},
 				},
-				{
-					APIGroups: []string{"policy"},
-					Resources: []string{
-						"podsecuritypolicies",
-					},
-					Verbs: []string{"use"},
-				},
 			},
 		},
 	)
