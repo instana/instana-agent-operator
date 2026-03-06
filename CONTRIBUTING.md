@@ -30,9 +30,17 @@ For a list of the maintainers, see the [MAINTAINERS.md](MAINTAINERS.md) page.
 
 ## Legal
 
-Each source file must include a license header. Easiest is probably to use the Maven command:
-`mvn validate com.mycila:license-maven-plugin:4.0.rc2:format`, which will automatically add the
-license to all necessary files.
+Each source file must include a license header for the Apache
+Software License 2.0. Using the SPDX format is the simplest approach.
+e.g.
+
+```
+/*
+Copyright <holder> All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+```
 
 We have tried to make it as easy as possible to make contributions. This
 applies to how we handle the legal aspects of contribution. We use the
@@ -55,4 +63,16 @@ local git repository using the following command:
 ```
 git commit -s
 ```
+
+## Communication
+Please feel free to connect with us through [GitHub issues](https://github.com/instana/instana-agent-operator/issues).
+
+## Setup
+Please refer to the [Local Development](README.md#local-development) section in the README for setup instructions.
+
+## Testing
+Please refer to the [Testing and linting](README.md#testing-and-linting) section in the README for information on running tests.
+
+## Coding style guidelines
+This project follows standard Go coding conventions. Please run `make lint` before submitting your changes to ensure code quality and consistency.
 
