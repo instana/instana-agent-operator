@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package controller
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/utils"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
-	"github.com/instana/instana-agent-operator/controllers/reconciliation/helm"
+	"github.com/instana/instana-agent-operator/internal/controller/reconciliation/helm"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 

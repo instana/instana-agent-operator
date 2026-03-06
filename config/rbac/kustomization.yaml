@@ -1,3 +1,6 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
 resources:
 # All RBAC will be applied under this service account in
 # the deployment namespace. You may comment out this resource
@@ -16,3 +19,4 @@ resources:
 #- auth_proxy_role.yaml
 #- auth_proxy_role_binding.yaml
 #- auth_proxy_client_clusterrole.yaml
+

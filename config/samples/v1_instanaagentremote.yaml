@@ -1,0 +1,12 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+apiVersion: instana.io/v1
+kind: InstanaAgentRemote
+metadata:
+  labels:
+    app.kubernetes.io/name: instana-agent-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: instanaagentremote-sample
+spec:
+  # TODO(user): Add fields here
