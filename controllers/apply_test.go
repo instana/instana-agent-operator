@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,15 +28,40 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/internal/mocks"
+	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
+
+type mockOperatorUtils struct {
+	applyAllCalled bool
+}
+
+func (m *mockOperatorUtils) ClusterIsOpenShift() (bool, error) {
+	return false, nil
+}
+
+func (m *mockOperatorUtils) ApplyAll(builders ...builder.ObjectBuilder) error {
+	m.applyAllCalled = true
+	return nil
+}
+
+func (m *mockOperatorUtils) DeleteAll() error {
+	return nil
+}
+
+var _ operator_utils.OperatorUtils = (*mockOperatorUtils)(nil)
 
 func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 	agent := &instanav1.InstanaAgent{
@@ -299,4 +325,94 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		assert.Nil(t, deploymentContext)
 		mockClient.AssertExpectations(t)
 	})
+}
+
+func TestGetDaemonSetBuildersReturnsFailureForZoneDaemonSetReadError(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	getErr := errors.New("apiserver temporary failure")
+	baseClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := &InstanaAgentReconciler{
+		client: &getErrorInstanaAgentClient{
+			InstanaAgentClient: instanaclient.NewInstanaAgentClient(baseClient),
+			err:                getErr,
+		},
+	}
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "agent",
+			Namespace: "instana-agent",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Zones: []instanav1.Zone{
+				{
+					Name: instanav1.Name{Name: "zone-a"},
+				},
+			},
+		},
+	}
+
+	builders, res := getDaemonSetBuilders(
+		context.Background(),
+		reconciler,
+		agent,
+		true,
+		false,
+		&mocks.MockAgentStatusManager{},
+	)
+
+	assert.Nil(t, builders)
+	assert.True(t, res.suppliesReconcileResult())
+	_, err := res.reconcileResult()
+	assert.ErrorIs(t, err, getErr)
+}
+
+func TestApplyResourcesReturnsFailureAndSkipsApplyAllOnZoneDaemonSetReadError(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	getErr := errors.New("daemonset read failed")
+	baseClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := &InstanaAgentReconciler{
+		client: &getErrorInstanaAgentClient{
+			InstanaAgentClient: instanaclient.NewInstanaAgentClient(baseClient),
+			err:                getErr,
+		},
+	}
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "agent",
+			Namespace: "instana-agent",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Zones: []instanav1.Zone{
+				{
+					Name: instanav1.Name{Name: "zone-a"},
+				},
+			},
+		},
+	}
+
+	operatorUtilsMock := &mockOperatorUtils{}
+	res := reconciler.applyResources(
+		context.Background(),
+		agent,
+		true,
+		false,
+		operatorUtilsMock,
+		&mocks.MockAgentStatusManager{},
+		&corev1.Secret{},
+		nil,
+		namespaces.NamespacesDetails{},
+	)
+
+	assert.True(t, res.suppliesReconcileResult())
+	_, err := res.reconcileResult()
+	assert.ErrorIs(t, err, getErr)
+	assert.False(t, operatorUtilsMock.applyAllCalled)
 }

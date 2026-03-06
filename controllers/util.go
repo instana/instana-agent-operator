@@ -19,9 +19,13 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -29,7 +33,10 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
-func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils operator_utils.OperatorUtils) (
+func (r *InstanaAgentReconciler) isOpenShift(
+	ctx context.Context,
+	operatorUtils operator_utils.OperatorUtils,
+) (
 	bool,
 	reconcileReturn,
 ) {
@@ -40,12 +47,94 @@ func (r *InstanaAgentReconciler) isOpenShift(ctx context.Context, operatorUtils 
 		log.Error(err, "failed to determine if cluster is OpenShift")
 		return false, reconcileFailure(err)
 	}
-	log.V(1).Info("successfully detected whether cluster is OpenShift", "IsOpenShift", isOpenShiftRes)
+	log.V(1).
+		Info("successfully detected whether cluster is OpenShift", "IsOpenShift", isOpenShiftRes)
 	return isOpenShiftRes, reconcileContinue()
 }
 
-func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAgent) []backends.K8SensorBackend {
-	k8SensorBackends := make([]backends.K8SensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
+// shouldSetPersistHostUniqueIDEnvVar determines whether to set the
+// INSTANA_PERSIST_HOST_UNIQUE_ID environment variable.
+// The logic is:
+// - If DaemonSet doesn't exist: set it (new deployment)
+// - If DaemonSet exists and already has the env var: keep it
+// - If DaemonSet exists but doesn't have the env var: don't add it (upgrade scenario)
+func (r *InstanaAgentReconciler) shouldSetPersistHostUniqueIDEnvVar(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+	zone *instanav1.Zone,
+) (bool, reconcileReturn) {
+	log := logf.FromContext(ctx)
+
+	// Determine the DaemonSet name based on whether we're using zones
+	dsName := agent.Name
+	if zone != nil {
+		dsName = fmt.Sprintf("%s-%s", agent.Name, zone.Name.Name)
+	}
+
+	// Try to get the existing DaemonSet
+	existingDS := &appsv1.DaemonSet{}
+	err := r.client.Get(ctx, types.NamespacedName{
+		Name:      dsName,
+		Namespace: agent.Namespace,
+	}, existingDS)
+
+	// If DaemonSet doesn't exist, this is a new deployment - set the env var
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(1).
+				Info("DaemonSet not found, will set INSTANA_PERSIST_HOST_UNIQUE_ID", "daemonset", dsName)
+			return true, reconcileContinue()
+		}
+		// On other errors, abort reconcile to avoid removing an existing env var.
+		log.Error(
+			err,
+			"failed to check existing DaemonSet",
+			"daemonset",
+			dsName,
+		)
+		return false, reconcileFailure(err)
+	}
+
+	// DaemonSet exists - check if it already has the env var
+	for _, container := range existingDS.Spec.Template.Spec.Containers {
+		if container.Name == "instana-agent" {
+			for _, env := range container.Env {
+				if env.Name == "INSTANA_PERSIST_HOST_UNIQUE_ID" {
+					// Env var already exists, keep it
+					log.V(1).
+						Info("DaemonSet already has INSTANA_PERSIST_HOST_UNIQUE_ID, will keep it", "daemonset", dsName)
+					return true, reconcileContinue()
+				}
+			}
+			// Container found but env var doesn't exist - don't add it (upgrade scenario)
+			log.V(1).
+				Info(
+					"DaemonSet exists without INSTANA_PERSIST_HOST_UNIQUE_ID, will not add it (upgrade)",
+					"daemonset",
+					dsName,
+				)
+			return false, reconcileContinue()
+		}
+	}
+
+	// Container not found (shouldn't happen), default to not setting it
+	log.V(1).
+		Info(
+			"instana-agent container not found in DaemonSet, will not set INSTANA_PERSIST_HOST_UNIQUE_ID",
+			"daemonset",
+			dsName,
+		)
+	return false, reconcileContinue()
+}
+
+func (r *InstanaAgentReconciler) getK8SensorBackends(
+	agent *instanav1.InstanaAgent,
+) []backends.K8SensorBackend {
+	k8SensorBackends := make(
+		[]backends.K8SensorBackend,
+		0,
+		len(agent.Spec.Agent.AdditionalBackends)+1,
+	)
 	k8SensorBackends = append(
 		k8SensorBackends,
 		*backends.NewK8SensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
@@ -64,8 +153,14 @@ func (r *InstanaAgentReconciler) getK8SensorBackends(agent *instanav1.InstanaAge
 	return k8SensorBackends
 }
 
-func (r *InstanaAgentRemoteReconciler) getRemoteSensorBackends(agent *instanav1.InstanaAgentRemote) []backends.RemoteSensorBackend {
-	remoteSensorBackends := make([]backends.RemoteSensorBackend, 0, len(agent.Spec.Agent.AdditionalBackends)+1)
+func (r *InstanaAgentRemoteReconciler) getRemoteSensorBackends(
+	agent *instanav1.InstanaAgentRemote,
+) []backends.RemoteSensorBackend {
+	remoteSensorBackends := make(
+		[]backends.RemoteSensorBackend,
+		0,
+		len(agent.Spec.Agent.AdditionalBackends)+1,
+	)
 	remoteSensorBackends = append(
 		remoteSensorBackends,
 		*backends.NewRemoteSensorBackend("", agent.Spec.Agent.Key, agent.Spec.Agent.DownloadKey, agent.Spec.Agent.EndpointHost, agent.Spec.Agent.EndpointPort),
@@ -84,7 +179,10 @@ func (r *InstanaAgentRemoteReconciler) getRemoteSensorBackends(agent *instanav1.
 	return remoteSensorBackends
 }
 
-func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgent) logr.Logger {
+func (r *InstanaAgentReconciler) loggerFor(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+) logr.Logger {
 	return logf.FromContext(ctx).WithValues(
 		"Generation",
 		agent.Generation,
@@ -93,7 +191,10 @@ func (r *InstanaAgentReconciler) loggerFor(ctx context.Context, agent *instanav1
 	)
 }
 
-func (r *InstanaAgentRemoteReconciler) loggerFor(ctx context.Context, agent *instanav1.InstanaAgentRemote) logr.Logger {
+func (r *InstanaAgentRemoteReconciler) loggerFor(
+	ctx context.Context,
+	agent *instanav1.InstanaAgentRemote,
+) logr.Logger {
 	return logf.FromContext(ctx).WithValues(
 		"Generation",
 		agent.Generation,
