@@ -366,7 +366,7 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 				volume.VarContainerdConfigVolume,
 				volume.SysVolume,
 				volume.VarLogVolume,
-				//volume.VarLibVolume,(Removed as part of CSP)
+				volume.VarLibVolume,
 				volume.VarDataVolume,
 				volume.MachineIdVolume,
 				volume.ConfigVolume,
