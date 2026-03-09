@@ -79,11 +79,12 @@ func EnsureAgentNamespaceDeletion() env.Func {
 
 		// full purge of resources if anything would be left in the cluster
 		p = utils.RunCommand(
-			"kubectl delete crd/agents.instana.io " +
+			"kubectl delete " +
+				"-n " + InstanaNamespace + " " +
+				"crd/agents.instana.io " +
 				"clusterrole/instana-agent-k8sensor " +
 				"clusterrole/instana-agent-clusterrole " +
 				"clusterrolebinding/instana-agent-clusterrolebinding " +
-				"-n " + InstanaNamespace + " " +
 				"role/leader-election-role " +
 				"rolebinding/leader-election-rolebinding",
 		)
