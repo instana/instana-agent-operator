@@ -10,6 +10,7 @@ set -e
 VERSION=$1
 GITHUB_OAUTH_TOKEN=$2
 TARGET_DIR=$3
+BRANCH=$4
 
 if [[ -z ${VERSION} ]] || [[ -z ${GITHUB_OAUTH_TOKEN} ]]; then
   echo "Please ensure VERSION and GITHUB_OAUTH_TOKEN are set so a GitHub Release can be created"
@@ -27,10 +28,20 @@ GITHUB_RELEASE_RESPONSE=$(curl -X GET \
 GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
 if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   printf "\n%s" "Creating GitHub Release..."
+  
+  # Only mark as latest release when building from main branch
+  MAKE_LATEST="true"
+  if [[ "${BRANCH}" != "main" ]]; then
+    MAKE_LATEST="false"
+    echo "Building from branch '${BRANCH}' - release will NOT be marked as latest"
+  else
+    echo "Building from main branch - release will be marked as latest"
+  fi
+  
   GITHUB_RELEASE_RESPONSE=$(curl -X POST \
     -H "Authorization: token $GITHUB_OAUTH_TOKEN" \
     -H 'Content-Type: application/json' \
-    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"main\", \"name\": \"v${VERSION}\" }" \
+    -d "{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"${BRANCH}\", \"name\": \"v${VERSION}\", \"make_latest\": \"${MAKE_LATEST}\" }" \
     ${GITHUB_RELEASES_URL})
 
   GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
