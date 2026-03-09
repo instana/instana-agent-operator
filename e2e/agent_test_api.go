@@ -82,9 +82,10 @@ func EnsureAgentNamespaceDeletion() env.Func {
 			"kubectl delete crd/agents.instana.io " +
 				"clusterrole/instana-agent-k8sensor " +
 				"clusterrole/instana-agent-clusterrole " +
-				"clusterrole/leader-election-role " +
-				"clusterrolebinding/leader-election-rolebinding " +
-				"clusterrolebinding/instana-agent-clusterrolebinding",
+				"clusterrolebinding/instana-agent-clusterrolebinding " +
+				"-n " + InstanaNamespace + " " +
+				"role/leader-election-role " +
+				"rolebinding/leader-election-rolebinding",
 		)
 		if p.Err() != nil {
 			log.Warningf(
