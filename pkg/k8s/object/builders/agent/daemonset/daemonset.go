@@ -185,7 +185,7 @@ func (d *daemonSetBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount) 
 		volume.VarContainerdConfigVolume,
 		volume.SysVolume,
 		volume.VarLogVolume,
-		volume.VarLibVolume,
+		volume.VarLibInstanaVolume,
 		volume.VarDataVolume,
 		volume.MachineIdVolume,
 		volume.ConfigVolume,
