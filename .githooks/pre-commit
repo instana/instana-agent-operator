@@ -41,7 +41,8 @@ done
 echo "✅ Linted successfully."
 
 # Run copyright check on all staged files (not only .go files)
-ALL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(go|sh|yml|yaml)$' || true)
+# Exclude Kubernetes manifests in config/ directory from copyright check
+ALL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(go|sh|yml|yaml)$' | grep -v '^config/' || true)
 echo "🔎 Checking for copyright headers in staged files..."
 for FILE in $ALL_FILES; do
   if ! head -n5 "$FILE" | grep -q '(c) Copyright IBM Corp.'; then

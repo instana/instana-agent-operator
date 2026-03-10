@@ -42,6 +42,10 @@ import (
 var (
 	scheme = k8sruntime.NewScheme()
 	log    = logf.Log.WithName("main")
+
+	// defaultOperatorNamespace is the default namespace for the operator
+	// This matches the namespace configured in config/default/kustomization.yaml
+	defaultOperatorNamespace = "instana-agent"
 )
 
 func init() {
@@ -82,15 +86,30 @@ func main() {
 	cfg := ctrl.GetConfigOrDie()
 	instanaclient.ConfigureWarningHandler(cfg)
 
+	// Get the namespace where the operator is running for leader election
+	// Prefer POD_NAMESPACE environment variable, fallback to default
+	operatorNamespace := os.Getenv("POD_NAMESPACE")
+	if operatorNamespace == "" {
+		operatorNamespace = defaultOperatorNamespace
+		log.Info(
+			"POD_NAMESPACE not set, using default namespace. "+
+				"Consider setting POD_NAMESPACE environment variable.",
+			"namespace", operatorNamespace,
+		)
+	} else {
+		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", operatorNamespace)
+	}
+
 	mgr, err := ctrl.NewManager(
 		cfg, ctrl.Options{
 			Metrics: metricsserver.Options{
 				BindAddress: metricsAddr,
 			},
-			Scheme:                 scheme,
-			HealthProbeBindAddress: probeAddr,
-			LeaderElection:         enableLeaderElection,
-			LeaderElectionID:       "819a9291.instana.io",
+			Scheme:                  scheme,
+			HealthProbeBindAddress:  probeAddr,
+			LeaderElection:          enableLeaderElection,
+			LeaderElectionID:        "819a9291.instana.io",
+			LeaderElectionNamespace: operatorNamespace,
 		},
 	)
 	if err != nil {

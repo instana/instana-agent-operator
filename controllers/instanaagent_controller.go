@@ -193,7 +193,6 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/finalizers,verbs=update
-// +kubebuilder:rbac:groups=policy,resources=podsecuritypolicies,verbs=use
 
 // adding role property required to manage instana-agent-k8sensor ClusterRole
 // +kubebuilder:rbac:urls=/version;/healthz;/metrics;/metrics/*;/metrics/cadvisor;/stats/summary,verbs=get
@@ -206,7 +205,6 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps.openshift.io,resources=deploymentconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=use
-// +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=podsecuritypolicies,verbs=use
 // +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=poddisruptionbudgets,verbs=create;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=watch;list
 
