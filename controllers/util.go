@@ -117,14 +117,15 @@ func (r *InstanaAgentReconciler) shouldSetPersistHostUniqueIDEnvVar(
 		}
 	}
 
-	// Container not found (shouldn't happen), default to not setting it
-	log.V(1).
-		Info(
-			"instana-agent container not found in DaemonSet, will not set INSTANA_PERSIST_HOST_UNIQUE_ID",
-			"daemonset",
-			dsName,
-		)
-	return false, reconcileContinue()
+	// Container not found - this indicates an unexpected DaemonSet structure
+	err = fmt.Errorf("instana-agent container not found in DaemonSet %s", dsName)
+	log.Error(
+		err,
+		"unexpected DaemonSet structure",
+		"daemonset",
+		dsName,
+	)
+	return false, reconcileFailure(err)
 }
 
 func (r *InstanaAgentReconciler) getK8SensorBackends(
