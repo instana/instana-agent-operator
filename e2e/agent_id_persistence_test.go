@@ -139,7 +139,7 @@ func getAndStoreAgentID() features.Func {
 			// Use kubectl logs to check for the agent ID file path log
 			p := utils.RunCommand(
 				fmt.Sprintf(
-					"kubectl logs pod/%s -n %s -c instana-agent | grep 'Using agent ID file path:' || echo 'not found'",
+					"bash -c \"kubectl logs pod/%s -n %s -c instana-agent | grep 'Using agent ID file path:' || echo 'not found'\"",
 					podName,
 					cfg.Namespace(),
 				),
@@ -287,7 +287,7 @@ func verifyAgentIDPersisted() features.Func {
 			// Use kubectl logs to check for the agent ID file path log
 			p := utils.RunCommand(
 				fmt.Sprintf(
-					"kubectl logs pod/%s -n %s -c instana-agent | grep 'Using agent ID file path:' || echo 'not found'",
+					"bash -c \"kubectl logs pod/%s -n %s -c instana-agent | grep 'Using agent ID file path:' || echo 'not found'\"",
 					podName,
 					cfg.Namespace(),
 				),
