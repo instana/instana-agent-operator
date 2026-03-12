@@ -127,7 +127,8 @@ func getAndStoreAgentID() features.Func {
 
 		pod := pods.Items[0]
 		podName := pod.Name
-		t.Logf("Waiting for agent to persist ID in pod: %s", podName)
+		nodeName := pod.Spec.NodeName
+		t.Logf("Waiting for agent to persist ID in pod: %s on node: %s", podName, nodeName)
 
 		// First, wait for the agent to log that it has persisted the ID
 		// 6 minute timeout
@@ -201,10 +202,11 @@ func getAndStoreAgentID() features.Func {
 			t.Fatal("Agent ID is empty after all retries")
 		}
 
-		t.Logf("✓ Initial agent ID: %s", agentID)
+		t.Logf("✓ Initial agent ID: %s on node: %s", agentID, nodeName)
 
-		// Store the agent ID in context for later comparison
-		return context.WithValue(ctx, "initialAgentID", agentID)
+		// Store the agent ID and node name in context for later comparison
+		ctx = context.WithValue(ctx, "initialAgentID", agentID)
+		return context.WithValue(ctx, "initialNodeName", nodeName)
 	}
 }
 
@@ -260,6 +262,11 @@ func verifyAgentIDPersisted() features.Func {
 			t.Fatal("Initial agent ID not found in context")
 		}
 
+		initialNodeName, ok := ctx.Value("initialNodeName").(string)
+		if !ok || initialNodeName == "" {
+			t.Fatal("Initial node name not found in context")
+		}
+
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
 			t.Fatal("Failed to create client:", err)
@@ -273,9 +280,26 @@ func verifyAgentIDPersisted() features.Func {
 			t.Fatal("Error while getting agent pods after restart:", err)
 		}
 
-		pod := pods.Items[0]
+		// Find the pod on the same node as the initial pod
+		var pod *corev1.Pod
+		for i := range pods.Items {
+			if pods.Items[i].Spec.NodeName == initialNodeName {
+				pod = &pods.Items[i]
+				break
+			}
+		}
+
+		if pod == nil {
+			t.Fatalf("No agent pod found on the original node: %s", initialNodeName)
+		}
+
 		podName := pod.Name
-		t.Logf("Waiting for agent to persist ID in restarted pod: %s", podName)
+		nodeName := pod.Spec.NodeName
+		t.Logf(
+			"Waiting for agent to persist ID in restarted pod: %s on node: %s",
+			podName,
+			nodeName,
+		)
 
 		// First, wait for the agent to log that it has persisted the ID
 		// 6 minute timeout
@@ -349,15 +373,15 @@ func verifyAgentIDPersisted() features.Func {
 			t.Fatal("New agent ID is empty after all retries")
 		}
 
-		t.Logf("Initial agent ID: %s", initialAgentID)
-		t.Logf("New agent ID:     %s", newAgentID)
+		t.Logf("Initial agent ID: %s (node: %s)", initialAgentID, initialNodeName)
+		t.Logf("New agent ID:     %s (node: %s)", newAgentID, nodeName)
 
 		if initialAgentID != newAgentID {
-			t.Fatalf("Agent ID changed after restart! Initial: %s, New: %s",
+			t.Fatalf("Agent ID changed after restart on same node! Initial: %s, New: %s",
 				initialAgentID, newAgentID)
 		}
 
-		t.Log("✓ Agent ID persisted successfully across pod restart")
+		t.Logf("✓ Agent ID persisted successfully across pod restart on node: %s", nodeName)
 		return ctx
 	}
 }
