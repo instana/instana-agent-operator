@@ -75,12 +75,19 @@ func getDaemonSetBuilders(
 
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
 
-	for _, zone := range agent.Spec.Zones {
-		// For zoned deployments, check each zone's DaemonSet individually
+	// First, collect all zone check results to ensure consistency
+	// If any check fails, we abort before creating any builders
+	zoneSettings := make([]bool, len(agent.Spec.Zones))
+	for i, zone := range agent.Spec.Zones {
 		shouldSetForZone, shouldSetRes := r.shouldSetPersistHostUniqueIDEnvVar(ctx, agent, &zone)
 		if shouldSetRes.suppliesReconcileResult() {
 			return nil, shouldSetRes
 		}
+		zoneSettings[i] = shouldSetForZone
+	}
+
+	// All checks passed, now create builders with the collected settings
+	for i, zone := range agent.Spec.Zones {
 		builders = append(
 			builders,
 			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(
@@ -88,7 +95,7 @@ func getDaemonSetBuilders(
 				isOpenShift,
 				statusManager,
 				&zone,
-				shouldSetForZone,
+				zoneSettings[i],
 			),
 		)
 	}
