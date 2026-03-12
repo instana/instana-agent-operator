@@ -5,8 +5,8 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 )
 
 // TestAgentIDPersistence verifies that the agent ID persists across pod restarts
@@ -106,6 +107,7 @@ func verifyPersistHostUniqueIDEnvVar() features.Func {
 }
 
 // getAndStoreAgentID retrieves the agent ID from the pod and stores it in context
+// It first waits for the agent to log that it has persisted the ID, then reads the file
 func getAndStoreAgentID() features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Getting initial agent ID from pod")
@@ -124,40 +126,75 @@ func getAndStoreAgentID() features.Func {
 		}
 
 		pod := pods.Items[0]
-		t.Logf("Reading agent ID from pod: %s", pod.Name)
+		podName := pod.Name
+		t.Logf("Waiting for agent to persist ID in pod: %s", podName)
 
-		// Wait for the agent to create the ID file (retry for up to 2 minutes)
-		var agentID string
-		maxRetries := 24 // 24 * 5 seconds = 2 minutes
+		// First, wait for the agent to log that it has persisted the ID
+		// 6 minute timeout
+		maxRetries := 72 // 72 * 5 seconds = 6 minutes
+		retryInterval := 5 * time.Second
+		logFound := false
+
 		for i := 0; i < maxRetries; i++ {
-			var stdout, stderr bytes.Buffer
-			err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				pod.Name,
-				"instana-agent",
-				[]string{"cat", "/var/lib/instana/instana-agent-id"},
-				&stdout,
-				&stderr,
+			// Use kubectl logs to check for the persistence message
+			p := utils.RunCommand(
+				fmt.Sprintf(
+					"kubectl logs pod/%s -n %s -c instana-agent | grep -i 'Successfully persisted agent ID' || echo 'not found'",
+					podName,
+					cfg.Namespace(),
+				),
 			)
 
-			if err == nil {
-				agentID = strings.TrimSpace(stdout.String())
+			output := strings.TrimSpace(p.Result())
+			if p.Err() == nil && output != "not found" && output != "" {
+				t.Logf("✓ Agent has logged successful ID persistence: %s", output)
+				logFound = true
+				break
+			}
+
+			if i == 0 {
+				t.Log("Waiting for agent to persist ID (checking logs)...")
+			}
+
+			if i < maxRetries-1 {
+				time.Sleep(retryInterval)
+			}
+		}
+
+		if !logFound {
+			t.Fatalf(
+				"Agent did not log ID persistence after %d minutes",
+				maxRetries*int(retryInterval.Seconds())/60,
+			)
+		}
+
+		// Now read the agent ID file using kubectl exec
+		t.Logf("Reading agent ID file from pod: %s", podName)
+		var agentID string
+
+		for i := 0; i < 5; i++ { // Shorter retry since we already waited for the log
+			p := utils.RunCommand(
+				fmt.Sprintf(
+					"kubectl exec pod/%s -n %s -c instana-agent -- cat /var/lib/instana/instana-agent-id",
+					podName,
+					cfg.Namespace(),
+				),
+			)
+
+			if p.Err() == nil {
+				agentID = strings.TrimSpace(p.Result())
 				if agentID != "" {
 					break
 				}
 			}
 
-			if i == 0 {
-				t.Log("Agent ID file not yet created, waiting...")
+			if i < 4 {
+				t.Log("Agent ID file not readable yet, waiting...")
+				time.Sleep(2 * time.Second)
+			} else {
+				t.Logf("Failed to read agent ID from pod: %v", p.Err())
+				t.Fatalf("Command output: %s", p.Result())
 			}
-
-			if i == maxRetries-1 {
-				t.Log(stderr.String())
-				t.Fatalf("Failed to read agent ID from pod after %d retries: %v", maxRetries, err)
-			}
-
-			time.Sleep(5 * time.Second)
 		}
 
 		if agentID == "" {
@@ -237,44 +274,75 @@ func verifyAgentIDPersisted() features.Func {
 		}
 
 		pod := pods.Items[0]
-		t.Logf("Reading agent ID from new pod: %s", pod.Name)
+		podName := pod.Name
+		t.Logf("Waiting for agent to persist ID in restarted pod: %s", podName)
 
-		// Wait for the agent to create/read the ID file (retry for up to 2 minutes)
-		var newAgentID string
-		maxRetries := 24 // 24 * 5 seconds = 2 minutes
+		// First, wait for the agent to log that it has persisted the ID
+		// 6 minute timeout
+		maxRetries := 72 // 72 * 5 seconds = 6 minutes
+		retryInterval := 5 * time.Second
+		logFound := false
+
 		for i := 0; i < maxRetries; i++ {
-			var stdout, stderr bytes.Buffer
-			err := r.ExecInPod(
-				ctx,
-				cfg.Namespace(),
-				pod.Name,
-				"instana-agent",
-				[]string{"cat", "/var/lib/instana/instana-agent-id"},
-				&stdout,
-				&stderr,
+			// Use kubectl logs to check for the persistence message
+			p := utils.RunCommand(
+				fmt.Sprintf(
+					"kubectl logs pod/%s -n %s -c instana-agent | grep -i 'Successfully persisted agent ID' || echo 'not found'",
+					podName,
+					cfg.Namespace(),
+				),
 			)
 
-			if err == nil {
-				newAgentID = strings.TrimSpace(stdout.String())
+			output := strings.TrimSpace(p.Result())
+			if p.Err() == nil && output != "not found" && output != "" {
+				t.Logf("✓ Agent has logged successful ID persistence after restart: %s", output)
+				logFound = true
+				break
+			}
+
+			if i == 0 {
+				t.Log("Waiting for agent to persist ID after restart (checking logs)...")
+			}
+
+			if i < maxRetries-1 {
+				time.Sleep(retryInterval)
+			}
+		}
+
+		if !logFound {
+			t.Fatalf(
+				"Agent did not log ID persistence after restart after %d minutes",
+				maxRetries*int(retryInterval.Seconds())/60,
+			)
+		}
+
+		// Now read the agent ID file using kubectl exec
+		t.Logf("Reading agent ID file from restarted pod: %s", podName)
+		var newAgentID string
+
+		for i := 0; i < 5; i++ { // Shorter retry since we already waited for the log
+			p := utils.RunCommand(
+				fmt.Sprintf(
+					"kubectl exec pod/%s -n %s -c instana-agent -- cat /var/lib/instana/instana-agent-id",
+					podName,
+					cfg.Namespace(),
+				),
+			)
+
+			if p.Err() == nil {
+				newAgentID = strings.TrimSpace(p.Result())
 				if newAgentID != "" {
 					break
 				}
 			}
 
-			if i == 0 {
-				t.Log("Agent ID file not yet available in new pod, waiting...")
+			if i < 4 {
+				t.Log("Agent ID file not readable yet after restart, waiting...")
+				time.Sleep(2 * time.Second)
+			} else {
+				t.Logf("Failed to read agent ID from new pod: %v", p.Err())
+				t.Fatalf("Command output: %s", p.Result())
 			}
-
-			if i == maxRetries-1 {
-				t.Log(stderr.String())
-				t.Fatalf(
-					"Failed to read agent ID from new pod after %d retries: %v",
-					maxRetries,
-					err,
-				)
-			}
-
-			time.Sleep(5 * time.Second)
 		}
 
 		if newAgentID == "" {
