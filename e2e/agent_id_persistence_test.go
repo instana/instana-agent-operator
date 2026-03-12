@@ -136,10 +136,10 @@ func getAndStoreAgentID() features.Func {
 		logFound := false
 
 		for i := 0; i < maxRetries; i++ {
-			// Use kubectl logs to check for the persistence message
+			// Use kubectl logs to check for the agent ID file path log
 			p := utils.RunCommand(
 				fmt.Sprintf(
-					"kubectl logs pod/%s -n %s -c instana-agent | grep -i 'Successfully persisted agent ID' || echo 'not found'",
+					"kubectl logs pod/%s -n %s -c instana-agent | grep 'Using agent ID file path:' || echo 'not found'",
 					podName,
 					cfg.Namespace(),
 				),
@@ -147,7 +147,7 @@ func getAndStoreAgentID() features.Func {
 
 			output := strings.TrimSpace(p.Result())
 			if p.Err() == nil && output != "not found" && output != "" {
-				t.Logf("✓ Agent has logged successful ID persistence: %s", output)
+				t.Logf("✓ Agent is using ID file path: %s", output)
 				logFound = true
 				break
 			}
@@ -163,7 +163,7 @@ func getAndStoreAgentID() features.Func {
 
 		if !logFound {
 			t.Fatalf(
-				"Agent did not log ID persistence after %d minutes",
+				"Agent did not log 'Using agent ID file path:' after %d minutes",
 				maxRetries*int(retryInterval.Seconds())/60,
 			)
 		}
@@ -284,10 +284,10 @@ func verifyAgentIDPersisted() features.Func {
 		logFound := false
 
 		for i := 0; i < maxRetries; i++ {
-			// Use kubectl logs to check for the persistence message
+			// Use kubectl logs to check for the agent ID file path log
 			p := utils.RunCommand(
 				fmt.Sprintf(
-					"kubectl logs pod/%s -n %s -c instana-agent | grep -i 'Successfully persisted agent ID' || echo 'not found'",
+					"kubectl logs pod/%s -n %s -c instana-agent | grep 'Using agent ID file path:' || echo 'not found'",
 					podName,
 					cfg.Namespace(),
 				),
@@ -295,7 +295,7 @@ func verifyAgentIDPersisted() features.Func {
 
 			output := strings.TrimSpace(p.Result())
 			if p.Err() == nil && output != "not found" && output != "" {
-				t.Logf("✓ Agent has logged successful ID persistence after restart: %s", output)
+				t.Logf("✓ Agent is using ID file path after restart: %s", output)
 				logFound = true
 				break
 			}
@@ -311,7 +311,7 @@ func verifyAgentIDPersisted() features.Func {
 
 		if !logFound {
 			t.Fatalf(
-				"Agent did not log ID persistence after restart after %d minutes",
+				"Agent did not log 'Using agent ID file path:' after restart after %d minutes",
 				maxRetries*int(retryInterval.Seconds())/60,
 			)
 		}
