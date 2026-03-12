@@ -126,24 +126,42 @@ func getAndStoreAgentID() features.Func {
 		pod := pods.Items[0]
 		t.Logf("Reading agent ID from pod: %s", pod.Name)
 
-		// Execute command to read the agent ID file
-		var stdout, stderr bytes.Buffer
-		if err := r.ExecInPod(
-			ctx,
-			cfg.Namespace(),
-			pod.Name,
-			"instana-agent",
-			[]string{"cat", "/var/lib/instana/instana-agent-id"},
-			&stdout,
-			&stderr,
-		); err != nil {
-			t.Log(stderr.String())
-			t.Fatalf("Failed to read agent ID from pod: %v", err)
+		// Wait for the agent to create the ID file (retry for up to 2 minutes)
+		var agentID string
+		maxRetries := 24 // 24 * 5 seconds = 2 minutes
+		for i := 0; i < maxRetries; i++ {
+			var stdout, stderr bytes.Buffer
+			err := r.ExecInPod(
+				ctx,
+				cfg.Namespace(),
+				pod.Name,
+				"instana-agent",
+				[]string{"cat", "/var/lib/instana/instana-agent-id"},
+				&stdout,
+				&stderr,
+			)
+
+			if err == nil {
+				agentID = strings.TrimSpace(stdout.String())
+				if agentID != "" {
+					break
+				}
+			}
+
+			if i == 0 {
+				t.Log("Agent ID file not yet created, waiting...")
+			}
+
+			if i == maxRetries-1 {
+				t.Log(stderr.String())
+				t.Fatalf("Failed to read agent ID from pod after %d retries: %v", maxRetries, err)
+			}
+
+			time.Sleep(5 * time.Second)
 		}
 
-		agentID := strings.TrimSpace(stdout.String())
 		if agentID == "" {
-			t.Fatal("Agent ID is empty")
+			t.Fatal("Agent ID is empty after all retries")
 		}
 
 		t.Logf("✓ Initial agent ID: %s", agentID)
@@ -221,24 +239,46 @@ func verifyAgentIDPersisted() features.Func {
 		pod := pods.Items[0]
 		t.Logf("Reading agent ID from new pod: %s", pod.Name)
 
-		// Execute command to read the agent ID file
-		var stdout, stderr bytes.Buffer
-		if err := r.ExecInPod(
-			ctx,
-			cfg.Namespace(),
-			pod.Name,
-			"instana-agent",
-			[]string{"cat", "/var/lib/instana/instana-agent-id"},
-			&stdout,
-			&stderr,
-		); err != nil {
-			t.Log(stderr.String())
-			t.Fatalf("Failed to read agent ID from new pod: %v", err)
+		// Wait for the agent to create/read the ID file (retry for up to 2 minutes)
+		var newAgentID string
+		maxRetries := 24 // 24 * 5 seconds = 2 minutes
+		for i := 0; i < maxRetries; i++ {
+			var stdout, stderr bytes.Buffer
+			err := r.ExecInPod(
+				ctx,
+				cfg.Namespace(),
+				pod.Name,
+				"instana-agent",
+				[]string{"cat", "/var/lib/instana/instana-agent-id"},
+				&stdout,
+				&stderr,
+			)
+
+			if err == nil {
+				newAgentID = strings.TrimSpace(stdout.String())
+				if newAgentID != "" {
+					break
+				}
+			}
+
+			if i == 0 {
+				t.Log("Agent ID file not yet available in new pod, waiting...")
+			}
+
+			if i == maxRetries-1 {
+				t.Log(stderr.String())
+				t.Fatalf(
+					"Failed to read agent ID from new pod after %d retries: %v",
+					maxRetries,
+					err,
+				)
+			}
+
+			time.Sleep(5 * time.Second)
 		}
 
-		newAgentID := strings.TrimSpace(stdout.String())
 		if newAgentID == "" {
-			t.Fatal("New agent ID is empty")
+			t.Fatal("New agent ID is empty after all retries")
 		}
 
 		t.Logf("Initial agent ID: %s", initialAgentID)
