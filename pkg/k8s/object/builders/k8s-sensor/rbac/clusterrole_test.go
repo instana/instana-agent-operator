@@ -103,6 +103,11 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 					Verbs:     []string{"get", "list", "watch"},
 				},
 				{
+					APIGroups: []string{"discovery.k8s.io"},
+					Resources: []string{"endpointslices"},
+					Verbs:     []string{"get", "list", "watch"},
+				},
+				{
 					APIGroups: []string{"networking.k8s.io"},
 					Resources: []string{"ingresses"},
 					Verbs:     []string{"get", "list", "watch"},
