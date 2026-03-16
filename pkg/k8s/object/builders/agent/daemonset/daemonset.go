@@ -156,6 +156,14 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 			Name:  "INSTANA_PERSIST_HOST_UNIQUE_ID",
 			Value: "true",
 		}
+
+		// Set explicit file path to use volume mount directly
+		// This works across all container runtimes (CRI-O, containerd, Docker)
+		// and all Kubernetes distributions (K3s, OCP, vanilla K8s)
+		envVarMap["INSTANA_AGENT_ID_FILE_PATH"] = corev1.EnvVar{
+			Name:  "INSTANA_AGENT_ID_FILE_PATH",
+			Value: "/var/lib/instana/instana-agent-id",
+		}
 	}
 
 	// Add user-defined environment variables from the pod.env field
