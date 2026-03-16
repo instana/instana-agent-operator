@@ -126,10 +126,13 @@ func (v *volumeBuilder) getBuilder(volume Volume) (*corev1.Volume, *corev1.Volum
 		return v.hostVolumeWithMount("var-log", "/var/log", &mountPropagationHostToContainer, nil)
 	case VarLibInstanaVolume:
 		hostPathDirectoryOrCreate := corev1.HostPathDirectoryOrCreate
+		// Use Bidirectional mount propagation to allow agent to write files
+		// that persist to the host filesystem
+		mountPropagationBidirectional := corev1.MountPropagationBidirectional
 		return v.hostVolumeWithMount(
 			"var-lib-instana",
 			"/var/lib/instana",
-			&mountPropagationHostToContainer,
+			&mountPropagationBidirectional,
 			&hostPathDirectoryOrCreate,
 		)
 	case VarDataVolume:
