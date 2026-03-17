@@ -316,6 +316,16 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Ports: []corev1.ContainerPort{
 								ports.InstanaAgentAPIPortConfig.AsContainerPort(),
 							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:                pointer.To(int64(1000)),
+								RunAsGroup:               pointer.To(int64(1000)),
+								RunAsNonRoot:             pointer.To(true),
+								ReadOnlyRootFilesystem:   pointer.To(true),
+								AllowPrivilegeEscalation: pointer.To(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"all"},
+								},
+							},
 						},
 					},
 					// k8sensor is run as a "k8sensor" user (i.e: uid 1000), and thus reading the files from the secret volume
