@@ -25,7 +25,7 @@ import (
 func TestAgentIDPersistence(t *testing.T) {
 	agent := NewAgentCr()
 
-	agentIDPersistenceFeature := features.New("agent ID persistence across pod restarts").
+	feature := features.New("agent ID persistence across pod restarts").
 		Setup(SetupOperatorDevBuild()).
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for instana-agent-controller-manager deployment to become ready",
@@ -35,16 +35,28 @@ func TestAgentIDPersistence(t *testing.T) {
 		Assess("wait for agent daemonset to become ready",
 			WaitForAgentDaemonSetToBecomeReady()).
 		Assess("verify INSTANA_PERSIST_HOST_UNIQUE_ID env var is set",
-			verifyPersistHostUniqueIDEnvVar()).
-		Assess("get initial agent ID from pod",
-			getAndStoreAgentID()).
-		Assess("delete agent pod to trigger restart",
-			deleteAgentPod()).
-		Assess("wait for agent daemonset to become ready after restart",
-			WaitForAgentDaemonSetToBecomeReady()).
-		Assess("verify agent ID persisted after restart",
-			verifyAgentIDPersisted()).
-		Feature()
+			verifyPersistHostUniqueIDEnvVar())
+
+	// Skip persistence verification when cloud provider metadata is available
+	// Cloud provider IDs take precedence and don't use file persistence
+	if !isCloudProviderMetadataAvailable(t) {
+		feature = feature.
+			Assess("get initial agent ID from pod",
+				getAndStoreAgentID()).
+			Assess("delete agent pod to trigger restart",
+				deleteAgentPod()).
+			Assess("wait for agent daemonset to become ready after restart",
+				WaitForAgentDaemonSetToBecomeReady()).
+			Assess("verify agent ID persisted after restart",
+				verifyAgentIDPersisted())
+	} else {
+		t.Log(
+			"Skipping agent ID persistence verification - " +
+				"cloud provider metadata available, agent will use cloud provider ID",
+		)
+	}
+
+	agentIDPersistenceFeature := feature.Feature()
 
 	testEnv.Test(t, agentIDPersistenceFeature)
 }
@@ -384,6 +396,59 @@ func verifyAgentIDPersisted() features.Func {
 		t.Logf("✓ Agent ID persisted successfully across pod restart on node: %s", nodeName)
 		return ctx
 	}
+}
+
+// isCloudProviderMetadataAvailable detects if cloud provider metadata is available
+// When cloud provider metadata is available, the agent uses cloud provider ID
+// instead of generating a MAC-based ID, which means file persistence is not used
+func isCloudProviderMetadataAvailable(t *testing.T) bool {
+	t.Helper()
+
+	// Check if GCP metadata is available
+	p := utils.RunCommand(
+		"curl -s -m 2 http://metadata.google.internal/computeMetadata/v1/ " +
+			"-H 'Metadata-Flavor: Google' || echo 'not available'",
+	)
+	if p.Err() == nil {
+		output := strings.TrimSpace(p.Result())
+		if output != "not available" && !strings.Contains(output, "Could not resolve host") {
+			t.Log(
+				"Detected GCP cloud provider metadata - agent will use cloud provider ID instead of MAC-based ID",
+			)
+			return true
+		}
+	}
+
+	// Check if AWS metadata is available
+	p = utils.RunCommand(
+		"curl -s -m 2 http://169.254.169.254/latest/meta-data/ || echo 'not available'",
+	)
+	if p.Err() == nil {
+		output := strings.TrimSpace(p.Result())
+		if output != "not available" && !strings.Contains(output, "Could not resolve host") {
+			t.Log(
+				"Detected AWS cloud provider metadata - agent will use cloud provider ID instead of MAC-based ID",
+			)
+			return true
+		}
+	}
+
+	// Check if Azure metadata is available
+	p = utils.RunCommand(
+		"curl -s -m 2 -H 'Metadata:true' " +
+			"http://169.254.169.254/metadata/instance?api-version=2021-02-01 || echo 'not available'",
+	)
+	if p.Err() == nil {
+		output := strings.TrimSpace(p.Result())
+		if output != "not available" && !strings.Contains(output, "Could not resolve host") {
+			t.Log(
+				"Detected Azure cloud provider metadata - agent will use cloud provider ID instead of MAC-based ID",
+			)
+			return true
+		}
+	}
+
+	return false
 }
 
 // Made with Bob
