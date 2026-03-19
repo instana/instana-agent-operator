@@ -55,19 +55,39 @@ import (
 )
 
 func getDaemonSetBuilders(
+	ctx context.Context,
+	r *InstanaAgentReconciler,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 	statusManager status.AgentStatusManager,
-) []builder.ObjectBuilder {
+) ([]builder.ObjectBuilder, reconcileReturn) {
 	if len(agent.Spec.Zones) == 0 {
 		return []builder.ObjectBuilder{
-			agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift, statusManager),
-		}
+			agentdaemonset.NewDaemonSetBuilder(
+				agent,
+				isOpenShift,
+				statusManager,
+				shouldSetPersistHostUniqueIDEnvVar,
+			),
+		}, reconcileContinue()
 	}
 
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
 
-	for _, zone := range agent.Spec.Zones {
+	// First, collect all zone check results to ensure consistency
+	// If any check fails, we abort before creating any builders
+	zoneSettings := make([]bool, len(agent.Spec.Zones))
+	for i, zone := range agent.Spec.Zones {
+		shouldSetForZone, shouldSetRes := r.shouldSetPersistHostUniqueIDEnvVar(ctx, agent, &zone)
+		if shouldSetRes.suppliesReconcileResult() {
+			return nil, shouldSetRes
+		}
+		zoneSettings[i] = shouldSetForZone
+	}
+
+	// All checks passed, now create builders with the collected settings
+	for i, zone := range agent.Spec.Zones {
 		builders = append(
 			builders,
 			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(
@@ -75,11 +95,12 @@ func getDaemonSetBuilders(
 				isOpenShift,
 				statusManager,
 				&zone,
+				zoneSettings[i],
 			),
 		)
 	}
 
-	return builders
+	return builders, reconcileContinue()
 }
 
 func getK8sSensorDeployments(
@@ -509,6 +530,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 	operatorUtils operator_utils.OperatorUtils,
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
@@ -532,8 +554,20 @@ func (r *InstanaAgentReconciler) applyResources(
 		return reconcileFailure(err)
 	}
 
+	daemonSetBuilders, daemonSetBuildersRes := getDaemonSetBuilders(
+		ctx,
+		r,
+		agent,
+		isOpenShift,
+		shouldSetPersistHostUniqueIDEnvVar,
+		statusManager,
+	)
+	if daemonSetBuildersRes.suppliesReconcileResult() {
+		return daemonSetBuildersRes
+	}
+
 	builders := append(
-		getDaemonSetBuilders(agent, isOpenShift, statusManager),
+		daemonSetBuilders,
 		headlessservice.NewHeadlessServiceBuilder(agent),
 		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
