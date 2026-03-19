@@ -43,6 +43,67 @@ Kubernetes does not support cross-namespace volume mounts. Since k8sensor runs i
 - ✅ Leverages operator's existing cluster-level permissions
 - ✅ Handles certificate rotation automatically
 
+
+## K3s Clusters
+
+On K3s, depending on the initial cluster setup, ETCD might not be available at all, because K3s can operate with SQL databases instead (e.g. PostgreSQL, MySQL, MariaDB).
+Only if you have explicitly [configured K3s for HA ETCD](https://docs.k3s.io/datastore/ha-embedded), and also enabled the etcd metric exposure with `--etcd-expose-metrics=true`,
+only then can the ETCD metrics be collected.
+
+1. By default the exposed ETCD metrics are available on port `2381`, ensure that they are indeed available:
+```bash
+ kubectl get --server http://<YOUR_SERVERS_FQDN_OR_IP_HERE>:2381 --raw /metrics | grep etcd_server_is_leader
+```
+
+2. Get a list of `InternalIP` for nodes with ETCD role:
+```bash
+kubectl get nodes -l node-role.kubernetes.io/etcd=true -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
+```
+
+3. Create a service and fill in the IPs from the previous steps
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-metrics
+  namespace: kube-system
+  labels:
+    component: etcd
+    provider: kubernetes
+spec:
+  type: ClusterIP
+  ports:
+    - name: http # should match with the name of the endpointslice port defined below
+      protocol: TCP
+      port: 2381       # Internal service port
+      targetPort: 2381 # Port on the selected nodes
+      # Do not use a selector here! We are abstracting an out of cluster backend here, see:
+      # https://kubernetes.io/docs/concepts/services-networking/service/#services-without-selectors
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: etcd-metrics
+  namespace: kube-system
+  labels:
+    kubernetes.io/service-name: etcd-metrics # The EndpointSlice is linked to the service by mathcing this.
+    endpointslice.kubernetes.io/managed-by: cluster-admins
+addressType: IPv4
+ports:
+  - name: http # This should match with the name of the service port defined above
+    appProtocol: http
+    protocol: TCP
+    port: 2381
+endpoints:
+  - addresses:
+    - "<FIRST_IP_HERE>"
+  - addresses:
+    - "<SECOND_IP_HERE>"
+  - addresses:
+    - "<THIRD_IP_HERE>"
+```
+
 ## Vanilla Kubernetes Clusters
 
 On non-OpenShift clusters, the operator will automatically discover ETCD endpoints if:
