@@ -25,7 +25,7 @@ import (
 func TestAgentIDPersistence(t *testing.T) {
 	agent := NewAgentCr()
 
-	feature := features.New("agent ID persistence across pod restarts").
+	agentIDPersistenceFeature := features.New("agent ID persistence across pod restarts").
 		Setup(SetupOperatorDevBuild()).
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for instana-agent-controller-manager deployment to become ready",
@@ -35,28 +35,10 @@ func TestAgentIDPersistence(t *testing.T) {
 		Assess("wait for agent daemonset to become ready",
 			WaitForAgentDaemonSetToBecomeReady()).
 		Assess("verify INSTANA_PERSIST_HOST_UNIQUE_ID env var is set",
-			verifyPersistHostUniqueIDEnvVar())
-
-	// Skip persistence verification when cloud provider metadata is available
-	// Cloud provider IDs take precedence and don't use file persistence
-	if !isCloudProviderMetadataAvailable(t) {
-		feature = feature.
-			Assess("get initial agent ID from pod",
-				getAndStoreAgentID()).
-			Assess("delete agent pod to trigger restart",
-				deleteAgentPod()).
-			Assess("wait for agent daemonset to become ready after restart",
-				WaitForAgentDaemonSetToBecomeReady()).
-			Assess("verify agent ID persisted after restart",
-				verifyAgentIDPersisted())
-	} else {
-		t.Log(
-			"Skipping agent ID persistence verification - " +
-				"cloud provider metadata available, agent will use cloud provider ID",
-		)
-	}
-
-	agentIDPersistenceFeature := feature.Feature()
+			verifyPersistHostUniqueIDEnvVar()).
+		Assess("verify agent ID persistence or skip if cloud provider metadata available",
+			verifyAgentIDPersistenceOrSkip()).
+		Feature()
 
 	testEnv.Test(t, agentIDPersistenceFeature)
 }
@@ -113,6 +95,41 @@ func verifyPersistHostUniqueIDEnvVar() features.Func {
 		if !found {
 			t.Fatal("INSTANA_PERSIST_HOST_UNIQUE_ID environment variable not found")
 		}
+
+		return ctx
+	}
+}
+
+// verifyAgentIDPersistenceOrSkip checks for cloud provider metadata and either
+// verifies persistence or skips if cloud provider ID will be used
+func verifyAgentIDPersistenceOrSkip() features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		// Check for cloud provider metadata
+		ctx = checkCloudProviderMetadata()(ctx, t, cfg)
+
+		skipPersistence, ok := ctx.Value("skipPersistence").(bool)
+		if ok && skipPersistence {
+			t.Log(
+				"✓ Skipping agent ID persistence verification - " +
+					"cloud provider metadata available, agent will use cloud provider ID",
+			)
+			return ctx
+		}
+
+		// No cloud provider metadata, verify persistence
+		t.Log("✓ No cloud provider metadata - verifying agent ID persistence")
+
+		// Get initial agent ID
+		ctx = getAndStoreAgentID()(ctx, t, cfg)
+
+		// Delete pod to trigger restart
+		ctx = deleteAgentPod()(ctx, t, cfg)
+
+		// Wait for daemonset to be ready
+		ctx = WaitForAgentDaemonSetToBecomeReady()(ctx, t, cfg)
+
+		// Verify ID persisted
+		ctx = verifyAgentIDPersisted()(ctx, t, cfg)
 
 		return ctx
 	}
@@ -398,57 +415,92 @@ func verifyAgentIDPersisted() features.Func {
 	}
 }
 
-// isCloudProviderMetadataAvailable detects if cloud provider metadata is available
-// When cloud provider metadata is available, the agent uses cloud provider ID
-// instead of generating a MAC-based ID, which means file persistence is not used
-func isCloudProviderMetadataAvailable(t *testing.T) bool {
-	t.Helper()
+// checkCloudProviderMetadata checks if cloud provider metadata is available
+// and stores the result in context for later use
+func checkCloudProviderMetadata() features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Log("Checking for cloud provider metadata availability...")
 
-	// Check if GCP metadata is available
-	p := utils.RunCommand(
-		"curl -s -m 2 http://metadata.google.internal/computeMetadata/v1/ " +
-			"-H 'Metadata-Flavor: Google' || echo 'not available'",
-	)
-	if p.Err() == nil {
-		output := strings.TrimSpace(p.Result())
-		if output != "not available" && !strings.Contains(output, "Could not resolve host") {
-			t.Log(
-				"Detected GCP cloud provider metadata - agent will use cloud provider ID instead of MAC-based ID",
-			)
-			return true
+		// Get an agent pod to check from inside the cluster network
+		pods := &corev1.PodList{}
+		r, err := resources.New(cfg.Client().RESTConfig())
+		if err != nil {
+			t.Logf("Failed to create client for metadata check: %v", err)
+			return context.WithValue(ctx, "skipPersistence", false)
 		}
-	}
 
-	// Check if AWS metadata is available
-	p = utils.RunCommand(
-		"curl -s -m 2 http://169.254.169.254/latest/meta-data/ || echo 'not available'",
-	)
-	if p.Err() == nil {
-		output := strings.TrimSpace(p.Result())
-		if output != "not available" && !strings.Contains(output, "Could not resolve host") {
-			t.Log(
-				"Detected AWS cloud provider metadata - agent will use cloud provider ID instead of MAC-based ID",
-			)
-			return true
+		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
+		err = r.List(ctx, pods, listOps)
+		if err != nil || len(pods.Items) == 0 {
+			t.Logf("No agent pods found for metadata check: %v", err)
+			return context.WithValue(ctx, "skipPersistence", false)
 		}
-	}
 
-	// Check if Azure metadata is available
-	p = utils.RunCommand(
-		"curl -s -m 2 -H 'Metadata:true' " +
-			"http://169.254.169.254/metadata/instance?api-version=2021-02-01 || echo 'not available'",
-	)
-	if p.Err() == nil {
+		podName := pods.Items[0].Name
+		namespace := pods.Items[0].Namespace
+
+		// Check if GCP metadata is available from inside the pod
+		t.Log("Checking GCP metadata endpoint...")
+		p := utils.RunCommand(
+			fmt.Sprintf(
+				"kubectl exec pod/%s -n %s -c instana-agent -- "+
+					"curl -s -m 2 http://metadata.google.internal/computeMetadata/v1/ "+
+					"-H 'Metadata-Flavor: Google' 2>&1 || echo 'not available'",
+				podName,
+				namespace,
+			),
+		)
 		output := strings.TrimSpace(p.Result())
-		if output != "not available" && !strings.Contains(output, "Could not resolve host") {
-			t.Log(
-				"Detected Azure cloud provider metadata - agent will use cloud provider ID instead of MAC-based ID",
-			)
-			return true
+		t.Logf("GCP metadata check result: %s", output)
+		if p.Err() == nil && output != "not available" &&
+			!strings.Contains(output, "Could not resolve host") &&
+			!strings.Contains(output, "Connection timed out") {
+			t.Log("✓ Detected GCP cloud provider metadata - will skip persistence verification")
+			return context.WithValue(ctx, "skipPersistence", true)
 		}
-	}
 
-	return false
+		// Check if AWS metadata is available
+		t.Log("Checking AWS metadata endpoint...")
+		p = utils.RunCommand(
+			fmt.Sprintf(
+				"kubectl exec pod/%s -n %s -c instana-agent -- "+
+					"curl -s -m 2 http://169.254.169.254/latest/meta-data/ 2>&1 || echo 'not available'",
+				podName,
+				namespace,
+			),
+		)
+		output = strings.TrimSpace(p.Result())
+		t.Logf("AWS metadata check result: %s", output)
+		if p.Err() == nil && output != "not available" &&
+			!strings.Contains(output, "Could not resolve host") &&
+			!strings.Contains(output, "Connection timed out") {
+			t.Log("✓ Detected AWS cloud provider metadata - will skip persistence verification")
+			return context.WithValue(ctx, "skipPersistence", true)
+		}
+
+		// Check if Azure metadata is available
+		t.Log("Checking Azure metadata endpoint...")
+		p = utils.RunCommand(
+			fmt.Sprintf(
+				"kubectl exec pod/%s -n %s -c instana-agent -- "+
+					"curl -s -m 2 -H 'Metadata:true' "+
+					"http://169.254.169.254/metadata/instance?api-version=2021-02-01 2>&1 || echo 'not available'",
+				podName,
+				namespace,
+			),
+		)
+		output = strings.TrimSpace(p.Result())
+		t.Logf("Azure metadata check result: %s", output)
+		if p.Err() == nil && output != "not available" &&
+			!strings.Contains(output, "Could not resolve host") &&
+			!strings.Contains(output, "Connection timed out") {
+			t.Log("✓ Detected Azure cloud provider metadata - will skip persistence verification")
+			return context.WithValue(ctx, "skipPersistence", true)
+		}
+
+		t.Log("✓ No cloud provider metadata detected - will verify persistence")
+		return context.WithValue(ctx, "skipPersistence", false)
+	}
 }
 
 // Made with Bob
