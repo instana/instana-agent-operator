@@ -444,17 +444,19 @@ func checkCloudProviderMetadata() features.Func {
 		p := utils.RunCommand(
 			fmt.Sprintf(
 				"kubectl exec pod/%s -n %s -c instana-agent -- "+
-					"curl -s -m 2 http://metadata.google.internal/computeMetadata/v1/ "+
-					"-H 'Metadata-Flavor: Google' 2>&1 || echo 'not available'",
+					"curl -s -m 2 -w '\\nHTTP_CODE:%%{http_code}' "+
+					"http://metadata.google.internal/computeMetadata/v1/ "+
+					"-H 'Metadata-Flavor: Google' 2>&1",
 				podName,
 				namespace,
 			),
 		)
 		output := strings.TrimSpace(p.Result())
 		t.Logf("GCP metadata check result: %s", output)
-		if p.Err() == nil && output != "not available" &&
-			!strings.Contains(output, "Could not resolve host") &&
-			!strings.Contains(output, "Connection timed out") {
+		// Check if we got a successful response (contains metadata paths or HTTP 200)
+		if strings.Contains(output, "instance/") ||
+			strings.Contains(output, "project/") ||
+			strings.Contains(output, "HTTP_CODE:200") {
 			t.Log("✓ Detected GCP cloud provider metadata - will skip persistence verification")
 			return context.WithValue(ctx, "skipPersistence", true)
 		}
@@ -464,16 +466,18 @@ func checkCloudProviderMetadata() features.Func {
 		p = utils.RunCommand(
 			fmt.Sprintf(
 				"kubectl exec pod/%s -n %s -c instana-agent -- "+
-					"curl -s -m 2 http://169.254.169.254/latest/meta-data/ 2>&1 || echo 'not available'",
+					"curl -s -m 2 -w '\\nHTTP_CODE:%%{http_code}' "+
+					"http://169.254.169.254/latest/meta-data/ 2>&1",
 				podName,
 				namespace,
 			),
 		)
 		output = strings.TrimSpace(p.Result())
 		t.Logf("AWS metadata check result: %s", output)
-		if p.Err() == nil && output != "not available" &&
-			!strings.Contains(output, "Could not resolve host") &&
-			!strings.Contains(output, "Connection timed out") {
+		// Check if we got a successful response (contains metadata or HTTP 200)
+		if strings.Contains(output, "ami-id") ||
+			strings.Contains(output, "instance-id") ||
+			strings.Contains(output, "HTTP_CODE:200") {
 			t.Log("✓ Detected AWS cloud provider metadata - will skip persistence verification")
 			return context.WithValue(ctx, "skipPersistence", true)
 		}
@@ -483,17 +487,18 @@ func checkCloudProviderMetadata() features.Func {
 		p = utils.RunCommand(
 			fmt.Sprintf(
 				"kubectl exec pod/%s -n %s -c instana-agent -- "+
-					"curl -s -m 2 -H 'Metadata:true' "+
-					"http://169.254.169.254/metadata/instance?api-version=2021-02-01 2>&1 || echo 'not available'",
+					"curl -s -m 2 -w '\\nHTTP_CODE:%%{http_code}' -H 'Metadata:true' "+
+					"http://169.254.169.254/metadata/instance?api-version=2021-02-01 2>&1",
 				podName,
 				namespace,
 			),
 		)
 		output = strings.TrimSpace(p.Result())
 		t.Logf("Azure metadata check result: %s", output)
-		if p.Err() == nil && output != "not available" &&
-			!strings.Contains(output, "Could not resolve host") &&
-			!strings.Contains(output, "Connection timed out") {
+		// Check if we got a successful response (contains compute info or HTTP 200)
+		if strings.Contains(output, "\"compute\"") ||
+			strings.Contains(output, "\"vmId\"") ||
+			strings.Contains(output, "HTTP_CODE:200") {
 			t.Log("✓ Detected Azure cloud provider metadata - will skip persistence verification")
 			return context.WithValue(ctx, "skipPersistence", true)
 		}
