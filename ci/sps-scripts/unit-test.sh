@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2026
+#
 set -euo pipefail
 # note: PIPELINE_CONFIG_REPO_PATH will point to config, not to the app folder with the current branch, use APP_REPO_FOLDER instead
 if [[ "$PIPELINE_DEBUG" == 1 ]]; then
@@ -6,7 +9,8 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
-source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh amd64
+cd $WORKSPACE/$APP_REPO_FOLDER
+source installGolang.sh amd64
 export PATH=$PATH:/usr/local/go/bin
 make generate
 go install
