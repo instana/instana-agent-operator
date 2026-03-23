@@ -7,6 +7,7 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
+cd $WORKSPACE/$APP_REPO_FOLDER
 export GIT_COMMIT="$(get_env branch || echo "latest")"
 
 dnf -y install microdnf
