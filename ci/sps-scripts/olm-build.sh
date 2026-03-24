@@ -7,6 +7,7 @@ if [[ "$PIPELINE_DEBUG" == 1 ]]; then
 	env
 	set -x
 fi
+cd $WORKSPACE/$APP_REPO_FOLDER
 # Load environment variables - use commit hash, not branch name
 GIT_COMMIT=$(load_repo app-repo commit)
 BRANCH_NAME=$(load_repo app-repo branch)

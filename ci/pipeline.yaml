@@ -8,6 +8,7 @@ groups:
     - self-update
     - manual-patch-trigger
     - manual-minor-trigger
+    - unit-tests
     - tag-release
     - docker-build
     - end-to-end-tests
@@ -278,6 +279,64 @@ jobs:
       - put: version-increment-type
         params:
           directory: increment-type
+
+  - name: unit-tests
+    max_in_flight: 1
+    on_success:
+      put: gh-status
+      inputs: [ agent-operator-git-source ]
+      params: { state: success, context: unit-tests }
+    on_failure:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator unit-tests have failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: failure, context: unit-tests }
+    on_error:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator unit-tests have failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: error, context: unit-tests }
+    on_abort:
+      put: gh-status
+      inputs: [ agent-operator-git-source ]
+      params: { state: error, context: unit-tests }
+    plan:
+      - get: agent-operator-git-source
+      - get: version-increment-type
+        trigger: true
+      - task: run-unit-tests
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((icr-api-key.username))
+              password: ((icr-api-key.password))
+          inputs:
+            - name: agent-operator-git-source
+          run:
+            path: bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+                cd agent-operator-git-source
+                source installGolang.sh amd64
+                export PATH=$PATH:/usr/local/go/bin
+                make test
 
   - name: docker-build
     max_in_flight: 1

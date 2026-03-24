@@ -5,6 +5,16 @@ set -euo pipefail
 GO_VERSION="1.26.1"
 ARCHITECTURE="${1}"
 
+# Make sure to remove the old go version, otherwise weird runtime errors may occur
+# Example error when 1.26.1 is installed on 1.25 without removing the old install first
+# internal/abi
+# /usr/local/go/src/internal/abi/map_swiss.go:25:2: ctrlEmpty redeclared in this block
+# 	/usr/local/go/src/internal/abi/map.go:25:2: other declaration of ctrlEmpty
+# /usr/local/go/src/internal/abi/map_swiss.go:26:2: bitsetLSB redeclared in this block
+# 	/usr/local/go/src/internal/abi/map.go:26:2: other declaration of bitsetLSB
+echo === Removing old golang if present ===
+rm -rf /usr/local/go
+
 echo "=== Installing Golang ${GO_VERSION} ==="
 echo "Downloading golang binaries"
 curl -sLo "go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz"
