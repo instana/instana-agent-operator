@@ -25,14 +25,6 @@ RUN dnf update -y && dnf install -y \
     kubectl \
     && pip3 install pyyaml
 
-# Install go
-ENV GOPATH=/go
-COPY go.mod /go.mod
-COPY installGolang.sh /installGolang.sh
-RUN /installGolang.sh amd64 && rm /installGolang.sh /go.mod
-ENV PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"
-
-
 # Install required gcloud package
 RUN yum install -y google-cloud-sdk-gke-gcloud-auth-plugin
 
