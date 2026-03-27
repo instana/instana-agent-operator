@@ -60,7 +60,7 @@ only then can the ETCD metrics be collected.
 kubectl get nodes -l node-role.kubernetes.io/etcd=true -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
 ```
 
-3. Create a service and fill in the IPs from the previous steps
+3. Use the following service template, fill in the IPs from the previous steps, and create the service:
 
 ```yaml
 apiVersion: v1
@@ -74,7 +74,10 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - name: http # should match with the name of the endpointslice port defined below
+    # This has to be called `metrics` verbatim in order to be auto discovered by the operator,
+    # also this should match with the name of the endpointslice port defined below in order to
+    # reach a functional kubernetes service.
+    - name: metrics
       protocol: TCP
       port: 2381       # Internal service port
       targetPort: 2381 # Port on the selected nodes
@@ -91,7 +94,7 @@ metadata:
     endpointslice.kubernetes.io/managed-by: cluster-admins
 addressType: IPv4
 ports:
-  - name: http # This should match with the name of the service port defined above
+  - name: metrics # This should match with the name of the service port defined above
     appProtocol: http
     protocol: TCP
     port: 2381
