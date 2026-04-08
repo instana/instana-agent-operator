@@ -33,7 +33,8 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
-func (r *InstanaAgentReconciler) isOpenShift(
+var IsOpenShift = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	operatorUtils operator_utils.OperatorUtils,
 ) (
@@ -77,7 +78,6 @@ func (r *InstanaAgentReconciler) shouldSetPersistHostUniqueIDEnvVar(
 		Name:      dsName,
 		Namespace: agent.Namespace,
 	}, existingDS)
-
 	// If DaemonSet doesn't exist, this is a new deployment - set the env var
 	if err != nil {
 		if apierrors.IsNotFound(err) {

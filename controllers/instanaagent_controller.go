@@ -148,7 +148,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		return addFinalizerRes
 	}
 
-	isOpenShift, isOpenShiftRes := r.isOpenShift(ctx, operatorUtils)
+	isOpenShift, isOpenShiftRes := IsOpenShift(r, ctx, operatorUtils)
 	if isOpenShiftRes.suppliesReconcileResult() {
 		return isOpenShiftRes
 	}

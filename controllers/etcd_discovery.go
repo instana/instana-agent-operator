@@ -54,7 +54,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	log := r.loggerFor(ctx, agent)
 
 	// Step 1: Check if discovery should be skipped
-	shouldSkip, err := r.shouldSkipDiscovery(ctx, agent)
+	shouldSkip, err := ShouldSkipDiscovery(r, ctx, agent)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	}
 
 	// Step 2: Find etcd service
-	etcdService, err := r.findETCDService(ctx, log)
+	etcdService, err := FindETCDService(r, ctx, log)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	log.Info("Found etcd service", "name", etcdService.Name)
 
 	// Step 3: Find metrics port and determine scheme
-	metricsPortPtr, scheme := r.findMetricsPortAndScheme(etcdService)
+	metricsPortPtr, scheme := FindMetricsPortAndScheme(r, etcdService)
 	if metricsPortPtr == nil {
 		log.Info("No metrics port found in etcd service")
 		return nil, nil
@@ -84,7 +84,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	metricsPort := *metricsPortPtr
 
 	// Step 4: Get endpoints and build targets
-	targets, err := r.buildTargetsFromEndpoints(ctx, etcdService, metricsPort, scheme)
+	targets, err := BuildTargetsFromEndpoints(r, ctx, etcdService, metricsPort, scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	}
 
 	// Step 5: Check for CA secret and return results
-	caSecretExists := r.checkCASecretExists(ctx, agent)
+	caSecretExists := CheckCASecretExists(r, ctx, agent)
 
 	log.Info("Discovered etcd targets", "targets", targets, "caFound", caSecretExists)
 
@@ -104,13 +104,14 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	}, nil
 }
 
-// shouldSkipDiscovery checks if ETCD discovery should be skipped
-func (r *InstanaAgentReconciler) shouldSkipDiscovery(
+// ShouldSkipDiscovery checks if ETCD discovery should be skipped
+var ShouldSkipDiscovery = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 ) (bool, error) {
 	operatorUtils := operator_utils.NewOperatorUtils(ctx, r.client, agent, nil)
-	isOpenShift, isOpenShiftRes := r.isOpenShift(ctx, operatorUtils)
+	isOpenShift, isOpenShiftRes := IsOpenShift(r, ctx, operatorUtils)
 
 	if isOpenShiftRes.suppliesReconcileResult() {
 		return false, fmt.Errorf("failed to determine if cluster is OpenShift")
@@ -130,20 +131,21 @@ func (r *InstanaAgentReconciler) shouldSkipDiscovery(
 	return false, nil
 }
 
-// findETCDService attempts to find an etcd service in the kube-system namespace
-func (r *InstanaAgentReconciler) findETCDService(
+// FindETCDService attempts to find an etcd service in the kube-system namespace
+var FindETCDService = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	log logr.Logger,
 ) (*corev1.Service, error) {
 	// Try services with component=etcd label first
-	if service, err := r.getServiceWithLabel(ctx, "etcd", "component", "etcd"); err != nil {
+	if service, err := GetServiceWithLabel(r, ctx, "etcd", "component", "etcd"); err != nil {
 		return nil, err
 	} else if service != nil {
 		log.Info("Found etcd service with component=etcd label", "name", service.Name)
 		return service, nil
 	}
 
-	if service, err := r.getServiceWithLabel(ctx, "etcd-metrics", "component", "etcd"); err != nil {
+	if service, err := GetServiceWithLabel(r, ctx, "etcd-metrics", "component", "etcd"); err != nil {
 		return nil, err
 	} else if service != nil {
 		log.Info("Found etcd-metrics service with component=etcd label", "name", service.Name)
@@ -156,7 +158,7 @@ func (r *InstanaAgentReconciler) findETCDService(
 	// Try by name in sequence
 	serviceNames := []string{"etcd", "etcd-metrics", "etcd-k8s"}
 	for _, name := range serviceNames {
-		service, err := r.getServiceByName(ctx, name)
+		service, err := GetServiceByName(r, ctx, name)
 		if err != nil {
 			return nil, err
 		}
@@ -168,8 +170,9 @@ func (r *InstanaAgentReconciler) findETCDService(
 	return nil, nil
 }
 
-// getServiceWithLabel gets a service with the specified name and checks if it has the expected label
-func (r *InstanaAgentReconciler) getServiceWithLabel(
+// GetServiceWithLabel gets a service with the specified name and checks if it has the expected label
+var GetServiceWithLabel = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	name, labelKey, labelValue string,
 ) (*corev1.Service, error) {
@@ -192,8 +195,9 @@ func (r *InstanaAgentReconciler) getServiceWithLabel(
 	return service, nil
 }
 
-// getServiceByName gets a service by name
-func (r *InstanaAgentReconciler) getServiceByName(
+// GetServiceByName gets a service by name
+var GetServiceByName = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	name string,
 ) (*corev1.Service, error) {
@@ -212,8 +216,9 @@ func (r *InstanaAgentReconciler) getServiceByName(
 	return service, nil
 }
 
-// findMetricsPortAndScheme finds the metrics port and determines the scheme
-func (r *InstanaAgentReconciler) findMetricsPortAndScheme(
+// FindMetricsPortAndScheme finds the metrics port and determines the scheme
+var FindMetricsPortAndScheme = func(
+	r *InstanaAgentReconciler,
 	service *corev1.Service,
 ) (*int32, string) {
 	for _, port := range service.Spec.Ports {
@@ -239,8 +244,9 @@ func (r *InstanaAgentReconciler) findMetricsPortAndScheme(
 	return nil, ""
 }
 
-// buildTargetsFromEndpoints builds targets from service endpoint slices
-func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(
+// BuildTargetsFromEndpoints builds targets from service endpoint slices
+var BuildTargetsFromEndpoints = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	service *corev1.Service,
 	metricsPort int32,
@@ -266,7 +272,7 @@ func (r *InstanaAgentReconciler) buildTargetsFromEndpoints(
 	}
 
 	if len(targets) == 0 {
-		legacyTargets, err := r.buildTargetsFromLegacyEndpoints(ctx, service, metricsPort, scheme)
+		legacyTargets, err := BuildTargetsFromLegacyEndpoints(r, ctx, service, metricsPort, scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +319,8 @@ func buildTargetsFromEndpointSlice(
 	return targets
 }
 
-func (r *InstanaAgentReconciler) buildTargetsFromLegacyEndpoints(
+var BuildTargetsFromLegacyEndpoints = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	service *corev1.Service,
 	metricsPort int32,
@@ -350,8 +357,9 @@ func (r *InstanaAgentReconciler) buildTargetsFromLegacyEndpoints(
 	return targets, nil
 }
 
-// checkCASecretExists checks if the etcd-ca secret exists in the agent namespace
-func (r *InstanaAgentReconciler) checkCASecretExists(
+// CheckCASecretExists checks if the etcd-ca secret exists in the agent namespace
+var CheckCASecretExists = func(
+	r *InstanaAgentReconciler,
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 ) bool {
