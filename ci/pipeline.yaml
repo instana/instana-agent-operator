@@ -560,6 +560,8 @@ jobs:
                   - -ceu
                   - |
                     cd agent-operator-git-source
+                    source ./installGolang.sh amd64
+                    export PATH=$PATH:/usr/local/go/bin
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             on_success:
@@ -667,6 +669,8 @@ jobs:
                   - -ceu
                   - |
                     cd agent-operator-git-source
+                    source ./installGolang.sh amd64
+                    export PATH=$PATH:/usr/local/go/bin
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             on_success:
@@ -1117,6 +1121,8 @@ jobs:
                 fi
 
                 pushd agent-operator-git-source
+                source ./installGolang.sh amd64
+                export PATH=$PATH:/usr/local/go/bin
 
                 # Create a place to store our output for packaging up
                 mkdir -p target
