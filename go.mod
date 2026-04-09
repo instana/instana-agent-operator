@@ -151,4 +151,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
+// Replace required to override helm.sh/helm/v4's transitive dependency on grpc v1.78.0
+// which contains CVE-2026-33186 (authorization bypass via malformed :path headers).
+// This can be removed once helm.sh/helm/v4 updates its grpc dependency to v1.79.3+.
+// See: https://github.com/instana/instana-agent-operator/pull/480
 replace google.golang.org/grpc => google.golang.org/grpc v1.80.0
