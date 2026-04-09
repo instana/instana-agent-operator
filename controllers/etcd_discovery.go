@@ -178,7 +178,6 @@ func (r *InstanaAgentReconciler) getServiceWithLabel(
 		Namespace: kubeSystemNamespace,
 		Name:      name,
 	}, service)
-
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -203,7 +202,6 @@ func (r *InstanaAgentReconciler) getServiceByName(
 		Namespace: kubeSystemNamespace,
 		Name:      name,
 	}, service)
-
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -219,25 +217,25 @@ func (r *InstanaAgentReconciler) findMetricsPortAndScheme(
 	service *corev1.Service,
 ) (*int32, string) {
 	for _, port := range service.Spec.Ports {
-		if port.Name == "metrics" {
-			// Use switch/case for scheme determination
-			scheme := "https" // Default to https for unknown ports
-			switch port.Port {
-			case constants.ETCDMetricsPortHTTPS:
-				scheme = "https"
-			case constants.ETCDMetricsPortHTTP:
-				scheme = "http"
-			}
-
-			// Check for scheme annotation override
-			if schemeOverride, ok := service.Annotations["instana.io/etcd-scheme"]; ok {
-				scheme = schemeOverride
-			}
-
-			return &port.Port, scheme
+		if port.Name != "metrics" {
+			continue
 		}
-	}
+		// Use switch/case for scheme determination
+		scheme := "https" // Default to https for unknown ports
+		switch port.Port {
+		case constants.ETCDMetricsPortHTTPS:
+			scheme = "https"
+		case constants.ETCDMetricsPortHTTP:
+			scheme = "http"
+		}
 
+		// Check for scheme annotation override
+		if schemeOverride, ok := service.Annotations["instana.io/etcd-scheme"]; ok {
+			scheme = schemeOverride
+		}
+
+		return &port.Port, scheme
+	}
 	return nil, ""
 }
 
