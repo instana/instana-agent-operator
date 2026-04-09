@@ -33,8 +33,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
 
-var IsOpenShift = func(
-	r *InstanaAgentReconciler,
+func (r *InstanaAgentReconciler) isOpenShift(
 	ctx context.Context,
 	operatorUtils operator_utils.OperatorUtils,
 ) (
