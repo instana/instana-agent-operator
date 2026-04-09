@@ -151,4 +151,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.79.3
+replace google.golang.org/grpc => google.golang.org/grpc v1.80.0
