@@ -77,7 +77,6 @@ func (r *InstanaAgentReconciler) shouldSetPersistHostUniqueIDEnvVar(
 		Name:      dsName,
 		Namespace: agent.Namespace,
 	}, existingDS)
-
 	// If DaemonSet doesn't exist, this is a new deployment - set the env var
 	if err != nil {
 		if apierrors.IsNotFound(err) {
