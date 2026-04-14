@@ -19,64 +19,22 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
-	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 )
-
-// Type aliases to make function signatures more readable
-type (
-	// IsOpenShiftFunc is a function that checks if the cluster is OpenShift
-	IsOpenShiftFunc func(ctx context.Context, operatorUtils operator_utils.OperatorUtils) (bool, reconcileReturn)
-
-	// SkipDiscoveryFunc is a function that checks if ETCD discovery should be skipped
-	SkipDiscoveryFunc func(ctx context.Context, agent *instanav1.InstanaAgent, logger logr.Logger,
-		isOpenShiftFunc IsOpenShiftFunc) (bool, error)
-
-	// FindServiceFunc is a function that finds an ETCD service
-	FindServiceFunc func(ctx context.Context, client client.Client, logger logr.Logger) (*corev1.Service, error)
-
-	// FindPortAndSchemeFunc is a function that finds the metrics port and scheme
-	FindPortAndSchemeFunc func(service *corev1.Service) (*int32, string)
-
-	// BuildTargetsFunc is a function that builds targets from endpoint slices
-	BuildTargetsFunc func(ctx context.Context, client client.Client, service *corev1.Service,
-		metricsPort int32, scheme string) ([]string, error)
-
-	// CheckCASecretFunc is a function that checks if the CA secret exists
-	CheckCASecretFunc func(ctx context.Context, client client.Client,
-		agent *instanav1.InstanaAgent, logger logr.Logger) bool
-)
-
-// mockETCDReconciler is a simplified version of InstanaAgentReconciler for testing
-type mockETCDReconciler struct {
-	client client.Client
-	scheme *runtime.Scheme
-	logger logr.Logger
-}
-
-func (r *mockETCDReconciler) loggerFor(
-	ctx context.Context,
-	agent *instanav1.InstanaAgent,
-) logr.Logger {
-	return r.logger
-}
 
 // Mock client that returns errors for specific operations
 type errorMockClient struct {
@@ -86,7 +44,8 @@ type errorMockClient struct {
 
 // Get implements client.Client
 func (c *errorMockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object,
-	opts ...client.GetOption) error {
+	opts ...client.GetOption,
+) error {
 	return c.err
 }
 
@@ -108,14 +67,15 @@ type selectiveErrorMockClient struct {
 
 // Get implements client.Client
 func (c *selectiveErrorMockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object,
-	opts ...client.GetOption) error {
+	opts ...client.GetOption,
+) error {
 	if key.Name == c.errorForName {
 		return c.err
 	}
 	return c.Client.Get(ctx, key, obj, opts...)
 }
 
-// TestShouldSkipDiscovery tests the shouldSkipDiscovery function
+// TestShouldSkipDiscovery tests the ShouldSkipDiscovery function
 func TestShouldSkipDiscovery(t *testing.T) {
 	// Setup
 	scheme := runtime.NewScheme()
@@ -167,9 +127,6 @@ func TestShouldSkipDiscovery(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a fake client
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-
 			// Create agent with or without ETCD targets
 			agent := &instanav1.InstanaAgent{
 				ObjectMeta: metav1.ObjectMeta{
@@ -185,25 +142,28 @@ func TestShouldSkipDiscovery(t *testing.T) {
 				},
 			}
 
-			// Create mock reconciler
-			reconciler := &mockETCDReconciler{
-				client: fakeClient,
-				scheme: scheme,
-				logger: zap.New(),
+			// Create a custom discoverer for testing that handles isOpenShift logic
+			mockDiscoverer := &MockETCDDiscoverer{
+				ShouldSkipDiscoveryFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error) {
+					// Simulate isOpenShift check
+					if tc.isOpenShiftErr {
+						return false, fmt.Errorf("failed to determine if cluster is OpenShift")
+					}
+
+					if tc.isOpenShift {
+						return true, nil
+					}
+
+					if len(agent.Spec.K8sSensor.ETCD.Targets) > 0 {
+						return true, nil
+					}
+
+					return false, nil
+				},
 			}
 
-			// Mock isOpenShift function
-			mockIsOpenShift := func(ctx context.Context, operatorUtils operator_utils.OperatorUtils) (bool, reconcileReturn) {
-				if tc.isOpenShiftErr {
-					return false, reconcileFailure(fmt.Errorf("isOpenShift error"))
-				}
-				return tc.isOpenShift, reconcileContinue()
-			}
-
-			// Test
 			ctx := context.Background()
-			logger := reconciler.loggerFor(ctx, agent)
-			skip, err := shouldSkipDiscovery(ctx, agent, logger, mockIsOpenShift)
+			skip, err := mockDiscoverer.ShouldSkipDiscovery(ctx, agent)
 
 			// Verify
 			if tc.expectedErr {
@@ -221,7 +181,7 @@ func TestShouldSkipDiscovery(t *testing.T) {
 	}
 }
 
-// TestGetServiceWithLabel tests the getServiceWithLabel function
+// TestGetServiceWithLabel tests the GetServiceWithLabel function
 func TestGetServiceWithLabel(t *testing.T) {
 	// Setup
 	scheme := runtime.NewScheme()
@@ -332,11 +292,17 @@ func TestGetServiceWithLabel(t *testing.T) {
 				mockClient = fakeClient
 			}
 
-			// Test
+			// Create real reconciler
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(mockClient),
+				scheme: scheme,
+			}
+
+			// Create discoverer and test
+			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
-			service, err := getServiceWithLabel(
+			service, err := discoverer.GetServiceWithLabel(
 				ctx,
-				mockClient,
 				tc.serviceName,
 				tc.labelKey,
 				tc.labelValue,
@@ -358,7 +324,7 @@ func TestGetServiceWithLabel(t *testing.T) {
 	}
 }
 
-// TestGetServiceByName tests the getServiceByName function
+// TestGetServiceByName tests the GetServiceByName function
 func TestGetServiceByName(t *testing.T) {
 	// Setup
 	scheme := runtime.NewScheme()
@@ -430,9 +396,16 @@ func TestGetServiceByName(t *testing.T) {
 				mockClient = fakeClient
 			}
 
-			// Test
+			// Create real reconciler
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(mockClient),
+				scheme: scheme,
+			}
+
+			// Create discoverer and test
+			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
-			service, err := getServiceByName(ctx, mockClient, tc.serviceName)
+			service, err := discoverer.GetServiceByName(ctx, tc.serviceName)
 
 			// Verify
 			if tc.expectError {
@@ -540,7 +513,7 @@ func TestFindETCDService(t *testing.T) {
 			expectError:     false,
 		},
 		{
-			name: "Should propagate error from getServiceWithLabel",
+			name: "Should propagate error from GetServiceWithLabel",
 			services: []corev1.Service{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -582,10 +555,17 @@ func TestFindETCDService(t *testing.T) {
 				mockClient = fakeClient
 			}
 
-			// Test
+			// Create real reconciler
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(mockClient),
+				scheme: scheme,
+			}
+
+			// Create discoverer and test
+			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
 			logger := ctrl.Log.WithName("test")
-			service, err := findETCDService(ctx, mockClient, logger)
+			service, err := discoverer.FindETCDService(ctx, logger)
 
 			// Verify
 			if tc.expectError {
@@ -697,8 +677,17 @@ func TestFindMetricsPortAndScheme(t *testing.T) {
 				},
 			}
 
-			// Test
-			port, scheme := findMetricsPortAndScheme(service)
+			// Create real reconciler
+			clientScheme := runtime.NewScheme()
+			fakeClient := fake.NewClientBuilder().WithScheme(clientScheme).Build()
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(fakeClient),
+				scheme: clientScheme,
+			}
+
+			// Create discoverer and test
+			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
+			port, scheme := discoverer.FindMetricsPortAndScheme(service)
 
 			// Verify
 			if tc.expectPortFound {
@@ -970,11 +959,17 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 				mockClient = fakeClient
 			}
 
-			// Test
+			// Create real reconciler
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(mockClient),
+				scheme: scheme,
+			}
+
+			// Create discoverer and test
+			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
-			targets, err := buildTargetsFromEndpoints(
+			targets, err := discoverer.BuildTargetsFromEndpoints(
 				ctx,
-				mockClient,
 				tc.service,
 				tc.metricsPort,
 				tc.scheme,
@@ -991,7 +986,7 @@ func TestBuildTargetsFromEndpoints(t *testing.T) {
 	}
 }
 
-// TestCheckCASecretExists tests the checkCASecretExists function
+// TestCheckCASecretExists tests the CheckCASecretExists function
 func TestCheckCASecretExists(t *testing.T) {
 	// Setup
 	scheme := runtime.NewScheme()
@@ -1043,10 +1038,16 @@ func TestCheckCASecretExists(t *testing.T) {
 			// Build the client
 			fakeClient := clientBuilder.Build()
 
-			// Test
+			// Create real reconciler
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(fakeClient),
+				scheme: scheme,
+			}
+
+			// Create discoverer and test
+			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
-			logger := ctrl.Log.WithName("test")
-			found := checkCASecretExists(ctx, fakeClient, agent, logger)
+			found := discoverer.CheckCASecretExists(ctx, agent)
 
 			// Verify
 			assert.Equal(t, tc.expectedFound, found, "CA secret found status should match expected")
@@ -1175,60 +1176,46 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 				},
 			}
 
-			// Create mock functions
-			mockShouldSkipDiscovery := func(
-				ctx context.Context,
-				agent *instanav1.InstanaAgent,
-				logger logr.Logger,
-				isOpenShiftFunc IsOpenShiftFunc,
-			) (bool, error) {
-				return tc.shouldSkip, tc.shouldSkipErr
+			// Create real reconciler with mock discoverer
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			reconciler := &InstanaAgentReconciler{
+				client: instanaclient.NewInstanaAgentClient(fakeClient),
+				scheme: scheme,
 			}
 
-			mockFindETCDService := func(ctx context.Context, client client.Client, logger logr.Logger) (*corev1.Service, error) {
-				return tc.findServiceResult, tc.findServiceErr
+			// Create mock discoverer
+			mockDiscoverer := &MockETCDDiscoverer{
+				ShouldSkipDiscoveryFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error) {
+					return tc.shouldSkip, tc.shouldSkipErr
+				},
+				FindETCDServiceFunc: func(ctx context.Context, log logr.Logger) (*corev1.Service, error) {
+					return tc.findServiceResult, tc.findServiceErr
+				},
+				FindMetricsPortAndSchemeFunc: func(service *corev1.Service) (*int32, string) {
+					if tc.metricsPort == 0 {
+						return nil, tc.scheme
+					}
+					return &tc.metricsPort, tc.scheme
+				},
+				BuildTargetsFromEndpointsFunc: func(
+					ctx context.Context,
+					service *corev1.Service,
+					metricsPort int32,
+					scheme string,
+				) ([]string, error) {
+					return tc.buildTargetsResult, tc.buildTargetsErr
+				},
+				CheckCASecretExistsFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) bool {
+					return tc.caSecretExists
+				},
 			}
-
-			mockFindMetricsPortAndScheme := func(service *corev1.Service) (*int32, string) {
-				if tc.metricsPort == 0 {
-					return nil, tc.scheme
-				}
-				return &tc.metricsPort, tc.scheme
-			}
-
-			mockBuildTargetsFromEndpoints := func(
-				ctx context.Context,
-				client client.Client,
-				service *corev1.Service,
-				metricsPort int32,
-				scheme string,
-			) ([]string, error) {
-				return tc.buildTargetsResult, tc.buildTargetsErr
-			}
-
-			mockCheckCASecretExists := func(
-				ctx context.Context,
-				client client.Client,
-				agent *instanav1.InstanaAgent,
-				logger logr.Logger,
-			) bool {
-				return tc.caSecretExists
-			}
+			reconciler.etcdDiscoverer = mockDiscoverer
 
 			// Test
 			ctx := context.Background()
-			logger := ctrl.Log.WithName("test")
-			result, err := discoverETCDEndpoints(
+			result, err := reconciler.DiscoverETCDEndpoints(
 				ctx,
-				nil, // client not used due to mocks
 				agent,
-				logger,
-				nil, // isOpenShiftFunc not used due to mocks
-				mockShouldSkipDiscovery,
-				mockFindETCDService,
-				mockFindMetricsPortAndScheme,
-				mockBuildTargetsFromEndpoints,
-				mockCheckCASecretExists,
 			)
 
 			// Verify
@@ -1247,303 +1234,4 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper functions that match the signatures of the methods in InstanaAgentReconciler
-// These are the functions we're testing
-
-func shouldSkipDiscovery(
-	ctx context.Context,
-	agent *instanav1.InstanaAgent,
-	logger logr.Logger,
-	isOpenShiftFunc IsOpenShiftFunc,
-) (bool, error) {
-	operatorUtils := operator_utils.NewOperatorUtils(ctx, nil, agent, nil)
-	isOpenShift, isOpenShiftRes := isOpenShiftFunc(ctx, operatorUtils)
-
-	if isOpenShiftRes.suppliesReconcileResult() {
-		return false, fmt.Errorf("failed to determine if cluster is OpenShift")
-	}
-
-	if isOpenShift {
-		logger.Info("Skipping ETCD discovery on OpenShift cluster")
-		return true, nil
-	}
-
-	if len(agent.Spec.K8sSensor.ETCD.Targets) > 0 {
-		logger.Info("Using ETCD targets from CR spec", "targets", agent.Spec.K8sSensor.ETCD.Targets)
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func getServiceWithLabel(
-	ctx context.Context,
-	client client.Client,
-	name, labelKey, labelValue string,
-) (*corev1.Service, error) {
-	service := &corev1.Service{}
-	err := client.Get(ctx, types.NamespacedName{
-		Namespace: kubeSystemNamespace,
-		Name:      name,
-	}, service)
-
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	if service.Labels == nil || service.Labels[labelKey] != labelValue {
-		return nil, nil
-	}
-
-	return service, nil
-}
-
-func getServiceByName(
-	ctx context.Context,
-	client client.Client,
-	name string,
-) (*corev1.Service, error) {
-	service := &corev1.Service{}
-	err := client.Get(ctx, types.NamespacedName{
-		Namespace: kubeSystemNamespace,
-		Name:      name,
-	}, service)
-
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return service, nil
-}
-
-func findETCDService(
-	ctx context.Context,
-	client client.Client,
-	logger logr.Logger,
-) (*corev1.Service, error) {
-	// Try services with component=etcd label first
-	if service, err := getServiceWithLabel(ctx, client, "etcd", "component", "etcd"); err != nil {
-		return nil, err
-	} else if service != nil {
-		logger.Info("Found etcd service with component=etcd label", "name", service.Name)
-		return service, nil
-	}
-
-	if service, err := getServiceWithLabel(ctx, client, "etcd-metrics", "component", "etcd"); err != nil {
-		return nil, err
-	} else if service != nil {
-		logger.Info("Found etcd-metrics service with component=etcd label", "name", service.Name)
-		return service, nil
-	}
-
-	// Fallback to name-based search
-	logger.Info("No service found with component=etcd label, trying by name")
-
-	// Try by name in sequence
-	serviceNames := []string{"etcd", "etcd-metrics", "etcd-k8s"}
-	for _, name := range serviceNames {
-		service, err := getServiceByName(ctx, client, name)
-		if err != nil {
-			return nil, err
-		}
-		if service != nil {
-			return service, nil
-		}
-	}
-
-	return nil, nil
-}
-
-func findMetricsPortAndScheme(service *corev1.Service) (*int32, string) {
-	for _, port := range service.Spec.Ports {
-		if port.Name == "metrics" {
-			// Use switch/case for scheme determination
-			scheme := "https" // Default to https for unknown ports
-			switch port.Port {
-			case constants.ETCDMetricsPortHTTPS:
-				scheme = "https"
-			case constants.ETCDMetricsPortHTTP:
-				scheme = "http"
-			}
-
-			// Check for scheme annotation override
-			if schemeOverride, ok := service.Annotations["instana.io/etcd-scheme"]; ok {
-				scheme = schemeOverride
-			}
-
-			return &port.Port, scheme
-		}
-	}
-
-	return nil, ""
-}
-
-func buildTargetsFromEndpoints(
-	ctx context.Context,
-	k8sClient client.Client,
-	service *corev1.Service,
-	metricsPort int32,
-	scheme string,
-) ([]string, error) {
-	endpointSlices := &discoveryv1.EndpointSliceList{}
-	if err := k8sClient.List(
-		ctx,
-		endpointSlices,
-		client.InNamespace(kubeSystemNamespace),
-		client.MatchingLabels(map[string]string{discoveryv1.LabelServiceName: service.Name}),
-	); err != nil {
-		return nil, err
-	}
-
-	targets := make([]string, 0)
-
-	for i := range endpointSlices.Items {
-		sliceTargets := buildTargetsFromEndpointSlice(&endpointSlices.Items[i], metricsPort, scheme)
-		targets = append(targets, sliceTargets...)
-	}
-
-	if len(targets) == 0 {
-		legacyTargets, err := buildTargetsFromLegacyEndpoints(
-			ctx,
-			k8sClient,
-			service,
-			metricsPort,
-			scheme,
-		)
-		if err != nil {
-			return nil, err
-		}
-		targets = append(targets, legacyTargets...)
-	}
-
-	sort.Strings(targets)
-
-	return targets, nil
-}
-
-func buildTargetsFromLegacyEndpoints(
-	ctx context.Context,
-	k8sClient client.Client,
-	service *corev1.Service,
-	metricsPort int32,
-	scheme string,
-) ([]string, error) {
-	endpoints := &corev1.Endpoints{}
-	if err := k8sClient.Get(ctx, types.NamespacedName{
-		Namespace: kubeSystemNamespace,
-		Name:      service.Name,
-	}, endpoints); err != nil {
-		if apierrors.IsNotFound(err) {
-			return []string{}, nil
-		}
-		return nil, err
-	}
-
-	targets := make([]string, 0)
-
-	for _, subset := range endpoints.Subsets {
-		endpointPort := metricsPort
-		for _, port := range subset.Ports {
-			if port.Name == "metrics" {
-				endpointPort = port.Port
-				break
-			}
-		}
-
-		for _, address := range subset.Addresses {
-			target := fmt.Sprintf("%s://%s:%d/metrics", scheme, address.IP, endpointPort)
-			targets = append(targets, target)
-		}
-	}
-
-	return targets, nil
-}
-
-func checkCASecretExists(
-	ctx context.Context,
-	client client.Client,
-	agent *instanav1.InstanaAgent,
-	logger logr.Logger,
-) bool {
-	caSecret := &corev1.Secret{} // pragma: allowlist secret
-	err := client.Get(ctx, types.NamespacedName{
-		Namespace: agent.Namespace,
-		Name:      constants.ETCDCASecretName,
-	}, caSecret)
-
-	if err == nil {
-		logger.Info("Found etcd-ca secret in agent namespace")
-		return true
-	}
-
-	return false
-}
-
-func discoverETCDEndpoints(
-	ctx context.Context,
-	client client.Client,
-	agent *instanav1.InstanaAgent,
-	logger logr.Logger,
-	isOpenShiftFunc IsOpenShiftFunc,
-	shouldSkipDiscoveryFunc SkipDiscoveryFunc,
-	findETCDServiceFunc FindServiceFunc,
-	findMetricsPortAndSchemeFunc FindPortAndSchemeFunc,
-	buildTargetsFromEndpointsFunc BuildTargetsFunc,
-	checkCASecretExistsFunc CheckCASecretFunc,
-) (*DiscoveredETCDTargets, error) {
-	// Step 1: Check if discovery should be skipped
-	shouldSkip, err := shouldSkipDiscoveryFunc(ctx, agent, logger, isOpenShiftFunc)
-	if err != nil {
-		return nil, err
-	}
-	if shouldSkip {
-		return nil, nil
-	}
-
-	// Step 2: Find etcd service
-	etcdService, err := findETCDServiceFunc(ctx, client, logger)
-	if err != nil {
-		return nil, err
-	}
-	if etcdService == nil {
-		return nil, nil
-	}
-
-	logger.Info("Found etcd service", "name", etcdService.Name)
-
-	// Step 3: Find metrics port and determine scheme
-	metricsPortPtr, scheme := findMetricsPortAndSchemeFunc(etcdService)
-	if metricsPortPtr == nil {
-		logger.Info("No metrics port found in etcd service")
-		return nil, nil
-	}
-	metricsPort := *metricsPortPtr
-
-	// Step 4: Get endpoints and build targets
-	targets, err := buildTargetsFromEndpointsFunc(ctx, client, etcdService, metricsPort, scheme)
-	if err != nil {
-		return nil, err
-	}
-	if len(targets) == 0 {
-		logger.Info("No endpoints found for etcd service")
-		return nil, nil
-	}
-
-	// Step 5: Check for CA secret and return results
-	caSecretExists := checkCASecretExistsFunc(ctx, client, agent, logger)
-
-	logger.Info("Discovered etcd targets", "targets", targets, "caFound", caSecretExists)
-
-	return &DiscoveredETCDTargets{
-		Targets: targets,
-		CAFound: caSecretExists,
-	}, nil
 }

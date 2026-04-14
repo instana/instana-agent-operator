@@ -103,17 +103,22 @@ func NewInstanaAgentReconciler(
 	scheme *runtime.Scheme,
 	recorder record.EventRecorder,
 ) *InstanaAgentReconciler {
-	return &InstanaAgentReconciler{
-		client:   instanaclient.NewInstanaAgentClient(client),
+	instanaClient := instanaclient.NewInstanaAgentClient(client)
+	reconciler := &InstanaAgentReconciler{
+		client:   instanaClient,
 		recorder: recorder,
 		scheme:   scheme,
 	}
+	// Initialize the ETCD discoverer with the reconciler
+	reconciler.etcdDiscoverer = NewDefaultETCDDiscoverer(instanaClient, reconciler)
+	return reconciler
 }
 
 type InstanaAgentReconciler struct {
-	client   instanaclient.InstanaAgentClient
-	recorder record.EventRecorder
-	scheme   *runtime.Scheme
+	client         instanaclient.InstanaAgentClient
+	recorder       record.EventRecorder
+	scheme         *runtime.Scheme
+	etcdDiscoverer ETCDDiscoverer
 }
 
 func (r *InstanaAgentReconciler) reconcile(
