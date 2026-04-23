@@ -164,6 +164,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.DownloadKeyEnv,
 		env.InstanaAgentPodNameEnv,
 		env.PodIPEnv,
+		env.NodeNameEnv,
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
 		env.NamespacesDetailsPathEnv,
@@ -224,6 +225,7 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 	envBuilder := &mocks.MockEnvBuilder{}
 	defer envBuilder.AssertExpectations(t)
 	envBuilder.On("Build",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,

@@ -52,6 +52,23 @@ spec:
               optional: true
 ```
 
+## Automatically Injected Environment Variables
+
+The operator automatically injects certain environment variables into agent pods using the Kubernetes Downward API:
+
+- **NODE_NAME**: Set to [`spec.nodeName`](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/) - the name of the Kubernetes node where the pod is running. This is used by the agent to avoid DNS lookups for hostname resolution, improving startup performance and reducing CoreDNS load.
+
+Example of the automatically injected NODE_NAME:
+```yaml
+env:
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+```
+
+You can override this by explicitly setting NODE_NAME in your `agent.pod.env` configuration if needed.
+
 ## Supported ValueFrom Sources
 
 The enhanced method supports all standard Kubernetes environment variable sources:
