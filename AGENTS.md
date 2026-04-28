@@ -32,10 +32,49 @@ This file provides guidance to agents when working with code in this repository.
 - Image loading: Uses `$(CONTAINER_CMD) load` after buildctl build
 
 ## CI/CD Pipeline Logs (SPS/Tekton)
+
+### Fetching Logs
 - Fetch logs: `ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID>`
 - Filter by task: Add `--task-name <task>` to narrow logs to specific task
+- Available tasks (from `.pipeline-config.yaml`): `pr-code-checks`, `pr-code-checks-2`, `pr-code-checks-3`, `code-pr-finish`
 - Structured output: Add `--output json` for JSON format
 - Debug mode: Add `--trace` for extra debug details
 - URL format: `https://cloud.ibm.com/devops/pipelines/tekton/{PIPELINE_ID}/runs/{RUN_ID}/{task-name}/{step-name}?env_id={env}&view=logs`
 - Extract PIPELINE_ID and RUN_ID from URL to use with CLI commands
 - **GitHub PR status checks**: SPS pipeline URLs are available in PR status check "Details" links - if a check is failing, click Details to get the Tekton URL, then extract PIPELINE_ID/RUN_ID to fetch logs and pinpoint the issue
+
+### Log Parsing for AI Agents (CRITICAL for Token Efficiency)
+
+**Problem**: Raw Tekton logs are extremely verbose (7,000+ lines) with only 50-100 lines of actual failure information, causing high token costs (~145K tokens vs ~3K tokens parsed).
+
+**Solution**: ALWAYS use the log parser before analyzing failures:
+
+```bash
+# Recommended workflow - parse logs directly from CLI
+ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID> | ./ci/sps-scripts/parse-tekton-logs.sh > failure-summary.txt
+
+# Then analyze the parsed output (98% token reduction)
+# failure-summary.txt contains only: test failures, panic traces, error messages, exit codes
+```
+
+**What the parser extracts**:
+- Test failures with 10 lines of context
+- Panic stack traces with full call chains
+- Significant error messages (filtered)
+- Exit codes and make errors
+- Test execution summary
+
+**What gets filtered out** (noise):
+- Docker/containerd initialization (thousands of lines)
+- Package installation output (yum, apt, go get)
+- Debug messages and trace logs
+- Known warnings (AUFS, GPG keys)
+- Successful test output
+
+**Best practices**:
+1. Always parse before analyzing - saves 95-98% of tokens
+2. Use task-specific parsing when possible: `--task-name pr-code-checks-2` (for Go unit tests)
+3. Archive parsed summaries instead of full logs
+4. For specific issues: `./ci/sps-scripts/parse-tekton-logs.sh log.txt | grep -A 5 "TestName"`
+
+**Token savings**: ~145K tokens → ~3K tokens (98% reduction, ~$0.15-0.30 → ~$0.003-0.006 per analysis)
