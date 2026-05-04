@@ -20,9 +20,8 @@ func TestInstallWithK8sensorPodDisruptionBudget(t *testing.T) {
 	enabled := true
 	agent.Spec.K8sSensor.PodDisruptionBudget.Enabled = &enabled
 	f := features.New("install dev-operator-build and enable k8sensor podDisruptionBudget").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("check if instana-agent-controller-manager was able to deploy a podDisruptionBudget for the k8sensor", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			r, err := resources.New(cfg.Client().RESTConfig())

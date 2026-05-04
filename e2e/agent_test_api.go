@@ -548,6 +548,33 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		if err := ensureOperatorHasPullSecret(ctx, cfg); err != nil {
 			t.Fatalf("Failed to ensure operator pull secret: %v", err)
 		}
+
+		// Wait for operator deployment to be ready before proceeding
+		// This ensures the controller is fully started and watching for CRs
+		// Fixes race condition where CR is created before controller is ready
+		t.Log("Waiting for operator deployment to be ready")
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dep := appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      InstanaOperatorDeploymentName,
+				Namespace: cfg.Namespace(),
+			},
+		}
+
+		// Wait for deployment to exist and be ready
+		err = wait.For(
+			conditions.New(client.Resources()).
+				DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue),
+			wait.WithTimeout(time.Minute*2),
+		)
+		if err != nil {
+			t.Fatalf("Operator deployment did not become ready: %v", err)
+		}
+		t.Log("Operator deployment is ready")
+
 		return ctx
 	}
 }
