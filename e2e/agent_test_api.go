@@ -863,15 +863,6 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		time.Sleep(20 * time.Second)
-		podList, err := clientSet.CoreV1().
-			Pods(cfg.Namespace()).
-			List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(podList.Items) == 0 {
-			t.Fatal("No pods found")
-		}
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
@@ -879,6 +870,18 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Log("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
+
+			// Re-fetch pod list to handle pod recreation during upgrades
+			podList, err := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(podList.Items) == 0 {
+				t.Fatal("No pods found")
+			}
+
 			logReq := clientSet.CoreV1().
 				Pods(cfg.Namespace()).
 				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
