@@ -249,8 +249,8 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 
 	installDevBuildWithTwoAdditionalBackendsFeature := features.New("install with 2 additional backends").
 		Setup(SetupOperatorDevBuild()).
+		// Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName+"-1")).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName+"-2")).
