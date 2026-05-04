@@ -642,15 +642,43 @@ func WaitForPodsToBeRecreatedForComponent(component string) features.Func {
 					t.Logf("Waiting for pods with component %q to be recreated...", component)
 					return false, nil
 				}
-				allRunning := true
+
+				// Check if all pods are from the same replica set and all are running
+				replicaSets := make(map[string]int)
+				runningCount := 0
 				for _, pod := range pods.Items {
-					if pod.Status.Phase != corev1.PodRunning {
-						allRunning = false
+					// Extract replica set name from pod name (format: deployment-replicaset-pod)
+					// e.g., "instana-agent-r-remote-agent-85959668c5-mjjbq" -> "85959668c5"
+					parts := strings.Split(pod.Name, "-")
+					if len(parts) >= 2 {
+						rsHash := parts[len(parts)-2]
+						replicaSets[rsHash]++
+					}
+
+					if pod.DeletionTimestamp != nil {
+						t.Logf("Pod %s is terminating; waiting for cleanup...", pod.Name)
+						return false, nil
+					}
+
+					if pod.Status.Phase == corev1.PodRunning {
+						runningCount++
+					} else {
 						t.Logf("Pod %s is in phase %s; waiting...", pod.Name, pod.Status.Phase)
-						break
+						return false, nil
 					}
 				}
-				return allRunning, nil
+
+				// Ensure all pods are from the same replica set (no old pods lingering)
+				if len(replicaSets) > 1 {
+					t.Logf(
+						"Multiple replica sets detected (%d), waiting for old pods to terminate...",
+						len(replicaSets),
+					)
+					return false, nil
+				}
+
+				// All pods must be running
+				return runningCount == len(pods.Items), nil
 			},
 		)
 		if waitErr != nil {
@@ -685,6 +713,7 @@ func TestSecretMountsDefaultBehavior(t *testing.T) {
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+
 		// Add a delay to ensure pods are fully created with secret mounts
 		Assess(
 			"wait for pods to be created with secret mounts",
@@ -780,6 +809,7 @@ func TestRemoteSecretMountsDefaultBehavior(t *testing.T) {
 		Assess("wait for remote agent deployment to become ready", WaitForDeploymentToBecomeReady(
 			AgentRemoteDeploymentName+AgentRemoteCustomResourceName,
 		)).
+
 		// Add a delay to ensure pods are fully created with secret mounts
 		Assess(
 			"wait for pods to be created with secret mounts",
