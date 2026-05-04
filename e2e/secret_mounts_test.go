@@ -685,6 +685,11 @@ func TestSecretMountsDefaultBehavior(t *testing.T) {
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
 		Assess("validate sensitive environment variables are not set", ValidateSensitiveEnvVarsNotSet()).
 		Assess("validate k8sensor uses agent-key-file argument", ValidateK8sensorAgentKeyFileArg()).
@@ -751,6 +756,11 @@ func TestSecretMountsHttpsProxyFile(t *testing.T) {
 		Setup(DeployAgentCr(&agent)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate https-proxy-file argument is used", ValidateHttpsProxyFileArg()).
 		Assess("validate HTTPS_PROXY secret file is mounted", ValidateHttpsProxyFileMounted()).
 		Feature()
@@ -770,6 +780,11 @@ func TestRemoteSecretMountsDefaultBehavior(t *testing.T) {
 		Assess("wait for remote agent deployment to become ready", WaitForDeploymentToBecomeReady(
 			AgentRemoteDeploymentName+AgentRemoteCustomResourceName,
 		)).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
+		).
 		Assess("validate secret files are mounted correctly in remote agent", ValidateRemoteSecretFilesMounted()).
 		Assess("validate sensitive environment variables are not set in remote agent",
 			ValidateRemoteSensitiveEnvVarsNotSet(),
@@ -806,6 +821,11 @@ func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
 		Setup(DeployAgentRemoteCr(&agent)).
 		Assess("wait for remote agent deployment to become ready",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
+		).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
 		).
 		Assess("validate secret files are mounted correctly in remote agent", ValidateRemoteSecretFilesMounted()).
 		Setup(UpdateAgentRemoteWithSecretMounts(false)).
@@ -853,6 +873,11 @@ func TestRemoteSecretMountsHttpsProxyFile(t *testing.T) {
 		Setup(DeployAgentRemoteCr(&agent)).
 		Assess("wait for remote agent deployment to become ready",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
+		).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
 		).
 		Assess("validate secret files are mounted correctly in remote agent", ValidateRemoteSecretFilesMounted()).
 		Feature()

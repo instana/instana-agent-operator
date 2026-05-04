@@ -162,6 +162,11 @@ func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
 			fmt.Sprintf("%s-1", K8sensorDeploymentName)),
 		).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate instana-agent-config secret contains 2 backends", ValidateAgentMultiBackendConfiguration()).
 		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
 		Assess("validate sensitive environment variables are not set", ValidateSensitiveEnvVarsNotSet()).
