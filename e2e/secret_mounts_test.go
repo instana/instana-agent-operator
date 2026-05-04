@@ -797,6 +797,11 @@ func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
 		Assess("wait for remote agent deployment to become ready after second update",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
 		).
+		// Add a delay to ensure pods are fully recreated with secret mounts
+		Assess(
+			"wait for pods to be recreated with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
+		).
 		Assess("validate secret files are mounted correctly in remote agent after switching back",
 			ValidateRemoteSecretFilesMounted(),
 		).
@@ -905,6 +910,9 @@ func ValidateRemoteSecretFilesMounted() features.Func {
 		}
 
 		secretSource := secretVolumeSourceFromPod(&pod)
+		if secretSource == nil {
+			t.Fatalf("instana-secrets volume not found in remote agent pod %s", pod.Name)
+		}
 		ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
 
 		return ctx
