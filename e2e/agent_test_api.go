@@ -887,7 +887,12 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
-				t.Fatal("Could not stream logs", err)
+				t.Logf(
+					"Could not stream logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			defer podLogs.Close()
 
@@ -895,7 +900,8 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			_, err = io.Copy(buf, podLogs)
 
 			if err != nil {
-				t.Fatal(err)
+				t.Logf("Error copying logs from pod %s: %v, will retry", podList.Items[0].Name, err)
+				continue
 			}
 			if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
 				t.Log("Connection established correctly")
