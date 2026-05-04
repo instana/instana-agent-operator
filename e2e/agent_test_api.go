@@ -548,6 +548,33 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		if err := ensureOperatorHasPullSecret(ctx, cfg); err != nil {
 			t.Fatalf("Failed to ensure operator pull secret: %v", err)
 		}
+
+		// Wait for operator deployment to be ready before proceeding
+		// This ensures the controller is fully started and watching for CRs
+		// Fixes race condition where CR is created before controller is ready
+		t.Log("Waiting for operator deployment to be ready")
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dep := appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      InstanaOperatorDeploymentName,
+				Namespace: cfg.Namespace(),
+			},
+		}
+
+		// Wait for deployment to exist and be ready
+		err = wait.For(
+			conditions.New(client.Resources()).
+				DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue),
+			wait.WithTimeout(time.Minute*2),
+		)
+		if err != nil {
+			t.Fatalf("Operator deployment did not become ready: %v", err)
+		}
+		t.Log("Operator deployment is ready")
+
 		return ctx
 	}
 }
@@ -863,15 +890,6 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		time.Sleep(20 * time.Second)
-		podList, err := clientSet.CoreV1().
-			Pods(cfg.Namespace()).
-			List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(podList.Items) == 0 {
-			t.Fatal("No pods found")
-		}
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
@@ -879,12 +897,29 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Log("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
+
+			// Re-fetch pod list to handle pod recreation during upgrades
+			podList, err := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(podList.Items) == 0 {
+				t.Fatal("No pods found")
+			}
+
 			logReq := clientSet.CoreV1().
 				Pods(cfg.Namespace()).
 				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
-				t.Fatal("Could not stream logs", err)
+				t.Logf(
+					"Could not stream logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			defer podLogs.Close()
 
@@ -892,7 +927,8 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			_, err = io.Copy(buf, podLogs)
 
 			if err != nil {
-				t.Fatal(err)
+				t.Logf("Error copying logs from pod %s: %v, will retry", podList.Items[0].Name, err)
+				continue
 			}
 			if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
 				t.Log("Connection established correctly")

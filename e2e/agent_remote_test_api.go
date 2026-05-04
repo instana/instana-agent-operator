@@ -96,13 +96,6 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		time.Sleep(20 * time.Second)
-		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent-remote"})
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(podList.Items) == 0 {
-			log.Fatal("No pods found")
-		}
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
@@ -110,10 +103,31 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			log.Info("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			log.Info("Fetching logs")
-			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
+
+			// Re-fetch pod list to handle pod recreation during upgrades
+			podList, err := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent-remote"})
+			if err != nil {
+				log.Infof("Could not list pods: %v, will retry", err)
+				continue
+			}
+			if len(podList.Items) == 0 {
+				log.Info("No pods found, will retry")
+				continue
+			}
+
+			logReq := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
-				log.Fatal("Could not stream logs", err)
+				log.Infof(
+					"Could not stream logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			defer podLogs.Close()
 
@@ -121,7 +135,12 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			_, err = io.Copy(buf, podLogs)
 
 			if err != nil {
-				log.Fatal(err)
+				log.Infof(
+					"Error copying logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
 				log.Info("Connection established correctly")
@@ -148,7 +167,13 @@ func EnsureAgentRemoteDeletion() env.Func {
 
 		p = utils.RunCommand("kubectl get agentremote remote-agent -o yaml -n instana-agent")
 		// redact agent key if present
-		log.Info("Current agent remote CR: ", p.Command(), p.ExitCode(), "\n", strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"))
+		log.Info(
+			"Current agent remote CR: ",
+			p.Command(),
+			p.ExitCode(),
+			"\n",
+			strings.ReplaceAll(p.Result(), InstanaTestCfg.InstanaBackend.AgentKey, "***"),
+		)
 
 		// Cleanup a potentially existing Agent CR first
 		if _, err := DeleteAgentRemoteCRIfPresent()(ctx, cfg); err != nil {
@@ -159,7 +184,13 @@ func EnsureAgentRemoteDeletion() env.Func {
 
 		p = utils.RunCommand("kubectl delete crd/agentsremote.instana.io")
 		if p.Err() != nil {
-			log.Warningf("Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d", p.Command(), p.Err(), p.Out(), p.ExitCode())
+			log.Warningf(
+				"Could not remove some artifacts, ignoring as they might not be present %s - %s - %s - %d",
+				p.Command(),
+				p.Err(),
+				p.Out(),
+				p.ExitCode(),
+			)
 		}
 
 		log.Info("==== Cleanup completed ====")
@@ -193,7 +224,11 @@ func AdjustOcpPermissionsIfNecessaryRemote() env.Func {
 
 		if isOpenShift {
 			command := "oc adm policy add-scc-to-user anyuid -z instana-agent-remote -n instana-agent"
-			log.Infof("OpenShift detected, adding instana-agent-remote service account to SecurityContextConstraints via api, command would be: %s\n", command)
+			log.Infof(
+				"OpenShift detected, adding instana-agent-remote service account to "+
+					"SecurityContextConstraints via api, command would be: %s\n",
+				command,
+			)
 
 			// Define the GVR for SecurityContextConstraints
 			sccGVR := schema.GroupVersionResource{
@@ -225,11 +260,18 @@ func AdjustOcpPermissionsIfNecessaryRemote() env.Func {
 			}
 
 			// Check if service account is already in the list
-			serviceAccountId := fmt.Sprintf("system:serviceaccount:%s:%s", InstanaNamespace, "instana-agent-remote")
+			serviceAccountId := fmt.Sprintf(
+				"system:serviceaccount:%s:%s",
+				InstanaNamespace,
+				"instana-agent-remote",
+			)
 			userFound := slices.Contains(users, serviceAccountId)
 
 			if userFound {
-				log.Infof("Security Context Constraint \"anyuid\" already lists service account user: %v\n", serviceAccountId)
+				log.Infof(
+					"Security Context Constraint \"anyuid\" already lists service account user: %v\n",
+					serviceAccountId,
+				)
 				return ctx, nil
 			}
 
@@ -243,7 +285,10 @@ func AdjustOcpPermissionsIfNecessaryRemote() env.Func {
 			_, err = dynamicClient.Resource(sccGVR).
 				Update(ctx, sccUnstructured, metav1.UpdateOptions{})
 			if err != nil {
-				return ctx, fmt.Errorf("could not update Security Context Constraints on OCP cluster: %v", err)
+				return ctx, fmt.Errorf(
+					"could not update Security Context Constraints on OCP cluster: %v",
+					err,
+				)
 			}
 
 			return ctx, nil
@@ -261,7 +306,10 @@ func DeleteAgentRemoteCRIfPresent() env.Func {
 		// Create a client to interact with the Kube API
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
-			return ctx, fmt.Errorf("cleanup: Error initializing client to delete agent remote CR: %v", err)
+			return ctx, fmt.Errorf(
+				"cleanup: Error initializing client to delete agent remote CR: %v",
+				err,
+			)
 		}
 
 		// Assume an existing namespace at this point, check if an agent remote CR is present (requires to adjust schema of current client)
@@ -269,7 +317,10 @@ func DeleteAgentRemoteCRIfPresent() env.Func {
 		err = v1.AddToScheme(r.GetScheme())
 		if err != nil {
 			// If this fails, the cleanup will not work properly -> failing
-			return ctx, fmt.Errorf("cleanup: Error could not add agent remote types to current scheme: %v", err)
+			return ctx, fmt.Errorf(
+				"cleanup: Error could not add agent remote types to current scheme: %v",
+				err,
+			)
 		}
 
 		// If the agent remote cr is available, but the operator is already gone, the finalizer will never be removed

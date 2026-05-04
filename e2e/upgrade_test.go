@@ -56,7 +56,7 @@ func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
 
 	updateInstallDevBuildFeature := features.New("upgrade install from latest released to dev-operator-build").
 		Setup(SetupOperatorDevBuild()).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+		// Now waits for operator to be ready
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).

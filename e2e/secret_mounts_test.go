@@ -189,36 +189,42 @@ func ValidateSecretFilesMounted() features.Func {
 
 		listOps := resources.WithLabelSelector("app.kubernetes.io/component=instana-agent")
 
-		waitErr := wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
-			pods := &corev1.PodList{}
-			if err := r.List(ctx, pods, listOps); err != nil {
-				return false, err
-			}
-			if len(pods.Items) == 0 {
-				t.Log("Waiting for agent pods to be created before validating secret mounts")
-				return false, nil
-			}
-
-			for _, pod := range pods.Items {
-				if !hasDaemonSetOwner(&pod) {
-					continue
+		waitErr := wait.PollUntilContextTimeout(
+			ctx,
+			pollInterval,
+			pollTimeout,
+			true,
+			func(ctx context.Context) (bool, error) {
+				pods := &corev1.PodList{}
+				if err := r.List(ctx, pods, listOps); err != nil {
+					return false, err
 				}
-
-				container := firstContainerOrFail(t, &pod)
-				if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
-					t.Logf("Pod %s missing secrets volume mount; waiting", pod.Name)
+				if len(pods.Items) == 0 {
+					t.Log("Waiting for agent pods to be created before validating secret mounts")
 					return false, nil
 				}
 
-				secretSource := secretVolumeSourceFromPod(&pod)
-				if secretSource == nil {
-					t.Logf("Pod %s missing secrets volume source; waiting", pod.Name)
-					return false, nil
-				}
-			}
+				for _, pod := range pods.Items {
+					if !hasDaemonSetOwner(&pod) {
+						continue
+					}
 
-			return true, nil
-		})
+					container := firstContainerOrFail(t, &pod)
+					if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
+						t.Logf("Pod %s missing secrets volume mount; waiting", pod.Name)
+						return false, nil
+					}
+
+					secretSource := secretVolumeSourceFromPod(&pod)
+					if secretSource == nil {
+						t.Logf("Pod %s missing secrets volume source; waiting", pod.Name)
+						return false, nil
+					}
+				}
+
+				return true, nil
+			},
+		)
 		if waitErr != nil {
 			t.Fatalf("instana agent pods did not mount secrets volume in time: %v", waitErr)
 		}
@@ -243,7 +249,14 @@ func ValidateSecretFilesMounted() features.Func {
 				t.Fatalf("pod %s missing secrets volume source after wait", pod.Name)
 			}
 
-			ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
+			ensureSecretFilePresent(
+				t,
+				ctx,
+				r,
+				cfg.Namespace(),
+				secretSource,
+				constants.SecretFileAgentKey,
+			)
 			t.Logf("Pod %s mounts instana secrets volume", pod.Name)
 		}
 
@@ -316,35 +329,50 @@ func ValidateSensitiveEnvVarsSet() features.Func {
 			pollTimeout  = 2 * time.Minute
 		)
 
-		waitErr := wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
-			pods := &corev1.PodList{}
-			if err := r.List(ctx, pods, listOps); err != nil {
-				return false, err
-			}
-			if len(pods.Items) == 0 {
-				t.Log("Waiting for agent pods to be created before checking environment variables")
-				return false, nil
-			}
-
-			for _, pod := range pods.Items {
-				if len(pod.Spec.Containers) == 0 {
-					t.Logf("Pod %s has no containers yet; waiting", pod.Name)
+		waitErr := wait.PollUntilContextTimeout(
+			ctx,
+			pollInterval,
+			pollTimeout,
+			true,
+			func(ctx context.Context) (bool, error) {
+				pods := &corev1.PodList{}
+				if err := r.List(ctx, pods, listOps); err != nil {
+					return false, err
+				}
+				if len(pods.Items) == 0 {
+					t.Log(
+						"Waiting for agent pods to be created before checking environment variables",
+					)
 					return false, nil
 				}
 
-				container := &pod.Spec.Containers[0]
-				for _, envName := range sensitiveEnvVars {
-					if env := findEnvVar(container, envName); env == nil {
-						t.Logf("Pod %s missing environment variable %s; waiting", pod.Name, envName)
+				for _, pod := range pods.Items {
+					if len(pod.Spec.Containers) == 0 {
+						t.Logf("Pod %s has no containers yet; waiting", pod.Name)
 						return false, nil
 					}
-				}
-			}
 
-			return true, nil
-		})
+					container := &pod.Spec.Containers[0]
+					for _, envName := range sensitiveEnvVars {
+						if env := findEnvVar(container, envName); env == nil {
+							t.Logf(
+								"Pod %s missing environment variable %s; waiting",
+								pod.Name,
+								envName,
+							)
+							return false, nil
+						}
+					}
+				}
+
+				return true, nil
+			},
+		)
 		if waitErr != nil {
-			t.Fatalf("Sensitive environment variables were not set after switching legacy mode: %v", waitErr)
+			t.Fatalf(
+				"Sensitive environment variables were not set after switching legacy mode: %v",
+				waitErr,
+			)
 		}
 
 		pods := &corev1.PodList{}
@@ -359,7 +387,12 @@ func ValidateSensitiveEnvVarsSet() features.Func {
 			container := firstContainerOrFail(t, &pod)
 			for _, envVar := range sensitiveEnvVars {
 				if env := findEnvVar(container, envVar); env != nil {
-					t.Logf("Sensitive environment variable %s is set in pod %s (%s)", envVar, pod.Name, describeEnvVar(env))
+					t.Logf(
+						"Sensitive environment variable %s is set in pod %s (%s)",
+						envVar,
+						pod.Name,
+						describeEnvVar(env),
+					)
 				}
 			}
 		}
@@ -580,7 +613,10 @@ func WaitForPodsToBeRecreated() features.Func {
 // WaitForPodsToBeRecreatedForComponent waits for pods matching the provided component label to be recreated after a configuration change.
 func WaitForPodsToBeRecreatedForComponent(component string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Logf("Waiting for pods with component %q to be recreated with new configuration", component)
+		t.Logf(
+			"Waiting for pods with component %q to be recreated with new configuration",
+			component,
+		)
 
 		r, err := resources.New(cfg.Client().RESTConfig())
 		if err != nil {
@@ -592,34 +628,76 @@ func WaitForPodsToBeRecreatedForComponent(component string) features.Func {
 		const pollInterval = 2 * time.Second
 		const pollTimeout = 2 * time.Minute
 
-		waitErr := wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
-			pods := &corev1.PodList{}
-			if err := r.List(ctx, pods, listOps); err != nil {
-				return false, err
-			}
-			if len(pods.Items) == 0 {
-				t.Logf("Waiting for pods with component %q to be recreated...", component)
-				return false, nil
-			}
-			allRunning := true
-			for _, pod := range pods.Items {
-				if pod.Status.Phase != corev1.PodRunning {
-					allRunning = false
-					t.Logf("Pod %s is in phase %s; waiting...", pod.Name, pod.Status.Phase)
-					break
+		waitErr := wait.PollUntilContextTimeout(
+			ctx,
+			pollInterval,
+			pollTimeout,
+			true,
+			func(ctx context.Context) (bool, error) {
+				pods := &corev1.PodList{}
+				if err := r.List(ctx, pods, listOps); err != nil {
+					return false, err
 				}
-			}
-			return allRunning, nil
-		})
+				if len(pods.Items) == 0 {
+					t.Logf("Waiting for pods with component %q to be recreated...", component)
+					return false, nil
+				}
+
+				// Check if all pods are from the same replica set and all are running
+				replicaSets := make(map[string]int)
+				runningCount := 0
+				for _, pod := range pods.Items {
+					// Extract replica set name from pod name (format: deployment-replicaset-pod)
+					// e.g., "instana-agent-r-remote-agent-85959668c5-mjjbq" -> "85959668c5"
+					parts := strings.Split(pod.Name, "-")
+					if len(parts) >= 2 {
+						rsHash := parts[len(parts)-2]
+						replicaSets[rsHash]++
+					}
+
+					if pod.DeletionTimestamp != nil {
+						t.Logf("Pod %s is terminating; waiting for cleanup...", pod.Name)
+						return false, nil
+					}
+
+					if pod.Status.Phase == corev1.PodRunning {
+						runningCount++
+					} else {
+						t.Logf("Pod %s is in phase %s; waiting...", pod.Name, pod.Status.Phase)
+						return false, nil
+					}
+				}
+
+				// Ensure all pods are from the same replica set (no old pods lingering)
+				if len(replicaSets) > 1 {
+					t.Logf(
+						"Multiple replica sets detected (%d), waiting for old pods to terminate...",
+						len(replicaSets),
+					)
+					return false, nil
+				}
+
+				// All pods must be running
+				return runningCount == len(pods.Items), nil
+			},
+		)
 		if waitErr != nil {
-			t.Fatalf("pods with component %q were not ready after configuration change: %v", component, waitErr)
+			t.Fatalf(
+				"pods with component %q were not ready after configuration change: %v",
+				component,
+				waitErr,
+			)
 		}
 
 		pods := &corev1.PodList{}
 		if err := r.List(ctx, pods, listOps); err != nil {
 			t.Fatal("failed to list pods after wait:", err)
 		}
-		t.Logf("Found %d pods with component %q after configuration change", len(pods.Items), component)
+		t.Logf(
+			"Found %d pods with component %q after configuration change",
+			len(pods.Items),
+			component,
+		)
 		return ctx
 	}
 }
@@ -630,13 +708,17 @@ func TestSecretMountsDefaultBehavior(t *testing.T) {
 
 	defaultBehaviorFeature := features.New("secret mounts default behavior (useSecretMounts: true)").
 		Setup(SetupOperatorDevBuild()).
+
+		// Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
 		Assess("validate sensitive environment variables are not set", ValidateSensitiveEnvVarsNotSet()).
 		Assess("validate k8sensor uses agent-key-file argument", ValidateK8sensorAgentKeyFileArg()).
@@ -650,12 +732,8 @@ func TestSecretMountsLegacyBehavior(t *testing.T) {
 	agent := NewAgentCrWithSecretMounts(false)
 
 	legacyBehaviorFeature := features.New("secret mounts legacy behavior (useSecretMounts: false)").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("validate sensitive environment variables are set", ValidateSensitiveEnvVarsSet()).
@@ -670,12 +748,8 @@ func TestSecretMountsSwitchingModes(t *testing.T) {
 	agent := NewAgentCrWithSecretMounts(true)
 
 	switchingModesFeature := features.New("switching between secret mounts modes").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
@@ -707,14 +781,15 @@ func TestSecretMountsHttpsProxyFile(t *testing.T) {
 	}
 
 	httpsProxyFeature := features.New("https-proxy-file functionality").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate https-proxy-file argument is used", ValidateHttpsProxyFileArg()).
 		Assess("validate HTTPS_PROXY secret file is mounted", ValidateHttpsProxyFileMounted()).
 		Feature()
@@ -728,14 +803,18 @@ func TestRemoteSecretMountsDefaultBehavior(t *testing.T) {
 
 	defaultBehaviorFeature := features.New("remote agent secret mounts default behavior (useSecretMounts: true)").
 		Setup(SetupOperatorDevBuild()).
+
+		// Now waits for operator to be ready
 		Setup(DeployAgentRemoteCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for remote agent deployment to become ready", WaitForDeploymentToBecomeReady(
 			AgentRemoteDeploymentName+AgentRemoteCustomResourceName,
 		)).
+
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
+		).
 		Assess("validate secret files are mounted correctly in remote agent", ValidateRemoteSecretFilesMounted()).
 		Assess("validate sensitive environment variables are not set in remote agent",
 			ValidateRemoteSensitiveEnvVarsNotSet(),
@@ -751,11 +830,9 @@ func TestRemoteSecretMountsLegacyBehavior(t *testing.T) {
 
 	legacyBehaviorFeature := features.New("remote agent secret mounts legacy behavior (useSecretMounts: false)").
 		Setup(SetupOperatorDevBuild()).
+
+		// Now waits for operator to be ready
 		Setup(DeployAgentRemoteCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for remote agent deployment to become ready",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
 		).
@@ -770,14 +847,15 @@ func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
 	agent := NewAgentRemoteCrWithSecretMounts(true)
 
 	switchingModesFeature := features.New("switching between remote agent secret mounts modes").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentRemoteCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for remote agent deployment to become ready",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
+		).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
 		).
 		Assess("validate secret files are mounted correctly in remote agent", ValidateRemoteSecretFilesMounted()).
 		Setup(UpdateAgentRemoteWithSecretMounts(false)).
@@ -796,6 +874,11 @@ func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
 		Setup(UpdateAgentRemoteWithSecretMounts(true)).
 		Assess("wait for remote agent deployment to become ready after second update",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
+		).
+		// Add a delay to ensure pods are fully recreated with secret mounts
+		Assess(
+			"wait for pods to be recreated with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
 		).
 		Assess("validate secret files are mounted correctly in remote agent after switching back",
 			ValidateRemoteSecretFilesMounted(),
@@ -816,14 +899,15 @@ func TestRemoteSecretMountsHttpsProxyFile(t *testing.T) {
 	}
 
 	httpsProxyFeature := features.New("remote agent https-proxy-file functionality").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentRemoteCr(&agent)).
-		Assess(
-			"wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName),
-		).
 		Assess("wait for remote agent deployment to become ready",
 			WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName),
+		).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreatedForComponent(constants.ComponentInstanaAgentRemote),
 		).
 		Assess("validate secret files are mounted correctly in remote agent", ValidateRemoteSecretFilesMounted()).
 		Feature()
@@ -901,11 +985,24 @@ func ValidateRemoteSecretFilesMounted() features.Func {
 		pod := pods.Items[0]
 		container := firstContainerOrFail(t, &pod)
 		if !hasVolumeMountAt(container, constants.InstanaSecretsDirectory) {
-			t.Errorf("remote agent container does not mount secrets directory at %s", constants.InstanaSecretsDirectory)
+			t.Errorf(
+				"remote agent container does not mount secrets directory at %s",
+				constants.InstanaSecretsDirectory,
+			)
 		}
 
 		secretSource := secretVolumeSourceFromPod(&pod)
-		ensureSecretFilePresent(t, ctx, r, cfg.Namespace(), secretSource, constants.SecretFileAgentKey)
+		if secretSource == nil {
+			t.Fatalf("instana-secrets volume not found in remote agent pod %s", pod.Name)
+		}
+		ensureSecretFilePresent(
+			t,
+			ctx,
+			r,
+			cfg.Namespace(),
+			secretSource,
+			constants.SecretFileAgentKey,
+		)
 
 		return ctx
 	}

@@ -25,9 +25,8 @@ import (
 func TestNamespaceLabelConfigmap(t *testing.T) {
 	agent := NewAgentCr()
 	installAndCheckNamespaceLabels := features.New("check namespace configmap in agent pods").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent pod for namespaces label file", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {

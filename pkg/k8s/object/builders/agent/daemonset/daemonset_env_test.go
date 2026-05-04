@@ -113,8 +113,16 @@ func TestDaemonSetBuilder_PodEnvVars(t *testing.T) {
 	}
 
 	assert.True(t, foundTestEnvVar, "TEST_ENV_VAR not found in container environment variables")
-	assert.True(t, foundTestEnvVarFromField, "TEST_ENV_VAR_FROM_FIELD not found in container environment variables")
-	assert.True(t, foundTestEnvVarFromSecret, "TEST_ENV_VAR_FROM_SECRET not found in container environment variables")
+	assert.True(
+		t,
+		foundTestEnvVarFromField,
+		"TEST_ENV_VAR_FROM_FIELD not found in container environment variables",
+	)
+	assert.True(
+		t,
+		foundTestEnvVarFromSecret,
+		"TEST_ENV_VAR_FROM_SECRET not found in container environment variables",
+	)
 }
 
 func TestDaemonSetBuilder_EnvVarPrecedence(t *testing.T) {
@@ -184,7 +192,14 @@ func TestDaemonSetBuilder_EnvVarPrecedence(t *testing.T) {
 
 	// Check that there are no duplicates
 	for name, count := range envVarCounts {
-		assert.Equal(t, 1, count, "Environment variable %s appears %d times, expected once", name, count)
+		assert.Equal(
+			t,
+			1,
+			count,
+			"Environment variable %s appears %d times, expected once",
+			name,
+			count,
+		)
 	}
 
 	// Check that pod.env values take precedence over agent.env values
@@ -192,6 +207,193 @@ func TestDaemonSetBuilder_EnvVarPrecedence(t *testing.T) {
 		"pod.env value for INSTANA_AGENT_TAGS should take precedence")
 	assert.Equal(t, "pod-value", envVarValues["DUPLICATE_ENV_VAR"],
 		"pod.env value for DUPLICATE_ENV_VAR should take precedence")
+}
+
+func TestDaemonSetBuilder_NodeNameEnvVar(t *testing.T) {
+	// Given
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+			},
+			Cluster: instanav1.Name{
+				Name: "test-cluster",
+			},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager, false)
+
+	// When
+	obj := dsBuilder.Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+
+	// Then
+	ds, ok := obj.Get().(*appsv1.DaemonSet)
+	if !ok {
+		t.Fatal("Expected DaemonSet object")
+	}
+
+	envVars := ds.Spec.Template.Spec.Containers[0].Env
+
+	// Check if NODE_NAME environment variable is present
+	foundNodeName := false
+	for _, env := range envVars {
+		if env.Name == "NODE_NAME" {
+			foundNodeName = true
+			// Verify it uses fieldRef to get spec.nodeName
+			assert.NotNil(t, env.ValueFrom, "NODE_NAME should use ValueFrom")
+			assert.NotNil(t, env.ValueFrom.FieldRef, "NODE_NAME should use FieldRef")
+			assert.Equal(t, "spec.nodeName", env.ValueFrom.FieldRef.FieldPath,
+				"NODE_NAME should reference spec.nodeName")
+			break
+		}
+	}
+
+	assert.True(t, foundNodeName, "NODE_NAME environment variable should be present")
+}
+
+func TestDaemonSetBuilder_NodeNameEnvVarWithPersistence(t *testing.T) {
+	// Given
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+			},
+			Cluster: instanav1.Name{
+				Name: "test-cluster",
+			},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	// Enable persistence flag
+	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager, true)
+
+	// When
+	obj := dsBuilder.Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+
+	// Then
+	ds, ok := obj.Get().(*appsv1.DaemonSet)
+	if !ok {
+		t.Fatal("Expected DaemonSet object")
+	}
+
+	envVars := ds.Spec.Template.Spec.Containers[0].Env
+
+	// Check if NODE_NAME is present alongside persistence env vars
+	foundNodeName := false
+	foundPersistHostUniqueID := false
+	foundAgentIDFilePath := false
+
+	for _, env := range envVars {
+		switch env.Name {
+		case "NODE_NAME":
+			foundNodeName = true
+			assert.NotNil(t, env.ValueFrom, "NODE_NAME should use ValueFrom")
+			assert.NotNil(t, env.ValueFrom.FieldRef, "NODE_NAME should use FieldRef")
+			assert.Equal(t, "spec.nodeName", env.ValueFrom.FieldRef.FieldPath)
+		case "INSTANA_PERSIST_HOST_UNIQUE_ID":
+			foundPersistHostUniqueID = true
+			assert.Equal(t, "true", env.Value)
+		case "INSTANA_AGENT_ID_FILE_PATH":
+			foundAgentIDFilePath = true
+			assert.Equal(t, "/var/lib/instana/instana-agent-id", env.Value)
+		}
+	}
+
+	assert.True(t, foundNodeName, "NODE_NAME should be present")
+	assert.True(
+		t,
+		foundPersistHostUniqueID,
+		"INSTANA_PERSIST_HOST_UNIQUE_ID should be present when persistence is enabled",
+	)
+	assert.True(
+		t,
+		foundAgentIDFilePath,
+		"INSTANA_AGENT_ID_FILE_PATH should be present when persistence is enabled",
+	)
+}
+
+func TestDaemonSetBuilder_NodeNameCanBeOverridden(t *testing.T) {
+	// Given - user provides custom NODE_NAME via pod.env
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+				Pod: instanav1.AgentPodSpec{
+					Env: []corev1.EnvVar{
+						{
+							Name:  "NODE_NAME",
+							Value: "custom-node-name",
+						},
+					},
+				},
+			},
+			Cluster: instanav1.Name{
+				Name: "test-cluster",
+			},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	dsBuilder := NewDaemonSetBuilder(agent, false, statusManager, false)
+
+	// When
+	obj := dsBuilder.Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+
+	// Then
+	ds, ok := obj.Get().(*appsv1.DaemonSet)
+	if !ok {
+		t.Fatal("Expected DaemonSet object")
+	}
+
+	envVars := ds.Spec.Template.Spec.Containers[0].Env
+
+	// Count NODE_NAME occurrences
+	nodeNameCount := 0
+	var nodeNameValue string
+	var nodeNameValueFrom *corev1.EnvVarSource
+
+	for _, env := range envVars {
+		if env.Name == "NODE_NAME" {
+			nodeNameCount++
+			nodeNameValue = env.Value
+			nodeNameValueFrom = env.ValueFrom
+		}
+	}
+
+	// Verify user's custom value takes precedence
+	assert.Equal(t, 1, nodeNameCount, "NODE_NAME should appear exactly once")
+	assert.Equal(t, "custom-node-name", nodeNameValue, "Custom NODE_NAME value should be used")
+	assert.Nil(t, nodeNameValueFrom, "Custom NODE_NAME should use direct value, not ValueFrom")
 }
 
 // Made with Bob

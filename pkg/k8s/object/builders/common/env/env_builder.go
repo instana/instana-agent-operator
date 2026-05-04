@@ -63,6 +63,7 @@ const (
 	K8sServiceDomainEnv
 	EnableAgentSocketEnv
 	NamespacesDetailsPathEnv
+	NodeNameEnv
 	InstanaOpenTelemetryGRPCEnabled
 	InstanaOpenTelemetryGRPCPort
 	InstanaOpenTelemetryHTTPEnabled
@@ -125,7 +126,7 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, BackendURLEnv,
 		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
-		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
+		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv, NodeNameEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
 		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort, CrdMonitoring:
 		return false
@@ -258,6 +259,8 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return e.envWithObjectFieldSelector("POD_UID", "metadata.uid")
 	case PodNamespaceEnv:
 		return e.envWithObjectFieldSelector("POD_NAMESPACE", "metadata.namespace")
+	case NodeNameEnv:
+		return e.envWithObjectFieldSelector("NODE_NAME", "spec.nodeName")
 	case K8sServiceDomainEnv:
 		return &corev1.EnvVar{
 			Name:  "K8S_SERVICE_DOMAIN",
