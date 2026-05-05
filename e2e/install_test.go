@@ -20,9 +20,8 @@ import (
 func TestInitialInstall(t *testing.T) {
 	agent := NewAgentCr()
 	initialInstallFeature := features.New("initial install dev-operator-build").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("check for single instance of instana-agent-controller-manager", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			r, err := resources.New(cfg.Client().RESTConfig())
 			if err != nil {
@@ -84,7 +83,7 @@ func TestUpdateInstall(t *testing.T) {
 
 	updateInstallDevBuildFeature := features.New("upgrade install from latest released to dev-operator-build").
 		Setup(SetupOperatorDevBuild()).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+		// Now waits for operator to be ready
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).

@@ -18,9 +18,8 @@ import (
 func TestInitialRemoteInstall(t *testing.T) {
 	agent := NewAgentRemoteCr(AgentRemoteCustomResourceName)
 	initialInstallFeature := features.New("initial install dev-operator-build").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentRemoteCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("check for single instance of instana-agent-controller-manager", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			r, err := resources.New(cfg.Client().RESTConfig())
 			if err != nil {
@@ -69,9 +68,8 @@ func TestUpdateRemoteInstall(t *testing.T) {
 	// 	Feature()
 
 	updateInstallDevBuildFeature := features.New("install dev-operator-build").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentRemoteCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for instana remote agent deployment to become ready", WaitForDeploymentToBecomeReady(AgentRemoteDeploymentName+AgentRemoteCustomResourceName)).
 		Assess("check agent log for successful connection", WaitForAgentRemoteSuccessfulBackendConnection()).
 		Feature()

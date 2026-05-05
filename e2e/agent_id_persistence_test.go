@@ -26,10 +26,8 @@ func TestAgentIDPersistence(t *testing.T) {
 	agent := NewAgentCr()
 
 	agentIDPersistenceFeature := features.New("agent ID persistence across pod restarts").
-		Setup(SetupOperatorDevBuild()).
+		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready",
-			WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready",
 			WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready",

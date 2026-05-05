@@ -162,6 +162,11 @@ func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
 			fmt.Sprintf("%s-1", K8sensorDeploymentName)),
 		).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
+		// Add a delay to ensure pods are fully created with secret mounts
+		Assess(
+			"wait for pods to be created with secret mounts",
+			WaitForPodsToBeRecreated(),
+		).
 		Assess("validate instana-agent-config secret contains 2 backends", ValidateAgentMultiBackendConfiguration()).
 		Assess("validate secret files are mounted correctly", ValidateSecretFilesMounted()).
 		Assess("validate sensitive environment variables are not set", ValidateSensitiveEnvVarsNotSet()).
@@ -249,8 +254,8 @@ func TestRemovalOfAdditionalBackend(t *testing.T) {
 
 	installDevBuildWithTwoAdditionalBackendsFeature := features.New("install with 2 additional backends").
 		Setup(SetupOperatorDevBuild()).
+		// Now waits for operator to be ready
 		Setup(DeployAgentCr(&agent)).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName+"-1")).
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName+"-2")).
