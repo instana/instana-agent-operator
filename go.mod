@@ -155,4 +155,4 @@ require (
 // which contains CVE-2026-33186 (authorization bypass via malformed :path headers).
 // This can be removed once helm.sh/helm/v4 updates its grpc dependency to v1.79.3+.
 // See: https://github.com/instana/instana-agent-operator/pull/480
-replace google.golang.org/grpc => google.golang.org/grpc v1.80.0
+replace google.golang.org/grpc => google.golang.org/grpc v1.81.0
