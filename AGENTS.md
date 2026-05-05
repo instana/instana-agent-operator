@@ -44,6 +44,12 @@ This file provides guidance to agents when working with code in this repository.
 
 ## CI/CD Pipeline Logs (SPS/Tekton)
 
+### Prerequisites
+
+**IBM Cloud CLI**: Required for fetching pipeline logs. If not installed, see [IBM Cloud CLI installation guide](https://cloud.ibm.com/docs/cli?topic=cli-getting-started).
+
+**Authentication**: Before fetching logs, authenticate with `ibmcloud login --sso`. This requires interactive authentication and cannot be automated by agents. If you encounter authentication errors, ask the user to run this command.
+
 ### Fetching Logs
 - Fetch logs: `ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID>`
 - Filter by task: Add `--task-name <task>` to narrow logs to specific task

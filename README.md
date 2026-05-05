@@ -91,7 +91,20 @@ The operator automatically sets these environment variables:
 
 ### CI/CD Pipeline Log Analysis
 
-For analyzing failing CI/CD pipelines, this repository includes a log parser tool that reduces verbose Tekton logs by ~98%:
+For analyzing failing CI/CD pipelines, this repository includes a log parser tool that reduces verbose Tekton logs by ~98%.
+
+#### Prerequisites
+
+**IBM Cloud CLI**: Required for fetching pipeline logs. If not installed, follow the [IBM Cloud CLI installation guide](https://cloud.ibm.com/docs/cli?topic=cli-getting-started).
+
+**Authentication**: Before fetching logs, authenticate with:
+```bash
+ibmcloud login --sso
+```
+
+This requires interactive authentication and cannot be automated.
+
+#### Usage
 
 ```bash
 # Parse logs directly from ibmcloud CLI
