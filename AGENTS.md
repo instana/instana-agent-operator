@@ -3,10 +3,28 @@
 This file provides guidance to agents when working with code in this repository.
 
 ## Build & Test Commands
+- Build: `make build`
+- Lint: `make lint`
+- Format: `make fmt` or format specific file: `./bin/golangci-lint fmt ./path/to/file`
+- Run tests: `make test` (excludes mocks and e2e directories)
 - Run single test: `go test -v ./path/to/package -run TestName`
-- Format specific file: `./bin/golangci-lint fmt ./path/to/file`
 - E2E tests: `make e2e` (requires `e2e/.env` file - copy from `e2e/.env.example`)
+- Install golangci-lint if missing: `make golangci-lint`
+- Validate renovate.json: `npx --yes --package renovate -- renovate-config-validator`
 - Secrets baseline: `detect-secrets scan --update .secrets.baseline` before committing
+- Secrets audit: `detect-secrets audit .secrets.baseline`
+
+## Code Style
+- Go version: Check `go.mod` toolchain directive (currently go 1.25.0)
+- Line length: 120 characters max (enforced by lll linter)
+- Formatters: gofmt, goimports, golines (via golangci-lint)
+- Linters: govet, ineffassign, unused, misspell, exhaustive, errcheck, lll
+- Imports: Group standard library, external, and internal imports
+- Error handling: Always check errors, use `pkg/errors` for wrapping
+- Commit messages: Include DCO sign-off with `git commit -s`. Use conventional commits syntax for subject, concise message with brief summary in body
+- Types: Use strong typing, avoid interface{} when possible
+- Tests: Write unit tests for all new functionality
+- Naming: Follow Go conventions (CamelCase for exported, camelCase for private)
 
 ## Project-Specific Rules (Non-Obvious Only)
 - Error wrapping: MUST use `github.com/pkg/errors` package (not standard library errors)
