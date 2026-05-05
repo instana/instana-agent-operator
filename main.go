@@ -25,6 +25,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -100,8 +101,18 @@ func main() {
 		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", operatorNamespace)
 	}
 
+	// Configure cache to only watch resources in the operator's namespace
+	// This prevents caching ALL resources cluster-wide and reduces memory usage significantly
+	// ClusterRole and ClusterRoleBinding are cluster-scoped so they will still be cached cluster-wide
+	log.Info("Configuring cache to watch only operator namespace", "namespace", operatorNamespace)
+
 	mgr, err := ctrl.NewManager(
 		cfg, ctrl.Options{
+			Cache: cache.Options{
+				DefaultNamespaces: map[string]cache.Config{
+					operatorNamespace: {},
+				},
+			},
 			Metrics: metricsserver.Options{
 				BindAddress: metricsAddr,
 			},
