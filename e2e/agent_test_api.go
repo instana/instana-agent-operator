@@ -518,6 +518,12 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		ensureRegistrySecret(t, cfg)
 
+		// Ensure namespace is fully ready (not terminating) before proceeding
+		// This prevents race conditions after full namespace deletion/recreation
+		if err := waitForNamespaceReady(ctx, cfg, t); err != nil {
+			t.Fatalf("Namespace not ready: %v", err)
+		}
+
 		desiredImage := desiredDevBuildImage()
 		imageMatches, err := operatorImageMatches(ctx, cfg, desiredImage)
 		if err != nil {
@@ -574,6 +580,12 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 			t.Fatalf("Operator deployment did not become ready: %v", err)
 		}
 		t.Log("Operator deployment is ready")
+
+		// Additionally verify that operator pods are actually running and ready
+		// Deployment being "Available" doesn't guarantee pods are ready to process CRs
+		if err := waitForOperatorPodsReady(ctx, cfg, t); err != nil {
+			t.Fatalf("Operator pods not ready: %v", err)
+		}
 
 		return ctx
 	}
@@ -1144,4 +1156,83 @@ func PrintOperatorLogs(ctx context.Context, cfg *envconf.Config, t *testing.T) {
 	t.Log("====== Operator logs start ======", p.Out())
 	t.Log(p.Out())
 	t.Log("====== Operator logs end ======", p.Out())
+}
+
+// waitForNamespaceReady ensures the namespace exists and is in Active phase (not Terminating)
+// This prevents race conditions after full namespace deletion/recreation
+func waitForNamespaceReady(ctx context.Context, cfg *envconf.Config, t *testing.T) error {
+	r, err := resources.New(cfg.Client().RESTConfig())
+	if err != nil {
+		return fmt.Errorf("initialize client for namespace check: %w", err)
+	}
+
+	t.Logf("Waiting for namespace %s to be ready...", cfg.Namespace())
+
+	// Wait for namespace to exist and be in Active phase
+	for i := 0; i < 60; i++ { // 60 seconds max
+		ns := &corev1.Namespace{}
+		err = r.Get(ctx, cfg.Namespace(), cfg.Namespace(), ns)
+		if err == nil && ns.Status.Phase == corev1.NamespaceActive {
+			t.Logf("Namespace %s is ready (Active)", cfg.Namespace())
+			return nil
+		}
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("error checking namespace: %w", err)
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return fmt.Errorf("namespace %s not ready after 60s", cfg.Namespace())
+}
+
+// waitForOperatorPodsReady verifies that operator pods are actually running and ready
+// This provides additional assurance beyond deployment status that the controller is ready to process CRs
+func waitForOperatorPodsReady(ctx context.Context, cfg *envconf.Config, t *testing.T) error {
+	clientSet, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+	if err != nil {
+		return fmt.Errorf("create clientset for pod check: %w", err)
+	}
+
+	t.Log("Verifying operator pods are running and ready...")
+
+	// Wait for at least one pod to be Running and Ready
+	for i := 0; i < 60; i++ { // 60 seconds max
+		pods, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{
+			LabelSelector: "control-plane=controller-manager",
+		})
+		if err != nil {
+			return fmt.Errorf("list operator pods: %w", err)
+		}
+
+		if len(pods.Items) == 0 {
+			t.Log("No operator pods found yet, waiting...")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		// Check if at least one pod is Running and Ready
+		for _, pod := range pods.Items {
+			if pod.Status.Phase == corev1.PodRunning {
+				// Check if all containers are ready
+				allReady := true
+				for _, condition := range pod.Status.Conditions {
+					if condition.Type == corev1.PodReady &&
+						condition.Status == corev1.ConditionTrue {
+						t.Logf("Operator pod %s is running and ready", pod.Name)
+						return nil
+					}
+					if condition.Type == corev1.PodReady &&
+						condition.Status != corev1.ConditionTrue {
+						allReady = false
+					}
+				}
+				if !allReady {
+					t.Logf("Operator pod %s is running but not ready yet, waiting...", pod.Name)
+				}
+			}
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("no operator pods became ready after 60s")
 }
