@@ -89,6 +89,34 @@ The operator automatically sets these environment variables:
 - `ETCD_METRICS_URL`: Direct URL to ETCD metrics (OpenShift)
 - `ETCD_REQUEST_TIMEOUT`: Timeout for ETCD requests (default: 15s)
 
+### CI/CD Pipeline Log Analysis
+
+For analyzing failing CI/CD pipelines, this repository includes a log parser tool that reduces verbose Tekton logs by ~98%.
+
+#### Prerequisites
+
+**IBM Cloud CLI**: Required for fetching pipeline logs. If not installed, follow the [IBM Cloud CLI installation guide](https://cloud.ibm.com/docs/cli?topic=cli-getting-started).
+
+**Authentication**: Before fetching logs, authenticate with:
+```bash
+ibmcloud login --sso
+```
+
+This requires interactive authentication and cannot be automated.
+
+#### Usage
+
+```bash
+# Parse logs directly from ibmcloud CLI
+ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID> | ./ci/sps-scripts/parse-tekton-logs.sh
+
+# Save parsed output for analysis
+ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID> | \
+  ./ci/sps-scripts/parse-tekton-logs.sh > failure-summary.txt
+```
+
+The parser extracts only essential failure information (test failures, panic traces, error messages) while filtering out noise like Docker initialization and package installation logs. See [AGENTS.md](AGENTS.md) for detailed usage guidance.
+
 ### Contributing
 
 Please see the guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
