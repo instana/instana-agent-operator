@@ -17,21 +17,14 @@ This file provides guidance to agents when working with code in this repository.
 ## Code Style
 - Go version: Check `go.mod` toolchain directive (currently go 1.25.0)
 - Line length: 120 characters max (enforced by lll linter)
-- Formatters: gofmt, goimports, golines (via golangci-lint)
-- Linters: govet, ineffassign, unused, misspell, exhaustive, errcheck, lll
-- Imports: Group standard library, external, and internal imports
-- Error handling: Always check errors, use `pkg/errors` for wrapping
-- Commit messages: Include DCO sign-off with `git commit -s`. Use conventional commits syntax for subject, concise message with brief summary in body
-- Types: Use strong typing, avoid interface{} when possible
-- Tests: Write unit tests for all new functionality
-- Naming: Follow Go conventions (CamelCase for exported, camelCase for private)
+- Linters: See `.golangci.yml` for full configuration (govet, ineffassign, unused, misspell, exhaustive, errcheck, lll)
+- Commit messages: MUST include DCO sign-off with `git commit -s`. Use conventional commits syntax for subject, concise message with brief summary in body
 
 ## Project-Specific Rules (Non-Obvious Only)
 - Error wrapping: MUST use `github.com/pkg/errors` package (not standard library errors)
 - Tools directory: All binaries install to `./bin/` (GOBIN override in Makefile)
-- Branch naming: Avoid `/` in branch names (breaks CI pipelines)
+- Branch naming: Avoid `/` in branch names (breaks SPS/Tekton CI pipeline task names)
 - Container builds: Uses buildctl with containerized buildkitd (not direct docker build)
-- Commit messages: MUST include DCO sign-off with `git commit -s`
 - PR template: Fill out `.github/pull_request_template.md` and use as PR body
 
 ## Kubernetes Operator Specifics
