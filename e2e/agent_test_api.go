@@ -724,26 +724,39 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
 		}
 
-		// active wait for deployment to be created by the operator, if it is not coming up within 1 minute, something is really off
-		for range 12 {
-			err = client.Resources().Get(ctx, name, cfg.Namespace(), &dep)
-			if err != nil {
-				t.Log("Give the operator a few more seconds to inject resources")
-				time.Sleep(5 * time.Second)
-			} else {
-				t.Logf("Deployment %s was present", name)
-				break
-			}
-		}
+		conds := conditions.New(client.Resources())
 
-		// wait for operator pods of the deployment to become ready
+		// A deployment can briefly disappear during release installs or reconciliation.
+		// Keep fetching a fresh object until it exists and reports Available.
 		err = wait.For(
-			conditions.New(client.Resources()).
-				DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue),
+			func(ctx context.Context) (done bool, err error) {
+				dep = appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
+				}
+				if getErr := client.Resources().Get(ctx, name, cfg.Namespace(), &dep); getErr != nil {
+					t.Log("Deployment not available yet, waiting for it to be created or recreated")
+					return false, nil
+				}
+
+				for _, condition := range dep.Status.Conditions {
+					if condition.Type == appsv1.DeploymentAvailable && condition.Status == corev1.ConditionTrue {
+						return true, nil
+					}
+				}
+
+				done, err = conds.DeploymentConditionMatch(
+					&dep,
+					appsv1.DeploymentAvailable,
+					corev1.ConditionTrue,
+				)(ctx)
+				return done, err
+			},
 			wait.WithTimeout(time.Minute*3),
+			wait.WithInterval(5*time.Second),
 		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
+			PrintNamespaceEvents(t, cfg.Namespace())
 
 			// Add kubectl describe deployment to debug why the deployment failed to become ready
 			t.Logf("Running kubectl describe deployment %s to debug deployment issues", name)
@@ -762,6 +775,20 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		t.Logf("Deployment %s is ready", name)
 		return ctx
 	}
+}
+
+func PrintNamespaceEvents(t *testing.T, namespace string) {
+	t.Helper()
+
+	p := utils.RunCommand(
+		fmt.Sprintf("kubectl get events -n %s --sort-by=.lastTimestamp", namespace),
+	)
+	t.Logf("====== Namespace %s events start ======", namespace)
+	t.Log(p.Out())
+	if p.Err() != nil {
+		t.Logf("Error collecting namespace events: %v", p.Err())
+	}
+	t.Logf("====== Namespace %s events end ======", namespace)
 }
 
 // optional argument for the custom daemons set name
