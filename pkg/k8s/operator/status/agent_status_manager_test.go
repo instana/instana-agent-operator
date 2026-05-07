@@ -67,8 +67,14 @@ func TestUpdateAgentStatus(t *testing.T) {
 		Name:      "AddAgentDaemonsetName",
 		Namespace: "AddAgentDaemonsetNamespace",
 	}}
-	k8sSensorDeployment := &types.NamespacedName{Name: "test_name_deployment", Namespace: "test_namespace_deployment"}
-	namespacesConfigmap := &types.NamespacedName{Name: "test_name_namespaces_configmap", Namespace: "test_name_namespaces_configmap"}
+	k8sSensorDeployment := &types.NamespacedName{
+		Name:      "test_name_deployment",
+		Namespace: "test_namespace_deployment",
+	}
+	namespacesConfigmap := &types.NamespacedName{
+		Name:      "test_name_namespaces_configmap",
+		Namespace: "test_name_namespaces_configmap",
+	}
 
 	num := int64(1)
 	semVer := instanav1.SemanticVersion{}
@@ -304,7 +310,10 @@ func TestUpdateAgentStatus(t *testing.T) {
 						Return(writer)
 				}
 
-				agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10))
+				agentStatusManager := NewAgentStatusManager(
+					instanaAgentClient,
+					record.NewFakeRecorder(10),
+				)
 
 				if test.agent != nil {
 					agentStatusManager.SetAgentOld(test.agent)
@@ -335,4 +344,120 @@ func TestUpdateAgentStatus(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestGetAllK8sSensorsAvailableCondition_WhenDisabled(t *testing.T) {
+	assertions := require.New(t)
+	ctx := t.Context()
+
+	// Create an agent with k8sensor explicitly disabled
+	agent := &instanav1.InstanaAgent{
+		Spec: instanav1.InstanaAgentSpec{
+			K8sSensor: instanav1.K8sSpec{
+				DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+					Enabled: instanav1.Enabled{
+						Enabled: func() *bool { b := false; return &b }(),
+					},
+				},
+			},
+		},
+	}
+
+	instanaAgentClient := &mocks.MockInstanaAgentClient{}
+	defer instanaAgentClient.AssertExpectations(t)
+
+	agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10)).(*agentStatusManager)
+	agentStatusManager.SetAgentOld(agent)
+
+	// Call the method
+	result := agentStatusManager.getAllK8sSensorsAvailableCondition(ctx)
+
+	// When k8sensor is disabled, the function should return a failure result (empty condition)
+	assertions.True(result.IsFailure(), "Expected failure result when k8sensor is disabled")
+
+	// Verify no client calls were made since we skip the condition entirely
+	instanaAgentClient.AssertNotCalled(t, "GetAsResult")
+}
+
+func TestGetAllK8sSensorsAvailableCondition_WhenEnabled(t *testing.T) {
+	assertions := require.New(t)
+	ctx := t.Context()
+
+	// Create an agent with k8sensor enabled (default)
+	agent := &instanav1.InstanaAgent{
+		Spec: instanav1.InstanaAgentSpec{
+			K8sSensor: instanav1.K8sSpec{
+				DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+					Enabled: instanav1.Enabled{
+						Enabled: func() *bool { b := true; return &b }(),
+					},
+				},
+			},
+		},
+	}
+
+	instanaAgentClient := &mocks.MockInstanaAgentClient{}
+	defer instanaAgentClient.AssertExpectations(t)
+
+	agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10)).(*agentStatusManager)
+	agentStatusManager.SetAgentOld(agent)
+	// Don't set k8sSensorDeployment to simulate "not configured" scenario
+
+	// Call the method
+	result := agentStatusManager.getAllK8sSensorsAvailableCondition(ctx)
+
+	// When k8sensor is enabled but not configured, should return success with "not configured" condition
+	assertions.True(result.IsSuccess(), "Expected success result when k8sensor is enabled")
+
+	condition, err := result.Get()
+	assertions.Nil(err)
+	assertions.Equal(metav1.ConditionUnknown, condition.Status)
+	assertions.Equal("K8sensorDeploymentNotConfigured", condition.Reason)
+	assertions.Equal(
+		"k8sensor deployment has not been configured for this agent",
+		condition.Message,
+	)
+}
+
+func TestGetAllK8sSensorsAvailableCondition_WhenEnabledNil(t *testing.T) {
+	assertions := require.New(t)
+	ctx := t.Context()
+
+	// Create an agent with k8sensor enabled field as nil (defaults to true)
+	agent := &instanav1.InstanaAgent{
+		Spec: instanav1.InstanaAgentSpec{
+			K8sSensor: instanav1.K8sSpec{
+				DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+					Enabled: instanav1.Enabled{
+						Enabled: nil, // nil defaults to true
+					},
+				},
+			},
+		},
+	}
+
+	instanaAgentClient := &mocks.MockInstanaAgentClient{}
+	defer instanaAgentClient.AssertExpectations(t)
+
+	agentStatusManager := NewAgentStatusManager(instanaAgentClient, record.NewFakeRecorder(10)).(*agentStatusManager)
+	agentStatusManager.SetAgentOld(agent)
+	// Don't set k8sSensorDeployment to simulate "not configured" scenario
+
+	// Call the method
+	result := agentStatusManager.getAllK8sSensorsAvailableCondition(ctx)
+
+	// When k8sensor enabled is nil (defaults to true) but not configured, should return "not configured" condition
+	assertions.True(
+		result.IsSuccess(),
+		"Expected success result when k8sensor enabled is nil (defaults to true)",
+	)
+
+	condition, err := result.Get()
+	assertions.Nil(err)
+	assertions.Equal(metav1.ConditionUnknown, condition.Status)
+	assertions.Equal("K8sensorDeploymentNotConfigured", condition.Reason)
+	assertions.Equal(
+		"k8sensor deployment has not been configured for this agent",
+		condition.Message,
+	)
 }
