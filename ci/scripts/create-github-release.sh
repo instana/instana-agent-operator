@@ -49,8 +49,8 @@ GITHUB_RELEASE_ID=$(echo "${GITHUB_RELEASE_RESPONSE}" | jq .id)
 if [[ -z "${GITHUB_RELEASE_ID}" ]] || [[ ${GITHUB_RELEASE_ID} == "null" ]]; then
   printf "\n%s\n" "Creating GitHub Release..."
   
-  # Construct the JSON payload
-  RELEASE_JSON="{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"${BRANCH}\", \"name\": \"v${VERSION}\", \"make_latest\": \"${MAKE_LATEST}\" }"
+  # Construct the JSON payload with generate_release_notes enabled
+  RELEASE_JSON="{ \"tag_name\": \"v${VERSION}\", \"target_commitish\": \"${BRANCH}\", \"name\": \"v${VERSION}\", \"make_latest\": \"${MAKE_LATEST}\", \"generate_release_notes\": true }"
   echo "Release JSON payload: ${RELEASE_JSON}"
   
   GITHUB_RELEASE_RESPONSE=$(curl -X POST \
