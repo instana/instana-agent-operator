@@ -43,6 +43,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
@@ -143,6 +144,14 @@ func (r *InstanaAgentReconciler) reconcile(
 	log.Info("reconciling Agent CR")
 
 	agent.Default()
+
+	// Log if k8sensor is disabled
+	if !pointer.DerefOrDefault(agent.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled, true) {
+		log.Info(
+			"k8sensor deployment is disabled - Kubernetes cluster monitoring will not be available",
+		)
+	}
+
 	operatorUtils := operator_utils.NewOperatorUtils(
 		ctx,
 		r.client,
