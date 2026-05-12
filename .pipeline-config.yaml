@@ -47,6 +47,7 @@ tasks:
           - docker-socket
           
   pr-code-checks-3:
+    from: pr-code-checks
     displayName: operator-olm-build
     runtimeClassName: large
     include:
@@ -62,12 +63,3 @@ tasks:
       - name: detect-secrets
         include:
           - docker-socket
-
-  code-pr-finish:
-    steps:
-      - name: evaluate
-        when: 'false'
-      - name: prepare
-        when: 'false'
-      - name: run-stage
-        when: 'false'
