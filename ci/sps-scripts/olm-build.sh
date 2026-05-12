@@ -94,6 +94,47 @@ make IMG="${OPERATOR_IMAGE}" \
 	AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
 	bundle
 
+echo ""
+echo "=== Validating Operator Version Label in Bundle ==="
+
+# Validate: No placeholders remain
+echo "Checking for placeholders in bundle..."
+if grep -r "OPERATOR_VERSION_PLACEHOLDER" bundle/manifests/ 2>/dev/null; then
+	echo "ERROR: OPERATOR_VERSION_PLACEHOLDER found in bundle manifests"
+	exit 1
+fi
+echo "✓ No placeholders found"
+
+# Validate: Version label present in bundle
+echo "Checking for operator-version label in bundle..."
+if ! grep -r "operator-version: ${OLM_RELEASE_VERSION}" bundle/manifests/ 2>/dev/null; then
+	echo "ERROR: operator-version label not found in bundle manifests"
+	exit 1
+fi
+echo "✓ Version label found: operator-version: ${OLM_RELEASE_VERSION}"
+
+# Validate: Version label in CSV specifically
+CSV_FILE="bundle/manifests/instana-agent-operator.clusterserviceversion.yaml"
+if [ ! -f "$CSV_FILE" ]; then
+	echo "ERROR: CSV file not found at $CSV_FILE"
+	exit 1
+fi
+if ! grep -q "operator-version: ${OLM_RELEASE_VERSION}" "$CSV_FILE"; then
+	echo "ERROR: operator-version label not found in CSV"
+	exit 1
+fi
+echo "✓ Version label found in CSV"
+
+# Validate: Bundle structure
+if [ ! -d "bundle/manifests" ] || [ ! -d "bundle/metadata" ]; then
+	echo "ERROR: Bundle structure is incomplete"
+	exit 1
+fi
+echo "✓ Bundle structure validated"
+
+echo "=== Bundle validation complete ==="
+echo ""
+
 cp bundle.Dockerfile ../docker-input/
 cp -R bundle ../docker-input/
 pushd bundle
@@ -101,7 +142,46 @@ zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
 popd
 
 # Create the YAML for installing the Agent Operator, which we want to package with the release
-make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" controller-yaml >target/instana-agent-operator.yaml
+make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml >target/instana-agent-operator.yaml
+
+echo ""
+echo "=== Validating Operator Version Label in Controller YAML ==="
+
+# Validate: No placeholders remain
+echo "Checking for placeholders in controller YAML..."
+if grep -q "OPERATOR_VERSION_PLACEHOLDER" target/instana-agent-operator.yaml; then
+	echo "ERROR: OPERATOR_VERSION_PLACEHOLDER found in controller YAML"
+	exit 1
+fi
+echo "✓ No placeholders found"
+
+# Validate: Version label present (should appear twice: deployment metadata + pod template)
+echo "Checking for operator-version label in controller YAML..."
+LABEL_COUNT=$(grep -c "operator-version: ${OLM_RELEASE_VERSION}" target/instana-agent-operator.yaml || true)
+if [ "$LABEL_COUNT" -ne 2 ]; then
+	echo "ERROR: Expected 2 occurrences of operator-version label, found $LABEL_COUNT"
+	exit 1
+fi
+echo "✓ Version label found in deployment metadata and pod template (2 occurrences)"
+
+# Validate: Version label NOT in selector
+echo "Checking that operator-version is not in selector..."
+if grep -A 3 "selector:" target/instana-agent-operator.yaml | grep -q "operator-version"; then
+	echo "ERROR: operator-version found in selector (should not be there - immutable field)"
+	exit 1
+fi
+echo "✓ Selector does not contain operator-version (correct)"
+
+# Validate: YAML is well-formed
+echo "Validating YAML structure..."
+if ! python3 -c "import yaml; list(yaml.safe_load_all(open('target/instana-agent-operator.yaml')))" 2>/dev/null; then
+	echo "ERROR: Controller YAML is not well-formed"
+	exit 1
+fi
+echo "✓ YAML structure validated"
+
+echo "=== Controller YAML validation complete ==="
+echo ""
 
 echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
 cat target/instana-agent-operator.yaml

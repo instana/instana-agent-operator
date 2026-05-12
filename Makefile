@@ -343,6 +343,7 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 		| sed -e 's|\(containerImage:[[:space:]]*\).*|\1$(IMG)|' \
 		| sed -e 's|\(image:[[:space:]]*\).*instana-agent-operator:0.0.0|\1$(IMG)|' \
 		| sed -e 's|\(image:[[:space:]]*\).*agent:latest|\1$(AGENT_IMG)|' \
+		| sed 's|OPERATOR_VERSION_PLACEHOLDER|$(VERSION)|g' \
 		| $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
 	$(OPERATOR_SDK) bundle validate ./bundle
@@ -354,7 +355,7 @@ bundle-build: buildctl ## Build the bundle image for OLM.
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	@cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)" > /dev/null
-	@$(KUSTOMIZE) build config/default
+	@$(KUSTOMIZE) build config/default | sed 's|OPERATOR_VERSION_PLACEHOLDER|$(VERSION)|g'
 
 CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
 
