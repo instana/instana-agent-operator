@@ -48,8 +48,6 @@ tasks:
           
   pr-code-checks-3:
     displayName: operator-olm-build
-    runAfter:
-      - pr-code-checks
     runtimeClassName: large
     include:
       - dind
