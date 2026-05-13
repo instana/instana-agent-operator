@@ -36,19 +36,24 @@ func TestManagerCacheConfiguration(t *testing.T) {
 	}()
 
 	opts := ctrl.Options{
-		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				operatorNamespace: {},
-			},
-		},
+		Cache: getCacheOptions(operatorNamespace),
 		Controller: config.Controller{
 			SkipNameValidation: func() *bool { b := true; return &b }(),
 		},
 	}
 
 	assertions.NotNil(opts.Cache.DefaultNamespaces)
-	assertions.Len(opts.Cache.DefaultNamespaces, 1)
+	assertions.Len(
+		opts.Cache.DefaultNamespaces,
+		2,
+		"Cache should watch both operator namespace and kube-system",
+	)
 	assertions.Contains(opts.Cache.DefaultNamespaces, operatorNamespace)
+	assertions.Contains(
+		opts.Cache.DefaultNamespaces,
+		"kube-system",
+		"Cache should include kube-system namespace",
+	)
 }
 
 func TestOperatorNamespaceFromEnvironment(t *testing.T) {
@@ -91,8 +96,14 @@ func TestOperatorNamespaceFromEnvironment(t *testing.T) {
 			if operatorNamespace == "" {
 				operatorNamespace = defaultNamespace
 			}
-
-			assertions.Equal(tt.expectedNamespace, operatorNamespace)
+			cacheOpts := getCacheOptions(operatorNamespace)
+			assertions.NotNil(cacheOpts.DefaultNamespaces)
+			assertions.Contains(
+				cacheOpts.DefaultNamespaces,
+				tt.expectedNamespace,
+				"%s namespace should be in cache configuration",
+				tt.expectedNamespace,
+			)
 		})
 	}
 }
@@ -102,17 +113,21 @@ func TestCacheOptionsStructure(t *testing.T) {
 
 	operatorNamespace := "test-namespace"
 
-	cacheOpts := cache.Options{
-		DefaultNamespaces: map[string]cache.Config{
-			operatorNamespace: {},
-		},
-	}
-
+	cacheOpts := getCacheOptions(operatorNamespace)
 	assertions.NotNil(cacheOpts.DefaultNamespaces)
 	assertions.IsType(map[string]cache.Config{}, cacheOpts.DefaultNamespaces)
 
-	_, exists := cacheOpts.DefaultNamespaces[operatorNamespace]
-	assertions.True(exists)
+	assertions.Contains(
+		cacheOpts.DefaultNamespaces,
+		operatorNamespace,
+		"%s namespace should be in cache configuration",
+		operatorNamespace,
+	)
+	assertions.Contains(
+		cacheOpts.DefaultNamespaces,
+		"kube-system",
+		"kube-system namespace should be in cache configuration",
+	)
 }
 
 // Made with Bob

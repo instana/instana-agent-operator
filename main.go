@@ -57,6 +57,15 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
+func getCacheOptions(operatorNamespace string) cache.Options {
+	return cache.Options{
+		DefaultNamespaces: map[string]cache.Config{
+			operatorNamespace: {},
+			"kube-system":     {},
+		},
+	}
+}
+
 func main() {
 	var metricsAddr string
 	var probeAddr string
@@ -101,18 +110,18 @@ func main() {
 		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", operatorNamespace)
 	}
 
-	// Configure cache to only watch resources in the operator's namespace
+	// Configure cache to only watch resources in the operator's namespace and in kube-system
 	// This prevents caching ALL resources cluster-wide and reduces memory usage significantly
 	// ClusterRole and ClusterRoleBinding are cluster-scoped so they will still be cached cluster-wide
-	log.Info("Configuring cache to watch only operator namespace", "namespace", operatorNamespace)
+	log.Info(
+		"Configuring cache to watch operator namespace and kube-system",
+		"namespace",
+		operatorNamespace,
+	)
 
 	mgr, err := ctrl.NewManager(
 		cfg, ctrl.Options{
-			Cache: cache.Options{
-				DefaultNamespaces: map[string]cache.Config{
-					operatorNamespace: {},
-				},
-			},
+			Cache: getCacheOptions(operatorNamespace),
 			Metrics: metricsserver.Options{
 				BindAddress: metricsAddr,
 			},
@@ -186,7 +195,14 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 	}
 
 	if err := k8sClient.List(context.Background(), deploymentsList, deploymentOptions); err != nil {
-		log.Info(fmt.Sprintf("Failed to get list the deployment with the label %s:%s and name %s", labelKey, instanaclient.FieldOwnerName, InstanaOperatorOldDeploymentName))
+		log.Info(
+			fmt.Sprintf(
+				"Failed to get list the deployment with the label %s:%s and name %s",
+				labelKey,
+				instanaclient.FieldOwnerName,
+				InstanaOperatorOldDeploymentName,
+			),
+		)
 	} else {
 		// there should be only one deployment but we iterate just in case
 		log.Info(fmt.Sprintf("Found %v deployments that match the criteria", len(deploymentsList.Items)))
