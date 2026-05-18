@@ -95,13 +95,6 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		time.Sleep(20 * time.Second)
-		podList, err := clientSet.CoreV1().Pods(cfg.Namespace()).List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent-remote"})
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(podList.Items) == 0 {
-			log.Fatal("No pods found")
-		}
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
@@ -109,10 +102,31 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			log.Info("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			log.Info("Fetching logs")
-			logReq := clientSet.CoreV1().Pods(cfg.Namespace()).GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
+
+			// Re-fetch pod list to handle pod recreation during upgrades
+			podList, err := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent-remote"})
+			if err != nil {
+				log.Infof("Could not list pods: %v, will retry", err)
+				continue
+			}
+			if len(podList.Items) == 0 {
+				log.Info("No pods found, will retry")
+				continue
+			}
+
+			logReq := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
-				log.Fatal("Could not stream logs", err)
+				log.Infof(
+					"Could not stream logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			defer podLogs.Close()
 
@@ -120,7 +134,12 @@ func WaitForAgentRemoteSuccessfulBackendConnection() e2etypes.StepFunc {
 			_, err = io.Copy(buf, podLogs)
 
 			if err != nil {
-				log.Fatal(err)
+				log.Infof(
+					"Error copying logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
 				log.Info("Connection established correctly")
