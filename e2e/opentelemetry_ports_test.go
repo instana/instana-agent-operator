@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	portCheckTimeout  = 2 * time.Minute
+	portCheckTimeout  = 4 * time.Minute
 	portCheckInterval = 5 * time.Second
 )
 
