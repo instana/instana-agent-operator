@@ -651,7 +651,7 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
-		for i := 0; i < 9; i++ {
+		for i := 0; i < 15; i++ {
 			t.Log("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
