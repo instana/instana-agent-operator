@@ -17,6 +17,7 @@ import (
 )
 
 func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	RequireFullResetBeforeTest(
 		t,
 		"TestUpdateInstallFromOldGenericResourceNames requires clean environment before installing legacy operator",

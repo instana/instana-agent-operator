@@ -15,6 +15,8 @@ import (
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -55,6 +57,57 @@ func init() {
 	utilruntime.Must(agentoperatorv1.AddToScheme(scheme))
 	utilruntime.Must(appsv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+// getCacheOptions returns the cache configuration for the operator
+// This configuration enables multi-namespace support while maintaining memory efficiency
+// through label-based filtering
+func getCacheOptions() (cache.Options, error) {
+	// Label selector for resources managed by this operator
+	managedByOperator, err := labels.Parse("app.kubernetes.io/managed-by=instana-agent-operator")
+	if err != nil {
+		return cache.Options{}, err
+	}
+
+	return cache.Options{
+		ByObject: map[client.Object]cache.ByObject{
+			// InstanaAgent and InstanaAgentRemote CRs - watch all namespaces
+			&agentoperatorv1.InstanaAgent{}:       {},
+			&agentoperatorv1.InstanaAgentRemote{}: {},
+
+			// Namespace objects - watch all for label monitoring (instana-workload-monitoring)
+			&corev1.Namespace{}: {},
+
+			// Operator-managed resources - filter by label across all namespaces
+			&appsv1.DaemonSet{}: {
+				Label: managedByOperator,
+			},
+			&appsv1.Deployment{}: {
+				Label: managedByOperator,
+			},
+			&corev1.ServiceAccount{}: {
+				Label: managedByOperator,
+			},
+			&policyv1.PodDisruptionBudget{}: {
+				Label: managedByOperator,
+			},
+			&rbacv1.ClusterRole{}: {
+				Label: managedByOperator,
+			},
+			&rbacv1.ClusterRoleBinding{}: {
+				Label: managedByOperator,
+			},
+
+			// ConfigMaps and Secrets - watch all namespaces without label filter
+			// This allows access to user-provided KeysSecrets and ETCD resources
+			// in openshift-etcd and kube-system namespaces
+			&corev1.ConfigMap{}: {},
+			&corev1.Secret{}:    {},
+
+			// Services - watch all namespaces for ETCD service discovery
+			&corev1.Service{}: {},
+		},
+	}, nil
 }
 
 func main() {
@@ -101,18 +154,20 @@ func main() {
 		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", operatorNamespace)
 	}
 
-	// Configure cache to only watch resources in the operator's namespace
-	// This prevents caching ALL resources cluster-wide and reduces memory usage significantly
-	// ClusterRole and ClusterRoleBinding are cluster-scoped so they will still be cached cluster-wide
-	log.Info("Configuring cache to watch only operator namespace", "namespace", operatorNamespace)
+	// Configure cache to watch only resources managed by this operator using label selectors
+	// This reduces memory usage while allowing the operator to work across namespaces
+	// Resources created by the operator have label: app.kubernetes.io/managed-by=instana-agent-operator
+	log.Info("Configuring cache with label-based filtering for operator-managed resources")
+
+	cacheOpts, err := getCacheOptions()
+	if err != nil {
+		log.Error(err, "Failed to create cache options")
+		os.Exit(1)
+	}
 
 	mgr, err := ctrl.NewManager(
 		cfg, ctrl.Options{
-			Cache: cache.Options{
-				DefaultNamespaces: map[string]cache.Config{
-					operatorNamespace: {},
-				},
-			},
+			Cache: cacheOpts,
 			Metrics: metricsserver.Options{
 				BindAddress: metricsAddr,
 			},

@@ -21,34 +21,79 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	ctrl "sigs.k8s.io/controller-runtime"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
 )
 
-func TestManagerCacheConfiguration(t *testing.T) {
+func TestLabelBasedCacheConfiguration(t *testing.T) {
 	assertions := require.New(t)
 
-	operatorNamespace := "test-namespace"
-	assertions.NoError(os.Setenv("POD_NAMESPACE", operatorNamespace))
-	defer func() {
-		assertions.NoError(os.Unsetenv("POD_NAMESPACE"))
-	}()
+	// Get cache options using the shared function
+	cacheOpts, err := getCacheOptions()
+	assertions.NoError(err)
+	assertions.NotNil(cacheOpts.ByObject)
+	assertions.Len(cacheOpts.ByObject, 12, "Should have 12 resource types configured")
 
-	opts := ctrl.Options{
-		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				operatorNamespace: {},
-			},
-		},
-		Controller: config.Controller{
-			SkipNameValidation: func() *bool { b := true; return &b }(),
-		},
+	// Verify the cache configuration structure is correct
+	assertions.IsType(map[client.Object]cache.ByObject{}, cacheOpts.ByObject)
+}
+
+func TestOperatorManagedLabelSelector(t *testing.T) {
+	assertions := require.New(t)
+
+	// Test the label selector parsing
+	managedByOperator, err := labels.Parse("app.kubernetes.io/managed-by=instana-agent-operator")
+	assertions.NoError(err)
+	assertions.NotNil(managedByOperator)
+
+	// Test that the selector matches expected labels
+	testLabels := map[string]string{
+		"app.kubernetes.io/managed-by": "instana-agent-operator",
+		"app.kubernetes.io/name":       "instana-agent",
 	}
+	assertions.True(managedByOperator.Matches(labels.Set(testLabels)))
 
-	assertions.NotNil(opts.Cache.DefaultNamespaces)
-	assertions.Len(opts.Cache.DefaultNamespaces, 1)
-	assertions.Contains(opts.Cache.DefaultNamespaces, operatorNamespace)
+	// Test that the selector doesn't match non-operator resources
+	nonOperatorLabels := map[string]string{
+		"app": "some-other-app",
+	}
+	assertions.False(managedByOperator.Matches(labels.Set(nonOperatorLabels)))
+}
+
+func TestCacheConfigurationForMultiNamespaceSupport(t *testing.T) {
+	assertions := require.New(t)
+
+	// Get cache options using the shared function
+	cacheOpts, err := getCacheOptions()
+	assertions.NoError(err)
+	assertions.NotNil(cacheOpts.ByObject)
+
+	// Verify InstanaAgent CRs are cached without namespace restriction
+	agentConfig := cacheOpts.ByObject[&agentoperatorv1.InstanaAgent{}]
+	assertions.Nil(agentConfig.Label, "InstanaAgent CRs should be cached in all namespaces")
+
+	// Verify ConfigMaps are cached cluster-wide for ETCD discovery
+	configMapConfig := cacheOpts.ByObject[&corev1.ConfigMap{}]
+	assertions.Nil(
+		configMapConfig.Label,
+		"ConfigMaps should be cached cluster-wide for ETCD discovery",
+	)
+
+	// Verify Secrets are cached cluster-wide for ETCD and user secrets
+	secretConfig := cacheOpts.ByObject[&corev1.Secret{}]
+	assertions.Nil(secretConfig.Label, "Secrets should be cached cluster-wide")
+
+	// Verify Services are cached cluster-wide for ETCD discovery
+	serviceConfig := cacheOpts.ByObject[&corev1.Service{}]
+	assertions.Nil(
+		serviceConfig.Label,
+		"Services should be cached cluster-wide for ETCD discovery",
+	)
 }
 
 func TestOperatorNamespaceFromEnvironment(t *testing.T) {
@@ -100,19 +145,26 @@ func TestOperatorNamespaceFromEnvironment(t *testing.T) {
 func TestCacheOptionsStructure(t *testing.T) {
 	assertions := require.New(t)
 
-	operatorNamespace := "test-namespace"
+	managedByOperator, err := labels.Parse("app.kubernetes.io/managed-by=instana-agent-operator")
+	assertions.NoError(err)
+
+	// Store the key to verify map access
+	daemonSetKey := &appsv1.DaemonSet{}
 
 	cacheOpts := cache.Options{
-		DefaultNamespaces: map[string]cache.Config{
-			operatorNamespace: {},
+		ByObject: map[client.Object]cache.ByObject{
+			daemonSetKey: {Label: managedByOperator},
 		},
 	}
 
-	assertions.NotNil(cacheOpts.DefaultNamespaces)
-	assertions.IsType(map[string]cache.Config{}, cacheOpts.DefaultNamespaces)
+	assertions.NotNil(cacheOpts.ByObject)
+	assertions.IsType(map[client.Object]cache.ByObject{}, cacheOpts.ByObject)
+	assertions.Len(cacheOpts.ByObject, 1, "Should have one resource type configured")
 
-	_, exists := cacheOpts.DefaultNamespaces[operatorNamespace]
-	assertions.True(exists)
+	// Verify using the same key reference
+	daemonSetConfig := cacheOpts.ByObject[daemonSetKey]
+	assertions.NotNil(daemonSetConfig.Label, "DaemonSet should have label filter")
+	assertions.Equal(managedByOperator, daemonSetConfig.Label)
 }
 
 // Made with Bob

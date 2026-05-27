@@ -704,6 +704,7 @@ func WaitForPodsToBeRecreatedForComponent(component string) features.Func {
 
 // TestSecretMountsDefaultBehavior tests the default behavior with useSecretMounts: true
 func TestSecretMountsDefaultBehavior(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCrWithSecretMounts(true)
 
 	defaultBehaviorFeature := features.New("secret mounts default behavior (useSecretMounts: true)").
@@ -729,6 +730,7 @@ func TestSecretMountsDefaultBehavior(t *testing.T) {
 
 // TestSecretMountsLegacyBehavior tests the legacy behavior with useSecretMounts: false
 func TestSecretMountsLegacyBehavior(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCrWithSecretMounts(false)
 
 	legacyBehaviorFeature := features.New("secret mounts legacy behavior (useSecretMounts: false)").
@@ -745,6 +747,7 @@ func TestSecretMountsLegacyBehavior(t *testing.T) {
 
 // TestSecretMountsSwitchingModes tests switching between secret mounts modes
 func TestSecretMountsSwitchingModes(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCrWithSecretMounts(true)
 
 	switchingModesFeature := features.New("switching between secret mounts modes").
@@ -772,6 +775,7 @@ func TestSecretMountsSwitchingModes(t *testing.T) {
 
 // TestSecretMountsHttpsProxyFile tests the https-proxy-file functionality
 func TestSecretMountsHttpsProxyFile(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	// Create a modified agent with proxy settings and ensure the proxy host is set
 	agent := NewAgentCrWithSecretMountsAndProxy()
 
@@ -799,6 +803,7 @@ func TestSecretMountsHttpsProxyFile(t *testing.T) {
 
 // TestRemoteSecretMountsDefaultBehavior tests the default behavior with useSecretMounts: true for remote agent
 func TestRemoteSecretMountsDefaultBehavior(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentRemoteCrWithSecretMounts(true)
 
 	defaultBehaviorFeature := features.New("remote agent secret mounts default behavior (useSecretMounts: true)").
@@ -826,6 +831,7 @@ func TestRemoteSecretMountsDefaultBehavior(t *testing.T) {
 
 // TestRemoteSecretMountsLegacyBehavior tests the legacy behavior with useSecretMounts: false for remote agent
 func TestRemoteSecretMountsLegacyBehavior(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentRemoteCrWithSecretMounts(false)
 
 	legacyBehaviorFeature := features.New("remote agent secret mounts legacy behavior (useSecretMounts: false)").
@@ -844,6 +850,7 @@ func TestRemoteSecretMountsLegacyBehavior(t *testing.T) {
 
 // TestRemoteSecretMountsSwitchingModes tests switching between secret mounts modes for remote agent
 func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentRemoteCrWithSecretMounts(true)
 
 	switchingModesFeature := features.New("switching between remote agent secret mounts modes").
@@ -890,6 +897,7 @@ func TestRemoteSecretMountsSwitchingModes(t *testing.T) {
 
 // TestRemoteSecretMountsHttpsProxyFile tests the https-proxy-file functionality for remote agent
 func TestRemoteSecretMountsHttpsProxyFile(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	// Create a modified agent with proxy settings and ensure the proxy host is set
 	agent := NewAgentRemoteCrWithSecretMountsAndProxy()
 
