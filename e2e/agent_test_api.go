@@ -903,3 +903,41 @@ func PrintOperatorLogs(ctx context.Context, cfg *envconf.Config, t *testing.T) {
 	t.Log(p.Out())
 	t.Log("====== Operator logs end ======", p.Out())
 }
+
+func CleanupSecretAfterTest(t *testing.T, namespace, name string) {
+	t.Helper()
+	t.Cleanup(func() {
+		cmd := fmt.Sprintf("kubectl delete secret %s -n %s --ignore-not-found", name, namespace)
+		p := utils.RunCommand(cmd)
+		if p.Err() != nil {
+			t.Logf(
+				"Cleanup: Failed to delete secret %s/%s: %v (%s)",
+				namespace,
+				name,
+				p.Err(),
+				p.Out(),
+			)
+		} else {
+			t.Logf("Cleanup: Deleted secret %s/%s", namespace, name)
+		}
+	})
+}
+
+func CleanupConfigMapAfterTest(t *testing.T, namespace, name string) {
+	t.Helper()
+	t.Cleanup(func() {
+		cmd := fmt.Sprintf("kubectl delete configmap %s -n %s --ignore-not-found", name, namespace)
+		p := utils.RunCommand(cmd)
+		if p.Err() != nil {
+			t.Logf(
+				"Cleanup: Failed to delete configmap %s/%s: %v (%s)",
+				namespace,
+				name,
+				p.Err(),
+				p.Out(),
+			)
+		} else {
+			t.Logf("Cleanup: Deleted configmap %s/%s", namespace, name)
+		}
+	})
+}
