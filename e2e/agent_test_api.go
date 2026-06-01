@@ -941,3 +941,36 @@ func CleanupConfigMapAfterTest(t *testing.T, namespace, name string) {
 		}
 	})
 }
+
+// CollectOperatorLogsOnFailure collects operator logs when a test fails for easier debugging
+func CollectOperatorLogsOnFailure(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log("==== Test failed, collecting operator logs ====")
+			p := utils.RunCommand(
+				"kubectl logs -n instana-agent deployment/instana-agent-controller-manager --tail=100",
+			)
+			if p.Err() != nil {
+				t.Logf("Could not collect operator logs: %v", p.Err())
+			} else {
+				t.Logf("Operator logs (last 100 lines):\n%s", p.Result())
+			}
+		}
+	})
+}
+
+// RequireFullResetAfterTest ensures that the next test run performs a full cleanup, regardless of the fast-path state.
+func RequireFullResetAfterTest(t *testing.T, reason string) {
+	t.Helper()
+	t.Cleanup(func() {
+		t.Logf("Test requested full reset: %s", reason)
+		MarkFullResetRequired(reason)
+	})
+}
+
+func RequireFullResetBeforeTest(t *testing.T, reason string) {
+	t.Helper()
+	t.Logf("Requesting full reset before test: %s", reason)
+	MarkFullResetRequired(reason)
+}

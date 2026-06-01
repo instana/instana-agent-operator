@@ -38,6 +38,7 @@ const (
 // It deploys the agent in opt-in mode and verifies that only JVMs in namespaces with the
 // instana-workload-monitoring=true label are monitored.
 func TestSelectiveMonitoring(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	// Create a new agent CR with selective monitoring enabled
 	agent := NewAgentCrWithSelectiveMonitoring()
 
@@ -253,6 +254,8 @@ func deployJavaDemoApp(
 }
 
 // VerifySelectiveMonitoring verifies that only the JVM in the opt-in namespace is monitored.
+// This implementation correlates PIDs with container IDs and mapping them
+// back to pods/namespaces using the Kubernetes API.
 func VerifySelectiveMonitoring() features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Log("Verifying selective monitoring...")
@@ -270,11 +273,9 @@ func VerifySelectiveMonitoring() features.Func {
 			NamespaceOptIn,
 		}
 
-		// Find all demo app pods across all namespaces
-		t.Log("Finding all demo app pods...")
-		var demoAppPods []corev1.Pod
-		var demoAppNodes = make(map[string]bool)
-		var podsByNamespace = make(map[string][]corev1.Pod)
+		// Build a map of container ID to pod/namespace for quick lookup
+		t.Log("Building container ID to pod/namespace mapping...")
+		containerToPod := make(map[string]*podInfo)
 
 		for _, ns := range namespaces {
 			podList, err := clientSet.CoreV1().Pods(ns).List(
@@ -288,17 +289,25 @@ func VerifySelectiveMonitoring() features.Func {
 				continue
 			}
 
-			podsByNamespace[ns] = podList.Items
 			for _, pod := range podList.Items {
-				demoAppPods = append(demoAppPods, pod)
-				demoAppNodes[pod.Spec.NodeName] = true
-				t.Logf("Found demo app pod %s in namespace %s on node %s",
-					pod.Name, pod.Namespace, pod.Spec.NodeName)
+				for _, containerStatus := range pod.Status.ContainerStatuses {
+					// Extract container ID (format: containerd://abc123...)
+					containerID := extractContainerID(containerStatus.ContainerID)
+					if containerID != "" {
+						containerToPod[containerID] = &podInfo{
+							name:      pod.Name,
+							namespace: pod.Namespace,
+							nodeName:  pod.Spec.NodeName,
+						}
+						t.Logf("Mapped container ID %s to pod %s in namespace %s on node %s",
+							containerID, pod.Name, pod.Namespace, pod.Spec.NodeName)
+					}
+				}
 			}
 		}
 
-		if len(demoAppPods) == 0 {
-			t.Fatal("No demo app pods found in any namespace")
+		if len(containerToPod) == 0 {
+			t.Fatal("No demo app containers found in any namespace")
 		}
 
 		// Get all agent pods
@@ -312,25 +321,6 @@ func VerifySelectiveMonitoring() features.Func {
 		if len(agentPodList.Items) == 0 {
 			t.Fatal("No agent pods found")
 		}
-
-		// Find agent pods running on the same nodes as our demo apps
-		var relevantAgentPods []corev1.Pod
-		for _, agentPod := range agentPodList.Items {
-			if demoAppNodes[agentPod.Spec.NodeName] {
-				relevantAgentPods = append(relevantAgentPods, agentPod)
-				t.Logf("Found agent pod %s on node %s that has demo app pods",
-					agentPod.Name, agentPod.Spec.NodeName)
-			}
-		}
-
-		if len(relevantAgentPods) == 0 {
-			t.Fatal("No agent pods found on nodes where demo apps are running")
-		}
-
-		// Define regex patterns for finding PIDs and attachment logs
-		vmDiscoveryRegex := regexp.MustCompile(
-			`adding new VM with PID (\d+).*INSTANA_TEST_POD_NAME=([^,\s]+)`,
-		)
 
 		// Track attachment status for each namespace
 		attachmentStatus := map[string]bool{
@@ -353,8 +343,7 @@ func VerifySelectiveMonitoring() features.Func {
 
 		for time.Now().Before(deadline) {
 			// Check if we've already found attachments that shouldn't happen
-			if attachmentStatus[NamespaceNoLabel] ||
-				attachmentStatus[NamespaceOptOut] {
+			if attachmentStatus[NamespaceNoLabel] || attachmentStatus[NamespaceOptOut] {
 				t.Error("Found JVM attachment in namespace that should not be monitored")
 				break
 			}
@@ -365,9 +354,9 @@ func VerifySelectiveMonitoring() features.Func {
 				break
 			}
 
-			// Check logs from all relevant agent pods
-			for _, agentPod := range relevantAgentPods {
-				t.Logf("Checking logs from agent pod %s on worker node %s",
+			// Check logs from all agent pods
+			for _, agentPod := range agentPodList.Items {
+				t.Logf("Checking logs from agent pod %s on node %s",
 					agentPod.Name, agentPod.Spec.NodeName)
 
 				var buf bytes.Buffer
@@ -393,55 +382,11 @@ func VerifySelectiveMonitoring() features.Func {
 				// Store the logs for this agent pod
 				agentLogs[agentPod.Name] = logs
 
-				t.Logf("Agent logs retrieved from pod %s on worker node %s, checking for JVM attachment...",
-					agentPod.Name, agentPod.Spec.NodeName)
+				t.Logf("Agent logs retrieved from pod %s, analyzing for JVM attachments...",
+					agentPod.Name)
 
-				// For each namespace, check if its pods are being monitored
-				for ns, pods := range podsByNamespace {
-					for _, pod := range pods {
-						podName := pod.Name
-
-						// Look for VM discovery log entries for this pod
-						matches := vmDiscoveryRegex.FindAllStringSubmatch(logs, -1)
-						for _, match := range matches {
-							if len(match) >= 3 && strings.Contains(match[2], podName) {
-								// Found a VM discovery log for this pod
-								pid := match[1]
-								t.Logf("Found VM discovery for pod %s in namespace %s with PID %s",
-									podName, ns, pid)
-
-								// Check if there's an initial attach attempt
-								attachAttemptPattern := fmt.Sprintf(
-									"Performing initial attach to JVM with PID %s",
-									pid,
-								)
-								if strings.Contains(logs, attachAttemptPattern) {
-									t.Logf(
-										"Found attach attempt for pod %s (PID %s) in namespace %s",
-										podName,
-										pid,
-										ns,
-									)
-
-									// Check if the attachment was successful
-									attachSuccessPattern := fmt.Sprintf(
-										"Initial attach to JVM with PID %s successful",
-										pid,
-									)
-									if strings.Contains(logs, attachSuccessPattern) {
-										t.Logf(
-											"Found successful attachment for pod %s (PID %s) in namespace %s",
-											podName,
-											pid,
-											ns,
-										)
-										attachmentStatus[ns] = true
-									}
-								}
-							}
-						}
-					}
-				}
+				// Analyze logs using the new correlation approach
+				analyzeLogsForAttachments(t, logs, containerToPod, attachmentStatus)
 			}
 
 			// If we haven't found what we're looking for, wait before checking again
@@ -498,10 +443,91 @@ func VerifySelectiveMonitoring() features.Func {
 		// If we have failures, dump the agent logs for debugging
 		if hasFailures {
 			t.Log("Test failed - dumping agent logs for debugging purposes")
-			dumpAgentLogs(t, agentLogs, relevantAgentPods)
+			dumpAgentLogs(t, agentLogs, agentPodList.Items)
 		}
 
 		return ctx
+	}
+}
+
+// podInfo holds information about a pod for container-to-pod mapping
+type podInfo struct {
+	name      string
+	namespace string
+	nodeName  string
+}
+
+// extractContainerID extracts the actual container ID from the full container ID string
+// (e.g., "containerd://abc123..." -> "abc123...")
+func extractContainerID(fullContainerID string) string {
+	parts := strings.SplitN(fullContainerID, "://", 2)
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return fullContainerID
+}
+
+// analyzeLogsForAttachments analyzes agent logs to find JVM attachments and correlates them
+// with pods/namespaces using container ID mapping
+func analyzeLogsForAttachments(
+	t *testing.T,
+	logs string,
+	containerToPod map[string]*podInfo,
+	attachmentStatus map[string]bool,
+) {
+	// Regex patterns for extracting information from logs
+	// Pattern 1: VM discovery with PID and container ID
+	// Example: "adding new VM with PID 57368, ContainerizedVirtualMachineImpl
+	// [pid=57368...containerId=2e88aa9bd86c8fbb..."
+	vmDiscoveryRegex := regexp.MustCompile(
+		`adding new VM with PID (\d+).*containerId=([a-f0-9]+)`,
+	)
+
+	// Pattern 2: Successful JVM attachment
+	// Example: "Initial attach to JVM with PID 57368 successful"
+	attachSuccessRegex := regexp.MustCompile(
+		`Initial attach to JVM with PID (\d+) successful`,
+	)
+
+	// Build a map of PID to container ID from VM discovery logs
+	pidToContainerID := make(map[string]string)
+	vmMatches := vmDiscoveryRegex.FindAllStringSubmatch(logs, -1)
+	for _, match := range vmMatches {
+		if len(match) >= 3 {
+			pid := match[1]
+			containerID := match[2]
+			pidToContainerID[pid] = containerID
+			t.Logf("Found VM discovery: PID %s -> Container ID %s", pid, containerID)
+		}
+	}
+
+	// Find successful attachments and correlate with namespaces
+	attachMatches := attachSuccessRegex.FindAllStringSubmatch(logs, -1)
+	for _, match := range attachMatches {
+		if len(match) >= 2 {
+			pid := match[1]
+			t.Logf("Found successful JVM attachment for PID %s", pid)
+
+			// Look up the container ID for this PID
+			containerID, found := pidToContainerID[pid]
+			if !found {
+				t.Logf("Warning: Could not find container ID for PID %s", pid)
+				continue
+			}
+
+			// Look up the pod info for this container ID
+			podInfo, found := containerToPod[containerID]
+			if !found {
+				t.Logf("Warning: Could not find pod info for container ID %s", containerID)
+				continue
+			}
+
+			t.Logf("Successfully correlated PID %s -> Container %s -> Pod %s in namespace %s",
+				pid, containerID, podInfo.name, podInfo.namespace)
+
+			// Mark this namespace as having an attachment
+			attachmentStatus[podInfo.namespace] = true
+		}
 	}
 }
 

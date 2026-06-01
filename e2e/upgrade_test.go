@@ -17,16 +17,34 @@ import (
 )
 
 func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
+	RequireFullResetBeforeTest(
+		t,
+		"TestUpdateInstallFromOldGenericResourceNames requires clean environment before installing legacy operator",
+	)
+	RequireFullResetAfterTest(
+		t,
+		"TestUpdateInstallFromOldGenericResourceNames uses legacy operator build",
+	)
 	agent := NewAgentCr()
 	installLatestFeature := features.New("deploy instana-agent-operator with the generic resource names (controller-manager, manager-role and manager-rolebinding)").
 		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			const oldResourceNamesOperatorYamlUrl string = "https://github.com/instana/instana-agent-operator/releases/download/v2.1.14/instana-agent-operator.yaml"
-			t.Logf("Installing latest operator with the old, generic resource names from %s", oldResourceNamesOperatorYamlUrl)
+			t.Logf(
+				"Installing latest operator with the old, generic resource names from %s",
+				oldResourceNamesOperatorYamlUrl,
+			)
 			p := utils.RunCommand(
 				fmt.Sprintf("kubectl apply -f %s", oldResourceNamesOperatorYamlUrl),
 			)
 			if p.Err() != nil {
-				t.Fatal("Error while applying the old operator yaml", p.Command(), p.Err(), p.Out(), p.ExitCode())
+				t.Fatal(
+					"Error while applying the old operator yaml",
+					p.Command(),
+					p.Err(),
+					p.Out(),
+					p.ExitCode(),
+				)
 			}
 			return ctx
 		}).
@@ -39,7 +57,7 @@ func TestUpdateInstallFromOldGenericResourceNames(t *testing.T) {
 
 	updateInstallDevBuildFeature := features.New("upgrade install from latest released to dev-operator-build").
 		Setup(SetupOperatorDevBuild()).
-		Assess("wait for instana-agent-controller-manager deployment to become ready", WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
+		// Now waits for operator to be ready
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
