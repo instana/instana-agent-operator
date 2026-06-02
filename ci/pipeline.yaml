@@ -1161,12 +1161,70 @@ jobs:
                   AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
                   bundle
 
+                echo ""
+                echo "=== Validating Operator Version Label in Bundle ==="
+                
+                # Validate: No placeholders remain
+                if grep -r "OPERATOR_VERSION_PLACEHOLDER" bundle/manifests/ 2>/dev/null; then
+                  echo "ERROR: OPERATOR_VERSION_PLACEHOLDER found in bundle manifests"
+                  exit 1
+                fi
+                echo "✓ No placeholders found"
+                
+                # Validate: Version label present
+                if ! grep -r "operator-version: ${OLM_RELEASE_VERSION}" bundle/manifests/ 2>/dev/null; then
+                  echo "ERROR: operator-version label not found in bundle manifests"
+                  exit 1
+                fi
+                echo "✓ Version label found: operator-version: ${OLM_RELEASE_VERSION}"
+                
+                # Validate: Version label in CSV
+                CSV_FILE="bundle/manifests/instana-agent-operator.clusterserviceversion.yaml"
+                if [ ! -f "$CSV_FILE" ]; then
+                  echo "ERROR: CSV file not found"
+                  exit 1
+                fi
+                if ! grep -q "operator-version: ${OLM_RELEASE_VERSION}" "$CSV_FILE"; then
+                  echo "ERROR: operator-version label not found in CSV"
+                  exit 1
+                fi
+                echo "✓ Version label found in CSV"
+                echo "=== Bundle validation complete ==="
+                echo ""
+
                 pushd bundle
                 zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
                 popd
 
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
-                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+
+                echo ""
+                echo "=== Validating Operator Version Label in Controller YAML ==="
+                
+                # Validate: No placeholders remain
+                if grep -q "OPERATOR_VERSION_PLACEHOLDER" target/instana-agent-operator.yaml; then
+                  echo "ERROR: OPERATOR_VERSION_PLACEHOLDER found in controller YAML"
+                  exit 1
+                fi
+                echo "✓ No placeholders found"
+                
+                # Validate: Version label present (should appear twice)
+                LABEL_COUNT=$(grep -c "operator-version: ${OLM_RELEASE_VERSION}" target/instana-agent-operator.yaml || true)
+                if [ "$LABEL_COUNT" -ne 2 ]; then
+                  echo "ERROR: Expected 2 occurrences of operator-version label, found $LABEL_COUNT"
+                  exit 1
+                fi
+                echo "✓ Version label found in deployment metadata and pod template (2 occurrences)"
+                
+                # Validate: Version label NOT in selector
+                if grep -A 3 "selector:" target/instana-agent-operator.yaml | grep -q "operator-version"; then
+                  echo "ERROR: operator-version found in selector (immutable field)"
+                  exit 1
+                fi
+                echo "✓ Selector does not contain operator-version (correct)"
+                echo "=== Controller YAML validation complete ==="
+                echo ""
 
                 echo "icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" >> target/images.txt
                 
