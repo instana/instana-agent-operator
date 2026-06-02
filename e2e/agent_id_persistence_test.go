@@ -23,6 +23,7 @@ import (
 // TestAgentIDPersistence verifies that the agent ID persists across pod restarts
 // when INSTANA_PERSIST_HOST_UNIQUE_ID is set and /var/lib is mounted
 func TestAgentIDPersistence(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCr()
 
 	agentIDPersistenceFeature := features.New("agent ID persistence across pod restarts").

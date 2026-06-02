@@ -16,6 +16,7 @@ import (
 )
 
 func TestInitialRemoteInstall(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentRemoteCr(AgentRemoteCustomResourceName)
 	initialInstallFeature := features.New("initial install dev-operator-build").
 		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready
@@ -47,6 +48,7 @@ func TestInitialRemoteInstall(t *testing.T) {
 	testEnv.Test(t, initialInstallFeature)
 }
 func TestUpdateRemoteInstall(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentRemoteCr(AgentRemoteCustomResourceName)
 	// Cannot currently use as instana agent remote does not exist in latest version
 	// installLatestFeature := features.New("deploy latest released instana-agent-operator").

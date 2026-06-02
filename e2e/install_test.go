@@ -18,6 +18,7 @@ import (
 )
 
 func TestInitialInstall(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCr()
 	initialInstallFeature := features.New("initial install dev-operator-build").
 		Setup(SetupOperatorDevBuild()). // Now waits for operator to be ready

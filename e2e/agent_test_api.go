@@ -45,6 +45,25 @@ import (
 
 // env.Funcs to be used in the test initialization
 
+// CollectOperatorLogsOnFailure collects operator logs when a test fails for easier debugging
+// This is a common utility function used across multiple e2e tests
+func CollectOperatorLogsOnFailure(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log("==== Test failed, collecting operator logs ====")
+			p := utils.RunCommand(
+				"kubectl logs -n instana-agent deployment/instana-agent-controller-manager --tail=100",
+			)
+			if p.Err() != nil {
+				t.Logf("Could not collect operator logs: %v", p.Err())
+			} else {
+				t.Logf("Operator logs (last 100 lines):\n%s", p.Result())
+			}
+		}
+	})
+}
+
 // DeleteAgentNamespace ensures a proper cleanup of existing instana agent installations.
 // The namespace cannot be just deleted in all scenarios, as finalizers on the agent CR might block the namespace termination
 func EnsureAgentNamespaceDeletion() env.Func {
@@ -76,6 +95,11 @@ func EnsureAgentNamespaceDeletion() env.Func {
 		}
 
 		log.Info("Agent CR cleanup completed")
+
+		// Clean up ALL Agent CRs from ALL namespaces to prevent CRD deletion from getting stuck
+		// This is critical because CRDs cannot be deleted while CRs with finalizers exist
+		log.Info("Cleaning up all Agent CRs from all namespaces to prevent CRD deletion issues")
+		cleanupAllAgentCRs()
 
 		// full purge of resources if anything would be left in the cluster
 		p = utils.RunCommand(
@@ -202,6 +226,88 @@ func DeleteAgentCRIfPresent() env.Func {
 		log.Info("Agent CR is gone")
 		return ctx, nil
 	}
+}
+
+// cleanupAllAgentCRs removes all Agent CRs from all namespaces to prevent CRD deletion from getting stuck.
+// This is critical because CRDs cannot be deleted while CRs with finalizers exist in any namespace.
+func cleanupAllAgentCRs() {
+	log.Info("Searching for Agent CRs in all namespaces")
+
+	// Get all Agent CRs across all namespaces
+	p := utils.RunCommand(
+		"kubectl get agents.instana.io -A --no-headers -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name",
+	)
+	if p.Err() != nil {
+		log.Warningf("Could not list Agent CRs across namespaces: %v", p.Err())
+		return
+	}
+
+	output := strings.TrimSpace(p.Result())
+	if output == "" {
+		log.Info("No Agent CRs found in any namespace")
+		return
+	}
+
+	// Parse and delete each Agent CR
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		namespace := fields[0]
+		name := fields[1]
+
+		log.Infof("Found Agent CR %s/%s, removing finalizers and deleting", namespace, name)
+
+		// Remove finalizers first to allow deletion
+		patchCmd := fmt.Sprintf(
+			"kubectl patch agent %s -n %s -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge 2>&1",
+			name,
+			namespace,
+		)
+		patchResult := utils.RunCommand(patchCmd)
+		if patchResult.Err() != nil {
+			// Check if error is because CRD doesn't exist (which is fine)
+			output := patchResult.Result()
+			if strings.Contains(output, "the server doesn't have a resource type") ||
+				strings.Contains(output, "no matches for kind") {
+				log.Infof("Agent CRD already deleted, skipping cleanup of %s/%s", namespace, name)
+				continue
+			}
+			log.Warningf(
+				"Could not remove finalizers from Agent CR %s/%s: %v - %s",
+				namespace,
+				name,
+				patchResult.Err(),
+				output,
+			)
+		}
+
+		// Delete the Agent CR (force delete if needed)
+		deleteCmd := fmt.Sprintf(
+			"kubectl delete agent %s -n %s --ignore-not-found --timeout=30s --force --grace-period=0 2>&1",
+			name,
+			namespace,
+		)
+		deleteResult := utils.RunCommand(deleteCmd)
+		if deleteResult.Err() != nil {
+			// Check if error is because CRD doesn't exist (which is fine)
+			output := deleteResult.Result()
+			if strings.Contains(output, "the server doesn't have a resource type") ||
+				strings.Contains(output, "no matches for kind") {
+				log.Infof("Agent CRD already deleted, CR %s/%s is gone", namespace, name)
+			} else {
+				log.Warningf("Could not delete Agent CR %s/%s: %v - %s", namespace, name, deleteResult.Err(), output)
+			}
+		} else {
+			log.Infof("Successfully deleted Agent CR %s/%s", namespace, name)
+		}
+	}
+
+	// Give Kubernetes a moment to process the deletions
+	time.Sleep(2 * time.Second)
+	log.Info("Completed cleanup of all Agent CRs")
 }
 
 func EnsureReusableEnvironment() env.Func {
@@ -541,6 +647,64 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 				)
 			}
 			t.Log("Deployment submitted")
+
+			// Wait for CRD to be established after make install deploy
+			// This prevents "create not allowed while custom resource definition is terminating" errors
+			t.Log("Waiting for CRD to be established")
+			crdClient, err := cfg.NewClient()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Wait for CRD to exist and be established (not terminating)
+			err = wait.For(
+				func(ctx context.Context) (bool, error) {
+					crd := &unstructured.Unstructured{}
+					crd.SetGroupVersionKind(schema.GroupVersionKind{
+						Group:   "apiextensions.k8s.io",
+						Version: "v1",
+						Kind:    "CustomResourceDefinition",
+					})
+					err := crdClient.Resources().Get(ctx, "agents.instana.io", "", crd)
+					if err != nil {
+						return false, nil // CRD doesn't exist yet
+					}
+
+					// Check if CRD has deletionTimestamp (is terminating)
+					deletionTimestamp, found, err := unstructured.NestedString(
+						crd.Object,
+						"metadata",
+						"deletionTimestamp",
+					)
+					if err == nil && found && deletionTimestamp != "" {
+						t.Log("CRD is terminating, waiting for new CRD to be created")
+						return false, nil // CRD is being deleted, wait for new one
+					}
+
+					// Check if CRD is established
+					conditions, found, err := unstructured.NestedSlice(
+						crd.Object,
+						"status",
+						"conditions",
+					)
+					if err != nil || !found {
+						return false, nil
+					}
+					for _, c := range conditions {
+						condition := c.(map[string]interface{})
+						if condition["type"] == "Established" && condition["status"] == "True" {
+							return true, nil
+						}
+					}
+					return false, nil
+				},
+				wait.WithTimeout(time.Minute*3),
+				wait.WithInterval(time.Second*2),
+			)
+			if err != nil {
+				t.Fatalf("CRD did not become established: %v", err)
+			}
+			t.Log("CRD is established and ready")
 		} else {
 			t.Logf("Operator already running desired image %s, skipping redeploy", desiredImage)
 		}
@@ -739,7 +903,8 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 				}
 
 				for _, condition := range dep.Status.Conditions {
-					if condition.Type == appsv1.DeploymentAvailable && condition.Status == corev1.ConditionTrue {
+					if condition.Type == appsv1.DeploymentAvailable &&
+						condition.Status == corev1.ConditionTrue {
 						return true, nil
 					}
 				}

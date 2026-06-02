@@ -16,6 +16,7 @@ import (
 )
 
 func TestInstallWithK8sensorPodDisruptionBudget(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCr()
 	enabled := true
 	agent.Spec.K8sSensor.PodDisruptionBudget.Enabled = &enabled

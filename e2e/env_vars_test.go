@@ -22,6 +22,7 @@ import (
 )
 
 func TestEnvVarsWithKubernetesFormat(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	// Create a ConfigMap and Secret that will be referenced by environment variables
 	setupConfigMapAndSecret := func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r, err := resources.New(cfg.Client().RESTConfig())

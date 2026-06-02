@@ -18,6 +18,7 @@ import (
 )
 
 func TestExtraVolumeWithSecret(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	installCrWithExtraVolumeFeature := features.New("extra volume with secret").
 		Setup(SetupOperatorDevBuild()).
 		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).

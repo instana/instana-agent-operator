@@ -23,6 +23,7 @@ import (
 )
 
 func TestMultiBackendSupportExternalSecret(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	installCrWithExternalSecretFeature := features.New("multiple backend support with external keyssecret and useSecretMounts: false").
 		Setup(SetupOperatorDevBuild()).
 		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
@@ -92,6 +93,7 @@ func TestMultiBackendSupportExternalSecret(t *testing.T) {
 }
 
 func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	installCrWithExternalSecretAndSecretMountsFeature := features.New(
 		"multiple backend support with external keyssecret and useSecretMounts: true",
 	).
@@ -178,6 +180,7 @@ func TestMultiBackendSupportExternalSecretWithSecretMounts(t *testing.T) {
 }
 
 func TestMultiBackendSupportInlineSecret(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	installCrWithInlineSecretFeature := features.New("multiple backend support with inlined keyssecret").
 		Setup(SetupOperatorDevBuild()).
 		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
@@ -227,6 +230,7 @@ func TestMultiBackendSupportInlineSecret(t *testing.T) {
 }
 
 func TestRemovalOfAdditionalBackend(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	agent := NewAgentCr()
 
 	agent.Spec.Agent.AdditionalBackends = append(

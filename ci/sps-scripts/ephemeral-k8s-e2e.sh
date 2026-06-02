@@ -99,7 +99,8 @@ gcloud compute instances create ${VM_NAME} \
   --labels="purpose=e2e-testing,creation-time=$(date +%s),max-lifetime=90m" \
   --metadata="startup-script=#!/bin/bash
     # Install k3s with tls-san to include the external IP in the certificate
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC=\"--disable=traefik --tls-san=\$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H 'Metadata-Flavor: Google')\" sh -
+    # Use --cluster-init to enable embedded ETCD instead of SQLite (required for ETCD scraping tests)
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC=\"--cluster-init --disable=traefik --tls-san=\$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H 'Metadata-Flavor: Google')\" sh -
   " \
   --tags=k3s-server
 

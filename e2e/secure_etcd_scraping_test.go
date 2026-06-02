@@ -21,10 +21,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
+	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/pkg/types"
@@ -75,6 +77,24 @@ func SetupETCDCASecret() types.StepFunc {
 			t.Fatal("Failed to create CA certificate Secret:", err) // pragma: allowlist secret
 		}
 		t.Log("CA certificate Secret created")
+
+		// Wait for secret to be fully available before proceeding
+		// This prevents race conditions where the operator reconciles before the secret exists
+		t.Log("Waiting for secret to be available")
+		secret := &corev1.Secret{}
+		err = wait.For(
+			func(ctx context.Context) (bool, error) {
+				err := r.Get(ctx, "etcd-ca-cert", cfg.Namespace(), secret)
+				return err == nil, nil
+			},
+			wait.WithTimeout(time.Second*30),
+			wait.WithInterval(time.Second*1),
+		)
+		if err != nil {
+			t.Fatal("Secret did not become available:", err)
+		}
+		t.Log("Secret is available")
+
 		CleanupSecretAfterTest(t, cfg.Namespace(), "etcd-ca-cert")
 
 		return ctx
@@ -142,6 +162,8 @@ func SetupInstanaAgentCR() types.StepFunc {
 }
 
 func TestSecureETCDScraping(t *testing.T) {
+	// Collect operator logs if test fails
+	CollectOperatorLogsOnFailure(t)
 
 	installCrWithSecureETCDFeature := features.New("secure ETCD scraping").
 		Setup(SetupOperatorDevBuild()).

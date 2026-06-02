@@ -373,6 +373,7 @@ func CleanupNodeLabels() features.Func {
 }
 
 func TestMultiZones(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	installWithMultiZones := features.New("multizone agent").
 		Setup(SetupOperatorDevBuild()).
 		Setup(WaitForDeploymentToBecomeReady(InstanaOperatorDeploymentName)).
