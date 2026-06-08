@@ -33,9 +33,6 @@ EOM
     dnf install -y google-cloud-cli google-cloud-sdk-gke-gcloud-auth-plugin
 fi
 
-echo "Installing python3-pyyaml"
-dnf install -y python3-pyyaml
-
 echo "Showing available disk space"
 df -h
 echo "===== setup.sh - end ====="
