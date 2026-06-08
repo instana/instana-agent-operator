@@ -366,15 +366,17 @@ controller-gen: ## Download controller-gen locally if necessary.
 	@if [ -f $(CONTROLLER_GEN) ]; then \
 		echo "Controller-gen binary found in $(CONTROLLER_GEN)" >&2; \
 		version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(CONTROLLER_GEN_VERSION)" ]; then \
-			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed" >&2; \
+		expected_version=$$(echo "$(CONTROLLER_GEN_VERSION)" | xargs); \
+		if [ "$$version" = "$$expected_version" ]; then \
+			echo "Controller-gen version $$expected_version is already installed" >&2; \
 		else \
-			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)" >&2; \
-			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+			echo "Updating controller-gen from $$version to $$expected_version" >&2; \
+			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$$expected_version; \
 		fi \
 	else \
-		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)" >&2; \
-		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+		expected_version=$$(echo "$(CONTROLLER_GEN_VERSION)" | xargs); \
+		echo "Installing controller-gen $$expected_version" >&2; \
+		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$$expected_version; \
 	fi
 
 .PHONY: kustomize
@@ -382,15 +384,24 @@ kustomize: ## Download kustomize locally if necessary.
 	@if [ -f $(KUSTOMIZE) ]; then \
 		echo "Kustomize binary found in $(KUSTOMIZE)" >&2; \
 		version=$$($(KUSTOMIZE) version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(KUSTOMIZE_VERSION)" ]; then \
-			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed" >&2; \
+		expected_version=$$(echo "$(KUSTOMIZE_VERSION)" | xargs); \
+		if [ "$$version" = "$$expected_version" ]; then \
+			echo "Kustomize version $$expected_version is already installed" >&2; \
 		else \
-			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)" >&2; \
-			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+			echo "Updating kustomize from $$version to $$expected_version" >&2; \
+			rm -f $(KUSTOMIZE); \
+			curl -Lo $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz; \
+			tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN); \
+			rm -f $(KUSTOMIZE).tar.gz; \
+			chmod +x $(KUSTOMIZE); \
 		fi \
 	else \
-		echo "Installing kustomize $(KUSTOMIZE_VERSION)" >&2; \
-		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		expected_version=$$(echo "$(KUSTOMIZE_VERSION)" | xargs); \
+		echo "Installing kustomize $$expected_version" >&2; \
+		curl -Lo $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz; \
+		tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN); \
+		rm -f $(KUSTOMIZE).tar.gz; \
+		chmod +x $(KUSTOMIZE); \
 	fi
 
 .PHONY: envtest

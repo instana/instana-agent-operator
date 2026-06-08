@@ -142,7 +142,8 @@ zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
 popd
 
 # Create the YAML for installing the Agent Operator, which we want to package with the release
-make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml >target/instana-agent-operator.yaml
+# Redirect stderr to /dev/null to avoid contaminating YAML output with tool installation messages
+make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml 2>/dev/null >target/instana-agent-operator.yaml
 
 echo ""
 echo "=== Validating Operator Version Label in Controller YAML ==="
