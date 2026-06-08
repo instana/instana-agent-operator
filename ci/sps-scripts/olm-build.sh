@@ -14,6 +14,9 @@ BRANCH_NAME=$(load_repo app-repo branch)
 
 echo "Building for commit ${GIT_COMMIT} on branch ${BRANCH_NAME}"
 
+echo "Installing python3-pyyaml"
+dnf install -y python3-pyyaml
+
 dnf -y install microdnf
 ./installGolang.sh amd64
 export PATH=$PATH:/usr/local/go/bin
