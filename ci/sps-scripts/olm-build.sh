@@ -14,6 +14,9 @@ BRANCH_NAME=$(load_repo app-repo branch)
 
 echo "Building for commit ${GIT_COMMIT} on branch ${BRANCH_NAME}"
 
+echo "Installing python3-pyyaml"
+dnf install -y python3-pyyaml
+
 dnf -y install microdnf
 ./installGolang.sh amd64
 export PATH=$PATH:/usr/local/go/bin
@@ -142,7 +145,17 @@ zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
 popd
 
 # Create the YAML for installing the Agent Operator, which we want to package with the release
-make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml >target/instana-agent-operator.yaml
+# Redirect stderr to temporary file to avoid contaminating YAML output, but preserve for debugging
+STDERR_LOG=$(mktemp)
+make --silent IMG="${OPERATOR_IMAGE_NAME}:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml 2>"$STDERR_LOG" >target/instana-agent-operator.yaml
+
+# Display stderr output for debugging, then clean up
+if [ -s "$STDERR_LOG" ]; then
+	echo "=== Tool installation/version check messages ==="
+	cat "$STDERR_LOG"
+	echo "================================================"
+fi
+rm -f "$STDERR_LOG"
 
 echo ""
 echo "=== Validating Operator Version Label in Controller YAML ==="
@@ -174,14 +187,39 @@ echo "✓ Selector does not contain operator-version (correct)"
 
 # Validate: YAML is well-formed
 echo "Validating YAML structure..."
-if ! python3 -c "import yaml; list(yaml.safe_load_all(open('target/instana-agent-operator.yaml')))" 2>/dev/null; then
-	echo "ERROR: Controller YAML is not well-formed"
+if ! python3 -c "import yaml" 2>/dev/null; then
+	echo "ERROR: PyYAML is not installed. This should have been installed by setup.sh"
 	exit 1
 fi
+YAML_ERROR=$(mktemp)
+if ! python3 -c "import yaml; list(yaml.safe_load_all(open('target/instana-agent-operator.yaml')))" 2>"$YAML_ERROR"; then
+	echo "ERROR: Controller YAML is not well-formed"
+	echo ""
+	echo "=== YAML Validation Error Details ==="
+	cat "$YAML_ERROR"
+	echo "======================================"
+	echo ""
+	echo "=== First 50 lines of generated YAML ==="
+	head -n 50 target/instana-agent-operator.yaml
+	echo "========================================="
+	echo ""
+	echo "=== Last 50 lines of generated YAML ==="
+	tail -n 50 target/instana-agent-operator.yaml
+	echo "========================================"
+	rm -f "$YAML_ERROR"
+	exit 1
+fi
+rm -f "$YAML_ERROR"
 echo "✓ YAML structure validated"
 
 echo "=== Controller YAML validation complete ==="
 echo ""
 
-echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
-cat target/instana-agent-operator.yaml
+echo -e "===== DISPLAYING parts of target/instana-agent-operator.yaml =====\n"
+echo "=== First 20 lines of generated YAML ==="
+head -n 20 target/instana-agent-operator.yaml
+echo "========================================="
+echo ""
+echo "=== Last 20 lines of generated YAML ==="
+tail -n 20 target/instana-agent-operator.yaml
+echo "========================================"
