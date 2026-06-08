@@ -390,16 +390,26 @@ kustomize: ## Download kustomize locally if necessary.
 		else \
 			echo "Updating kustomize from $$version to $$expected_version" >&2; \
 			rm -f $(KUSTOMIZE); \
-			curl -Lo $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz; \
-			tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN); \
+			if [ -n "$$GH_API_TOKEN" ]; then \
+				echo "Using GitHub API token for authenticated download" >&2; \
+				curl -sSfL --retry 3 --retry-delay 2 -H "Authorization: Bearer $$GH_API_TOKEN" -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+			else \
+				curl -sSfL --retry 3 --retry-delay 2 -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+			fi; \
+			tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN) || { echo "Failed to extract kustomize" >&2; rm -f $(KUSTOMIZE).tar.gz; exit 1; }; \
 			rm -f $(KUSTOMIZE).tar.gz; \
 			chmod +x $(KUSTOMIZE); \
 		fi \
 	else \
 		expected_version=$$(echo "$(KUSTOMIZE_VERSION)" | xargs); \
 		echo "Installing kustomize $$expected_version" >&2; \
-		curl -Lo $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz; \
-		tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN); \
+		if [ -n "$$GH_API_TOKEN" ]; then \
+			echo "Using GitHub API token for authenticated download" >&2; \
+			curl -sSfL --retry 3 --retry-delay 2 -H "Authorization: Bearer $$GH_API_TOKEN" -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+		else \
+			curl -sSfL --retry 3 --retry-delay 2 -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+		fi; \
+		tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN) || { echo "Failed to extract kustomize" >&2; rm -f $(KUSTOMIZE).tar.gz; exit 1; }; \
 		rm -f $(KUSTOMIZE).tar.gz; \
 		chmod +x $(KUSTOMIZE); \
 	fi
