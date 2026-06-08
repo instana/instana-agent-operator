@@ -188,7 +188,7 @@ echo "Validating YAML structure..."
 if ! python3 -c "import yaml" 2>/dev/null; then
 	echo "Installing PyYAML for YAML validation..."
 	pip3 install --quiet PyYAML || {
-		echo "WARNING: Could not install PyYAML, skipping YAML structure validation"
+		echo "Error: Could not install PyYAML, skipping YAML structure validation"
 		echo "✓ YAML structure validation skipped (PyYAML not available)"
 		echo ""
 		echo "=== Controller YAML validation complete ==="
