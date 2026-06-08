@@ -195,7 +195,7 @@ if ! python3 -c "import yaml" 2>/dev/null; then
 		echo ""
 		echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
 		cat target/instana-agent-operator.yaml
-		exit 0
+		exit 1
 	}
 fi
 YAML_ERROR=$(mktemp)
@@ -222,5 +222,11 @@ echo "✓ YAML structure validated"
 echo "=== Controller YAML validation complete ==="
 echo ""
 
-echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
-cat target/instana-agent-operator.yaml
+echo -e "===== DISPLAYING parts of target/instana-agent-operator.yaml =====\n"
+echo "=== First 20 lines of generated YAML ==="
+head -n 20 target/instana-agent-operator.yaml
+echo "========================================="
+echo ""
+echo "=== Last 20 lines of generated YAML ==="
+tail -n 20 target/instana-agent-operator.yaml
+echo "========================================"
