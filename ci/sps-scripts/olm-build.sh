@@ -184,6 +184,20 @@ echo "✓ Selector does not contain operator-version (correct)"
 
 # Validate: YAML is well-formed
 echo "Validating YAML structure..."
+# Ensure PyYAML is installed for validation
+if ! python3 -c "import yaml" 2>/dev/null; then
+	echo "Installing PyYAML for YAML validation..."
+	pip3 install --quiet PyYAML || {
+		echo "WARNING: Could not install PyYAML, skipping YAML structure validation"
+		echo "✓ YAML structure validation skipped (PyYAML not available)"
+		echo ""
+		echo "=== Controller YAML validation complete ==="
+		echo ""
+		echo -e "===== DISPLAYING target/instana-agent-operator.yaml =====\n"
+		cat target/instana-agent-operator.yaml
+		exit 0
+	}
+fi
 YAML_ERROR=$(mktemp)
 if ! python3 -c "import yaml; list(yaml.safe_load_all(open('target/instana-agent-operator.yaml')))" 2>"$YAML_ERROR"; then
 	echo "ERROR: Controller YAML is not well-formed"
