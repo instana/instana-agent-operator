@@ -158,11 +158,13 @@ TOKEN=$(oc whoami -t)
 REGISTRY=$(oc get route default-route \
   -n openshift-image-registry \
   -o jsonpath='{.spec.host}')
+INSTANA_AGENT_DOWNLOAD_KEY=""
 
 ./mirror-instana-images.sh \
   --registry "$REGISTRY" \
   --namespace instana-mirror \
   --dest-creds "kubeadmin:$TOKEN" \
+  --agent-download-key "$INSTANA_AGENT_DOWNLOAD_KEY" \
   --dest-tls-verify false
 ```
 
