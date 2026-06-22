@@ -33,14 +33,26 @@ Defaults:
   agent-image    = containers.instana.io/instana/release/agent/static
   k8sensor-image = icr.io/instana/k8sensor
 
-Example:
-  TOKEN=$(oc whoami -t)
+Examples:
+  # Generic registry
   ./mirror-instana-images.sh \
-    --registry default-route-openshift-image-registry.apps.example.com \
+    --registry registry.example.com \
+    --namespace instana-mirror \
+    --dest-creds "user:password" \
+    --agent-download-key "$INSTANA_AGENT_DOWNLOAD_KEY"
+
+  # OpenShift internal registry (via default route)
+  TOKEN=$(oc whoami -t)
+  INSTANA_AGENT_DOWNLOAD_KEY=""
+  REGISTRY=$(oc get route default-route \
+    -n openshift-image-registry \
+    -o jsonpath='{.spec.host}')
+  ./mirror-instana-images.sh \
+    --registry "$REGISTRY" \
     --namespace instana-mirror \
     --dest-creds "kubeadmin:$TOKEN" \
-    --agent-download-key "$INSTANA_AGENT_DOWNLOAD_KEY" \
-    --dest-tls-verify false
+    --dest-tls-verify false \
+    --agent-download-key "$INSTANA_AGENT_DOWNLOAD_KEY"
 EOF
 }
 
