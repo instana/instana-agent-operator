@@ -115,4 +115,3 @@ If both `agent.env` and `agent.pod.env` are defined, both will be applied to the
 
 See the complete example in [config/samples/instana_v1_env_vars_example.yaml](../config/samples/instana_v1_env_vars_example.yaml).
 
-// Made with Bob
