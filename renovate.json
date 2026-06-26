@@ -10,6 +10,17 @@
   "prConcurrentLimit": 2,
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
+  "baseBranches": [
+    "main",
+    "release-2.1"
+  ],
+  "packageRules": [
+    {
+      "matchBaseBranches": ["release-2.1"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
