@@ -10,7 +10,7 @@
   "prConcurrentLimit": 2,
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
-  "baseBranches": [
+  "baseBranchPatterns": [
     "main",
     "/^release-\\d+\\.\\d+$/"
   ],
@@ -24,8 +24,8 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
-        "/^Makefile$/"
+      "managerFilePatterns": [
+        "//^Makefile$//"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
@@ -35,8 +35,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
-        "/^installGolang\\.sh$/"
+      "managerFilePatterns": [
+        "//^installGolang\\.sh$//"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*GO_VERSION=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
