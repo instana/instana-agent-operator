@@ -10,10 +10,21 @@
   "prConcurrentLimit": 2,
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
+  "baseBranches": [
+    "main",
+    "/^release-\\d+\\.\\d+$/"
+  ],
+  "packageRules": [
+    {
+      "matchBaseBranches": ["/^release-\\d+\\.\\d+$/"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
+      "fileMatch": [
         "/^Makefile$/"
       ],
       "matchStrings": [
@@ -24,7 +35,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
+      "fileMatch": [
         "/^installGolang\\.sh$/"
       ],
       "matchStrings": [
