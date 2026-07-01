@@ -107,6 +107,26 @@ endpoints:
     - "<THIRD_IP_HERE>"
 ```
 
+
+## RKE2 Clusters
+
+On RKE2, by default the ETCD `listen-metrics-url` is tied to the localhost `127.0.0.1` only which is insufficient for accessing it from within the cluster.
+Only if you have explicitly [configured for 0.0.0.0](https://github.com/rancher/rke2/discussions/4024#discussioncomment-5600237), will it be accessible for instana.
+Ensure that your `/etc/rancher/rke2/config.yaml` file has the following:
+
+```yaml
+etcd-arg:
+  - "listen-metrics-urls=http://0.0.0.0:2381"
+```
+
+This should be present, either before cluster installation, or if you add it after, then make sure you restart the server nodes with:
+
+```bash
+sudo systemctl restart rke2-server.service
+```
+
+Once ensured, follow the steps to create the `etcd-metrics` service as described in the [K3s Clusters](#K3s_Clusters) section.
+
 ## Vanilla Kubernetes Clusters
 
 On non-OpenShift clusters, the operator will automatically discover ETCD endpoints if:
