@@ -1,10 +1,19 @@
-# ETCD Metrics Configuration
+# Control Plane and ETCD Metrics Configuration
 
-The Instana Agent Operator automatically configures ETCD metrics collection for both OpenShift and vanilla Kubernetes clusters.
+This document covers configuration for the most common control plane metrics (kube-apiserver, kube-controller-manager, kube-scheduler)
+and the optional ETCD metrics collection across different Kubernetes distributions.
+
+## Quick Navigation
+- [OpenShift Clusters](#openshift-clusters) - Automatic ETCD discovery
+- [K3s Clusters](#k3s-clusters) - Control plane and optional ETCD
+- [RKE2 Clusters](#rke2-clusters) - Unified configuration
+- [Vanilla Kubernetes](#vanilla-kubernetes-clusters) - ETCD service setup
+- [Environment Variables](#environment-variables)
+- [Troubleshooting](#troubleshooting)
 
 ## OpenShift Clusters
 
-On OpenShift clusters, the operator automatically:
+On OpenShift clusters, the operator automatically configures ETCD metrics collection:
 
 1. **Discovers OpenShift ETCD resources**:
    - Checks for `etcd-metrics-ca-bundle` ConfigMap in `openshift-etcd` namespace
@@ -43,8 +52,27 @@ Kubernetes does not support cross-namespace volume mounts. Since k8sensor runs i
 - ✅ Leverages operator's existing cluster-level permissions
 - ✅ Handles certificate rotation automatically
 
-
 ## K3s Clusters
+
+### Control Plane Metrics
+
+On K3s, depending on the exact K3s version by default the `kube-apiserver`, `kube-controller-manager` and `kube-scheduler`,
+ports might be tied to the localhost `127.0.0.1` only which is insufficient for accessing it from within the cluster.
+Ensure that your `k3s-server` processes are started with the following arguments:
+
+```bash
+--kube-apiserver-arg=bind-address=0.0.0.0 \                                                                                                                                                                                                                                                   
+--kube-controller-manager-arg=bind-address=0.0.0.0 \                                                                                                                                                                                                                                          
+--kube-scheduler-arg=bind-address=0.0.0.0 \
+```
+
+Furthermore the `kube-controller-manager` and `kube-scheduler` services from the `kube-system` might be missing by default.
+Create these services by following the patterns below for [K3s ETCD Metrics](#etcd-metrics-optional), only change these parameters:
+`etcd-metrics`, `etcd`, `2381`, `http` to:
+1. `kube-controller-manager`, `kube-controller-manager`, `10257`, `https`
+2. `kube-scheduler`, `kube-scheduler`, `10259`, `https`
+
+### ETCD Metrics (Optional)
 
 On K3s, depending on the initial cluster setup, ETCD might not be available at all, because K3s can operate with SQL databases instead (e.g. PostgreSQL, MySQL, MariaDB).
 Only if you have explicitly [configured K3s for HA ETCD](https://docs.k3s.io/datastore/ha-embedded), and also enabled the etcd metric exposure with `--etcd-expose-metrics=true`,
@@ -107,16 +135,21 @@ endpoints:
     - "<THIRD_IP_HERE>"
 ```
 
-
 ## RKE2 Clusters
 
-On RKE2, by default the ETCD `listen-metrics-url` is tied to the localhost `127.0.0.1` only which is insufficient for accessing it from within the cluster.
-Only if you have explicitly [configured for 0.0.0.0](https://github.com/rancher/rke2/discussions/4024#discussioncomment-5600237), will it be accessible for instana.
+On RKE2, depending on the exact RKE2 version by default the `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, and ETCD `listen-metrics-url` are tied to the localhost `127.0.0.1` only which is insufficient for accessing them from within the cluster.
+
 Ensure that your `/etc/rancher/rke2/config.yaml` file has the following:
 
 ```yaml
-etcd-arg:
-  - "listen-metrics-urls=http://0.0.0.0:2381"
+etcd-arg:                                                                                                                                                                                                                                                                                       
+  - "listen-metrics-urls=http://0.0.0.0:2381"                                                                                                                                                                                                                                                   
+kube-scheduler-arg:                                                                                                                                                                                                                                                                             
+  - "bind-address=0.0.0.0"                                                                                                                                                                                                                                                                      
+kube-controller-manager-arg:                                                                                                                                                                                                                                                                    
+  - "bind-address=0.0.0.0"                                                                                                                                                                                                                                                                      
+kube-apiserver-arg:                                                                                                                                                                                                                                                                             
+  - "bind-address=0.0.0.0"
 ```
 
 This should be present, either before cluster installation, or if you add it after, then make sure you restart the server nodes with:
@@ -125,7 +158,9 @@ This should be present, either before cluster installation, or if you add it aft
 sudo systemctl restart rke2-server.service
 ```
 
-Once ensured, follow the steps to create the `etcd-metrics` service as described in the [K3s Clusters](#K3s_Clusters) section.
+### ETCD Service Configuration
+
+Once the configuration above is applied, follow the steps to create the `etcd-metrics` service as described in the [K3s ETCD Metrics](#etcd-metrics-optional) section.
 
 ## Vanilla Kubernetes Clusters
 
