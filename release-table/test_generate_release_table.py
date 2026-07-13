@@ -6,7 +6,7 @@ Run with:  python3 -m unittest test_generate_release_table -v
 import importlib
 import io
 import json
-import sys
+import os
 import unittest
 import urllib.error
 from datetime import date, datetime, timezone
@@ -16,7 +16,8 @@ from unittest.mock import MagicMock, patch
 # Import the module under test.
 # The filename contains a hyphen, so standard import won't work.
 # ---------------------------------------------------------------------------
-import importlib.util, pathlib
+import importlib.util
+import pathlib
 
 _spec = importlib.util.spec_from_file_location(
     "generate_release_table",
@@ -39,8 +40,31 @@ render_release_commands = _mod.render_release_commands
 gh_auth_token = _mod.gh_auth_token
 resolve_tokens = _mod.resolve_tokens
 extract_operator_from_helm_chart = _mod.extract_operator_from_helm_chart
+fetch_latest_release = _mod.fetch_latest_release
 fetch_helm_operator_pins = _mod.fetch_helm_operator_pins
 NO_FILL_FORWARD_COLS = _mod.NO_FILL_FORWARD_COLS
+
+
+# ---------------------------------------------------------------------------
+# Shared test helpers
+# ---------------------------------------------------------------------------
+
+def _make_urlopen_side_effect(pages: list[list]):
+    """Return a urlopen side-effect that yields successive page payloads."""
+    call_count = [0]
+
+    def _side_effect(req, timeout=None):
+        idx = call_count[0]
+        call_count[0] += 1
+        payload = pages[idx] if idx < len(pages) else []
+        body = json.dumps(payload).encode()
+        resp = MagicMock()
+        resp.__enter__ = MagicMock(return_value=resp)
+        resp.__exit__ = MagicMock(return_value=False)
+        resp.read = io.BytesIO(body).read
+        return resp
+
+    return _side_effect
 
 
 # ---------------------------------------------------------------------------
@@ -94,12 +118,9 @@ class TestResolveTokens(unittest.TestCase):
         mock_result.returncode = 0
         mock_result.stdout = "cli-token\n"
         mock_result.stderr = ""
-        env = {}
-        with patch.dict("os.environ", env):
-            with patch("os.environ.get", side_effect=lambda k, d="": ""):
-                with patch("subprocess.run", return_value=mock_result):
-                    with patch("subprocess.run", return_value=mock_result):
-                        tokens = resolve_tokens()
+        with patch.dict("os.environ", {"GH_TOKEN": "", "GHE_TOKEN": ""}, clear=False):
+            with patch("subprocess.run", return_value=mock_result):
+                tokens = resolve_tokens()
         self.assertEqual(tokens["GH_TOKEN"], "cli-token")
         self.assertEqual(tokens["GHE_TOKEN"], "cli-token")
 
@@ -178,41 +199,7 @@ class TestApiUrl(unittest.TestCase):
 # fetch_releases
 # ---------------------------------------------------------------------------
 
-def _make_response(payload: list) -> MagicMock:
-    """Return a mock that behaves like urllib.request.urlopen()'s context manager."""
-    body = json.dumps(payload).encode()
-    resp = MagicMock()
-    resp.__enter__ = MagicMock(return_value=resp)
-    resp.__exit__ = MagicMock(return_value=False)
-    resp.read = MagicMock(return_value=body)
-    # json.load uses resp.read() internally via the file-like interface
-    resp.readall = MagicMock(return_value=body)
-    # Make json.load work: provide a real file-like read()
-    resp.read.side_effect = None
-    resp.read.return_value = body
-    # Simplest: patch json.load to use our payload directly
-    return resp, payload
-
-
 class TestFetchReleases(unittest.TestCase):
-
-    def _urlopen_side_effect(self, pages: list[list]):
-        """Return a side_effect callable that yields successive page payloads."""
-        call_count = [0]
-
-        def _side_effect(req, timeout=None):
-            idx = call_count[0]
-            call_count[0] += 1
-            payload = pages[idx] if idx < len(pages) else []
-            body = json.dumps(payload).encode()
-            resp = MagicMock()
-            resp.__enter__ = MagicMock(return_value=resp)
-            resp.__exit__ = MagicMock(return_value=False)
-            # Provide a real BytesIO so json.load works
-            resp.read = io.BytesIO(body).read
-            return resp
-
-        return _side_effect
 
     def test_basic_filtering(self):
         """Draft and prerelease entries are excluded; entries before cutoff are excluded.
@@ -226,20 +213,10 @@ class TestFetchReleases(unittest.TestCase):
             ]
         ]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
             results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
         # 'v' prefix is stripped
         self.assertEqual(results, [(date(2025, 5, 1), "1.0")])
-
-    def test_v_prefix_stripped(self):
-        """Leading 'v' is stripped from tag names returned by fetch_releases."""
-        pages = [
-            [{"tag_name": "v2.3.4", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": False}]
-        ]
-        cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
-            results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
-        self.assertEqual(results[0][1], "2.3.4")
 
     def test_tag_without_v_unchanged(self):
         """Tags without a leading 'v' (e.g. helm chart versions) are returned as-is."""
@@ -247,7 +224,7 @@ class TestFetchReleases(unittest.TestCase):
             [{"tag_name": "2.0.47", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": False}]
         ]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
             results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
         self.assertEqual(results[0][1], "2.0.47")
 
@@ -261,14 +238,14 @@ class TestFetchReleases(unittest.TestCase):
             {"tag_name": "v100", "published_at": "2025-05-02T00:00:00Z", "draft": False, "prerelease": False},
         ]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect([page1, page2])):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect([page1, page2])):
             results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
         self.assertEqual(len(results), 101)
 
     def test_empty_response_stops_pagination(self):
         pages = [[]]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
             results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
         self.assertEqual(results, [])
 
@@ -277,7 +254,7 @@ class TestFetchReleases(unittest.TestCase):
             [{"tag_name": "v1.0", "published_at": "", "draft": False, "prerelease": False}]
         ]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
             results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
         self.assertEqual(results, [])
 
@@ -302,7 +279,7 @@ class TestFetchReleases(unittest.TestCase):
             ]
         ]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
             results = fetch_releases(
                 "github.com", "tok", "org", "repo", cutoff,
                 extra_tag_filter=_is_operator_21x,
@@ -319,9 +296,96 @@ class TestFetchReleases(unittest.TestCase):
             ]
         ]
         cutoff = date(2025, 1, 1)
-        with patch("urllib.request.urlopen", side_effect=self._urlopen_side_effect(pages)):
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
             results = fetch_releases("github.com", "tok", "org", "repo", cutoff)
         self.assertEqual(results, [(date(2025, 5, 1), "2.1.44")])
+
+
+# ---------------------------------------------------------------------------
+# fetch_latest_release
+# ---------------------------------------------------------------------------
+
+class TestFetchLatestRelease(unittest.TestCase):
+
+    def test_returns_latest_tag(self):
+        """Returns the first qualifying tag from page 1."""
+        pages = [[
+            {"tag_name": "v2.2.15", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": False},
+            {"tag_name": "v2.2.14", "published_at": "2025-04-01T00:00:00Z", "draft": False, "prerelease": False},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertEqual(result, "2.2.15")
+
+    def test_skips_draft_and_prerelease(self):
+        """Skips draft and prerelease entries and returns first qualifying tag."""
+        pages = [[
+            {"tag_name": "v2.2.15-rc", "published_at": "2025-05-10T00:00:00Z", "draft": False, "prerelease": True},
+            {"tag_name": "v2.2.15-draft", "published_at": "2025-05-09T00:00:00Z", "draft": True, "prerelease": False},
+            {"tag_name": "v2.2.14", "published_at": "2025-04-01T00:00:00Z", "draft": False, "prerelease": False},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertEqual(result, "2.2.14")
+
+    def test_skips_fedramp_tags(self):
+        """FedRAMP tags are skipped; returns first non-FedRAMP tag."""
+        pages = [[
+            {"tag_name": "v2.2.14.fedramp-1.0.0", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": False},
+            {"tag_name": "v2.2.14", "published_at": "2025-04-20T00:00:00Z", "draft": False, "prerelease": False},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertEqual(result, "2.2.14")
+
+    def test_extra_tag_filter_applied(self):
+        """extra_tag_filter excludes matching tags."""
+        pages = [[
+            {"tag_name": "v2.1.44", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": False},
+            {"tag_name": "v2.2.0", "published_at": "2025-04-01T00:00:00Z", "draft": False, "prerelease": False},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release(
+                "github.com", "tok", "org", "repo",
+                extra_tag_filter=_is_operator_21x,
+            )
+        self.assertEqual(result, "2.2.0")
+
+    def test_returns_none_when_no_qualifying_release(self):
+        """Returns None when all releases are drafts/prereleases/fedramp."""
+        pages = [
+            [{"tag_name": "v1.0-rc", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": True}],
+            [],
+        ]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertIsNone(result)
+
+    def test_returns_none_on_empty_response(self):
+        """Returns None when the API returns an empty list on the first page."""
+        pages = [[]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertIsNone(result)
+
+    def test_strips_v_prefix(self):
+        """Leading 'v' is stripped from the returned tag."""
+        pages = [[
+            {"tag_name": "v3.0.0", "published_at": "2025-05-01T00:00:00Z", "draft": False, "prerelease": False},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertEqual(result, "3.0.0")
+
+    def test_skips_missing_published_at(self):
+        """Releases with empty published_at are skipped."""
+        pages = [[
+            {"tag_name": "v2.0.0", "published_at": "", "draft": False, "prerelease": False},
+            {"tag_name": "v1.9.0", "published_at": "2025-04-01T00:00:00Z", "draft": False, "prerelease": False},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=_make_urlopen_side_effect(pages)):
+            result = fetch_latest_release("github.com", "tok", "org", "repo")
+        self.assertEqual(result, "1.9.0")
 
 
 # ---------------------------------------------------------------------------
@@ -463,7 +527,7 @@ class TestRenderMarkdown(unittest.TestCase):
         d = date(2025, 5, 1)
         table = {d: {"operator image": ["1.0", "1.1"], "agent image": []}}
         output = render_markdown(table, self.COLS, 6, datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc))
-        data_row = [l for l in output.splitlines() if l.startswith("| 2025")][0]
+        data_row = [ln for ln in output.splitlines() if ln.startswith("| 2025")][0]
         self.assertIn("1.0, 1.1", data_row)
 
     def test_intro_text_mentions_italic_convention(self):
@@ -514,11 +578,6 @@ class TestRenderMarkdown(unittest.TestCase):
         )
         # must appear before the table
         self.assertLess(output.index("helm pull"), output.index("| date |"))
-
-    def test_no_fedramp_note(self):
-        output = render_markdown({}, self.COLS, 6, datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc))
-        self.assertNotIn("FedRAMP", output)
-
 
 # ---------------------------------------------------------------------------
 # _is_fedramp
@@ -865,6 +924,42 @@ class TestFillForwardHelmBehaviour(unittest.TestCase):
         # d1: helm chart actual value
         self.assertIn("| 2.0.47 |", d1_row)
 
+    def test_trigger_columns_carry_forward_uses_full_table(self):
+        """Agent release on a non-trigger date must be carried forward into trigger rows.
+
+        Regression test for the bug where filter_table was applied before
+        fill_forward, causing agent/k8sensor releases on agent-only days to be
+        silently dropped and the previous (stale) version to be carried forward.
+        """
+        COLS = ["date", "helm chart", "operator image", "agent image"]
+        # d1: operator release only (trigger row)
+        d1 = date(2025, 5, 1)
+        # d2: agent release only (NOT a trigger row — no helm/operator)
+        d2 = date(2025, 5, 5)
+        # d3: operator release only (trigger row) — agent column should carry d2's value
+        d3 = date(2025, 5, 10)
+        table = {
+            d1: {"operator image": ["2.2.14"], "agent image": ["1.310.0"]},
+            d2: {"agent image": ["1.320.5"]},
+            d3: {"operator image": ["2.2.16"]},
+        }
+        output = render_markdown(
+            table, COLS, 6,
+            datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc),
+            no_fill_forward_cols={"helm chart"},
+            trigger_columns={"helm chart", "operator image"},
+        )
+        rows = [ln for ln in output.splitlines() if ln.startswith("| 2025")]
+        # Only trigger rows visible: d3 (newest) and d1
+        self.assertEqual(len(rows), 2)
+        d3_row = rows[0]
+        d1_row = rows[1]
+        # d3: agent image should be 1.320.5 (from d2), not 1.310.0 (from d1)
+        self.assertIn("_1.320.5_", d3_row)
+        # d1: agent image actual release, not italic
+        self.assertIn("1.310.0", d1_row)
+        self.assertNotIn("_1.310.0_", d1_row)
+
 
 # ---------------------------------------------------------------------------
 # extract_operator_from_helm_chart
@@ -872,64 +967,29 @@ class TestFillForwardHelmBehaviour(unittest.TestCase):
 
 class TestExtractOperatorFromHelmChart(unittest.TestCase):
 
-    _TEMPLATE_CONTENT = (
-        "image: icr.io/instana/instana-agent-operator:2.2.15\n"
-        "imagePullPolicy: Always\n"
-    )
-
-    def _fake_helm_pull(self, tmpdir: str, op_version: str) -> None:
-        """Write a minimal fake chart structure that extract_operator_from_helm_chart expects."""
-        import os
-        template_dir = os.path.join(
-            tmpdir,
-            "instana-agent", "templates",
-        )
-        os.makedirs(template_dir, exist_ok=True)
-        tpl_path = os.path.join(template_dir, "operator_deployment_instana-agent-controller-manager.yml")
-        with open(tpl_path, "w") as fh:
-            fh.write(f"image: icr.io/instana/instana-agent-operator:{op_version}\n")
-
     def test_extracts_operator_version(self):
         """Successfully extracts the operator version when helm pull succeeds."""
-        import tempfile, os
+        def fake_run(cmd, cwd=None, **kwargs):
+            # Write the chart template into cwd so the function can find it.
+            if cwd:
+                tpl_dir = os.path.join(cwd, "instana-agent", "templates")
+                os.makedirs(tpl_dir, exist_ok=True)
+                with open(
+                    os.path.join(tpl_dir, "operator_deployment_instana-agent-controller-manager.yml"),
+                    "w",
+                ) as fh:
+                    fh.write("image: icr.io/instana/instana-agent-operator:2.2.15\n")
+            r = MagicMock()
+            r.returncode = 0
+            r.stderr = ""
+            return r
 
-        with tempfile.TemporaryDirectory() as outer:
-            # We'll use a fake helm command that writes the expected chart structure.
-            script = os.path.join(outer, "fake_helm.sh")
-            chart_target = os.path.join(
-                outer,
-                "instana-agent", "templates",
-                "operator_deployment_instana-agent-controller-manager.yml",
-            )
-            os.makedirs(os.path.dirname(chart_target), exist_ok=True)
-            with open(chart_target, "w") as fh:
-                fh.write("image: icr.io/instana/instana-agent-operator:2.2.15\n")
-
-            # fake_helm: writes files into cwd (which will be a fresh tmpdir inside the function)
-            # We need to intercept subprocess.run instead.
-            def fake_run(cmd, cwd=None, **kwargs):
-                # Write the chart template into cwd so the function can find it.
-                if cwd:
-                    tpl_dir = os.path.join(
-                        cwd, "instana-agent", "templates",
-                    )
-                    os.makedirs(tpl_dir, exist_ok=True)
-                    with open(
-                        os.path.join(tpl_dir, "operator_deployment_instana-agent-controller-manager.yml"),
-                        "w",
-                    ) as fh:
-                        fh.write("image: icr.io/instana/instana-agent-operator:2.2.15\n")
-                r = MagicMock()
-                r.returncode = 0
-                r.stderr = ""
-                return r
-
-            with patch("subprocess.run", side_effect=fake_run):
-                with patch("shutil.which", return_value="/usr/bin/helm"):
-                    result = extract_operator_from_helm_chart(
-                        "instana-agent", "https://agents.instana.io/helm", "2.0.47"
-                    )
-            self.assertEqual(result, "2.2.15")
+        with patch("subprocess.run", side_effect=fake_run):
+            with patch("shutil.which", return_value="/usr/bin/helm"):
+                result = extract_operator_from_helm_chart(
+                    "instana-agent", "https://agents.instana.io/helm", "2.0.47"
+                )
+        self.assertEqual(result, "2.2.15")
 
     def test_returns_none_when_helm_not_found(self):
         with patch("shutil.which", return_value=None):

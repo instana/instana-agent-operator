@@ -32,7 +32,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import urllib.error
 import urllib.request
@@ -118,6 +117,7 @@ def cutoff_date(_today: date | None = None) -> date:
 
     *_today* is only for testing; leave it as *None* in production.
     """
+    assert 0 < LOOKBACK_MONTHS < 12, "LOOKBACK_MONTHS must be between 1 and 11"
     today = _today if _today is not None else date.today()
     month = today.month - LOOKBACK_MONTHS
     year = today.year
@@ -150,15 +150,15 @@ def _gh_request(url: str, token: str) -> list:
             return json.load(resp)
     except urllib.error.HTTPError as exc:
         if exc.code in (401, 403):
-            log.exception("Auth failed (HTTP %s): %s", exc.code, url)
+            log.error("Auth failed (HTTP %s): %s", exc.code, url)
             sys.exit(1)
         if exc.code == 404:
-            log.exception("Not found: %s", url)
+            log.error("Not found: %s", url)
             sys.exit(1)
         if exc.code == 429:
-            log.exception("Rate limited. Check your token or wait before retrying: %s", url)
+            log.error("Rate limited. Check your token or wait before retrying: %s", url)
             sys.exit(1)
-        log.exception("HTTP %s fetching %s", exc.code, url)
+        log.error("HTTP %s fetching %s", exc.code, url)
         sys.exit(1)
     except urllib.error.URLError as exc:
         log.exception("Network error fetching %s: %s", url, exc.reason)
@@ -541,13 +541,19 @@ def render_markdown(
     baseline: dict[str, str] | None = None,
     no_fill_forward_cols: set[str] | None = None,
     helm_injected_operator: set[tuple[date, str]] | None = None,
+    trigger_columns: set[str] | None = None,
 ) -> str:
-    """Render *table* as a Markdown document string."""
-    sorted_dates = sorted(table.keys(), reverse=True)
+    """Render *table* as a Markdown document string.
 
-    header = "| " + " | ".join(columns) + " |"
-    separator = "|" + "|".join("---" for _ in columns) + "|"
-
+    *trigger_columns*: when provided, only rows that have at least one actual
+    release in one of these columns are emitted.  Fill-forward and
+    ``latest_releases`` always operate on the full *table* first so that
+    agent/k8sensor releases on non-trigger dates are still carried forward
+    correctly into the visible rows.
+    """
+    # latest_releases and fill_forward must see ALL dates so that releases on
+    # non-trigger dates (e.g. agent-only release days) are not silently dropped
+    # from the carry-forward chain.
     pull_section = ""
     if repos:
         pull_map = latest_releases(table, repos)
@@ -558,6 +564,18 @@ def render_markdown(
             )
 
     filled = fill_forward(table, columns, baseline or {}, no_fill_forward_cols, helm_injected_operator)
+
+    # Now restrict which dates appear in the rendered table.
+    if trigger_columns:
+        visible_dates = sorted(
+            (d for d in table if any(table[d].get(col) for col in trigger_columns)),
+            reverse=True,
+        )
+    else:
+        visible_dates = sorted(table.keys(), reverse=True)
+
+    header = "| " + " | ".join(columns) + " |"
+    separator = "|" + "|".join("---" for _ in columns) + "|"
 
     lines = [
         "# Release Timeline",
@@ -576,14 +594,17 @@ def render_markdown(
         "## Release Table",
         "",
         f"Releases from the last {lookback_months} months. Each row represents a date on which at least one",
-        "artifact published a release. Italic values mean no release was published on that date;",
+        "artifact published a release. Italic values mean no release was published on that exact date but",
         "the most recent available version is shown instead.",
+        "Rows only include artifacts when a helm chart or operator image release occurred, intermediate agent image",
+        "and k8sensor image releases that were superseded before a new helm chart or operator image shipped",
+        "are not listed as separate rows.",
         "",
         header,
         separator,
     ]
 
-    for d in sorted_dates:
+    for d in visible_dates:
         row_filled = filled[d]
         cells = [d.isoformat()]
         for col in columns[1:]:
@@ -743,14 +764,14 @@ def main() -> None:
                 helm_injected_operator.add((rel_date, op_version))
 
     table = build_table(all_releases)
-    table = filter_table(table, ROW_TRIGGER_COLUMNS)
-    log.info("Building table with %d row(s)", len(table))
+    log.info("Building table with %d row(s) before trigger filter", len(table))
 
     now = datetime.now(timezone.utc)
     filename = f"{OUTPUT_STEM}.md"
     content = render_markdown(
         table, COLUMNS, LOOKBACK_MONTHS, now, REPOS, baseline,
         NO_FILL_FORWARD_COLS, helm_injected_operator,
+        trigger_columns=ROW_TRIGGER_COLUMNS,
     )
     with open(filename, "w", encoding="utf-8") as fh:
         fh.write(content)
