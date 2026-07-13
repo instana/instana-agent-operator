@@ -23,6 +23,7 @@ deployment template.  That extracted version is used to populate the operator
 image column for dates where no GitHub operator release happened on the same
 day (rendered in italic, as per the existing carry-forward convention).
 """
+from __future__ import annotations
 
 import argparse
 import calendar
