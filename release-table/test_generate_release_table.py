@@ -532,7 +532,7 @@ class TestRenderMarkdown(unittest.TestCase):
 
     def test_intro_text_mentions_italic_convention(self):
         output = render_markdown({}, self.COLS, 6, datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc))
-        self.assertIn("Italic values mean no release was published on that date", output)
+        self.assertIn("Italic values mean no release was published on that exact date but", output)
 
     def test_generated_date_in_header(self):
         output = render_markdown({}, self.COLS, 6, datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc))

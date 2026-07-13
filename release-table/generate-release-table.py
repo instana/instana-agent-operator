@@ -24,6 +24,7 @@ image column for dates where no GitHub operator release happened on the same
 day (rendered in italic, as per the existing carry-forward convention).
 """
 
+import argparse
 import calendar
 import json
 import logging
@@ -97,6 +98,10 @@ _OPERATOR_IMAGE_RE = re.compile(
 )
 
 OUTPUT_STEM = "release-timeline"
+
+ISSUE_TITLE = "Release Timeline"
+ISSUE_OWNER = "instana"
+ISSUE_REPO = "instana-agent-operator"
 
 LOOKBACK_MONTHS = 6
 
@@ -593,12 +598,14 @@ def render_markdown(
     lines += [
         "## Release Table",
         "",
-        f"Releases from the last {lookback_months} months. Each row represents a date on which at least one",
-        "artifact published a release. Italic values mean no release was published on that exact date but",
-        "the most recent available version is shown instead.",
-        "Rows only include artifacts when a helm chart or operator image release occurred, intermediate agent image",
-        "and k8sensor image releases that were superseded before a new helm chart or operator image shipped",
-        "are not listed as separate rows.",
+        (
+            f"Releases from the last {lookback_months} months. Each row represents a date on which at least one"
+            " artifact published a release. Italic values mean no release was published on that exact date but"
+            " the most recent available version is shown instead."
+            " Rows only include artifacts when a helm chart or operator image release occurred, intermediate agent image"
+            " and k8sensor image releases that were superseded before a new helm chart or operator image shipped"
+            " are not listed as separate rows."
+        ),
         "",
         header,
         separator,
@@ -691,10 +698,98 @@ def resolve_tokens() -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# GitHub issue publish
+# ---------------------------------------------------------------------------
+
+def _gh_issues_request(url: str, token: str, method: str = "GET", data: dict | None = None) -> dict | list:
+    """Perform a GitHub Issues API request and return the parsed JSON response."""
+    body = json.dumps(data).encode() if data is not None else None
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as exc:
+        log.error("GitHub Issues API HTTP %s: %s", exc.code, url)
+        sys.exit(1)
+    except urllib.error.URLError as exc:
+        log.exception("Network error calling GitHub Issues API %s: %s", url, exc.reason)
+        sys.exit(1)
+
+
+def find_open_issue(owner: str, repo: str, title: str, token: str) -> int | None:
+    """Return the issue number of the first open issue matching *title* exactly, or *None*.
+
+    Pages through ``GET /repos/{owner}/{repo}/issues?state=open`` and compares
+    titles client-side.
+    """
+    base = f"https://api.github.com/repos/{owner}/{repo}/issues"
+    page = 1
+    while True:
+        url = f"{base}?{urlencode({'state': 'open', 'per_page': 100, 'page': page})}"
+        log.debug("find_open_issue GET %s", url)
+        issues = _gh_issues_request(url, token)
+        if not isinstance(issues, list) or not issues:
+            break
+        for issue in issues:
+            # Skip pull requests which also appear in the issues endpoint
+            if "pull_request" in issue:
+                continue
+            if issue.get("title") == title:
+                return issue["number"]
+        if len(issues) < 100:
+            break
+        page += 1
+    return None
+
+
+def publish_issue(owner: str, repo: str, title: str, body: str, token: str) -> None:
+    """Create or update the persistent issue with *title* in *owner*/*repo*.
+
+    - If an open issue with *title* already exists its body is replaced via PATCH.
+    - Otherwise a new issue is created and a log message prompts the user to pin it.
+    """
+    base = f"https://api.github.com/repos/{owner}/{repo}/issues"
+    issue_number = find_open_issue(owner, repo, title, token)
+
+    if issue_number is not None:
+        url = f"{base}/{issue_number}"
+        _gh_issues_request(url, token, method="PATCH", data={"body": body})
+        log.info("Updated issue #%d in %s/%s", issue_number, owner, repo)
+    else:
+        result = _gh_issues_request(base, token, method="POST", data={"title": title, "body": body})
+        new_number = result["number"]  # type: ignore[index]
+        log.info(
+            "Created issue #%d in %s/%s — please pin it manually via the GitHub UI.",
+            new_number, owner, repo,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate the Instana release timeline table.")
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help=(
+            "Publish (create or update) the release timeline as a GitHub issue in "
+            f"{ISSUE_OWNER}/{ISSUE_REPO}. Requires GH_TOKEN."
+        ),
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=os.environ.get("LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(message)s",
@@ -776,6 +871,9 @@ def main() -> None:
     with open(filename, "w", encoding="utf-8") as fh:
         fh.write(content)
     log.info("Written %s (%d rows)", filename, len(table))
+
+    if args.publish:
+        publish_issue(ISSUE_OWNER, ISSUE_REPO, ISSUE_TITLE, content, tokens["GH_TOKEN"])
 
 
 if __name__ == "__main__":
