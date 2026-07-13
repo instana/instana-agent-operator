@@ -25,7 +25,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "//^Makefile$//"
+        "/^Makefile$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
@@ -36,7 +36,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "//^installGolang\\.sh$//"
+        "/^installGolang\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*GO_VERSION=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
