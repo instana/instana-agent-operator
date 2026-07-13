@@ -43,6 +43,8 @@ extract_operator_from_helm_chart = _mod.extract_operator_from_helm_chart
 fetch_latest_release = _mod.fetch_latest_release
 fetch_helm_operator_pins = _mod.fetch_helm_operator_pins
 NO_FILL_FORWARD_COLS = _mod.NO_FILL_FORWARD_COLS
+find_open_issue = _mod.find_open_issue
+publish_issue = _mod.publish_issue
 
 
 # ---------------------------------------------------------------------------
@@ -1102,6 +1104,198 @@ class TestFetchHelmOperatorPins(unittest.TestCase):
             [], "instana-agent", "https://agents.instana.io/helm"
         )
         self.assertEqual(result, {})
+
+
+# ---------------------------------------------------------------------------
+# find_open_issue
+# ---------------------------------------------------------------------------
+
+class TestFindOpenIssue(unittest.TestCase):
+
+    def _make_issues_response(self, pages: list[list]):
+        """Return a urlopen side-effect that yields successive issue-list pages."""
+        call_count = [0]
+
+        def _side_effect(req, timeout=None):
+            idx = call_count[0]
+            call_count[0] += 1
+            payload = pages[idx] if idx < len(pages) else []
+            body = json.dumps(payload).encode()
+            resp = MagicMock()
+            resp.__enter__ = MagicMock(return_value=resp)
+            resp.__exit__ = MagicMock(return_value=False)
+            resp.read = io.BytesIO(body).read
+            return resp
+
+        return _side_effect
+
+    def test_returns_issue_number_on_exact_title_match(self):
+        pages = [[{"number": 42, "title": "Release Timeline"}]]
+        with patch("urllib.request.urlopen", side_effect=self._make_issues_response(pages)):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertEqual(result, 42)
+
+    def test_returns_none_when_no_match(self):
+        pages = [[{"number": 1, "title": "Some Other Issue"}]]
+        with patch("urllib.request.urlopen", side_effect=self._make_issues_response(pages)):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertIsNone(result)
+
+    def test_returns_none_on_empty_response(self):
+        pages = [[]]
+        with patch("urllib.request.urlopen", side_effect=self._make_issues_response(pages)):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertIsNone(result)
+
+    def test_skips_pull_requests(self):
+        """Issues endpoint also returns PRs; they must be ignored."""
+        pages = [[
+            {"number": 10, "title": "Release Timeline", "pull_request": {"url": "..."}},
+            {"number": 11, "title": "Release Timeline"},
+        ]]
+        with patch("urllib.request.urlopen", side_effect=self._make_issues_response(pages)):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertEqual(result, 11)
+
+    def test_does_not_match_partial_title(self):
+        pages = [[{"number": 5, "title": "Release Timeline (old)"}]]
+        with patch("urllib.request.urlopen", side_effect=self._make_issues_response(pages)):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertIsNone(result)
+
+    def test_paginates_until_match_found(self):
+        page1 = [{"number": i, "title": f"Issue {i}"} for i in range(100)]
+        page2 = [{"number": 200, "title": "Release Timeline"}]
+        with patch("urllib.request.urlopen", side_effect=self._make_issues_response([page1, page2])):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertEqual(result, 200)
+
+    def test_stops_pagination_when_page_less_than_100(self):
+        """A page with fewer than 100 results stops pagination even without a match."""
+        pages = [[{"number": 1, "title": "Other"}]]  # only 1 result → no second page needed
+        call_count = [0]
+
+        def _side_effect(req, timeout=None):
+            call_count[0] += 1
+            payload = pages[0] if call_count[0] == 1 else []
+            body = json.dumps(payload).encode()
+            resp = MagicMock()
+            resp.__enter__ = MagicMock(return_value=resp)
+            resp.__exit__ = MagicMock(return_value=False)
+            resp.read = io.BytesIO(body).read
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=_side_effect):
+            result = find_open_issue("org", "repo", "Release Timeline", "tok")
+        self.assertIsNone(result)
+        self.assertEqual(call_count[0], 1)
+
+    def test_http_error_exits(self):
+        err = urllib.error.HTTPError(url="", code=403, msg="Forbidden", hdrs=None, fp=None)
+        with patch("urllib.request.urlopen", side_effect=err):
+            with self.assertRaises(SystemExit):
+                find_open_issue("org", "repo", "Release Timeline", "tok")
+
+
+# ---------------------------------------------------------------------------
+# publish_issue
+# ---------------------------------------------------------------------------
+
+class TestPublishIssue(unittest.TestCase):
+
+    def _make_response(self, payload: dict | list):
+        body = json.dumps(payload).encode()
+        resp = MagicMock()
+        resp.__enter__ = MagicMock(return_value=resp)
+        resp.__exit__ = MagicMock(return_value=False)
+        resp.read = io.BytesIO(body).read
+        return resp
+
+    def test_updates_existing_issue_body(self):
+        """When the issue already exists, PATCH is called with the new body."""
+        existing = [{"number": 7, "title": "Release Timeline"}]
+        patch_response = {"number": 7, "title": "Release Timeline", "body": "new body"}
+
+        responses = [
+            self._make_response(existing),   # GET list (find_open_issue page 1)
+            self._make_response(patch_response),  # PATCH
+        ]
+        call_count = [0]
+
+        def _side_effect(req, timeout=None):
+            resp = responses[call_count[0]]
+            call_count[0] += 1
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=_side_effect) as mock_urlopen:
+            publish_issue("org", "repo", "Release Timeline", "new body", "tok")
+
+        # Second call must be a PATCH
+        patch_req = mock_urlopen.call_args_list[1][0][0]
+        self.assertEqual(patch_req.method, "PATCH")
+        self.assertIn(b"new body", patch_req.data)
+
+    def test_creates_issue_when_not_found(self):
+        """When no existing issue is found, POST is called to create one."""
+        empty_list: list = []
+        create_response = {"number": 99, "title": "Release Timeline", "body": "content"}
+
+        responses = [
+            self._make_response(empty_list),      # GET list → no match
+            self._make_response(create_response), # POST create
+        ]
+        call_count = [0]
+
+        def _side_effect(req, timeout=None):
+            resp = responses[call_count[0]]
+            call_count[0] += 1
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=_side_effect) as mock_urlopen:
+            publish_issue("org", "repo", "Release Timeline", "content", "tok")
+
+        post_req = mock_urlopen.call_args_list[1][0][0]
+        self.assertEqual(post_req.method, "POST")
+        self.assertIn(b"Release Timeline", post_req.data)
+        self.assertIn(b"content", post_req.data)
+
+    def test_update_sends_correct_url(self):
+        """PATCH request targets the correct issue URL."""
+        existing = [{"number": 42, "title": "Release Timeline"}]
+        patch_response = {"number": 42}
+
+        responses = [self._make_response(existing), self._make_response(patch_response)]
+        call_count = [0]
+
+        def _side_effect(req, timeout=None):
+            resp = responses[call_count[0]]
+            call_count[0] += 1
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=_side_effect) as mock_urlopen:
+            publish_issue("org", "repo", "Release Timeline", "body", "tok")
+
+        patch_req = mock_urlopen.call_args_list[1][0][0]
+        self.assertIn("/issues/42", patch_req.full_url)
+
+    def test_create_sends_correct_url(self):
+        """POST request targets the base issues URL."""
+        responses = [
+            self._make_response([]),                                   # empty list
+            self._make_response({"number": 1, "title": "Release Timeline"}),  # POST
+        ]
+        call_count = [0]
+
+        def _side_effect(req, timeout=None):
+            resp = responses[call_count[0]]
+            call_count[0] += 1
+            return resp
+
+        with patch("urllib.request.urlopen", side_effect=_side_effect) as mock_urlopen:
+            publish_issue("org", "repo", "Release Timeline", "body", "tok")
+
+        post_req = mock_urlopen.call_args_list[1][0][0]
+        self.assertTrue(post_req.full_url.endswith("/issues"))
 
 
 if __name__ == "__main__":

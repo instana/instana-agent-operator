@@ -564,7 +564,7 @@ def render_markdown(
         pull_map = latest_releases(table, repos)
         if pull_map:
             pull_section = (
-                "\n## Latest Release Artifacts\n\n"
+                "\n## Latest Release Artifacts\n\nYou can pull the latest matching Instana images for Kubernetes and OCP using the following commands:\n\n"
                 + render_release_commands(pull_map)
             )
 
@@ -587,7 +587,7 @@ def render_markdown(
         "",
         f"Generated: {generated_date.strftime('%Y-%m-%dT%H:%M:%S UTC')}",
         "",
-        "> **Note:** There is no strict mapping between versions across projects.",
+        "> **Note:** There is no strict 1:1 mapping between Operator, Helm chart, Agent, and k8sensor versions. The Agent and k8sensor versions shown in the table should be understood as proposed / known-good versions for the corresponding Operator or Helm chart release.",
         "> This list provides an overview of what projects were released at which point in time.",
         "",
     ]
