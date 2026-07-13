@@ -1,8 +1,8 @@
 #!/bin/bash
-# (c) Copyright IBM Corp. 2025
+# (c) Copyright IBM Corp. 2025, 2026
 set -euo pipefail
 # renovate: datasource=golang-version depName=golang
-GO_VERSION="1.26.4"
+GO_VERSION="1.26.5"
 ARCHITECTURE="${1}"
 
 # Make sure to remove the old go version, otherwise weird runtime errors may occur
