@@ -1,5 +1,5 @@
 #
-# (c) Copyright IBM Corp. 2025
+# (c) Copyright IBM Corp. 2025, 2026
 #
 version: "2"
 
@@ -63,3 +63,13 @@ tasks:
       - name: detect-secrets
         include:
           - docker-socket
+
+  simple-execute:
+    displayName: generate-release-table
+    onError: stopAndFail
+    steps:
+      - name: execute
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/generate-release-table.sh"

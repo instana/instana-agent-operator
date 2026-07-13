@@ -49,4 +49,4 @@ backend.cfg
 target/
 config/crd/bases/instana.io_agentsremote.yaml
 release-table/__pycache__
-release-table/release-timeline.md
+ci/scripts/release-table/release-timeline.md
