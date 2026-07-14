@@ -14,6 +14,9 @@ SCRIPT_DIR="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/scripts/release-table"
 echo "===== generate-release-table.sh - start ====="
 echo "Script dir: ${SCRIPT_DIR}"
 
+echo "--- Running unit tests ---"
+python3 -m pytest "${SCRIPT_DIR}/test_generate_release_table.py" -v
+
 echo "--- Resolving tokens from SPS environment ---"
 GH_TOKEN="$(get_env git-token)"
 export GH_TOKEN
