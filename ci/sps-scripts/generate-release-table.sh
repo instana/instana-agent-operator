@@ -15,6 +15,8 @@ echo "===== generate-release-table.sh - start ====="
 echo "Script dir: ${SCRIPT_DIR}"
 
 echo "--- Running unit tests ---"
+python3 -m ensurepip --upgrade
+python3 -m pip install --quiet pytest
 python3 -m pytest "${SCRIPT_DIR}/test_generate_release_table.py" -v
 
 echo "--- Resolving tokens from SPS environment ---"
