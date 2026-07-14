@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Tests for generate-release-table.py
 
 Run with:  python3 -m unittest test_generate_release_table -v

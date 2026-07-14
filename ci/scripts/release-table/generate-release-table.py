@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """Generate a Markdown table of the release timeline across Instana repos.
 
 Reads the last LOOKBACK_MONTHS calendar months of releases from:
@@ -23,7 +24,6 @@ deployment template.  That extracted version is used to populate the operator
 image column for dates where no GitHub operator release happened on the same
 day (rendered in italic, as per the existing carry-forward convention).
 """
-from __future__ import annotations
 
 import argparse
 import calendar
