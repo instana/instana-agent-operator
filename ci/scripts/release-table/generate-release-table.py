@@ -588,8 +588,11 @@ def render_markdown(
         "",
         f"Generated: {generated_date.strftime('%Y-%m-%dT%H:%M:%S UTC')}",
         "",
-        "> **Note:** There is no strict 1:1 mapping between Operator, Helm chart, Agent, and k8sensor versions. The Agent and k8sensor versions shown in the table should be understood as proposed / known-good versions for the corresponding Operator or Helm chart release.",
-        "> This list provides an overview of what projects were released at which point in time.",
+        "> **Note:** Helm chart and Operator versions have a strict 1:1 mapping. Each Helm chart release installs the specific Operator version it is bound to.",
+        ">",
+        "> Agent and k8sensor versions are independent. The Agent and k8sensor versions shown in the table should be understood as proposed / known-good versions for the corresponding Helm chart and Operator release.",
+        ">",
+        "> In general, we support Agent and k8sensor releases up to 3 months back from the corresponding Helm chart and Operator release, and indefinitely forward, unless stated otherwise in the official release notes. This means that multiple older and newer Agent and k8sensor versions can typically be used with a given Helm chart and Operator release.",
         "",
     ]
 
