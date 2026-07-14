@@ -1,5 +1,5 @@
 #
-# (c) Copyright IBM Corp. 2025
+# (c) Copyright IBM Corp. 2025, 2026
 #
 version: "2"
 
@@ -11,6 +11,8 @@ tasks:
     include:
       - dind
     steps:
+      - name: checks-setup
+        when: false
       - name: unit-test
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
@@ -24,8 +26,13 @@ tasks:
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/vm-janitor.sh
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/ephemeral-k8s-e2e.sh
       - name: detect-secrets
+        when: true
         include:
           - docker-socket
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
     
   pr-code-checks-2:
     from: pr-code-checks
@@ -35,16 +42,21 @@ tasks:
     include:
       - dind
     steps:
+      - name: checks-setup
+        when: false
+      - name: detect-secrets
+        when: false
       - name: unit-test
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh          
-      - name: detect-secrets
-        include:
-          - docker-socket
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/unit-test.sh
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
           
   pr-code-checks-3:
     from: pr-code-checks
@@ -53,6 +65,10 @@ tasks:
     include:
       - dind
     steps:
+      - name: checks-setup
+        when: false
+      - name: detect-secrets
+        when: false
       - name: unit-test
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
@@ -60,6 +76,45 @@ tasks:
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/olm-build.sh
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
+
+  pr-code-checks-release-table:
+    from: pr-code-checks
+    displayName: generate-release-table
+    runtimeClassName: large
+    onError: stopAndFail
+    include:
+      - dind
+    steps:
+      - name: checks-setup
+        when: false
       - name: detect-secrets
+        when: false
+      - name: unit-test
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
         include:
           - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export GENERATE_RELEASE_TABLE_PUBLISH="false"
+          export RELEASE_TABLE_REPO_FOLDER="${APP_REPO_FOLDER}"
+          source "${WORKSPACE}/${APP_REPO_FOLDER}/ci/sps-scripts/generate-release-table.sh"
+      - name: compliance-checks
+        when: false
+      - name: collect-evidence
+        when: false
+
+  simple-execute:
+    displayName: generate-release-table
+    onError: stopAndFail
+    steps:
+      - name: execute
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          export GENERATE_RELEASE_TABLE_PUBLISH="true"
+          export RELEASE_TABLE_REPO_FOLDER="${PIPELINE_CONFIG_REPO_PATH}"
+          source "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/generate-release-table.sh"
