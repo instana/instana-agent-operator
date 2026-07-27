@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -169,4 +170,80 @@ func TestETCDTargetsRemainStableAcrossReconciles(t *testing.T) {
 
 	firstClient.AssertExpectations(t)
 	secondClient.AssertExpectations(t)
+}
+
+// TestETCDTargetsUpdateWhenDiscoveryChanges makes sure the fix does not pin the env
+// var: a genuine change in the discovered targets still rolls through.
+func TestETCDTargetsUpdateWhenDiscoveryChanges(t *testing.T) {
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{
+				Name: "test-zone",
+			},
+		},
+	}
+
+	ctx := context.Background()
+	logger := zap.New()
+
+	existingDeployment := &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: constants.ContainerK8Sensor,
+							Env: []corev1.EnvVar{
+								{
+									Name:  constants.EnvETCDTargets,
+									Value: "http://9.60.248.41:2381/metrics",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return &DiscoveredETCDTargets{
+			Targets: []string{"http://9.60.248.42:2381/metrics"},
+			CAFound: false,
+		}, nil
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			deployment := args.Get(2).(*appsv1.Deployment)
+			*deployment = *existingDeployment
+		})
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+
+	deployment := renderK8sSensorDeployment(t, agent, deploymentContext)
+	assert.Equal(
+		t,
+		"http://9.60.248.42:2381/metrics",
+		etcdTargetsEnvOf(deployment),
+		"a changed discovery result should update ETCD_TARGETS",
+	)
+	mockClient.AssertExpectations(t)
 }
