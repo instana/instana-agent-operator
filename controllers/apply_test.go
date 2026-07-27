@@ -46,6 +46,7 @@ import (
 
 type mockOperatorUtils struct {
 	applyAllCalled bool
+	builders       []builder.ObjectBuilder
 }
 
 func (m *mockOperatorUtils) ClusterIsOpenShift() (bool, error) {
@@ -54,6 +55,7 @@ func (m *mockOperatorUtils) ClusterIsOpenShift() (bool, error) {
 
 func (m *mockOperatorUtils) ApplyAll(builders ...builder.ObjectBuilder) error {
 	m.applyAllCalled = true
+	m.builders = builders
 	return nil
 }
 
@@ -415,4 +417,69 @@ func TestApplyResourcesReturnsFailureAndSkipsApplyAllOnZoneDaemonSetReadError(t 
 	_, err := res.reconcileResult()
 	assert.ErrorIs(t, err, getErr)
 	assert.False(t, operatorUtilsMock.applyAllCalled)
+}
+
+// Namespaced objects owned by the agent CR must live in the CR's namespace, otherwise
+// Kubernetes treats the owner reference as invalid and garbage collects them, which the
+// operator then recreates on every reconcile.
+func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	baseClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := &InstanaAgentReconciler{
+		client: instanaclient.NewInstanaAgentClient(baseClient),
+	}
+
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instana-agent",
+			Namespace: "base-mon",
+		},
+	}
+	agent.Default()
+
+	statusManager := &mocks.MockAgentStatusManager{}
+	statusManager.On("AddAgentDaemonset", mock.Anything).Return().Maybe()
+	statusManager.On("SetAgentSecretConfig", mock.Anything).Return().Maybe()
+	statusManager.On("SetAgentNamespacesConfigMap", mock.Anything).Return().Maybe()
+	statusManager.On("SetK8sSensorDeployment", mock.Anything).Return().Maybe()
+
+	operatorUtilsMock := &mockOperatorUtils{}
+	res := reconciler.applyResources(
+		context.Background(),
+		agent,
+		true,
+		false,
+		operatorUtilsMock,
+		statusManager,
+		&corev1.Secret{},
+		nil,
+		namespaces.NamespacesDetails{},
+	)
+
+	assert.False(t, res.suppliesReconcileResult())
+	require.True(t, operatorUtilsMock.applyAllCalled)
+
+	for _, objectBuilder := range operatorUtilsMock.builders {
+		object := objectBuilder.Build()
+		if !object.IsPresent() {
+			continue
+		}
+
+		obj := object.Get()
+		if !objectBuilder.IsNamespaced() {
+			continue
+		}
+
+		assert.Equal(
+			t,
+			agent.Namespace,
+			obj.GetNamespace(),
+			"%s %s is built outside of the agent namespace",
+			obj.GetObjectKind().GroupVersionKind().Kind,
+			obj.GetName(),
+		)
+	}
 }
