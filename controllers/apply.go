@@ -503,13 +503,14 @@ func CreateDeploymentContext(
 
 	if err != nil {
 		logger.Info("K8sensor deployment not found, will create with discovered ETCD targets")
+	} else if compareAndUpdateETCDTargets(existingDeployment, discoveredETCD.Targets, logger) {
+		logger.Info("ETCD targets changed, Deployment will be updated")
 	} else {
-		// Compare current and discovered ETCD targets
-		needsUpdate := compareAndUpdateETCDTargets(existingDeployment, discoveredETCD.Targets, logger)
-		if !needsUpdate {
-			logger.Info("ETCD targets unchanged, skipping Deployment update")
-			return nil, nil
-		}
+		// The context still has to carry the targets when they are unchanged. The
+		// deployment builder always rebuilds the full pod spec, so a nil context
+		// renders a Deployment without ETCD_TARGETS, the server-side apply strips
+		// the env var and rolls the pod, and the next reconcile adds it back again.
+		logger.Info("ETCD targets unchanged, keeping them on the Deployment")
 	}
 
 	// Use sorted targets for consistency

@@ -192,7 +192,7 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
-	t.Run("Deployment exists with same ETCD targets - no update", func(t *testing.T) {
+	t.Run("Deployment exists with same ETCD targets - targets retained", func(t *testing.T) {
 		mockClient := &mocks.MockInstanaAgentClient{}
 
 		// Mock ETCD discover function
@@ -241,7 +241,15 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		assert.Nil(t, deploymentContext) // Should return nil when no update needed
+		// The context must keep the targets even when nothing changed, otherwise the
+		// rendered Deployment drops ETCD_TARGETS and the apply strips it.
+		require.NotNil(t, deploymentContext)
+		assert.Equal(
+			t,
+			[]string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"},
+			deploymentContext.DiscoveredETCDTargets,
+		)
+		assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
 		mockClient.AssertExpectations(t)
 	})
 
