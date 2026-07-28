@@ -165,16 +165,170 @@ func TestETCDTargetsRemainStableAcrossReconciles(t *testing.T) {
 		"ETCD_TARGETS must survive a reconcile where the discovered targets are unchanged",
 	)
 
-	// The pod spec must be byte for byte identical, otherwise the apply rolls the pod.
+	// The whole pod template must be identical, not just the env: any difference at
+	// all changes the pod template hash and rolls the pod.
 	assert.Equal(
 		t,
-		firstDeployment.Spec.Template.Spec.Containers[0].Env,
-		secondDeployment.Spec.Template.Spec.Containers[0].Env,
-		"an unchanged reconcile must not change the container env at all",
+		firstDeployment.Spec.Template,
+		secondDeployment.Spec.Template,
+		"an unchanged reconcile must not change the pod template at all",
 	)
 
 	firstClient.AssertExpectations(t)
 	secondClient.AssertExpectations(t)
+}
+
+// etcdCAFileEnvOf returns the ETCD_CA_FILE value on the k8sensor container, or ""
+// when the env var is absent.
+func etcdCAFileEnvOf(deployment *appsv1.Deployment) string {
+	return k8sSensorEnvValue(deployment, constants.EnvETCDCAFile)
+}
+
+// TestETCDCASettingsRemainStableAcrossReconciles is the CA counterpart of the
+// stability test. The discovered CA drives an env var, a volume and a volume mount,
+// all of them off the same deployment context, so they flapped in lockstep with the
+// targets and all of them have to stay put on an unchanged reconcile.
+func TestETCDCASettingsRemainStableAcrossReconciles(t *testing.T) {
+	agent := agentForETCDTests()
+
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return &DiscoveredETCDTargets{
+			Targets: []string{"https://9.60.248.41:2379/metrics"},
+			CAFound: true,
+		}, nil
+	}
+
+	// First reconcile: nothing applied yet
+	firstClient := &mocks.MockInstanaAgentClient{}
+	firstClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
+
+	firstContext, err := CreateDeploymentContext(
+		ctx,
+		firstClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+
+	firstDeployment := renderK8sSensorDeployment(t, agent, firstContext)
+	require.Equal(
+		t,
+		constants.ETCDCAMountPath+"/ca.crt",
+		etcdCAFileEnvOf(firstDeployment),
+		"first reconcile should mount the discovered CA",
+	)
+	require.NotNil(
+		t,
+		findVolumeNamed(firstDeployment.Spec.Template.Spec.Volumes, "etcd-ca"),
+		"first reconcile should add the etcd-ca volume",
+	)
+
+	// Second reconcile: same targets, the case that used to strip everything
+	secondClient := &mocks.MockInstanaAgentClient{}
+	secondClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			deployment := args.Get(2).(*appsv1.Deployment)
+			*deployment = *firstDeployment
+		})
+
+	secondContext, err := CreateDeploymentContext(
+		ctx,
+		secondClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+
+	secondDeployment := renderK8sSensorDeployment(t, agent, secondContext)
+	assert.Equal(
+		t,
+		etcdCAFileEnvOf(firstDeployment),
+		etcdCAFileEnvOf(secondDeployment),
+		"ETCD_CA_FILE must survive an unchanged reconcile",
+	)
+	assert.Equal(
+		t,
+		firstDeployment.Spec.Template,
+		secondDeployment.Spec.Template,
+		"the CA volume and mount must survive an unchanged reconcile too",
+	)
+
+	firstClient.AssertExpectations(t)
+	secondClient.AssertExpectations(t)
+}
+
+// TestETCDCASettingsRetainedWhenDiscoveryFails checks that the CA settings are
+// retained alongside the targets when discovery cannot determine them.
+func TestETCDCASettingsRetainedWhenDiscoveryFails(t *testing.T) {
+	agent := agentForETCDTests()
+
+	ctx := context.Background()
+	logger := zap.New()
+
+	// Stand in for what a previous reconcile applied: targets plus the discovered CA
+	applied := deploymentWithETCDTargets("https://9.60.248.41:2379/metrics")
+	applied.Spec.Template.Spec.Containers[0].Env = append(
+		applied.Spec.Template.Spec.Containers[0].Env,
+		corev1.EnvVar{
+			Name:  constants.EnvETCDCAFile,
+			Value: constants.ETCDCAMountPath + "/ca.crt",
+		},
+	)
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return nil, assert.AnError
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			deployment := args.Get(2).(*appsv1.Deployment)
+			*deployment = *applied
+		})
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+
+	deployment := renderK8sSensorDeployment(t, agent, deploymentContext)
+	assert.Equal(
+		t,
+		constants.ETCDCAMountPath+"/ca.crt",
+		etcdCAFileEnvOf(deployment),
+		"a failed discovery must not strip the applied ETCD_CA_FILE",
+	)
+	assert.NotNil(
+		t,
+		findVolumeNamed(deployment.Spec.Template.Spec.Volumes, "etcd-ca"),
+		"a failed discovery must not strip the etcd-ca volume",
+	)
+	mockClient.AssertExpectations(t)
+}
+
+// findVolumeNamed returns the named volume, or nil when it is absent.
+func findVolumeNamed(volumes []corev1.Volume, name string) *corev1.Volume {
+	for i := range volumes {
+		if volumes[i].Name == name {
+			return &volumes[i]
+		}
+	}
+	return nil
 }
 
 // TestETCDTargetsUpdateWhenDiscoveryChanges makes sure the fix does not pin the env
