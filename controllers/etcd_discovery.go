@@ -31,6 +31,13 @@ type DiscoveredETCDTargets struct {
 	// CAFound indicates whether the etcd-ca secret was found in the agent's namespace,
 	// which is needed for secure HTTPS connections to etcd endpoints
 	CAFound bool
+
+	// Indeterminate is set when discovery could not establish the current set of
+	// targets, as opposed to establishing that there are none. The etcd service and
+	// its metrics port exist but no endpoint is ready, which is usually a transient
+	// state. Callers should keep the targets they already applied instead of
+	// clearing them, so a blip does not roll the k8sensor pod.
+	Indeterminate bool
 }
 
 const kubeSystemNamespace = "kube-system"
@@ -83,8 +90,10 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 		return nil, err
 	}
 	if len(targets) == 0 {
-		log.Info("No endpoints found for etcd service")
-		return nil, nil
+		// The service and its metrics port are still there, so etcd has not gone
+		// away, we just cannot enumerate ready endpoints on this pass.
+		log.Info("No ready endpoints found for etcd service, discovery is inconclusive")
+		return &DiscoveredETCDTargets{Indeterminate: true}, nil
 	}
 
 	// Step 5: Check for CA secret and return results
