@@ -460,11 +460,14 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 		*backends.NewK8SensorBackend("", agent.Spec.Agent.Key, "", "ingress.instana.io", "443"),
 	}
 
+	// Asserted rather than permissive, so that a builder dropping out of the set below
+	// fails here instead of shrinking what the namespace check covers.
 	statusManager := &mocks.MockAgentStatusManager{}
-	statusManager.On("AddAgentDaemonset", mock.Anything).Return().Maybe()
-	statusManager.On("SetAgentSecretConfig", mock.Anything).Return().Maybe()
-	statusManager.On("SetAgentNamespacesConfigMap", mock.Anything).Return().Maybe()
-	statusManager.On("SetK8sSensorDeployment", mock.Anything).Return().Maybe()
+	defer statusManager.AssertExpectations(t)
+	statusManager.On("AddAgentDaemonset", mock.Anything).Return().Once()
+	statusManager.On("SetAgentSecretConfig", mock.Anything).Return().Once()
+	statusManager.On("SetAgentNamespacesConfigMap", mock.Anything).Return().Once()
+	statusManager.On("SetK8sSensorDeployment", mock.Anything).Return().Once()
 
 	operatorUtilsMock := &mockOperatorUtils{}
 	res := reconciler.applyResources(
