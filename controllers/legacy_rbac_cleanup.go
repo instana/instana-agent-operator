@@ -79,12 +79,16 @@ func cleanupLegacyEtcdReaderRBAC(
 				kind,
 			)
 		case !apierrors.IsNotFound(err):
-			log.Error(
-				err,
-				"failed to remove legacy k8sensor etcd-reader RBAC",
+			// Deliberately not logged at Error: this is best-effort cleanup of a previous
+			// version's objects, nothing downstream depends on it, and a persistent
+			// condition such as a Forbidden in a locked down cluster would otherwise
+			// raise an alarm on every reconcile that nobody can act on.
+			log.V(1).Info(
+				"could not remove legacy k8sensor etcd-reader RBAC",
 				"name", name,
 				"namespace", kubeSystemNamespace,
 				"kind", kind,
+				"error", err,
 			)
 		}
 	}
