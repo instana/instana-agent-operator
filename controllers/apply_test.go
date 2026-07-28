@@ -320,6 +320,10 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			return nil, assert.AnError
 		}
 
+		// There is no Deployment yet, so there are no applied targets to retain
+		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+			Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
+
 		deploymentContext, err := CreateDeploymentContext(
 			ctx,
 			mockClient,

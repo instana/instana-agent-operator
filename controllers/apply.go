@@ -138,6 +138,67 @@ func getSortedTargets(targets []string) []string {
 	return sortedTargets
 }
 
+// k8sSensorEnvValue returns the value of the named environment variable on the
+// k8sensor container of the given Deployment, or "" when it is not set.
+func k8sSensorEnvValue(existingDeployment *appsv1.Deployment, name string) string {
+	for _, container := range existingDeployment.Spec.Template.Spec.Containers {
+		if container.Name != constants.ContainerK8Sensor {
+			continue
+		}
+		for _, env := range container.Env {
+			if env.Name == name {
+				return env.Value
+			}
+		}
+		break
+	}
+
+	return ""
+}
+
+// retainAppliedETCDTargets rebuilds the deployment context from the ETCD settings
+// already applied to the live k8sensor Deployment. It is used when discovery cannot
+// establish the current targets, so that a transient failure does not strip
+// ETCD_TARGETS and roll the pod. It returns nil when there is nothing to retain.
+func retainAppliedETCDTargets(
+	ctx context.Context,
+	c client.InstanaAgentClient,
+	agent *instanav1.InstanaAgent,
+	log logr.Logger,
+) *k8ssensordeployment.DeploymentContext {
+	// Every backend shares a single deployment context and the targets are cluster
+	// wide, so the primary Deployment is a good enough source for the applied values.
+	existingDeployment := &appsv1.Deployment{}
+	helperInstance := helpers.NewHelpers(agent)
+	if err := c.Get(ctx, types.NamespacedName{
+		Namespace: agent.Namespace,
+		Name:      helperInstance.K8sSensorResourcesName(),
+	}, existingDeployment); err != nil {
+		log.Info("No existing k8sensor deployment to retain ETCD targets from")
+		return nil
+	}
+
+	appliedTargets := k8sSensorEnvValue(existingDeployment, constants.EnvETCDTargets)
+	if appliedTargets == "" {
+		return nil
+	}
+
+	log.Info("Retaining the ETCD targets already applied", "targets", appliedTargets)
+
+	deploymentContext := &k8ssensordeployment.DeploymentContext{
+		DiscoveredETCDTargets: strings.Split(appliedTargets, ","),
+	}
+
+	// Only treat the CA as discovered when the applied file matches the path the
+	// discovery path mounts it at, so a CA configured on the CR is left alone.
+	if k8sSensorEnvValue(existingDeployment, constants.EnvETCDCAFile) ==
+		constants.ETCDCAMountPath+"/ca.crt" {
+		deploymentContext.ETCDCASecretName = constants.ETCDCASecretName
+	}
+
+	return deploymentContext
+}
+
 // compareAndUpdateETCDTargets compares current ETCD targets with new discovered targets
 // and determines if an update is needed. This function handles environment variable extraction,
 // target sorting, and comparison logic.
@@ -151,18 +212,7 @@ func compareAndUpdateETCDTargets(
 	)
 
 	// Extract current ETCD targets from deployment environment variables
-	currentTargets := ""
-	for _, container := range existingDeployment.Spec.Template.Spec.Containers {
-		if container.Name == constants.ContainerK8Sensor {
-			for _, env := range container.Env {
-				if env.Name == constants.EnvETCDTargets {
-					currentTargets = env.Value
-					break
-				}
-			}
-			break
-		}
-	}
+	currentTargets := k8sSensorEnvValue(existingDeployment, constants.EnvETCDTargets)
 
 	// Sort discovered targets to ensure consistent comparison
 	sortedDiscoveredTargets := getSortedTargets(discoveredTargets)
@@ -484,11 +534,21 @@ func CreateDeploymentContext(
 	// For vanilla Kubernetes, discover ETCD endpoints
 	discoveredETCD, err := discoverETCD(ctx, agent)
 	if err != nil {
-		logger.Error(err, "Failed to discover ETCD endpoints")
+		// A discovery failure means the targets are unknown, not that there are none.
+		// Clearing them here would strip ETCD_TARGETS and roll the k8sensor pod on
+		// every transient API error, then roll it again once discovery recovers.
+		logger.Error(err, "Failed to discover ETCD endpoints, retaining the applied targets")
 		// Continue with reconciliation, don't fail the whole process
-		return nil, nil
+		return retainAppliedETCDTargets(ctx, c, agent, logger), nil
 	}
 
+	if discoveredETCD != nil && discoveredETCD.Indeterminate {
+		logger.Info("ETCD discovery was inconclusive, retaining the applied targets")
+		return retainAppliedETCDTargets(ctx, c, agent, logger), nil
+	}
+
+	// Discovery positively established that there is no etcd to monitor, so the
+	// targets are dropped and the k8sensor stops scraping them.
 	if discoveredETCD == nil || len(discoveredETCD.Targets) == 0 {
 		return nil, nil
 	}
