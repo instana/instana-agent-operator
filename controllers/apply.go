@@ -210,7 +210,9 @@ func etcdTargetsChanged(
 	discoveredTargets []string,
 	log logr.Logger,
 ) bool {
-	log.Info(
+	// These run on every reconcile and say nothing new in steady state, so they are
+	// kept off the default log level
+	log.V(1).Info(
 		"Comparing current ETCD targets with discovered targets to determine if update is needed",
 	)
 
@@ -228,10 +230,10 @@ func etcdTargetsChanged(
 		currentTargets = strings.Join(currentTargetsList, ",")
 	}
 
-	log.Info("Target comparison details",
+	log.V(1).Info("Target comparison details",
 		"currentTargets", currentTargets,
 		"newTargets", newTargets,
-		"needsUpdate", currentTargets != newTargets)
+		"targetsChanged", currentTargets != newTargets)
 
 	// Return true if targets are different (update needed)
 	return currentTargets != newTargets
@@ -576,13 +578,14 @@ func CreateDeploymentContext(
 		// deployment builder always rebuilds the full pod spec, so a nil context
 		// renders a Deployment without ETCD_TARGETS, the server-side apply strips
 		// the env var and rolls the pod, and the next reconcile adds it back again.
-		logger.Info("ETCD targets unchanged, keeping them on the Deployment")
+		// This is the steady state, so it stays off the default log level.
+		logger.V(1).Info("ETCD targets unchanged, keeping them on the Deployment")
 	}
 
 	// Use sorted targets for consistency
 	sortedTargets := getSortedTargets(discoveredETCD.Targets)
 
-	logger.Info("Using discovered ETCD targets", "targets", sortedTargets)
+	logger.V(1).Info("Using discovered ETCD targets", "targets", sortedTargets)
 	deploymentContext := &k8ssensordeployment.DeploymentContext{
 		DiscoveredETCDTargets: sortedTargets,
 	}

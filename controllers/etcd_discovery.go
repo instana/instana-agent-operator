@@ -55,7 +55,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 		return nil, err
 	}
 	if shouldSkip {
-		log.Info("Skipping ETCD discovery based on configuration or environment")
+		log.V(1).Info("Skipping ETCD discovery based on configuration or environment")
 		return nil, nil
 	}
 
@@ -65,16 +65,16 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 		return nil, err
 	}
 	if etcdService == nil {
-		log.Info("No ETCD service found in kube-system namespace")
+		log.V(1).Info("No ETCD service found in kube-system namespace")
 		return nil, nil
 	}
 
-	log.Info("Found etcd service", "name", etcdService.Name)
+	log.V(1).Info("Found etcd service", "name", etcdService.Name)
 
 	// Step 3: Find metrics port and determine scheme
 	metricsPortPtr, scheme := r.etcdDiscoverer.FindMetricsPortAndScheme(etcdService)
 	if metricsPortPtr == nil {
-		log.Info("No metrics port found in etcd service")
+		log.V(1).Info("No metrics port found in etcd service")
 		return nil, nil
 	}
 	metricsPort := *metricsPortPtr
@@ -102,7 +102,7 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 		return nil, err
 	}
 
-	log.Info("Discovered etcd targets", "targets", targets, "caFound", caSecretExists)
+	log.V(1).Info("Discovered etcd targets", "targets", targets, "caFound", caSecretExists)
 
 	return &DiscoveredETCDTargets{
 		Targets: targets,
