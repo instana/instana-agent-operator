@@ -38,6 +38,24 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 )
 
+// agentForETCDTests returns a minimal agent that renders a k8sensor Deployment.
+func agentForETCDTests() *instanav1.InstanaAgent {
+	return &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key: "test-key",
+			},
+			Zone: instanav1.Name{
+				Name: "test-zone",
+			},
+		},
+	}
+}
+
 // renderK8sSensorDeployment builds the k8s-sensor Deployment the way applyResources
 // does, so the test sees exactly what would be sent to the server-side apply.
 func renderK8sSensorDeployment(
@@ -86,20 +104,7 @@ func etcdTargetsEnvOf(deployment *appsv1.Deployment) string {
 // stripped the env var and rolled the pod, and the next reconcile added it back,
 // leaving the k8sensor pod in a restart loop.
 func TestETCDTargetsRemainStableAcrossReconciles(t *testing.T) {
-	agent := &instanav1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-agent",
-			Namespace: "test-namespace",
-		},
-		Spec: instanav1.InstanaAgentSpec{
-			Agent: instanav1.BaseAgentSpec{
-				Key: "test-key",
-			},
-			Zone: instanav1.Name{
-				Name: "test-zone",
-			},
-		},
-	}
+	agent := agentForETCDTests()
 
 	ctx := context.Background()
 	logger := zap.New()
@@ -175,43 +180,12 @@ func TestETCDTargetsRemainStableAcrossReconciles(t *testing.T) {
 // TestETCDTargetsUpdateWhenDiscoveryChanges makes sure the fix does not pin the env
 // var: a genuine change in the discovered targets still rolls through.
 func TestETCDTargetsUpdateWhenDiscoveryChanges(t *testing.T) {
-	agent := &instanav1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-agent",
-			Namespace: "test-namespace",
-		},
-		Spec: instanav1.InstanaAgentSpec{
-			Agent: instanav1.BaseAgentSpec{
-				Key: "test-key",
-			},
-			Zone: instanav1.Name{
-				Name: "test-zone",
-			},
-		},
-	}
+	agent := agentForETCDTests()
 
 	ctx := context.Background()
 	logger := zap.New()
 
-	existingDeployment := &appsv1.Deployment{
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: constants.ContainerK8Sensor,
-							Env: []corev1.EnvVar{
-								{
-									Name:  constants.EnvETCDTargets,
-									Value: "http://9.60.248.41:2381/metrics",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	existingDeployment := deploymentWithETCDTargets("http://9.60.248.41:2381/metrics")
 
 	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 		return &DiscoveredETCDTargets{
@@ -245,5 +219,170 @@ func TestETCDTargetsUpdateWhenDiscoveryChanges(t *testing.T) {
 		etcdTargetsEnvOf(deployment),
 		"a changed discovery result should update ETCD_TARGETS",
 	)
+	mockClient.AssertExpectations(t)
+}
+
+// deploymentWithETCDTargets returns a k8sensor Deployment carrying the given
+// ETCD_TARGETS value, standing in for what a previous reconcile applied.
+func deploymentWithETCDTargets(targets string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: constants.ContainerK8Sensor,
+							Env: []corev1.EnvVar{
+								{
+									Name:  constants.EnvETCDTargets,
+									Value: targets,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// TestETCDTargetsRetainedWhenDiscoveryFails covers the transient failure half of the
+// flap: discovery erroring means the targets are unknown, not that etcd is gone, so
+// the applied targets have to survive rather than be stripped and rolled.
+func TestETCDTargetsRetainedWhenDiscoveryFails(t *testing.T) {
+	agent := agentForETCDTests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return nil, assert.AnError
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			deployment := args.Get(2).(*appsv1.Deployment)
+			*deployment = *deploymentWithETCDTargets("http://9.60.248.41:2381/metrics")
+		})
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+
+	deployment := renderK8sSensorDeployment(t, agent, deploymentContext)
+	assert.Equal(
+		t,
+		"http://9.60.248.41:2381/metrics",
+		etcdTargetsEnvOf(deployment),
+		"a failed discovery must not strip the already applied ETCD_TARGETS",
+	)
+	mockClient.AssertExpectations(t)
+}
+
+// TestETCDTargetsRetainedWhenDiscoveryInconclusive covers the other transient half:
+// the etcd service is still there but no endpoint is ready on this pass.
+func TestETCDTargetsRetainedWhenDiscoveryInconclusive(t *testing.T) {
+	agent := agentForETCDTests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return &DiscoveredETCDTargets{Indeterminate: true}, nil
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			deployment := args.Get(2).(*appsv1.Deployment)
+			*deployment = *deploymentWithETCDTargets("http://9.60.248.41:2381/metrics")
+		})
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+
+	deployment := renderK8sSensorDeployment(t, agent, deploymentContext)
+	assert.Equal(
+		t,
+		"http://9.60.248.41:2381/metrics",
+		etcdTargetsEnvOf(deployment),
+		"an inconclusive discovery must not strip the already applied ETCD_TARGETS",
+	)
+	mockClient.AssertExpectations(t)
+}
+
+// TestETCDTargetsClearedWhenETCDIsGone makes sure retaining the applied targets does
+// not pin them forever: when discovery positively reports that there is no etcd
+// service, the env var is still dropped so the k8sensor stops scraping it.
+func TestETCDTargetsClearedWhenETCDIsGone(t *testing.T) {
+	agent := agentForETCDTests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return nil, nil
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+	assert.Nil(t, deploymentContext)
+
+	deployment := renderK8sSensorDeployment(t, agent, deploymentContext)
+	assert.Empty(
+		t,
+		etcdTargetsEnvOf(deployment),
+		"ETCD_TARGETS should be dropped once etcd is positively gone",
+	)
+	mockClient.AssertExpectations(t)
+}
+
+// TestETCDTargetsNotRetainedWithoutExistingDeployment covers the first reconcile on a
+// fresh install, where discovery fails and there is nothing applied yet to fall back on.
+func TestETCDTargetsNotRetainedWithoutExistingDeployment(t *testing.T) {
+	agent := agentForETCDTests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return nil, assert.AnError
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+	require.NoError(t, err)
+	assert.Nil(t, deploymentContext, "there is nothing to retain on a fresh install")
 	mockClient.AssertExpectations(t)
 }
