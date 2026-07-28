@@ -299,73 +299,108 @@ func TestTransformations_AddOwnerReference_WithSameNameDifferentUID(t *testing.T
 }
 
 func TestTransformations_AddOwnerReference_OtherNamespace(t *testing.T) {
-	for _, tc := range []struct {
+	const (
+		ownerName      = "instana-agent"
+		ownerNamespace = "base-mon"
+		ownerUID       = "iowegihsdgoijwefoih"
+	)
+
+	for _, owner := range []struct {
 		name            string
-		objectNamespace string
-		expectOwnerRef  bool
+		kind            string
+		transformations Transformations
 	}{
 		{
-			name:            "same_namespace_as_agent",
-			objectNamespace: "base-mon",
-			expectOwnerRef:  true,
-		},
-		{
-			name:            "namespace_not_set",
-			objectNamespace: "",
-			expectOwnerRef:  true,
-		},
-		{
-			name:            "different_namespace_than_agent",
-			objectNamespace: "kube-system",
-			expectOwnerRef:  false,
-		},
-	} {
-		t.Run(
-			tc.name, func(t *testing.T) {
-				assertions := require.New(t)
-
-				agent := instanav1.InstanaAgent{
+			name: "agent",
+			kind: "InstanaAgent",
+			transformations: NewTransformations(
+				&instanav1.InstanaAgent{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "instana.io/v1",
 						Kind:       "InstanaAgent",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "instana-agent",
-						Namespace: "base-mon",
-						UID:       "iowegihsdgoijwefoih",
+						Name:      ownerName,
+						Namespace: ownerNamespace,
+						UID:       ownerUID,
 					},
-				}
-
-				configMap := v1.ConfigMap{
+				},
+			),
+		},
+		{
+			name: "remote_agent",
+			kind: "InstanaAgentRemote",
+			transformations: NewTransformationsRemote(
+				&instanav1.InstanaAgentRemote{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "instana.io/v1",
+						Kind:       "InstanaAgentRemote",
+					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "some-config",
-						Namespace: tc.objectNamespace,
+						Name:      ownerName,
+						Namespace: ownerNamespace,
+						UID:       ownerUID,
 					},
-				}
-
-				NewTransformations(&agent).AddOwnerReference(&configMap)
-
-				if tc.expectOwnerRef {
-					assertions.Equal(
-						[]metav1.OwnerReference{
-							{
-								APIVersion:         "instana.io/v1",
-								Kind:               "InstanaAgent",
-								Name:               "instana-agent",
-								UID:                "iowegihsdgoijwefoih",
-								Controller:         pointer.To(true),
-								BlockOwnerDeletion: pointer.To(true),
-							},
-						},
-						configMap.OwnerReferences,
-					)
-				} else {
-					assertions.Empty(
-						configMap.OwnerReferences,
-						"cross-namespace owner references are invalid and would get the object garbage collected",
-					)
-				}
+				},
+			),
+		},
+	} {
+		for _, tc := range []struct {
+			name            string
+			objectNamespace string
+			expectOwnerRef  bool
+		}{
+			{
+				name:            "same_namespace_as_agent",
+				objectNamespace: ownerNamespace,
+				expectOwnerRef:  true,
 			},
-		)
+			{
+				name:            "namespace_not_set",
+				objectNamespace: "",
+				expectOwnerRef:  true,
+			},
+			{
+				name:            "different_namespace_than_agent",
+				objectNamespace: "kube-system",
+				expectOwnerRef:  false,
+			},
+		} {
+			t.Run(
+				owner.name+"_"+tc.name, func(t *testing.T) {
+					assertions := require.New(t)
+
+					configMap := v1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "some-config",
+							Namespace: tc.objectNamespace,
+						},
+					}
+
+					owner.transformations.AddOwnerReference(&configMap)
+
+					if tc.expectOwnerRef {
+						assertions.Equal(
+							[]metav1.OwnerReference{
+								{
+									APIVersion:         "instana.io/v1",
+									Kind:               owner.kind,
+									Name:               ownerName,
+									UID:                ownerUID,
+									Controller:         pointer.To(true),
+									BlockOwnerDeletion: pointer.To(true),
+								},
+							},
+							configMap.OwnerReferences,
+						)
+					} else {
+						assertions.Empty(
+							configMap.OwnerReferences,
+							"cross-namespace owner references are invalid and would get the object garbage collected",
+						)
+					}
+				},
+			)
+		}
 	}
 }
