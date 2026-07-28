@@ -37,10 +37,12 @@ import (
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/internal/mocks"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/result"
 )
 
@@ -432,13 +434,31 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 		client: instanaclient.NewInstanaAgentClient(baseClient),
 	}
 
+	// A fully populated spec, so that the conditionally built objects (agent DaemonSet,
+	// k8sensor Deployment, PodDisruptionBudget, secrets) are actually emitted and get
+	// checked, rather than being skipped as empty Optionals.
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "instana-agent",
 			Namespace: "base-mon",
 		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "kjfdoisjoifjdsoijdf",
+				EndpointHost: "ingress.instana.io",
+				EndpointPort: "443",
+			},
+			Cluster: instanav1.Name{Name: "oiweisjdfoi"},
+			K8sSensor: instanav1.K8sSpec{
+				PodDisruptionBudget: instanav1.Enabled{Enabled: pointer.To(true)},
+			},
+		},
 	}
 	agent.Default()
+
+	k8SensorBackends := []backends.K8SensorBackend{
+		*backends.NewK8SensorBackend("", agent.Spec.Agent.Key, "", "ingress.instana.io", "443"),
+	}
 
 	statusManager := &mocks.MockAgentStatusManager{}
 	statusManager.On("AddAgentDaemonset", mock.Anything).Return().Maybe()
@@ -455,23 +475,29 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 		operatorUtilsMock,
 		statusManager,
 		&corev1.Secret{},
-		nil,
+		k8SensorBackends,
 		namespaces.NamespacesDetails{},
 	)
 
 	assert.False(t, res.suppliesReconcileResult())
 	require.True(t, operatorUtilsMock.applyAllCalled)
 
+	checkedKinds := make(map[string]int, len(operatorUtilsMock.builders))
+
 	for _, objectBuilder := range operatorUtilsMock.builders {
+		if !objectBuilder.IsNamespaced() {
+			continue
+		}
+
+		// Build is invoked a second time here, which is harmless: the builders are pure
+		// apart from the status manager callbacks the mock absorbs.
 		object := objectBuilder.Build()
 		if !object.IsPresent() {
 			continue
 		}
 
 		obj := object.Get()
-		if !objectBuilder.IsNamespaced() {
-			continue
-		}
+		checkedKinds[obj.GetObjectKind().GroupVersionKind().Kind]++
 
 		assert.Equal(
 			t,
@@ -481,5 +507,18 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 			obj.GetObjectKind().GroupVersionKind().Kind,
 			obj.GetName(),
 		)
+	}
+
+	// Guards against the loop above quietly degrading to checking almost nothing if a
+	// builder stops emitting an object for this spec.
+	for _, kind := range []string{
+		"DaemonSet",
+		"Deployment",
+		"ServiceAccount",
+		"Secret",
+		"ConfigMap",
+		"PodDisruptionBudget",
+	} {
+		assert.NotZero(t, checkedKinds[kind], "no %s was checked", kind)
 	}
 }
