@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -26,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -34,6 +36,28 @@ import (
 )
 
 const legacyEtcdReaderName = "instana-agent-k8sensor-etcd-reader"
+
+// deleteCountingClient counts Delete calls, and optionally fails them, so that the
+// retry behaviour of cleanupLegacyEtcdReaderRBACOnce can be observed.
+type deleteCountingClient struct {
+	instanaclient.InstanaAgentClient
+	deletes int
+	err     error
+}
+
+func (d *deleteCountingClient) Delete(
+	ctx context.Context,
+	obj k8sclient.Object,
+	opts ...k8sclient.DeleteOption,
+) error {
+	d.deletes++
+
+	if d.err != nil {
+		return d.err
+	}
+
+	return d.InstanaAgentClient.Delete(ctx, obj, opts...)
+}
 
 func legacyEtcdReaderAgent() *instanav1.InstanaAgent {
 	return &instanav1.InstanaAgent{
@@ -128,6 +152,71 @@ func TestCleanupLegacyEtcdReaderRBAC(t *testing.T) {
 			},
 		)
 	}
+}
+
+// Retrying forever would fight anything that legitimately recreates an object under that
+// name, so once the objects are gone the operator must stop issuing deletes.
+func TestCleanupLegacyEtcdReaderRBACOnceStopsAfterTheObjectsAreGone(t *testing.T) {
+	assertions := require.New(t)
+
+	scheme := runtime.NewScheme()
+	assertions.NoError(rbacv1.AddToScheme(scheme))
+
+	agent := legacyEtcdReaderAgent()
+
+	countingClient := &deleteCountingClient{
+		InstanaAgentClient: instanaclient.NewInstanaAgentClient(
+			fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithRuntimeObjects(
+					legacyEtcdReaderRole(kubeSystemNamespace),
+					legacyEtcdReaderRoleBinding(kubeSystemNamespace),
+				).
+				Build(),
+		),
+	}
+
+	reconciler := &InstanaAgentReconciler{client: countingClient}
+
+	for range 3 {
+		reconciler.cleanupLegacyEtcdReaderRBACOnce(context.Background(), agent, zap.New())
+	}
+
+	assertions.Equal(
+		2,
+		countingClient.deletes,
+		"the Role and the RoleBinding should each be deleted exactly once",
+	)
+}
+
+// A delete that fails for any reason other than the object being absent has to be retried,
+// otherwise a single blip leaves the objects behind until the operator restarts.
+func TestCleanupLegacyEtcdReaderRBACOnceRetriesAfterAFailedDelete(t *testing.T) {
+	assertions := require.New(t)
+
+	scheme := runtime.NewScheme()
+	assertions.NoError(rbacv1.AddToScheme(scheme))
+
+	agent := legacyEtcdReaderAgent()
+
+	failingClient := &deleteCountingClient{
+		InstanaAgentClient: instanaclient.NewInstanaAgentClient(
+			fake.NewClientBuilder().WithScheme(scheme).Build(),
+		),
+		err: errors.New("apiserver temporary failure"),
+	}
+
+	reconciler := &InstanaAgentReconciler{client: failingClient}
+
+	for range 3 {
+		reconciler.cleanupLegacyEtcdReaderRBACOnce(context.Background(), agent, zap.New())
+	}
+
+	assertions.Equal(
+		6,
+		failingClient.deletes,
+		"both deletes should be retried on every reconcile until they succeed",
+	)
 }
 
 // Only the copies in kube-system were ever created by the operator, so identically named
