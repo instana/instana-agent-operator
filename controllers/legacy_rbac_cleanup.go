@@ -44,16 +44,18 @@ const legacyEtcdReaderSuffix = "-etcd-reader"
 // also covers copies that lost the ownerReference, and makes the cleanup independent of
 // the dependents ConfigMap, which only records them for the generation that created them.
 //
-// This can be dropped once installs have upgraded past the release that removed the
-// builders.
+// It reports whether both objects are confirmed gone, so that the caller can stop
+// retrying. This can be dropped once installs have upgraded past the release that removed
+// the builders.
 func cleanupLegacyEtcdReaderRBAC(
 	ctx context.Context,
 	c client.InstanaAgentClient,
 	agent *instanav1.InstanaAgent,
 	log logr.Logger,
-) {
+) bool {
 	name := helpers.NewHelpers(agent).K8sSensorResourcesName() + legacyEtcdReaderSuffix
 	objectMeta := metav1.ObjectMeta{Name: name, Namespace: kubeSystemNamespace}
+	allGone := true
 
 	for _, obj := range []k8sclient.Object{
 		&rbacv1.Role{
@@ -90,6 +92,34 @@ func cleanupLegacyEtcdReaderRBAC(
 				"kind", kind,
 				"error", err,
 			)
+
+			allGone = false
 		}
+	}
+
+	return allGone
+}
+
+// cleanupLegacyEtcdReaderRBACOnce runs cleanupLegacyEtcdReaderRBAC until it reports both
+// objects gone, and never again for that agent while this operator process lives.
+//
+// Retrying forever would keep issuing deletes against a namespace the operator does not
+// own, which is both permanent audit log noise and a way to fight anything that
+// legitimately recreates an object under that name: a GitOps tool that had the churning
+// Role pinned in its repository would be stuck recreating what the operator keeps
+// deleting, which is the very symptom this change exists to end.
+func (r *InstanaAgentReconciler) cleanupLegacyEtcdReaderRBACOnce(
+	ctx context.Context,
+	agent *instanav1.InstanaAgent,
+	log logr.Logger,
+) {
+	key := k8sclient.ObjectKeyFromObject(agent)
+
+	if _, done := r.legacyEtcdReaderCleaned.Load(key); done {
+		return
+	}
+
+	if cleanupLegacyEtcdReaderRBAC(ctx, r.client, agent, log) {
+		r.legacyEtcdReaderCleaned.Store(key, struct{}{})
 	}
 }

@@ -540,7 +540,7 @@ func (r *InstanaAgentReconciler) applyResources(
 	log := r.loggerFor(ctx, agent)
 	log.V(1).Info("applying Kubernetes resources for agent")
 
-	cleanupLegacyEtcdReaderRBAC(ctx, r.client, agent, log)
+	r.cleanupLegacyEtcdReaderRBACOnce(ctx, agent, log)
 
 	// Create deployment context for k8s-sensor
 	deploymentContext, err := CreateDeploymentContext(
