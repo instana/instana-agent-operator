@@ -70,8 +70,8 @@ func TestGetSortedTargets(t *testing.T) {
 	}
 }
 
-// TestCompareAndUpdateETCDTargetsFocused tests our key extracted function
-func TestCompareAndUpdateETCDTargetsFocused(t *testing.T) {
+// TestETCDTargetsChangedFocused tests our key extracted function
+func TestETCDTargetsChangedFocused(t *testing.T) {
 	testCases := []struct {
 		name              string
 		existingTargets   string
@@ -132,7 +132,7 @@ func TestCompareAndUpdateETCDTargetsFocused(t *testing.T) {
 			}
 
 			logger := zap.New()
-			needsUpdate := compareAndUpdateETCDTargets(deployment, tc.discoveredTargets, logger)
+			needsUpdate := etcdTargetsChanged(deployment, tc.discoveredTargets, logger)
 
 			assert.Equal(t, tc.expectUpdate, needsUpdate, "Update expectation should match")
 		})

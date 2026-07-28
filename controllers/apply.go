@@ -199,10 +199,13 @@ func retainAppliedETCDTargets(
 	return deploymentContext
 }
 
-// compareAndUpdateETCDTargets compares current ETCD targets with new discovered targets
-// and determines if an update is needed. This function handles environment variable extraction,
-// target sorting, and comparison logic.
-func compareAndUpdateETCDTargets(
+// etcdTargetsChanged reports whether the discovered ETCD targets differ from the ones
+// already applied to the given Deployment, handling environment variable extraction,
+// target sorting and comparison. The result is informational: the deployment context
+// is built the same way either way, and only the log message differs. It must not be
+// used to skip building the context, because the builder rebuilds the whole pod spec
+// and a context without the targets makes the apply strip ETCD_TARGETS.
+func etcdTargetsChanged(
 	existingDeployment *appsv1.Deployment,
 	discoveredTargets []string,
 	log logr.Logger,
@@ -553,7 +556,10 @@ func CreateDeploymentContext(
 		return nil, nil
 	}
 
-	// Check if we need to update the Deployment with new ETCD targets
+	// Read the Deployment purely to log whether the targets moved. Every backend
+	// shares a single deployment context and the targets are cluster wide, so the
+	// primary Deployment stands in for all of them and the missing backend resource
+	// suffix on the name does not matter here.
 	existingDeployment := &appsv1.Deployment{}
 	helperInstance := helpers.NewHelpers(agent)
 	err = c.Get(ctx, types.NamespacedName{
@@ -563,7 +569,7 @@ func CreateDeploymentContext(
 
 	if err != nil {
 		logger.Info("K8sensor deployment not found, will create with discovered ETCD targets")
-	} else if compareAndUpdateETCDTargets(existingDeployment, discoveredETCD.Targets, logger) {
+	} else if etcdTargetsChanged(existingDeployment, discoveredETCD.Targets, logger) {
 		logger.Info("ETCD targets changed, Deployment will be updated")
 	} else {
 		// The context still has to carry the targets when they are unchanged. The

@@ -28,7 +28,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
 )
 
-func TestCompareAndUpdateETCDTargets(t *testing.T) {
+func TestETCDTargetsChanged(t *testing.T) {
 	// Test cases
 	testCases := []struct {
 		name              string
@@ -125,7 +125,7 @@ func TestCompareAndUpdateETCDTargets(t *testing.T) {
 
 			// Test the function
 			logger := zap.New()
-			needsUpdate := compareAndUpdateETCDTargets(deployment, tc.discoveredTargets, logger)
+			needsUpdate := etcdTargetsChanged(deployment, tc.discoveredTargets, logger)
 
 			// Verify the result
 			assert.Equal(t, tc.expectUpdate, needsUpdate, tc.description)
@@ -133,7 +133,7 @@ func TestCompareAndUpdateETCDTargets(t *testing.T) {
 	}
 }
 
-func TestCompareAndUpdateETCDTargetsWithoutK8SensorContainer(t *testing.T) {
+func TestETCDTargetsChangedWithoutK8SensorContainer(t *testing.T) {
 	// Test case where deployment doesn't have k8s-sensor container
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -161,13 +161,13 @@ func TestCompareAndUpdateETCDTargetsWithoutK8SensorContainer(t *testing.T) {
 
 	discoveredTargets := []string{"https://10.0.0.1:2379/metrics"}
 	logger := zap.New()
-	needsUpdate := compareAndUpdateETCDTargets(deployment, discoveredTargets, logger)
+	needsUpdate := etcdTargetsChanged(deployment, discoveredTargets, logger)
 
 	// Should need update because no existing targets found (empty string) vs discovered targets
 	assert.True(t, needsUpdate, "Should need update when k8s-sensor container is not found")
 }
 
-func TestCompareAndUpdateETCDTargetsWithoutETCDTargetsEnv(t *testing.T) {
+func TestETCDTargetsChangedWithoutETCDTargetsEnv(t *testing.T) {
 	// Test case where k8s-sensor container exists but doesn't have ETCD_TARGETS env var
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -195,7 +195,7 @@ func TestCompareAndUpdateETCDTargetsWithoutETCDTargetsEnv(t *testing.T) {
 
 	discoveredTargets := []string{"https://10.0.0.1:2379/metrics"}
 	logger := zap.New()
-	needsUpdate := compareAndUpdateETCDTargets(deployment, discoveredTargets, logger)
+	needsUpdate := etcdTargetsChanged(deployment, discoveredTargets, logger)
 
 	// Should need update because no ETCD_TARGETS env var found (empty string) vs discovered targets
 	assert.True(t, needsUpdate, "Should need update when ETCD_TARGETS env var is not found")
