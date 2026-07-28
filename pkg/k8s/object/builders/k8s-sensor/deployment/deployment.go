@@ -138,8 +138,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 					Value: strings.Join(d.deploymentContext.DiscoveredETCDTargets, ","),
 				})
 
-				// Add CA file env var if CA secret is available
-				if d.deploymentContext.ETCDCASecretName != "" {
+				// Add CA file env var if CA secret is available. A CA mount path on the
+				// CR already produces ETCD_CA_FILE via ETCDCAFileEnv, so the CR wins and
+				// the discovered one is skipped, otherwise the container would carry the
+				// env var twice and the apply would reject it.
+				if d.deploymentContext.ETCDCASecretName != "" &&
+					d.Spec.K8sSensor.ETCD.CA.MountPath == "" {
 					envVars = append(envVars, corev1.EnvVar{
 						Name:  constants.EnvETCDCAFile,
 						Value: constants.ETCDCAMountPath + "/ca.crt",
@@ -202,8 +206,12 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 
 	volumes, mounts := d.VolumeBuilder.Build(volumesToBuild...)
 
-	// Add CA cert if available from discovery
-	if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" && len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
+	// Add CA cert if available from discovery. A CA secret on the CR already produces
+	// an etcd-ca volume and mount above, so the CR wins and the discovered one is
+	// skipped, otherwise the pod would carry two volumes with the same name.
+	if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" &&
+		len(d.Spec.K8sSensor.ETCD.Targets) == 0 &&
+		d.Spec.K8sSensor.ETCD.CA.SecretName == "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "etcd-ca",
 			VolumeSource: corev1.VolumeSource{
