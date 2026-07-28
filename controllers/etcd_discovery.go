@@ -97,7 +97,10 @@ func (r *InstanaAgentReconciler) DiscoverETCDEndpoints(
 	}
 
 	// Step 5: Check for CA secret and return results
-	caSecretExists := r.etcdDiscoverer.CheckCASecretExists(ctx, agent)
+	caSecretExists, err := r.etcdDiscoverer.CheckCASecretExists(ctx, agent)
+	if err != nil {
+		return nil, err
+	}
 
 	log.Info("Discovered etcd targets", "targets", targets, "caFound", caSecretExists)
 

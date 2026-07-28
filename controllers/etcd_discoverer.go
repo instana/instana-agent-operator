@@ -70,7 +70,7 @@ type ETCDDiscoverer interface {
 	) ([]string, error)
 
 	// CheckCASecretExists checks if the etcd-ca secret exists in the agent namespace
-	CheckCASecretExists(ctx context.Context, agent *instanav1.InstanaAgent) bool
+	CheckCASecretExists(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error)
 }
 
 // DefaultETCDDiscoverer is the production implementation of ETCDDiscoverer
@@ -296,23 +296,29 @@ func (d *DefaultETCDDiscoverer) BuildTargetsFromLegacyEndpoints(
 	return targets, nil
 }
 
-// CheckCASecretExists checks if the etcd-ca secret exists in the agent namespace
+// CheckCASecretExists checks if the etcd-ca secret exists in the agent namespace.
+// Only a clean not-found means the secret is absent. Any other error leaves the CA
+// state unknown and is returned, so the caller keeps what it already applied rather
+// than dropping the CA mount and rolling the k8sensor pod over a transient failure.
 func (d *DefaultETCDDiscoverer) CheckCASecretExists(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
-) bool {
+) (bool, error) {
 	caSecret := &corev1.Secret{} // pragma: whitelist secret
 	err := d.client.Get(ctx, client.ObjectKey{
 		Namespace: agent.Namespace,
 		Name:      constants.ETCDCASecretName,
 	}, caSecret)
 
-	if err == nil {
+	switch {
+	case err == nil:
 		d.reconciler.loggerFor(ctx, agent).Info("Found etcd-ca secret in agent namespace")
-		return true
+		return true, nil
+	case errors.IsNotFound(err):
+		return false, nil
+	default:
+		return false, err
 	}
-
-	return false
 }
 
 func buildTargetsFromEndpointSlice(

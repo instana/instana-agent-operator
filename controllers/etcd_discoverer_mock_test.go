@@ -47,7 +47,7 @@ type MockETCDDiscoverer struct {
 		metricsPort int32,
 		scheme string,
 	) ([]string, error)
-	CheckCASecretExistsFunc func(ctx context.Context, agent *instanav1.InstanaAgent) bool
+	CheckCASecretExistsFunc func(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error)
 }
 
 func (m *MockETCDDiscoverer) ShouldSkipDiscovery(
@@ -123,9 +123,9 @@ func (m *MockETCDDiscoverer) BuildTargetsFromLegacyEndpoints(
 
 func (m *MockETCDDiscoverer) CheckCASecretExists(
 	ctx context.Context, agent *instanav1.InstanaAgent,
-) bool {
+) (bool, error) {
 	if m.CheckCASecretExistsFunc != nil {
 		return m.CheckCASecretExistsFunc(ctx, agent)
 	}
-	return false
+	return false, nil
 }

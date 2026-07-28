@@ -997,7 +997,9 @@ func TestCheckCASecretExists(t *testing.T) {
 	testCases := []struct {
 		name          string
 		createSecret  bool
+		clientErr     error
 		expectedFound bool
+		expectError   bool
 	}{
 		{
 			name:          "Should find CA secret when it exists",
@@ -1008,6 +1010,15 @@ func TestCheckCASecretExists(t *testing.T) {
 			name:          "Should not find CA secret when it doesn't exist",
 			createSecret:  false,
 			expectedFound: false,
+		},
+		{
+			// A failed lookup must not be reported as a clean absence, otherwise the
+			// CA mount is dropped and the k8sensor pod is rolled over a transient blip
+			name:          "Should return error when the lookup fails",
+			createSecret:  false,
+			clientErr:     fmt.Errorf("apiserver temporary failure"),
+			expectedFound: false,
+			expectError:   true,
 		},
 	}
 
@@ -1036,20 +1047,28 @@ func TestCheckCASecretExists(t *testing.T) {
 			}
 
 			// Build the client
-			fakeClient := clientBuilder.Build()
+			var builtClient client.Client = clientBuilder.Build()
+			if tc.clientErr != nil {
+				builtClient = &errorMockClient{Client: builtClient, err: tc.clientErr}
+			}
 
 			// Create real reconciler
 			reconciler := &InstanaAgentReconciler{
-				client: instanaclient.NewInstanaAgentClient(fakeClient),
+				client: instanaclient.NewInstanaAgentClient(builtClient),
 				scheme: scheme,
 			}
 
 			// Create discoverer and test
 			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
-			found := discoverer.CheckCASecretExists(ctx, agent)
+			found, err := discoverer.CheckCASecretExists(ctx, agent)
 
 			// Verify
+			if tc.expectError {
+				assert.Error(t, err, "Should return an error")
+			} else {
+				assert.NoError(t, err, "Should not return an error")
+			}
 			assert.Equal(t, tc.expectedFound, found, "CA secret found status should match expected")
 		})
 	}
@@ -1074,6 +1093,7 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 		buildTargetsResult  []string
 		buildTargetsErr     error
 		caSecretExists      bool
+		caSecretErr         error
 		expectedTargets     []string
 		expectedCAFound     bool
 		expectError         bool
@@ -1151,6 +1171,20 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 			expectError:         false,
 		},
 		{
+			name:               "Should return error when the CA secret check fails",
+			shouldSkip:         false,
+			shouldSkipErr:      nil,
+			findServiceResult:  &corev1.Service{},
+			findServiceErr:     nil,
+			metricsPort:        2379,
+			scheme:             "https",
+			buildTargetsResult: []string{"https://10.0.0.1:2379/metrics"},
+			buildTargetsErr:    nil,
+			caSecretErr:        fmt.Errorf("ca secret error"),
+			expectNilResult:    true,
+			expectError:        true,
+		},
+		{
 			name:               "Should return targets and CA status when everything succeeds",
 			shouldSkip:         false,
 			shouldSkipErr:      nil,
@@ -1207,8 +1241,8 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 				) ([]string, error) {
 					return tc.buildTargetsResult, tc.buildTargetsErr
 				},
-				CheckCASecretExistsFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) bool {
-					return tc.caSecretExists
+				CheckCASecretExistsFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error) {
+					return tc.caSecretExists, tc.caSecretErr
 				},
 			}
 			reconciler.etcdDiscoverer = mockDiscoverer
