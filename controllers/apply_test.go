@@ -553,14 +553,15 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 	require.True(t, operatorUtilsMock.applyAllCalled)
 
 	checkedKinds := make(map[string]int, len(operatorUtilsMock.builders))
+	checked := 0
 
 	for _, objectBuilder := range operatorUtilsMock.builders {
 		if !objectBuilder.IsNamespaced() {
 			continue
 		}
 
-		// Build is invoked a second time here, which is harmless: the builders are pure
-		// apart from the status manager callbacks the mock absorbs.
+		// The mock ApplyAll only records the builders, so this is the one and only Build
+		// call, which is what makes the status manager expectations above exact.
 		object := objectBuilder.Build()
 		if !object.IsPresent() {
 			continue
@@ -568,6 +569,7 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 
 		obj := object.Get()
 		checkedKinds[obj.GetObjectKind().GroupVersionKind().Kind]++
+		checked++
 
 		assert.Equal(
 			t,
@@ -580,15 +582,21 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 	}
 
 	// Guards against the loop above quietly degrading to checking almost nothing if a
-	// builder stops emitting an object for this spec.
-	for _, kind := range []string{
-		"DaemonSet",
-		"Deployment",
-		"ServiceAccount",
-		"Secret",
-		"ConfigMap",
-		"PodDisruptionBudget",
-	} {
-		assert.NotZero(t, checkedKinds[kind], "no %s was checked", kind)
-	}
+	// builder stops emitting an object for this spec. The per kind counts are exact
+	// rather than non-zero, because most kinds have more than one builder and a
+	// non-zero check would not notice one of them dropping out.
+	assert.Equal(
+		t,
+		map[string]int{
+			"ConfigMap":           2,
+			"Secret":              2,
+			"ServiceAccount":      2,
+			"Service":             2,
+			"DaemonSet":           1,
+			"Deployment":          1,
+			"PodDisruptionBudget": 1,
+		},
+		checkedKinds,
+	)
+	assert.Equal(t, 11, checked, "unexpected number of namespaced objects checked")
 }
