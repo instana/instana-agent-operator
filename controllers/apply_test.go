@@ -64,12 +64,8 @@ func (m *mockOperatorUtils) DeleteAll() error {
 var _ operator_utils.OperatorUtils = (*mockOperatorUtils)(nil)
 
 func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
-	agent := &instanav1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-agent",
-			Namespace: "test-namespace",
-		},
-	}
+	// Carries a key and a zone so the context can also be rendered into a Deployment
+	agent := agentForETCDTests()
 
 	ctx := context.Background()
 	logger := zap.New()
@@ -241,15 +237,23 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		// The context must keep the targets even when nothing changed, otherwise the
-		// rendered Deployment drops ETCD_TARGETS and the apply strips it.
 		require.NotNil(t, deploymentContext)
+
+		// What actually matters is the object that would be applied: the rendered
+		// Deployment has to keep ETCD_TARGETS, otherwise the apply strips it
+		deployment := renderK8sSensorDeployment(t, agent, deploymentContext)
 		assert.Equal(
 			t,
-			[]string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"},
-			deploymentContext.DiscoveredETCDTargets,
+			"https://etcd-1:2379/metrics,https://etcd-2:2379/metrics",
+			etcdTargetsEnvOf(deployment),
+			"an unchanged reconcile must still render ETCD_TARGETS",
 		)
-		assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
+		assert.Equal(
+			t,
+			constants.ETCDCAMountPath+"/ca.crt",
+			etcdCAFileEnvOf(deployment),
+			"an unchanged reconcile must still render the discovered CA",
+		)
 		mockClient.AssertExpectations(t)
 	})
 
