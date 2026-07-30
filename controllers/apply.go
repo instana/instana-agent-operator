@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -478,6 +479,24 @@ func CreateDeploymentContext(
 	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	if isOpenShift {
+		operatorNamespace := os.Getenv("POD_NAMESPACE")
+		if operatorNamespace == "" {
+			logger.Info(
+				"Skipping OpenShift ETCD monitoring: POD_NAMESPACE environment variable is not set",
+			)
+			return nil, nil
+		}
+		if agent.Namespace != operatorNamespace {
+			logger.Info(
+				"Skipping OpenShift ETCD monitoring: agent CR namespace differs from operator namespace. "+
+					"ETCD credentials are only copied when the agent runs in the operator's own namespace.",
+				"agentNamespace",
+				agent.Namespace,
+				"operatorNamespace",
+				operatorNamespace,
+			)
+			return nil, nil
+		}
 		return setupOpenShiftETCDMonitoring(ctx, c, agent, logger), nil
 	}
 

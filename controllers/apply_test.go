@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,45 +75,109 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.New()
 
-	t.Run("OpenShift discovers and copies ETCD resources", func(t *testing.T) {
+	t.Run(
+		"OpenShift discovers and copies ETCD resources when namespaces match",
+		func(t *testing.T) {
+			require.NoError(t, os.Setenv("POD_NAMESPACE", agent.Namespace))
+			defer func() { require.NoError(t, os.Unsetenv("POD_NAMESPACE")) }()
+
+			mockClient := &mocks.MockInstanaAgentClient{}
+
+			// Mock the Apply method for copying ETCD ConfigMap and Secret
+			mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).
+				Return(result.OfSuccess[client.Object](nil))
+			mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+				Return(result.OfSuccess[client.Object](nil))
+
+			// Mock Get calls for ETCD resource checks with valid data
+			mockClient.On(
+				"Get",
+				mock.Anything,
+				mock.Anything,
+				mock.AnythingOfType("*v1.ConfigMap"),
+				mock.Anything,
+			).Run(func(args mock.Arguments) {
+				cm := args.Get(2).(*corev1.ConfigMap)
+				cm.Data = map[string]string{
+					"ca-bundle.crt": "test-ca-cert-data",
+				}
+				cm.ResourceVersion = "12345"
+			}).Return(nil)
+			mockClient.On(
+				"Get",
+				mock.Anything,
+				mock.Anything,
+				mock.AnythingOfType("*v1.Secret"),
+				mock.Anything,
+			).Run(func(args mock.Arguments) {
+				secret := args.Get(2).(*corev1.Secret)
+				secret.Data = map[string][]byte{
+					"tls.crt": []byte("test-cert-data"),
+					"tls.key": []byte("test-key-data"),
+				}
+				secret.ResourceVersion = "67890"
+			}).Return(nil)
+
+			// Mock ETCD discover function (won't be called for OpenShift)
+			mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+				return nil, nil
+			}
+
+			deploymentContext, err := CreateDeploymentContext(
+				ctx,
+				mockClient,
+				agent,
+				true,
+				logger,
+				mockDiscoverETCD,
+			)
+
+			require.NoError(t, err)
+			require.NotNil(t, deploymentContext)
+			assert.True(
+				t,
+				deploymentContext.OpenShiftETCDResourcesExist,
+				"ETCD resources should exist when Get calls succeed",
+			)
+			mockClient.AssertExpectations(t)
+		},
+	)
+
+	t.Run(
+		"OpenShift skips ETCD monitoring when agent namespace differs from operator namespace",
+		func(t *testing.T) {
+			require.NoError(t, os.Setenv("POD_NAMESPACE", "instana-agent"))
+			defer func() { require.NoError(t, os.Unsetenv("POD_NAMESPACE")) }()
+
+			mockClient := &mocks.MockInstanaAgentClient{}
+			mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+				return nil, nil
+			}
+
+			deploymentContext, err := CreateDeploymentContext(
+				ctx,
+				mockClient,
+				agent, // agent.Namespace = "test-namespace", POD_NAMESPACE = "instana-agent"
+				true,
+				logger,
+				mockDiscoverETCD,
+			)
+
+			require.NoError(t, err)
+			assert.Nil(
+				t,
+				deploymentContext,
+				"ETCD monitoring must be skipped when namespaces differ",
+			)
+			mockClient.AssertNotCalled(t, "Get")
+			mockClient.AssertNotCalled(t, "Apply")
+		},
+	)
+
+	t.Run("OpenShift skips ETCD monitoring when POD_NAMESPACE is not set", func(t *testing.T) {
+		require.NoError(t, os.Unsetenv("POD_NAMESPACE"))
+
 		mockClient := &mocks.MockInstanaAgentClient{}
-
-		// Mock the Apply method for copying ETCD ConfigMap and Secret
-		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).
-			Return(result.OfSuccess[client.Object](nil))
-		mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
-			Return(result.OfSuccess[client.Object](nil))
-
-		// Mock Get calls for ETCD resource checks with valid data
-		mockClient.On(
-			"Get",
-			mock.Anything,
-			mock.Anything,
-			mock.AnythingOfType("*v1.ConfigMap"),
-			mock.Anything,
-		).Run(func(args mock.Arguments) {
-			cm := args.Get(2).(*corev1.ConfigMap)
-			cm.Data = map[string]string{
-				"ca-bundle.crt": "test-ca-cert-data",
-			}
-			cm.ResourceVersion = "12345"
-		}).Return(nil)
-		mockClient.On(
-			"Get",
-			mock.Anything,
-			mock.Anything,
-			mock.AnythingOfType("*v1.Secret"),
-			mock.Anything,
-		).Run(func(args mock.Arguments) {
-			secret := args.Get(2).(*corev1.Secret)
-			secret.Data = map[string][]byte{
-				"tls.crt": []byte("test-cert-data"),
-				"tls.key": []byte("test-key-data"),
-			}
-			secret.ResourceVersion = "67890"
-		}).Return(nil)
-
-		// Mock ETCD discover function (won't be called for OpenShift)
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return nil, nil
 		}
@@ -127,13 +192,13 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		require.NotNil(t, deploymentContext)
-		assert.True(
+		assert.Nil(
 			t,
-			deploymentContext.OpenShiftETCDResourcesExist,
-			"ETCD resources should exist when Get calls succeed",
+			deploymentContext,
+			"ETCD monitoring must be skipped when POD_NAMESPACE is unset",
 		)
-		mockClient.AssertExpectations(t)
+		mockClient.AssertNotCalled(t, "Get")
+		mockClient.AssertNotCalled(t, "Apply")
 	})
 
 	t.Run("Vanilla K8s with no ETCD returns nil", func(t *testing.T) {
