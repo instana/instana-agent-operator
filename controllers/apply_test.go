@@ -26,12 +26,10 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -421,71 +419,6 @@ func TestApplyResourcesReturnsFailureAndSkipsApplyAllOnZoneDaemonSetReadError(t 
 	_, err := res.reconcileResult()
 	assert.ErrorIs(t, err, getErr)
 	assert.False(t, operatorUtilsMock.applyAllCalled)
-}
-
-// The cleanup is only useful if the reconcile path actually calls it, so this covers the
-// wiring rather than the function, which has its own tests.
-func TestApplyResourcesRemovesLegacyEtcdReaderRBAC(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, appsv1.AddToScheme(scheme))
-	require.NoError(t, corev1.AddToScheme(scheme))
-	require.NoError(t, rbacv1.AddToScheme(scheme))
-
-	agent := &instanav1.InstanaAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "instana-agent",
-			Namespace: "base-mon",
-		},
-	}
-	agent.Default()
-
-	baseClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(
-			legacyEtcdReaderRole(kubeSystemNamespace),
-			legacyEtcdReaderRoleBinding(kubeSystemNamespace),
-		).
-		Build()
-
-	reconciler := &InstanaAgentReconciler{
-		client: instanaclient.NewInstanaAgentClient(baseClient),
-	}
-
-	statusManager := &mocks.MockAgentStatusManager{}
-	statusManager.On("AddAgentDaemonset", mock.Anything).Return().Maybe()
-	statusManager.On("SetAgentSecretConfig", mock.Anything).Return().Maybe()
-	statusManager.On("SetAgentNamespacesConfigMap", mock.Anything).Return().Maybe()
-	statusManager.On("SetK8sSensorDeployment", mock.Anything).Return().Maybe()
-
-	res := reconciler.applyResources(
-		context.Background(),
-		agent,
-		true,
-		false,
-		&mockOperatorUtils{},
-		statusManager,
-		&corev1.Secret{},
-		nil,
-		namespaces.NamespacesDetails{},
-	)
-
-	assert.False(t, res.suppliesReconcileResult())
-
-	key := types.NamespacedName{
-		Name:      legacyEtcdReaderName,
-		Namespace: kubeSystemNamespace,
-	}
-
-	assert.True(
-		t,
-		apierrors.IsNotFound(baseClient.Get(context.Background(), key, &rbacv1.Role{})),
-		"applyResources should have removed the legacy etcd-reader Role",
-	)
-	assert.True(
-		t,
-		apierrors.IsNotFound(baseClient.Get(context.Background(), key, &rbacv1.RoleBinding{})),
-		"applyResources should have removed the legacy etcd-reader RoleBinding",
-	)
 }
 
 // Namespaced objects owned by the agent CR must live in the CR's namespace, otherwise

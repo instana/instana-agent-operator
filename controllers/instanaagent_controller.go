@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"sync"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -126,10 +125,6 @@ type InstanaAgentReconciler struct {
 	recorder       record.EventRecorder
 	scheme         *runtime.Scheme
 	etcdDiscoverer ETCDDiscoverer
-
-	// legacyEtcdReaderCleaned records the agents whose leftover etcd-reader RBAC in
-	// kube-system has been confirmed gone, keyed by the CR's namespaced name.
-	legacyEtcdReaderCleaned sync.Map
 }
 
 func (r *InstanaAgentReconciler) reconcile(
