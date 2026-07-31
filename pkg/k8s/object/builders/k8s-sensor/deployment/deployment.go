@@ -113,19 +113,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 	envVars := d.EnvBuilder.Build(envVarsToInclude...)
 
-	// Add OpenShift-specific environment variables
+	// Add OpenShift-specific environment variables. The k8sensor discovers the etcd
+	// endpoints itself, so it reads only the TLS settings from here.
 	if d.isOpenShift {
 		// Only add ETCD configuration if resources are available
 		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
 			envVars = append(envVars, []corev1.EnvVar{
-				{
-					Name:  constants.EnvETCDMetricsURL,
-					Value: constants.GetETCDOCPMetricsURL(),
-				},
-				{
-					Name:  constants.EnvETCDRequestTimeout,
-					Value: "15s",
-				},
 				{
 					Name:  constants.EnvETCDCAFile,
 					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
