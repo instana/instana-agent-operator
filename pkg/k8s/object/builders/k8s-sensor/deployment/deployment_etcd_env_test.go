@@ -61,6 +61,54 @@ func builderFor(
 	).(*deploymentBuilder)
 }
 
+// TestDeploymentBuilder_DiscoveryDoesNotSetETCDTargets covers that the operator no
+// longer injects endpoints the k8sensor does not read. The k8sensor discovers the
+// etcd endpoints itself, so ETCD_TARGETS was dead weight whose churn rolled the pod.
+func TestDeploymentBuilder_DiscoveryDoesNotSetETCDTargets(t *testing.T) {
+	// Given a cluster where discovery found a CA
+	agent := agentForETCDEnvTests()
+	builder := builderFor(agent, false, &DeploymentContext{
+		ETCDCASecretName: constants.ETCDCASecretName,
+	})
+
+	// When
+	envVars := builder.getEnvVars()
+
+	// Then the CA is passed through but no endpoints are
+	assert.Nil(
+		t,
+		findEnvVar(envVars, constants.EnvETCDTargets),
+		"ETCD_TARGETS should not be set from discovery, the k8sensor finds the endpoints itself",
+	)
+	assert.NotNil(
+		t,
+		findEnvVar(envVars, constants.EnvETCDCAFile),
+		"ETCD_CA_FILE should still be set, the k8sensor does read it",
+	)
+	assert.Equal(
+		t,
+		constants.ETCDCAMountPath+"/ca.crt",
+		findEnvVar(envVars, constants.EnvETCDCAFile).Value,
+	)
+}
+
+// TestDeploymentBuilder_CRETCDTargetsStillHonoured makes sure removing the discovered
+// injection did not also drop the CR field, which is a separate, user facing setting.
+func TestDeploymentBuilder_CRETCDTargetsStillHonoured(t *testing.T) {
+	// Given
+	agent := agentForETCDEnvTests()
+	agent.Spec.K8sSensor.ETCD.Targets = []string{"https://etcd-1:2379"}
+	builder := builderFor(agent, false, nil)
+
+	// When
+	envVars := builder.getEnvVars()
+
+	// Then
+	targets := findEnvVar(envVars, constants.EnvETCDTargets)
+	assert.NotNil(t, targets, "targets set on the CR should still be passed through")
+	assert.Equal(t, "https://etcd-1:2379", targets.Value)
+}
+
 // TestDeploymentBuilder_OpenShiftOmitsUnreadETCDEnvVars covers the OpenShift side.
 // ETCD_METRICS_URL and ETCD_REQUEST_TIMEOUT are not read by the k8sensor either, so
 // only the TLS settings are passed through.
@@ -94,4 +142,25 @@ func TestDeploymentBuilder_OpenShiftOmitsUnreadETCDEnvVars(t *testing.T) {
 	} {
 		assert.NotNil(t, findEnvVar(envVars, name), "%s should still be set", name)
 	}
+}
+
+// TestDeploymentBuilder_ETCDEnvIsStableAcrossBuilds is the regression guard for the
+// reported restart loop: the same inputs must render the same env every time, so the
+// server side apply is a no-op and the k8sensor pod is not rolled.
+func TestDeploymentBuilder_ETCDEnvIsStableAcrossBuilds(t *testing.T) {
+	// Given
+	agent := agentForETCDEnvTests()
+	deploymentContext := &DeploymentContext{ETCDCASecretName: constants.ETCDCASecretName}
+
+	// When the same context is rendered on two consecutive reconciles
+	firstEnv := builderFor(agent, false, deploymentContext).getEnvVars()
+	firstVolumes, firstMounts := builderFor(agent, false, deploymentContext).getVolumes()
+
+	secondEnv := builderFor(agent, false, deploymentContext).getEnvVars()
+	secondVolumes, secondMounts := builderFor(agent, false, deploymentContext).getVolumes()
+
+	// Then nothing moves
+	assert.Equal(t, firstEnv, secondEnv, "env must be identical across reconciles")
+	assert.Equal(t, firstVolumes, secondVolumes, "volumes must be identical across reconciles")
+	assert.Equal(t, firstMounts, secondMounts, "mounts must be identical across reconciles")
 }
