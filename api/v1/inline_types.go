@@ -354,7 +354,9 @@ type ETCDSpec struct {
 	// +kubebuilder:validation:Optional
 	CA CASpec `json:"ca,omitempty"`
 
-	// Optional ETCD targets for vanilla clusters
+	// Targets is DEPRECATED and ignored, kept for backwards compatibility.
+	// The k8sensor discovers the ETCD endpoints itself and never read the
+	// ETCD_TARGETS environment variable that this field used to set.
 	// +kubebuilder:validation:Optional
 	Targets []string `json:"targets,omitempty"`
 }
