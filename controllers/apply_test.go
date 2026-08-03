@@ -522,7 +522,7 @@ func TestApplyResourcesOnlyBuildsNamespacedObjectsInTheAgentNamespace(t *testing
 		t,
 		map[string]int{
 			"ConfigMap":           2,
-			"Secret":              2,
+			"Secret":              2, // pragma: allowlist secret
 			"ServiceAccount":      2,
 			"Service":             2,
 			"DaemonSet":           1,
