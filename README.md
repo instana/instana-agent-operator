@@ -46,9 +46,6 @@ On OpenShift clusters, the operator automatically discovers and configures ETCD 
 
 If ETCD resources are not found or are invalid, ETCD monitoring is gracefully disabled and the operator continues normal operation.
 
-For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
-For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
-
 #### Vanilla Kubernetes Clusters
 
 On non-OpenShift clusters, the operator will automatically discover ETCD endpoints if:

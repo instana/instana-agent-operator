@@ -38,9 +38,6 @@ On OpenShift clusters, the operator automatically configures ETCD metrics collec
    - Removes copied resources if source resources are deleted
    - Removes copied resources when InstanaAgent CR is deleted
 
-For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
-For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
-
 ### Why Resource Copying?
 
 Kubernetes does not support cross-namespace volume mounts. Since k8sensor runs in `instana-agent` namespace but ETCD credentials exist in `openshift-etcd` namespace, the operator copies these resources during reconciliation. This approach:
