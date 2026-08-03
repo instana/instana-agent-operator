@@ -92,9 +92,10 @@ func TestDeploymentBuilder_DiscoveryDoesNotSetETCDTargets(t *testing.T) {
 	)
 }
 
-// TestDeploymentBuilder_CRETCDTargetsStillHonoured makes sure removing the discovered
-// injection did not also drop the CR field, which is a separate, user facing setting.
-func TestDeploymentBuilder_CRETCDTargetsStillHonoured(t *testing.T) {
+// TestDeploymentBuilder_CRETCDTargetsIgnored covers the deprecated CR field. The
+// k8sensor never read ETCD_TARGETS from either source, so targets set on the CR are
+// accepted for backwards compatibility but produce no env var.
+func TestDeploymentBuilder_CRETCDTargetsIgnored(t *testing.T) {
 	// Given
 	agent := agentForETCDEnvTests()
 	agent.Spec.K8sSensor.ETCD.Targets = []string{"https://etcd-1:2379"}
@@ -104,9 +105,37 @@ func TestDeploymentBuilder_CRETCDTargetsStillHonoured(t *testing.T) {
 	envVars := builder.getEnvVars()
 
 	// Then
-	targets := findEnvVar(envVars, constants.EnvETCDTargets)
-	assert.NotNil(t, targets, "targets set on the CR should still be passed through")
-	assert.Equal(t, "https://etcd-1:2379", targets.Value)
+	assert.Nil(
+		t,
+		findEnvVar(envVars, constants.EnvETCDTargets),
+		"targets set on the CR are deprecated and should not produce ETCD_TARGETS",
+	)
+}
+
+// TestDeploymentBuilder_CRETCDTargetsDoNotSuppressTheCA guards the interaction between
+// the deprecated field and CA discovery. Targets on the CR used to short circuit
+// discovery, so leaving that in place would have silently dropped the CA mount for
+// anyone still setting them.
+func TestDeploymentBuilder_CRETCDTargetsDoNotSuppressTheCA(t *testing.T) {
+	// Given targets on the CR and a CA found by discovery
+	agent := agentForETCDEnvTests()
+	agent.Spec.K8sSensor.ETCD.Targets = []string{"https://etcd-1:2379"}
+	builder := builderFor(agent, false, &DeploymentContext{
+		ETCDCASecretName: constants.ETCDCASecretName,
+	})
+
+	// When
+	envVars := builder.getEnvVars()
+	volumes, mounts := builder.getVolumes()
+
+	// Then the CA is still wired up
+	assert.NotNil(
+		t,
+		findEnvVar(envVars, constants.EnvETCDCAFile),
+		"the discovered CA should still be applied when the deprecated field is set",
+	)
+	assert.NotNil(t, findVolume(volumes, "etcd-ca"), "the etcd-ca volume should still be added")
+	assert.NotNil(t, findVolumeMount(mounts, "etcd-ca"), "the etcd-ca mount should still be added")
 }
 
 // TestDeploymentBuilder_OpenShiftOmitsUnreadETCDEnvVars covers the OpenShift side.

@@ -140,6 +140,9 @@ func TestEnvBuilder_ETCDInsecureEnv_NotSpecified(t *testing.T) {
 	assert.Len(t, envVars, 0, "Should not create any env vars")
 }
 
+// TestEnvBuilder_ETCDTargetsEnv covers the deprecated k8sSensor.etcd.targets field.
+// The k8sensor discovers the ETCD endpoints itself and never read ETCD_TARGETS, so
+// the field is accepted for backwards compatibility but no longer produces an env var.
 func TestEnvBuilder_ETCDTargetsEnv(t *testing.T) {
 	// Given
 	agent := &instanav1.InstanaAgent{
@@ -157,14 +160,7 @@ func TestEnvBuilder_ETCDTargetsEnv(t *testing.T) {
 	envVars := builder.Build(ETCDTargetsEnv)
 
 	// Then
-	assert.Len(t, envVars, 1, "Should create one env var")
-	assert.Equal(t, "ETCD_TARGETS", envVars[0].Name, "Env var name should be ETCD_TARGETS")
-	assert.Equal(
-		t,
-		"https://etcd-1:2379,https://etcd-2:2379",
-		envVars[0].Value,
-		"Env var value should be comma-separated list of targets",
-	)
+	assert.Len(t, envVars, 0, "Targets on the CR are deprecated and should be ignored")
 }
 
 func TestEnvBuilder_ETCDTargetsEnv_NoTargets(t *testing.T) {
