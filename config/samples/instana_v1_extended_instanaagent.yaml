@@ -292,7 +292,7 @@ spec:
     #     secretName: ""
     #     # Name of the file containing the CA Certificate (key in the Kubernetes Secret)
     #     filename: ""
-    #   # Optional ETCD targets for vanilla clusters
+    #   # DEPRECATED and ignored. The k8sensor discovers the ETCD endpoints itself.
     #   targets: []
     # REST client configuration for control plane
     # restClient:
