@@ -89,11 +89,23 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.CrdMonitoring,
 	}
 
-	// Include ETCDCAFileEnv unless we're on OpenShift with auto-discovered ETCD resources
-	// (in that case, it's added in the OpenShift-specific section below)
-	includeETCDCAFileEnv := !d.isOpenShift ||
+	// A CA found by discovery is used unless the CR configures one of its own. Note
+	// that the CR's CA mount path cannot be used to tell those apart, because it is
+	// defaulted to the service account path, so the secret name is the real signal.
+	useDiscoveredETCDCA := !d.isOpenShift &&
+		d.deploymentContext != nil &&
+		d.deploymentContext.ETCDCASecretName != "" &&
+		len(d.Spec.K8sSensor.ETCD.Targets) == 0 &&
+		d.Spec.K8sSensor.ETCD.CA.SecretName == ""
+
+	// Include ETCDCAFileEnv unless the ETCD CA comes from somewhere else, either
+	// OpenShift auto-discovered resources or the discovered CA below. In both of those
+	// cases ETCD_CA_FILE is set further down, and emitting it here as well would leave
+	// the container with the env var twice.
+	includeETCDCAFileEnv := (!d.isOpenShift ||
 		d.deploymentContext == nil ||
-		!d.deploymentContext.OpenShiftETCDResourcesExist
+		!d.deploymentContext.OpenShiftETCDResourcesExist) &&
+		!useDiscoveredETCDCA
 
 	if includeETCDCAFileEnv {
 		envVarsToInclude = append(envVarsToInclude, env.ETCDCAFileEnv)
@@ -138,12 +150,10 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 					Value: strings.Join(d.deploymentContext.DiscoveredETCDTargets, ","),
 				})
 
-				// Add CA file env var if CA secret is available. A CA mount path on the
-				// CR already produces ETCD_CA_FILE via ETCDCAFileEnv, so the CR wins and
-				// the discovered one is skipped, otherwise the container would carry the
-				// env var twice and the apply would reject it.
-				if d.deploymentContext.ETCDCASecretName != "" &&
-					d.Spec.K8sSensor.ETCD.CA.MountPath == "" {
+				// Add the CA file env var if a CA secret was discovered, at the same path
+				// the volume below mounts it. ETCDCAFileEnv is suppressed above in this
+				// case, so the container gets ETCD_CA_FILE exactly once.
+				if useDiscoveredETCDCA {
 					envVars = append(envVars, corev1.EnvVar{
 						Name:  constants.EnvETCDCAFile,
 						Value: constants.ETCDCAMountPath + "/ca.crt",

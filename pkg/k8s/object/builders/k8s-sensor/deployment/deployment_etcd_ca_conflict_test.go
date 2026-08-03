@@ -61,8 +61,11 @@ func countVolumeMounts(mounts []corev1.VolumeMount, name string) int {
 
 // agentWithCustomETCDCA returns an agent that configures its own ETCD CA, without
 // pinning the targets, so ETCD discovery still runs and reports a CA of its own.
+// It is defaulted the same way the controller defaults it before the builders run,
+// otherwise the test exercises a CR shape that cannot reach the builder and misses
+// anything that depends on a defaulted field, such as the ETCD CA mount path.
 func agentWithCustomETCDCA() *instanav1.InstanaAgent {
-	return &instanav1.InstanaAgent{
+	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-agent",
 			Namespace: "test-ns",
@@ -84,6 +87,8 @@ func agentWithCustomETCDCA() *instanav1.InstanaAgent {
 			},
 		},
 	}
+	agent.Default()
+	return agent
 }
 
 // TestDeploymentBuilder_CustomETCDCAWinsOverDiscoveredCA covers a CR that configures
@@ -155,9 +160,12 @@ func TestDeploymentBuilder_CustomETCDCAWinsOverDiscoveredCA(t *testing.T) {
 // TestDeploymentBuilder_DiscoveredETCDCAUsedWithoutCustomCA is the counterpart: with
 // no CA on the CR, the discovered one is still mounted as before.
 func TestDeploymentBuilder_DiscoveredETCDCAUsedWithoutCustomCA(t *testing.T) {
-	// Given
+	// Given a CR that configures no CA of its own. Clear only the secret name and
+	// re-default, so the CA mount path keeps the defaulted value the builder actually
+	// sees rather than an empty string that cannot occur in production.
 	agent := agentWithCustomETCDCA()
 	agent.Spec.K8sSensor.ETCD.CA = instanav1.CASpec{}
+	agent.Default()
 
 	mockStatusManager := &status.MockAgentStatusManager{}
 	backendObj := backend.NewK8SensorBackend("", "test-key", "", "test-host", "443")
