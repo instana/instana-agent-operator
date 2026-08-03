@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
@@ -28,8 +30,12 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 )
 
+// agentForETCDEnvTests returns an agent defaulted the same way the controller defaults
+// it before the builders run. Skipping Default() here would test a CR shape that cannot
+// reach the builder, and would hide anything that depends on a defaulted field, such as
+// the ETCD CA mount path.
 func agentForETCDEnvTests() *instanav1.InstanaAgent {
-	return &instanav1.InstanaAgent{
+	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-agent",
 			Namespace: "test-ns",
@@ -43,6 +49,8 @@ func agentForETCDEnvTests() *instanav1.InstanaAgent {
 			},
 		},
 	}
+	agent.Default()
+	return agent
 }
 
 func builderFor(
@@ -80,16 +88,42 @@ func TestDeploymentBuilder_DiscoveryDoesNotSetETCDTargets(t *testing.T) {
 		findEnvVar(envVars, constants.EnvETCDTargets),
 		"ETCD_TARGETS should not be set from discovery, the k8sensor finds the endpoints itself",
 	)
-	assert.NotNil(
-		t,
-		findEnvVar(envVars, constants.EnvETCDCAFile),
-		"ETCD_CA_FILE should still be set, the k8sensor does read it",
-	)
+
+	// ETCD_CA_FILE has to be set exactly once, and to the path the volume is mounted
+	// at. The CR's CA mount path is defaulted to the service account path, so getting
+	// this wrong points the k8sensor at a CA that does not sign the etcd serving cert
+	// and every scrape fails TLS verification.
+	caFile := findEnvVar(envVars, constants.EnvETCDCAFile)
+	require.NotNil(t, caFile, "ETCD_CA_FILE should still be set, the k8sensor does read it")
+	assert.Equal(t, constants.ETCDCAMountPath+"/ca.crt", caFile.Value)
 	assert.Equal(
 		t,
-		constants.ETCDCAMountPath+"/ca.crt",
-		findEnvVar(envVars, constants.EnvETCDCAFile).Value,
+		1,
+		countEnvVarsNamed(envVars, constants.EnvETCDCAFile),
+		"ETCD_CA_FILE should be set exactly once",
 	)
+
+	// The env var must line up with where the volume actually puts the file
+	_, mounts := builder.getVolumes()
+	mount := findVolumeMount(mounts, "etcd-ca")
+	require.NotNil(t, mount, "the etcd-ca volume should be mounted")
+	assert.Equal(
+		t,
+		constants.ETCDCAMountPath,
+		mount.MountPath,
+		"ETCD_CA_FILE must point inside the etcd-ca mount",
+	)
+}
+
+// countEnvVarsNamed returns how many times the named env var appears.
+func countEnvVarsNamed(envVars []corev1.EnvVar, name string) int {
+	count := 0
+	for _, env := range envVars {
+		if env.Name == name {
+			count++
+		}
+	}
+	return count
 }
 
 // TestDeploymentBuilder_CRETCDTargetsIgnored covers the deprecated CR field. The
