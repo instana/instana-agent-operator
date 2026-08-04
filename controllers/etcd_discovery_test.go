@@ -995,7 +995,9 @@ func TestCheckCASecretExists(t *testing.T) {
 	testCases := []struct {
 		name          string
 		createSecret  bool
+		clientErr     error
 		expectedFound bool
+		expectError   bool
 	}{
 		{
 			name:          "Should find CA secret when it exists",
@@ -1006,6 +1008,15 @@ func TestCheckCASecretExists(t *testing.T) {
 			name:          "Should not find CA secret when it doesn't exist",
 			createSecret:  false,
 			expectedFound: false,
+		},
+		{
+			// A failed lookup must not be reported as a clean absence, otherwise the CA
+			// mount is dropped and the k8sensor pod is rolled over a transient blip
+			name:          "Should return error when the lookup fails",
+			createSecret:  false,
+			clientErr:     fmt.Errorf("apiserver temporary failure"),
+			expectedFound: false,
+			expectError:   true,
 		},
 	}
 
@@ -1034,20 +1045,28 @@ func TestCheckCASecretExists(t *testing.T) {
 			}
 
 			// Build the client
-			fakeClient := clientBuilder.Build()
+			var builtClient client.Client = clientBuilder.Build()
+			if tc.clientErr != nil {
+				builtClient = &errorMockClient{Client: builtClient, err: tc.clientErr}
+			}
 
 			// Create real reconciler
 			reconciler := &InstanaAgentReconciler{
-				client: instanaclient.NewInstanaAgentClient(fakeClient),
+				client: instanaclient.NewInstanaAgentClient(builtClient),
 				scheme: scheme,
 			}
 
 			// Create discoverer and test
 			discoverer := NewDefaultETCDDiscoverer(reconciler.client, reconciler)
 			ctx := context.Background()
-			found := discoverer.CheckCASecretExists(ctx, agent)
+			found, err := discoverer.CheckCASecretExists(ctx, agent)
 
 			// Verify
+			if tc.expectError {
+				assert.Error(t, err, "Should return an error")
+			} else {
+				assert.NoError(t, err, "Should not return an error")
+			}
 			assert.Equal(t, tc.expectedFound, found, "CA secret found status should match expected")
 		})
 	}
@@ -1062,20 +1081,22 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 
 	// Test cases
 	testCases := []struct {
-		name               string
-		shouldSkip         bool
-		shouldSkipErr      error
-		findServiceResult  *corev1.Service
-		findServiceErr     error
-		metricsPort        int32
-		scheme             string
-		buildTargetsResult []string
-		buildTargetsErr    error
-		caSecretExists     bool
-		expectedTargets    []string
-		expectedCAFound    bool
-		expectError        bool
-		expectNilResult    bool
+		name                string
+		shouldSkip          bool
+		shouldSkipErr       error
+		findServiceResult   *corev1.Service
+		findServiceErr      error
+		metricsPort         int32
+		scheme              string
+		buildTargetsResult  []string
+		buildTargetsErr     error
+		caSecretExists      bool
+		caSecretErr         error
+		expectedTargets     []string
+		expectedCAFound     bool
+		expectError         bool
+		expectNilResult     bool
+		expectIndeterminate bool
 	}{
 		{
 			name:            "Should return nil when shouldSkipDiscovery returns true",
@@ -1134,17 +1155,18 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 			expectError:        true,
 		},
 		{
-			name:               "Should return nil when no targets found",
-			shouldSkip:         false,
-			shouldSkipErr:      nil,
-			findServiceResult:  &corev1.Service{},
-			findServiceErr:     nil,
-			metricsPort:        2379,
-			scheme:             "https",
-			buildTargetsResult: []string{},
-			buildTargetsErr:    nil,
-			expectNilResult:    true,
-			expectError:        false,
+			name:                "Should report inconclusive when no ready endpoints found",
+			shouldSkip:          false,
+			shouldSkipErr:       nil,
+			findServiceResult:   &corev1.Service{},
+			findServiceErr:      nil,
+			metricsPort:         2379,
+			scheme:              "https",
+			buildTargetsResult:  []string{},
+			buildTargetsErr:     nil,
+			expectNilResult:     false,
+			expectIndeterminate: true,
+			expectError:         false,
 		},
 		{
 			name:               "Should return targets and CA status when everything succeeds",
@@ -1203,8 +1225,8 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 				) ([]string, error) {
 					return tc.buildTargetsResult, tc.buildTargetsErr
 				},
-				CheckCASecretExistsFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) bool {
-					return tc.caSecretExists
+				CheckCASecretExistsFunc: func(ctx context.Context, agent *instanav1.InstanaAgent) (bool, error) {
+					return tc.caSecretExists, tc.caSecretErr
 				},
 			}
 			reconciler.etcdDiscoverer = mockDiscoverer
@@ -1223,9 +1245,14 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 				assert.NoError(t, err, "Should not return an error")
 			}
 
-			if tc.expectNilResult {
+			switch {
+			case tc.expectNilResult:
 				assert.Nil(t, result, "Result should be nil")
-			} else {
+			case tc.expectIndeterminate:
+				assert.NotNil(t, result, "Result should not be nil")
+				assert.True(t, result.Indeterminate, "Result should be marked inconclusive")
+				assert.Empty(t, result.Targets, "Inconclusive result should carry no targets")
+			default:
 				assert.NotNil(t, result, "Result should not be nil")
 				assert.Equal(t, tc.expectedTargets, result.Targets, "Targets should match expected")
 				assert.Equal(t, tc.expectedCAFound, result.CAFound, "CAFound should match expected")
