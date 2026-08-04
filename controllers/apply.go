@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +41,7 @@ import (
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
@@ -430,11 +432,22 @@ func CreateDeploymentContext(
 	// the rendered Deployment stable and stops the apply from rolling the pod.
 	discoveredETCD, err := discoverETCD(ctx, agent)
 	if err != nil {
-		logger.Error(err, "Failed to discover ETCD endpoints")
+		// A discovery failure means the state is unknown, not that there is nothing to
+		// monitor. Clearing here would strip ETCD_CA_FILE and the etcd-ca volume, roll
+		// the k8sensor pod on every transient API error, and roll it again once
+		// discovery recovers.
+		logger.Error(err, "Failed to discover ETCD endpoints, keeping the applied CA")
 		// Continue with reconciliation, don't fail the whole process
-		return nil, nil
+		return retainAppliedETCDCA(ctx, c, agent, logger), nil
 	}
 
+	if discoveredETCD != nil && discoveredETCD.Indeterminate {
+		logger.Info("ETCD discovery was inconclusive, keeping the applied CA")
+		return retainAppliedETCDCA(ctx, c, agent, logger), nil
+	}
+
+	// Discovery positively established the state, so the CA is applied or dropped to
+	// match it.
 	if discoveredETCD == nil || !discoveredETCD.CAFound {
 		return nil, nil
 	}
@@ -444,6 +457,60 @@ func CreateDeploymentContext(
 	return &k8ssensordeployment.DeploymentContext{
 		ETCDCASecretName: constants.ETCDCASecretName,
 	}, nil
+}
+
+// k8sSensorEnvValue returns the value of the named environment variable on the
+// k8sensor container of the given Deployment, or "" when it is not set.
+func k8sSensorEnvValue(existingDeployment *appsv1.Deployment, name string) string {
+	for _, container := range existingDeployment.Spec.Template.Spec.Containers {
+		if container.Name != constants.ContainerK8Sensor {
+			continue
+		}
+		for _, env := range container.Env {
+			if env.Name == name {
+				return env.Value
+			}
+		}
+		break
+	}
+
+	return ""
+}
+
+// retainAppliedETCDCA rebuilds the deployment context from the ETCD CA already applied
+// to the live k8sensor Deployment. It is used when discovery cannot establish the
+// current state, so a transient failure does not strip the CA and roll the pod. It
+// returns nil when there is nothing to retain.
+func retainAppliedETCDCA(
+	ctx context.Context,
+	c client.InstanaAgentClient,
+	agent *instanav1.InstanaAgent,
+	log logr.Logger,
+) *k8ssensordeployment.DeploymentContext {
+	// Every backend shares a single deployment context and the CA is cluster wide, so
+	// the primary Deployment is a good enough source for the applied value.
+	existingDeployment := &appsv1.Deployment{}
+	helperInstance := helpers.NewHelpers(agent)
+	if err := c.Get(ctx, types.NamespacedName{
+		Namespace: agent.Namespace,
+		Name:      helperInstance.K8sSensorResourcesName(),
+	}, existingDeployment); err != nil {
+		log.V(1).Info("No existing k8sensor deployment to retain the ETCD CA from")
+		return nil
+	}
+
+	// Only the discovered CA is retained here. A CA configured on the CR is rendered
+	// from the spec on every reconcile anyway, and mounts at its own path.
+	if k8sSensorEnvValue(existingDeployment, constants.EnvETCDCAFile) !=
+		constants.ETCDCAMountPath+"/ca.crt" {
+		return nil
+	}
+
+	log.Info("Retaining the ETCD CA already applied")
+
+	return &k8ssensordeployment.DeploymentContext{
+		ETCDCASecretName: constants.ETCDCASecretName,
+	}
 }
 
 func (r *InstanaAgentReconciler) applyResources(

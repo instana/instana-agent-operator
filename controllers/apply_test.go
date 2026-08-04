@@ -26,8 +26,10 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -255,6 +257,11 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return nil, assert.AnError
 		}
+
+		// A failed discovery falls back to whatever CA is already applied, and there is
+		// no Deployment here, so there is nothing to retain
+		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+			Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
 
 		deploymentContext, err := CreateDeploymentContext(
 			ctx,
