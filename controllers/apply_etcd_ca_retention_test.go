@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,37 @@ func clientReturningDeployment(deployment *appsv1.Deployment) *mocks.MockInstana
 		Return(nil).
 		Maybe()
 	return mockClient
+}
+
+// TestETCDCAReconcileFailsWhenDeploymentUnreadable covers the case where the applied
+// state itself cannot be read. Treating that as "nothing to retain" would strip the CA
+// and roll the pod, which is the same unknown-means-absent conflation this path exists
+// to avoid, so the error is reported and the reconcile retried instead.
+func TestETCDCAReconcileFailsWhenDeploymentUnreadable(t *testing.T) {
+	agent := agentForETCDCATests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return nil, assert.AnError
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(fmt.Errorf("cache not synced"))
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+
+	require.Error(t, err, "an unreadable Deployment should be reported, not guessed away")
+	assert.Nil(t, deploymentContext)
+	mockClient.AssertExpectations(t)
 }
 
 // TestETCDCANotRetainedWhenSecretIsGone covers a secret deleted while discovery is

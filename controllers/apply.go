@@ -438,12 +438,12 @@ func CreateDeploymentContext(
 		// discovery recovers.
 		logger.Error(err, "Failed to discover ETCD endpoints, keeping the applied CA")
 		// Continue with reconciliation, don't fail the whole process
-		return retainAppliedETCDCA(ctx, c, agent, logger), nil
+		return retainAppliedETCDCA(ctx, c, agent, logger)
 	}
 
 	if discoveredETCD != nil && discoveredETCD.Indeterminate {
 		logger.Info("ETCD discovery was inconclusive, keeping the applied CA")
-		return retainAppliedETCDCA(ctx, c, agent, logger), nil
+		return retainAppliedETCDCA(ctx, c, agent, logger)
 	}
 
 	// Discovery positively established the state, so the CA is applied or dropped to
@@ -483,7 +483,7 @@ func retainAppliedETCDCA(
 	c client.InstanaAgentClient,
 	agent *instanav1.InstanaAgent,
 	log logr.Logger,
-) *k8ssensordeployment.DeploymentContext {
+) (*k8ssensordeployment.DeploymentContext, error) {
 	// Every backend shares a single deployment context and the CA is cluster wide, so
 	// the primary Deployment is a good enough source for the applied value.
 	existingDeployment := &appsv1.Deployment{}
@@ -492,8 +492,14 @@ func retainAppliedETCDCA(
 		Namespace: agent.Namespace,
 		Name:      helperInstance.K8sSensorResourcesName(),
 	}, existingDeployment); err != nil {
-		log.V(1).Info("No existing k8sensor deployment to retain the ETCD CA from")
-		return nil
+		if apierrors.IsNotFound(err) {
+			log.V(1).Info("No existing k8sensor deployment to retain the ETCD CA from")
+			return nil, nil
+		}
+		// Failing to read the Deployment leaves the applied state unknown, and guessing
+		// it away is the very conflation this path exists to avoid. Report it instead so
+		// the reconcile is retried rather than rendering a CA-less Deployment.
+		return nil, err
 	}
 
 	// Only the discovered CA is retained. A CA configured on the CR is rendered from
@@ -501,7 +507,7 @@ func retainAppliedETCDCA(
 	// at all, and then require the volume the operator itself would have added.
 	if agent.Spec.K8sSensor.ETCD.CA.SecretName != "" ||
 		!hasDiscoveredETCDCAVolume(existingDeployment) {
-		return nil
+		return nil, nil
 	}
 
 	// Retention must not outlive the secret. The inconclusive path never reaches the
@@ -514,7 +520,7 @@ func retainAppliedETCDCA(
 	}, caSecret); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("The ETCD CA secret is gone, not retaining it")
-			return nil
+			return nil, nil
 		}
 		// Unknown again, so keep what is applied rather than guessing it away
 		log.Error(err, "Failed to read the ETCD CA secret, retaining the applied CA")
@@ -524,7 +530,7 @@ func retainAppliedETCDCA(
 
 	return &k8ssensordeployment.DeploymentContext{
 		ETCDCASecretName: constants.ETCDCASecretName,
-	}
+	}, nil
 }
 
 func (r *InstanaAgentReconciler) applyResources(
