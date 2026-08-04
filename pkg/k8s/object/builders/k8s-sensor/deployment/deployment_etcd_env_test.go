@@ -126,6 +126,33 @@ func countEnvVarsNamed(envVars []corev1.EnvVar, name string) int {
 	return count
 }
 
+// TestDeploymentBuilder_DiscoveredETCDCAVolumeIsOptional pins that the discovered CA
+// volume tolerates its secret going away. The operator adds this volume from what it
+// discovered rather than from the spec, so the secret can be deleted while a Deployment
+// still references it. A required volume would wedge the next pod in ContainerCreating
+// and the k8sensor would never start.
+func TestDeploymentBuilder_DiscoveredETCDCAVolumeIsOptional(t *testing.T) {
+	// Given
+	agent := agentForETCDEnvTests()
+	builder := builderFor(agent, false, &DeploymentContext{
+		ETCDCASecretName: constants.ETCDCASecretName,
+	})
+
+	// When
+	volumes, _ := builder.getVolumes()
+
+	// Then
+	volume := findVolume(volumes, "etcd-ca")
+	require.NotNil(t, volume, "the discovered etcd-ca volume should be present")
+	require.NotNil(t, volume.Secret, "it should be a secret volume")
+	require.NotNil(t, volume.Secret.Optional, "Optional should be set explicitly")
+	assert.True(
+		t,
+		*volume.Secret.Optional,
+		"a discovered secret can disappear, so the volume must not block the pod from starting",
+	)
+}
+
 // TestDeploymentBuilder_CRETCDTargetsIgnored covers the deprecated CR field. The
 // k8sensor never read ETCD_TARGETS from either source, so targets set on the CR are
 // accepted for backwards compatibility but produce no env var.

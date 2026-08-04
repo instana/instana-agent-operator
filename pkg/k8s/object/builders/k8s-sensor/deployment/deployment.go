@@ -212,6 +212,13 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 							Path: "ca.crt",
 						},
 					},
+					// The operator adds this volume from what it discovered, so the
+					// secret can be deleted out from under a Deployment that still
+					// references it. A required volume would wedge the next pod in
+					// ContainerCreating and the k8sensor would never start, taking the
+					// whole entity ingest with it. Optional degrades to a missing file,
+					// which the k8sensor logs and carries on from.
+					Optional: pointer.To(true),
 				},
 			},
 		})
