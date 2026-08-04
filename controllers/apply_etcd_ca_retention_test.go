@@ -87,7 +87,83 @@ func clientReturningDeployment(deployment *appsv1.Deployment) *mocks.MockInstana
 			target := args.Get(2).(*appsv1.Deployment)
 			*target = *deployment
 		})
+	// The CA secret is still there unless a test says otherwise. Maybe, because the
+	// cases that bail out earlier never get as far as checking it.
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+		Return(nil).
+		Maybe()
 	return mockClient
+}
+
+// TestETCDCANotRetainedWhenSecretIsGone covers a secret deleted while discovery is
+// degraded. Retaining it would leave the Deployment referencing a secret that no longer
+// exists, which the k8sensor cannot use and which used to be pinned indefinitely,
+// because the inconclusive path never reaches the discoverer's own CA check.
+func TestETCDCANotRetainedWhenSecretIsGone(t *testing.T) {
+	agent := agentForETCDCATests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return &DiscoveredETCDTargets{Indeterminate: true}, nil
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			*(args.Get(2).(*appsv1.Deployment)) = *deploymentWithDiscoveredETCDCA()
+		})
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+		Return(apierrors.NewNotFound(schema.GroupResource{}, constants.ETCDCASecretName))
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+
+	require.NoError(t, err)
+	assert.Nil(t, deploymentContext, "a deleted CA secret must not stay referenced")
+	mockClient.AssertExpectations(t)
+}
+
+// TestETCDCARetainedWhenSecretLookupFails covers the ambiguous case: if the secret
+// cannot be read, that is unknown rather than absent, so the applied CA is kept.
+func TestETCDCARetainedWhenSecretLookupFails(t *testing.T) {
+	agent := agentForETCDCATests()
+	ctx := context.Background()
+	logger := zap.New()
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return &DiscoveredETCDTargets{Indeterminate: true}, nil
+	}
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			*(args.Get(2).(*appsv1.Deployment)) = *deploymentWithDiscoveredETCDCA()
+		})
+	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+		Return(assert.AnError)
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, deploymentContext, "an unreadable secret is unknown, not absent")
+	assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
+	mockClient.AssertExpectations(t)
 }
 
 // TestETCDCARetainedWhenDiscoveryFails covers a transient discovery failure. An error

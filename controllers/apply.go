@@ -504,6 +504,22 @@ func retainAppliedETCDCA(
 		return nil
 	}
 
+	// Retention must not outlive the secret. The inconclusive path never reaches the
+	// discoverer's own CA check, so without this a secret deleted while discovery is
+	// degraded would stay referenced indefinitely.
+	caSecret := &corev1.Secret{} // pragma: allowlist secret
+	if err := c.Get(ctx, types.NamespacedName{
+		Namespace: agent.Namespace,
+		Name:      constants.ETCDCASecretName,
+	}, caSecret); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("The ETCD CA secret is gone, not retaining it")
+			return nil
+		}
+		// Unknown again, so keep what is applied rather than guessing it away
+		log.Error(err, "Failed to read the ETCD CA secret, retaining the applied CA")
+	}
+
 	log.Info("Retaining the ETCD CA already applied")
 
 	return &k8ssensordeployment.DeploymentContext{
