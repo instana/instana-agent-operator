@@ -25,14 +25,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/internal/mocks"
+	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
+	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
+	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,38 +48,34 @@ func agentForETCDCATests() *instanav1.InstanaAgent {
 	}
 }
 
-// deploymentWithDiscoveredETCDCA returns a k8sensor Deployment carrying the ETCD CA
-// settings a previous reconcile would have applied from discovery.
-func deploymentWithDiscoveredETCDCA() *appsv1.Deployment {
-	return &appsv1.Deployment{
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: constants.ETCDCAVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{ // pragma: allowlist secret
-									SecretName: constants.ETCDCASecretName,
-								},
-							},
-						},
-					},
-					Containers: []corev1.Container{
-						{
-							Name: constants.ContainerK8Sensor,
-							Env: []corev1.EnvVar{
-								{
-									Name:  constants.EnvETCDCAFile,
-									Value: constants.ETCDCAMountPath + "/ca.crt",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+// deploymentWithDiscoveredETCDCA renders the k8sensor Deployment the way the builder
+// actually renders it from a discovered CA, rather than hand-building the shape the
+// retain path expects. Round tripping through the real builder is the point: if the
+// builder ever changes the volume name or the secret it points at, retention stops
+// recognising its own output and these tests fail instead of going quietly dead.
+func deploymentWithDiscoveredETCDCA(t *testing.T) *appsv1.Deployment {
+	t.Helper()
+
+	agent := agentForETCDCATests()
+	agent.Spec.Agent.Key = "test-key"
+	agent.Spec.Zone.Name = "test-zone"
+	agent.Default()
+
+	backendObj := backends.NewK8SensorBackend("", "test-key", "", "test-host", "443")
+	built := k8ssensordeployment.NewDeploymentBuilder(
+		agent,
+		false,
+		&status.MockAgentStatusManager{},
+		*backendObj,
+		nil,
+		&k8ssensordeployment.DeploymentContext{ETCDCASecretName: constants.ETCDCASecretName},
+	).Build()
+
+	require.True(t, built.IsPresent(), "the builder should produce a Deployment")
+	deployment, ok := built.Get().(*appsv1.Deployment)
+	require.True(t, ok, "the builder should produce a *appsv1.Deployment")
+
+	return deployment
 }
 
 func clientReturningDeployment(deployment *appsv1.Deployment) *mocks.MockInstanaAgentClient {
@@ -144,7 +142,7 @@ func TestETCDCANotRetainedWhenSecretIsGone(t *testing.T) {
 	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {
-			*(args.Get(2).(*appsv1.Deployment)) = *deploymentWithDiscoveredETCDCA()
+			*(args.Get(2).(*appsv1.Deployment)) = *deploymentWithDiscoveredETCDCA(t)
 		})
 	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
 		Return(apierrors.NewNotFound(schema.GroupResource{}, constants.ETCDCASecretName))
@@ -178,7 +176,7 @@ func TestETCDCARetainedWhenSecretLookupFails(t *testing.T) {
 	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {
-			*(args.Get(2).(*appsv1.Deployment)) = *deploymentWithDiscoveredETCDCA()
+			*(args.Get(2).(*appsv1.Deployment)) = *deploymentWithDiscoveredETCDCA(t)
 		})
 	mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
 		Return(assert.AnError)
@@ -210,7 +208,7 @@ func TestETCDCARetainedWhenDiscoveryFails(t *testing.T) {
 		return nil, assert.AnError
 	}
 
-	mockClient := clientReturningDeployment(deploymentWithDiscoveredETCDCA())
+	mockClient := clientReturningDeployment(deploymentWithDiscoveredETCDCA(t))
 
 	deploymentContext, err := CreateDeploymentContext(
 		ctx,
@@ -238,7 +236,7 @@ func TestETCDCARetainedWhenDiscoveryInconclusive(t *testing.T) {
 		return &DiscoveredETCDTargets{Indeterminate: true}, nil
 	}
 
-	mockClient := clientReturningDeployment(deploymentWithDiscoveredETCDCA())
+	mockClient := clientReturningDeployment(deploymentWithDiscoveredETCDCA(t))
 
 	deploymentContext, err := CreateDeploymentContext(
 		ctx,
@@ -328,7 +326,7 @@ func TestETCDCANotRetainedForCollidingCRMountPath(t *testing.T) {
 	logger := zap.New()
 
 	// Rendered with no discovered CA: the env var matches, but there is no volume
-	applied := deploymentWithDiscoveredETCDCA()
+	applied := deploymentWithDiscoveredETCDCA(t)
 	applied.Spec.Template.Spec.Volumes = nil
 
 	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
@@ -364,7 +362,7 @@ func TestETCDCANotRetainedForCRConfiguredCA(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.New()
 
-	applied := deploymentWithDiscoveredETCDCA()
+	applied := deploymentWithDiscoveredETCDCA(t)
 
 	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 		return nil, assert.AnError

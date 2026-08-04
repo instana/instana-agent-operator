@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1063,7 +1064,9 @@ func TestCheckCASecretExists(t *testing.T) {
 
 			// Verify
 			if tc.expectError {
-				assert.Error(t, err, "Should return an error")
+				require.Error(t, err, "Should return an error")
+				assert.ErrorContains(t, err, "apiserver temporary failure",
+					"the original error should be propagated, not replaced")
 			} else {
 				assert.NoError(t, err, "Should not return an error")
 			}
@@ -1169,6 +1172,22 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 			expectError:         false,
 		},
 		{
+			// The CA lookup failing means the state is unknown, so the error has to
+			// reach the caller rather than being reported as a clean absence
+			name:               "Should return error when the CA secret check fails",
+			shouldSkip:         false,
+			shouldSkipErr:      nil,
+			findServiceResult:  &corev1.Service{},
+			findServiceErr:     nil,
+			metricsPort:        2379,
+			scheme:             "https",
+			buildTargetsResult: []string{"https://10.0.0.1:2379/metrics"},
+			buildTargetsErr:    nil,
+			caSecretErr:        fmt.Errorf("apiserver temporary failure"),
+			expectNilResult:    true,
+			expectError:        true,
+		},
+		{
 			name:               "Should return targets and CA status when everything succeeds",
 			shouldSkip:         false,
 			shouldSkipErr:      nil,
@@ -1249,11 +1268,11 @@ func TestDiscoverETCDEndpoints(t *testing.T) {
 			case tc.expectNilResult:
 				assert.Nil(t, result, "Result should be nil")
 			case tc.expectIndeterminate:
-				assert.NotNil(t, result, "Result should not be nil")
+				require.NotNil(t, result, "Result should not be nil")
 				assert.True(t, result.Indeterminate, "Result should be marked inconclusive")
 				assert.Empty(t, result.Targets, "Inconclusive result should carry no targets")
 			default:
-				assert.NotNil(t, result, "Result should not be nil")
+				require.NotNil(t, result, "Result should not be nil")
 				assert.Equal(t, tc.expectedTargets, result.Targets, "Targets should match expected")
 				assert.Equal(t, tc.expectedCAFound, result.CAFound, "CAFound should match expected")
 			}
