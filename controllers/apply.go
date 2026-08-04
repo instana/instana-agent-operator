@@ -459,22 +459,19 @@ func CreateDeploymentContext(
 	}, nil
 }
 
-// k8sSensorEnvValue returns the value of the named environment variable on the
-// k8sensor container of the given Deployment, or "" when it is not set.
-func k8sSensorEnvValue(existingDeployment *appsv1.Deployment, name string) string {
-	for _, container := range existingDeployment.Spec.Template.Spec.Containers {
-		if container.Name != constants.ContainerK8Sensor {
+// hasDiscoveredETCDCAVolume reports whether the given Deployment carries the etcd-ca
+// volume that the operator adds from a discovered CA. The volume is the right thing to
+// look for rather than the ETCD_CA_FILE env var, because that env var is also rendered
+// from the CR's own CA mount path and the two values can coincide.
+func hasDiscoveredETCDCAVolume(existingDeployment *appsv1.Deployment) bool {
+	for _, volume := range existingDeployment.Spec.Template.Spec.Volumes {
+		if volume.Name != constants.ETCDCAVolumeName {
 			continue
 		}
-		for _, env := range container.Env {
-			if env.Name == name {
-				return env.Value
-			}
-		}
-		break
+		return volume.Secret != nil && volume.Secret.SecretName == constants.ETCDCASecretName
 	}
 
-	return ""
+	return false
 }
 
 // retainAppliedETCDCA rebuilds the deployment context from the ETCD CA already applied
@@ -499,10 +496,11 @@ func retainAppliedETCDCA(
 		return nil
 	}
 
-	// Only the discovered CA is retained here. A CA configured on the CR is rendered
-	// from the spec on every reconcile anyway, and mounts at its own path.
-	if k8sSensorEnvValue(existingDeployment, constants.EnvETCDCAFile) !=
-		constants.ETCDCAMountPath+"/ca.crt" {
+	// Only the discovered CA is retained. A CA configured on the CR is rendered from
+	// the spec on every reconcile anyway, so bail out before looking at the Deployment
+	// at all, and then require the volume the operator itself would have added.
+	if agent.Spec.K8sSensor.ETCD.CA.SecretName != "" ||
+		!hasDiscoveredETCDCAVolume(existingDeployment) {
 		return nil
 	}
 

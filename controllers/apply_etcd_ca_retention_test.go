@@ -52,6 +52,16 @@ func deploymentWithDiscoveredETCDCA() *appsv1.Deployment {
 		Spec: appsv1.DeploymentSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: constants.ETCDCAVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{ // pragma: allowlist secret
+									SecretName: constants.ETCDCASecretName,
+								},
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name: constants.ContainerK8Sensor,
@@ -198,16 +208,55 @@ func TestETCDCANotRetainedWithoutExistingDeployment(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+// TestETCDCANotRetainedForCollidingCRMountPath is the regression test for a CR that
+// points its own CA mount path at the same place the operator mounts a discovered one.
+// The rendered ETCD_CA_FILE is then byte identical to the discovered case while the pod
+// carries no etcd-ca volume at all, so matching on the env var used to retain a CA that
+// was never there, add a secret volume, and roll the pod on every transient failure.
+func TestETCDCANotRetainedForCollidingCRMountPath(t *testing.T) {
+	agent := agentForETCDCATests()
+	agent.Spec.K8sSensor.ETCD.CA.MountPath = constants.ETCDCAMountPath
+	ctx := context.Background()
+	logger := zap.New()
+
+	// Rendered with no discovered CA: the env var matches, but there is no volume
+	applied := deploymentWithDiscoveredETCDCA()
+	applied.Spec.Template.Spec.Volumes = nil
+
+	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+		return nil, assert.AnError
+	}
+
+	mockClient := clientReturningDeployment(applied)
+
+	deploymentContext, err := CreateDeploymentContext(
+		ctx,
+		mockClient,
+		agent,
+		false,
+		logger,
+		discoverETCD,
+	)
+
+	require.NoError(t, err)
+	assert.Nil(
+		t,
+		deploymentContext,
+		"a CR mount path that collides with the discovered one must not look like a discovered CA",
+	)
+	mockClient.AssertExpectations(t)
+}
+
 // TestETCDCANotRetainedForCRConfiguredCA makes sure retention only ever brings back
-// the discovered CA. A CA configured on the CR mounts at its own path and is rendered
-// from the spec on every reconcile, so it must not be mistaken for a discovered one.
+// the discovered CA. A CA configured on the CR is rendered from the spec on every
+// reconcile, so it must not be mistaken for a discovered one.
 func TestETCDCANotRetainedForCRConfiguredCA(t *testing.T) {
 	agent := agentForETCDCATests()
+	agent.Spec.K8sSensor.ETCD.CA.SecretName = "my-own-etcd-ca"
 	ctx := context.Background()
 	logger := zap.New()
 
 	applied := deploymentWithDiscoveredETCDCA()
-	applied.Spec.Template.Spec.Containers[0].Env[0].Value = "/custom/etcd/ca.crt"
 
 	discoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 		return nil, assert.AnError

@@ -202,7 +202,7 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 	if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" &&
 		d.Spec.K8sSensor.ETCD.CA.SecretName == "" {
 		volumes = append(volumes, corev1.Volume{
-			Name: "etcd-ca",
+			Name: constants.ETCDCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{ // pragma: allowlist secret
 					SecretName: d.deploymentContext.ETCDCASecretName,
@@ -224,8 +224,8 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 		})
 
 		mounts = append(mounts, corev1.VolumeMount{
-			Name:      "etcd-ca",
-			MountPath: "/var/run/secrets/etcd",
+			Name:      constants.ETCDCAVolumeName,
+			MountPath: constants.ETCDCAMountPath,
 			ReadOnly:  true,
 		})
 	}

@@ -18,7 +18,10 @@ package constants
 
 const (
 	// ConfigMap and Secret names
-	ETCDCASecretName         = "etcd-ca"
+	ETCDCASecretName = "etcd-ca"
+	// ETCDCAVolumeName is the name of the volume the operator adds for a discovered
+	// ETCD CA. The retain path looks for it by name, so both sides must agree.
+	ETCDCAVolumeName         = "etcd-ca"
 	ETCDClientCertSecretName = "etcd-client-cert"
 
 	// ETCD ports
