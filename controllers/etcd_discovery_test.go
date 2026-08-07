@@ -100,11 +100,13 @@ func TestShouldSkipDiscovery(t *testing.T) {
 			expectedErr:    false,
 		},
 		{
-			name:           "Should skip when targets are specified in CR",
+			// Targets on the CR are deprecated and ignored, and discovery still has to
+			// run to find the CA, so they must not suppress it
+			name:           "Should not skip when the deprecated CR targets are set",
 			isOpenShift:    false,
 			isOpenShiftErr: false,
 			etcdTargets:    []string{"https://etcd-1:2379/metrics"},
-			expectedSkip:   true,
+			expectedSkip:   false,
 			expectedErr:    false,
 		},
 		{
@@ -151,10 +153,6 @@ func TestShouldSkipDiscovery(t *testing.T) {
 					}
 
 					if tc.isOpenShift {
-						return true, nil
-					}
-
-					if len(agent.Spec.K8sSensor.ETCD.Targets) > 0 {
 						return true, nil
 					}
 

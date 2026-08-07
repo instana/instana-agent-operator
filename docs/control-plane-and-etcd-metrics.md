@@ -25,11 +25,9 @@ On OpenShift clusters, the operator automatically configures ETCD metrics collec
    - See [ADR: OpenShift ETCD Resource Copying](./adr-openshift-etcd-resource-copying.md) for architectural details
 
 3. **Configures k8sensor Deployment** with:
-   - `ETCD_METRICS_URL`: Points to OpenShift ETCD metrics endpoint
    - `ETCD_CA_FILE`: Path to mounted CA certificate
    - `ETCD_CERT_FILE`: Path to mounted client certificate
    - `ETCD_KEY_FILE`: Path to mounted client key
-   - `ETCD_REQUEST_TIMEOUT`: 15s
 
 4. **Handles certificate rotation**:
    - Tracks source `ResourceVersion` in annotations
@@ -39,10 +37,6 @@ On OpenShift clusters, the operator automatically configures ETCD metrics collec
 5. **Automatic cleanup**:
    - Removes copied resources if source resources are deleted
    - Removes copied resources when InstanaAgent CR is deleted
-
-**Note:** The 15s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
-For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
-For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
 
 ### Why Resource Copying?
 
@@ -194,10 +188,13 @@ spec:
 
 The operator automatically sets these environment variables:
 
-- `ETCD_TARGETS`: Comma-separated list of ETCD metrics endpoints (vanilla K8s)
 - `ETCD_CA_FILE`: Path to the CA certificate for ETCD TLS
-- `ETCD_METRICS_URL`: Direct URL to ETCD metrics (OpenShift)
-- `ETCD_REQUEST_TIMEOUT`: Timeout for ETCD requests (default: 15s)
+- `ETCD_CERT_FILE`: Path to the client certificate for ETCD TLS (OpenShift)
+- `ETCD_KEY_FILE`: Path to the client key for ETCD TLS (OpenShift)
+
+The k8sensor discovers the ETCD endpoints itself, from the `etcd-metrics` service or
+from pods labelled `component=etcd`, so the operator only supplies the TLS settings and
+does not pass the endpoints in.
 
 ## Troubleshooting
 
@@ -205,7 +202,7 @@ The operator automatically sets these environment variables:
 
 - **No ETCD metrics appearing**: Ensure the ETCD service exists in `kube-system` namespace with proper labels
 - **TLS connection errors**: Verify CA certificates are properly mounted
-- **Timeout errors**: Check network connectivity and consider adjusting `ETCD_REQUEST_TIMEOUT`
+- **Timeout errors**: Check network connectivity between the k8sensor and the ETCD endpoints
 - **k8sensor pod fails with "configmap 'etcd-ca-bundle' not found"**: This occurs on OpenShift when ETCD monitoring resources are missing from the `openshift-etcd` namespace. The operator will log "OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled" but the pod should start successfully without ETCD monitoring. If the pod fails to start, this indicates the source ETCD resources (`etcd-metrics-ca-bundle` ConfigMap and `etcd-metric-client` Secret) need to be restored in the `openshift-etcd` namespace, or you can create empty placeholder resources in the `instana-agent` namespace as a temporary workaround.
 
 ### Debugging

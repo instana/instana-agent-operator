@@ -103,8 +103,7 @@ func TestDeploymentBuilder_CustomETCDCAWinsOverDiscoveredCA(t *testing.T) {
 	backendObj := backend.NewK8SensorBackend("", "test-key", "", "test-host", "443")
 
 	deploymentContext := &DeploymentContext{
-		DiscoveredETCDTargets: []string{"https://10.0.0.1:2379/metrics"},
-		ETCDCASecretName:      constants.ETCDCASecretName,
+		ETCDCASecretName: constants.ETCDCASecretName,
 	}
 
 	builder := NewDeploymentBuilder(
@@ -148,12 +147,11 @@ func TestDeploymentBuilder_CustomETCDCAWinsOverDiscoveredCA(t *testing.T) {
 		"there should be one etcd-ca mount",
 	)
 
-	// The discovered targets are still applied, only the CA is left to the CR
-	assert.Equal(
+	// Discovery no longer passes endpoints through at all, the k8sensor finds them
+	assert.Nil(
 		t,
-		"https://10.0.0.1:2379/metrics",
-		findEnvVar(envVars, constants.EnvETCDTargets).Value,
-		"discovered targets should still be applied",
+		findEnvVar(envVars, constants.EnvETCDTargets),
+		"discovery should not set ETCD_TARGETS",
 	)
 }
 
@@ -171,8 +169,7 @@ func TestDeploymentBuilder_DiscoveredETCDCAUsedWithoutCustomCA(t *testing.T) {
 	backendObj := backend.NewK8SensorBackend("", "test-key", "", "test-host", "443")
 
 	deploymentContext := &DeploymentContext{
-		DiscoveredETCDTargets: []string{"https://10.0.0.1:2379/metrics"},
-		ETCDCASecretName:      constants.ETCDCASecretName,
+		ETCDCASecretName: constants.ETCDCASecretName,
 	}
 
 	builder := NewDeploymentBuilder(

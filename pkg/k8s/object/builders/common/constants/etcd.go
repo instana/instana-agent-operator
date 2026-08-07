@@ -16,8 +16,6 @@ limitations under the License.
 
 package constants
 
-import "fmt"
-
 const (
 	// ConfigMap and Secret names
 	ETCDCASecretName         = "etcd-ca"
@@ -26,7 +24,6 @@ const (
 	// ETCD ports
 	ETCDMetricsPortHTTPS = 2379
 	ETCDMetricsPortHTTP  = 2381
-	ETCDOCPMetricsPort   = 9978
 
 	// ETCD environment variables
 	EnvETCDTargets        = "ETCD_TARGETS"
@@ -57,9 +54,3 @@ const (
 )
 
 // ETCD URLs - using functions since constants can't use fmt.Sprintf
-func GetETCDOCPMetricsURL() string {
-	return fmt.Sprintf(
-		"https://etcd.openshift-etcd.svc.cluster.local:%d/metrics",
-		ETCDOCPMetricsPort,
-	)
-}

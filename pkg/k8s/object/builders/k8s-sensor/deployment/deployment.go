@@ -10,7 +10,6 @@ import (
 	"maps"
 	"path"
 	"regexp"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,9 +33,10 @@ import (
 
 const componentName = constants.ComponentK8Sensor
 
-// DeploymentContext holds additional context for the deployment
+// DeploymentContext holds additional context for the deployment.
+// The k8sensor discovers the etcd endpoints itself, so the operator only has to tell
+// it where the CA lives, it does not pass the endpoints in.
 type DeploymentContext struct {
-	DiscoveredETCDTargets       []string
 	ETCDCASecretName            string
 	OpenShiftETCDResourcesExist bool
 }
@@ -95,7 +95,6 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	useDiscoveredETCDCA := !d.isOpenShift &&
 		d.deploymentContext != nil &&
 		d.deploymentContext.ETCDCASecretName != "" &&
-		len(d.Spec.K8sSensor.ETCD.Targets) == 0 &&
 		d.Spec.K8sSensor.ETCD.CA.SecretName == ""
 
 	// Include ETCDCAFileEnv unless the ETCD CA comes from somewhere else, either
@@ -113,19 +112,12 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 
 	envVars := d.EnvBuilder.Build(envVarsToInclude...)
 
-	// Add OpenShift-specific environment variables
+	// Add OpenShift-specific environment variables. The k8sensor discovers the etcd
+	// endpoints itself, so it reads only the TLS settings from here.
 	if d.isOpenShift {
 		// Only add ETCD configuration if resources are available
 		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
 			envVars = append(envVars, []corev1.EnvVar{
-				{
-					Name:  constants.EnvETCDMetricsURL,
-					Value: constants.GetETCDOCPMetricsURL(),
-				},
-				{
-					Name:  constants.EnvETCDRequestTimeout,
-					Value: "15s",
-				},
 				{
 					Name:  constants.EnvETCDCAFile,
 					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
@@ -140,27 +132,15 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 				},
 			}...)
 		}
-	} else {
-		// Add discovered ETCD targets for vanilla Kubernetes
-		if d.deploymentContext != nil && len(d.deploymentContext.DiscoveredETCDTargets) > 0 {
-			// Only add if not already specified in the CR
-			if len(d.Spec.K8sSensor.ETCD.Targets) == 0 {
-				envVars = append(envVars, corev1.EnvVar{
-					Name:  constants.EnvETCDTargets,
-					Value: strings.Join(d.deploymentContext.DiscoveredETCDTargets, ","),
-				})
-
-				// Add the CA file env var if a CA secret was discovered, at the same path
-				// the volume below mounts it. ETCDCAFileEnv is suppressed above in this
-				// case, so the container gets ETCD_CA_FILE exactly once.
-				if useDiscoveredETCDCA {
-					envVars = append(envVars, corev1.EnvVar{
-						Name:  constants.EnvETCDCAFile,
-						Value: constants.ETCDCAMountPath + "/ca.crt",
-					})
-				}
-			}
-		}
+	} else if useDiscoveredETCDCA {
+		// Point the k8sensor at the discovered CA for vanilla Kubernetes, at the same
+		// path the volume below mounts it. The endpoints themselves are discovered by
+		// the k8sensor, not passed in. ETCDCAFileEnv is suppressed above in this case,
+		// so the container gets ETCD_CA_FILE exactly once.
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  constants.EnvETCDCAFile,
+			Value: constants.ETCDCAMountPath + "/ca.crt",
+		})
 	}
 	backendEnvVars := []corev1.EnvVar{
 		{
@@ -220,7 +200,6 @@ func (d *deploymentBuilder) getVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 	// an etcd-ca volume and mount above, so the CR wins and the discovered one is
 	// skipped, otherwise the pod would carry two volumes with the same name.
 	if d.deploymentContext != nil && d.deploymentContext.ETCDCASecretName != "" &&
-		len(d.Spec.K8sSensor.ETCD.Targets) == 0 &&
 		d.Spec.K8sSensor.ETCD.CA.SecretName == "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "etcd-ca",

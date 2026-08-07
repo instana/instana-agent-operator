@@ -107,11 +107,9 @@ func (d *DefaultETCDDiscoverer) ShouldSkipDiscovery(
 		return true, nil
 	}
 
-	if len(agent.Spec.K8sSensor.ETCD.Targets) > 0 {
-		d.reconciler.loggerFor(ctx, agent).
-			Info("Using ETCD targets from CR spec", "targets", agent.Spec.K8sSensor.ETCD.Targets)
-		return true, nil
-	}
+	// Targets on the CR used to short circuit discovery, back when they were handed to
+	// the k8sensor as ETCD_TARGETS. They are ignored now, and discovery still has to run
+	// to find the CA, so a deprecated field must not suppress it.
 
 	return false, nil
 }

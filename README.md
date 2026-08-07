@@ -40,17 +40,11 @@ On OpenShift clusters, the operator automatically discovers and configures ETCD 
    - Client certificate at `/etc/etcd-client/tls.crt`
    - Client key at `/etc/etcd-client/tls.key`
 4. Sets environment variables:
-   - `ETCD_METRICS_URL` = `https://etcd.openshift-etcd.svc.cluster.local:9979/metrics`
    - `ETCD_CA_FILE` = `/etc/etcd-metrics-ca/ca-bundle.crt`
    - `ETCD_CERT_FILE` = `/etc/etcd-client/tls.crt`
    - `ETCD_KEY_FILE` = `/etc/etcd-client/tls.key`
-   - `ETCD_REQUEST_TIMEOUT` = `15s`
 
 If ETCD resources are not found or are invalid, ETCD monitoring is gracefully disabled and the operator continues normal operation.
-
-**Note:** The 15s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
-For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
-For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
 
 #### Vanilla Kubernetes Clusters
 
@@ -84,10 +78,13 @@ spec:
 
 The operator automatically sets these environment variables:
 
-- `ETCD_TARGETS`: Comma-separated list of ETCD metrics endpoints (vanilla K8s)
 - `ETCD_CA_FILE`: Path to the CA certificate for ETCD TLS
-- `ETCD_METRICS_URL`: Direct URL to ETCD metrics (OpenShift)
-- `ETCD_REQUEST_TIMEOUT`: Timeout for ETCD requests (default: 15s)
+- `ETCD_CERT_FILE`: Path to the client certificate for ETCD TLS (OpenShift)
+- `ETCD_KEY_FILE`: Path to the client key for ETCD TLS (OpenShift)
+
+The k8sensor discovers the ETCD endpoints itself, from the `etcd-metrics` service or
+from pods labelled `component=etcd`, so the operator only supplies the TLS settings and
+does not pass the endpoints in.
 
 ### CI/CD Pipeline Log Analysis
 

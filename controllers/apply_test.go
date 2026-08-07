@@ -26,10 +26,8 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -162,19 +160,16 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
-	t.Run("Vanilla K8s with ETCD creates deployment context", func(t *testing.T) {
+	t.Run("Vanilla K8s with a discovered CA creates deployment context", func(t *testing.T) {
 		mockClient := &mocks.MockInstanaAgentClient{}
 
-		// Mock ETCD discover function that returns targets
+		// Mock ETCD discover function that finds etcd and a CA for it
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return &DiscoveredETCDTargets{
 				Targets: []string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"},
 				CAFound: true,
 			}, nil
 		}
-
-		mockClient.On("Get", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
 
 		deploymentContext, err := CreateDeploymentContext(
 			ctx,
@@ -187,53 +182,20 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, deploymentContext)
-		assert.Equal(
-			t,
-			[]string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"},
-			deploymentContext.DiscoveredETCDTargets,
-		)
 		assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
 		mockClient.AssertExpectations(t)
 	})
 
-	t.Run("Deployment exists with same ETCD targets - no update", func(t *testing.T) {
+	t.Run("Vanilla K8s without a CA returns nil", func(t *testing.T) {
 		mockClient := &mocks.MockInstanaAgentClient{}
 
-		// Mock ETCD discover function
+		// etcd is there but no CA secret, so there is nothing for the operator to add
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return &DiscoveredETCDTargets{
-				Targets: []string{"https://etcd-1:2379/metrics", "https://etcd-2:2379/metrics"},
-				CAFound: true,
+				Targets: []string{"https://etcd-1:2379/metrics"},
+				CAFound: false,
 			}, nil
 		}
-
-		// Create existing deployment with same targets
-		existingDeployment := &appsv1.Deployment{
-			Spec: appsv1.DeploymentSpec{
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name: constants.ContainerK8Sensor,
-								Env: []corev1.EnvVar{
-									{
-										Name:  constants.EnvETCDTargets,
-										Value: "https://etcd-1:2379/metrics,https://etcd-2:2379/metrics",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-
-		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
-			Return(nil).
-			Run(func(args mock.Arguments) {
-				deployment := args.Get(2).(*appsv1.Deployment)
-				*deployment = *existingDeployment
-			})
 
 		deploymentContext, err := CreateDeploymentContext(
 			ctx,
@@ -245,50 +207,25 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		assert.Nil(t, deploymentContext) // Should return nil when no update needed
+		assert.Nil(t, deploymentContext)
 		mockClient.AssertExpectations(t)
 	})
 
-	t.Run("Deployment exists with different ETCD targets - update needed", func(t *testing.T) {
+	t.Run("Context does not depend on the live Deployment", func(t *testing.T) {
+		// The context is derived from discovery alone, so two consecutive reconciles
+		// produce the same thing and the rendered Deployment never churns. The mock
+		// client has no expectations at all, which asserts that the live Deployment is
+		// never read.
 		mockClient := &mocks.MockInstanaAgentClient{}
 
-		// Mock ETCD discover function with new targets
 		mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
 			return &DiscoveredETCDTargets{
-				Targets: []string{"https://etcd-3:2379/metrics", "https://etcd-4:2379/metrics"},
+				Targets: []string{"https://etcd-1:2379/metrics"},
 				CAFound: true,
 			}, nil
 		}
 
-		// Create existing deployment with different targets
-		existingDeployment := &appsv1.Deployment{
-			Spec: appsv1.DeploymentSpec{
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name: constants.ContainerK8Sensor,
-								Env: []corev1.EnvVar{
-									{
-										Name:  constants.EnvETCDTargets,
-										Value: "https://etcd-1:2379/metrics,https://etcd-2:2379/metrics",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-
-		mockClient.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Deployment"), mock.Anything).
-			Return(nil).
-			Run(func(args mock.Arguments) {
-				deployment := args.Get(2).(*appsv1.Deployment)
-				*deployment = *existingDeployment
-			})
-
-		deploymentContext, err := CreateDeploymentContext(
+		first, err := CreateDeploymentContext(
 			ctx,
 			mockClient,
 			agent,
@@ -296,15 +233,18 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 			logger,
 			mockDiscoverETCD,
 		)
-
 		require.NoError(t, err)
-		require.NotNil(t, deploymentContext)
-		assert.Equal(
-			t,
-			[]string{"https://etcd-3:2379/metrics", "https://etcd-4:2379/metrics"},
-			deploymentContext.DiscoveredETCDTargets,
+		second, err := CreateDeploymentContext(
+			ctx,
+			mockClient,
+			agent,
+			false,
+			logger,
+			mockDiscoverETCD,
 		)
-		assert.Equal(t, constants.ETCDCASecretName, deploymentContext.ETCDCASecretName)
+		require.NoError(t, err)
+
+		assert.Equal(t, first, second, "consecutive reconciles must produce the same context")
 		mockClient.AssertExpectations(t)
 	})
 
