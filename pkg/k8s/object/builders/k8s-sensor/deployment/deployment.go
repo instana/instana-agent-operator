@@ -313,6 +313,14 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							Ports: []corev1.ContainerPort{
 								ports.InstanaAgentAPIPortConfig.AsContainerPort(),
 							},
+							// Set a numeric runAsUser so that OCP 4.17+ can verify the container
+							// is non-root when nonroot-v2 SCC injects runAsNonRoot:true. Without a
+							// numeric UID the kubelet rejects the pod because it cannot resolve the
+							// symbolic username "k8sensor" from /etc/passwd at admission time.
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:    pointer.To(int64(1000)),
+								RunAsNonRoot: pointer.To(true),
+							},
 						},
 					},
 					// k8sensor is run as a "k8sensor" user (i.e: uid 1000), and thus reading the files from the secret volume

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1093,4 +1094,27 @@ func TestValidatePollRateAcceptsSeconds(t *testing.T) {
 	assert.False(t, builder.validatePollRate("30sec"), "Should reject suffix with sec")
 	assert.False(t, builder.validatePollRate(""), "Should reject empty string")
 	assert.False(t, builder.validatePollRate("1m"), "Should reject minute format")
+}
+
+func TestContainerSecurityContextSatisfiesNonRootV2(t *testing.T) {
+	// Regression guard: ensures the k8sensor container spec always carries a numeric,
+	// non-zero RunAsUser and RunAsNonRoot:true. Without these, OCP 4.17+ kubelet
+	// rejects the pod when nonroot-v2 SCC is assigned, because it cannot resolve
+	// the symbolic username "k8sensor" from /etc/passwd at admission time.
+	agent := createInstanaAgentWithSecretMountsEnabled()
+	builder := createTestDeploymentBuilder(t, agent)
+
+	builder.VolumeBuilder.(*MockVolumeBuilder).On("Build", mock.Anything).
+		Return([]corev1.Volume{{Name: "config"}}, []corev1.VolumeMount{{Name: "config"}})
+	builder.statusManager.(*MockStatusManager).On("SetK8sSensorDeployment", mock.Anything).Return()
+
+	container := builder.build().Spec.Template.Spec.Containers[0]
+
+	require.NotNil(t, container.SecurityContext)
+	require.NotNil(t, container.SecurityContext.RunAsUser,
+		"RunAsUser must be set: OCP 4.17+ kubelet cannot verify non-root from a symbolic username")
+	assert.NotZero(t, *container.SecurityContext.RunAsUser,
+		"RunAsUser must be non-zero (non-root)")
+	require.NotNil(t, container.SecurityContext.RunAsNonRoot)
+	assert.True(t, *container.SecurityContext.RunAsNonRoot)
 }
