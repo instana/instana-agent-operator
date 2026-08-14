@@ -114,8 +114,18 @@ func main() {
 	var metricsAddr string
 	var probeAddr string
 	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(
+		&metricsAddr,
+		"metrics-bind-address",
+		":8080",
+		"The address the metric endpoint binds to.",
+	)
+	flag.StringVar(
+		&probeAddr,
+		"health-probe-bind-address",
+		":8081",
+		"The address the probe endpoint binds to.",
+	)
 	// By default disable leader-election and assume single instance gets installed. Via parameters (--leader-elect) it will be
 	// enabled from the Operator Deployment spec.
 	flag.BoolVar(
@@ -212,6 +222,7 @@ func main() {
 		log.Error(err, "Failed to create a new k8s client")
 	} else {
 		cleanupOldOperator(client)
+		cleanupLegacyAgentRBAC(client)
 	}
 
 	log.Info("Starting manager")
@@ -241,7 +252,14 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 	}
 
 	if err := k8sClient.List(context.Background(), deploymentsList, deploymentOptions); err != nil {
-		log.Info(fmt.Sprintf("Failed to get list the deployment with the label %s:%s and name %s", labelKey, instanaclient.FieldOwnerName, InstanaOperatorOldDeploymentName))
+		log.Info(
+			fmt.Sprintf(
+				"Failed to get list the deployment with the label %s:%s and name %s",
+				labelKey,
+				instanaclient.FieldOwnerName,
+				InstanaOperatorOldDeploymentName,
+			),
+		)
 	} else {
 		// there should be only one deployment but we iterate just in case
 		log.Info(fmt.Sprintf("Found %v deployments that match the criteria", len(deploymentsList.Items)))
@@ -316,6 +334,105 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 				log.Info("Failed to delete the old operator clusterrolebinding " + InstanaOperatorOldClusterRoleBindingName)
 			} else {
 				log.Info(fmt.Sprintf("Successfully deleted the clusterrolebinding %s", InstanaOperatorOldClusterRoleBindingName))
+			}
+		}
+	}
+}
+
+// cleanupLegacyAgentRBAC removes the old bare-name ClusterRole and ClusterRoleBinding
+// objects that were created before the namespace-qualified naming fix (H1-3875521).
+//
+// Prior to the fix, the operator created cluster-scoped RBAC objects keyed only by
+// the CR name (e.g. "instana-agent", "instana-agent-k8sensor"). After the fix, they
+// are keyed by namespace+name (e.g. "instana-agent-instana-agent"). On upgrade, the
+// old bare-name objects are orphaned — this function deletes them at startup so they
+// do not linger in the cluster.
+//
+// Safety check: only objects carrying the label
+// "app.kubernetes.io/managed-by=instana-agent-operator" are deleted, preventing
+// accidental deletion of any same-named objects not owned by this operator.
+func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
+	log.Info("Cleaning up legacy bare-name agent RBAC objects if present")
+
+	const managedByLabel = "app.kubernetes.io/managed-by"
+	const managedByValue = "instana-agent-operator"
+
+	ctx := context.Background()
+
+	// List all InstanaAgent CRs across all namespaces to discover which bare names
+	// may have been used as RBAC object names before the fix.
+	agentList := &agentoperatorv1.InstanaAgentList{}
+	if err := k8sClient.List(ctx, agentList); err != nil {
+		log.Error(err, "Failed to list InstanaAgent CRs during legacy RBAC cleanup")
+		return
+	}
+
+	// Build the set of old bare names to check.
+	// Before the fix: ClusterRole/ClusterRoleBinding name == CR name (or CR name + "-k8sensor").
+	// After the fix:  name == namespace + "-" + CR name (or + "-k8sensor").
+	// We only delete the old bare-name objects; the new namespace-qualified ones are
+	// created fresh by the reconciler.
+	type oldRBACNames struct {
+		clusterRole        string
+		clusterRoleBinding string
+	}
+
+	candidates := make([]oldRBACNames, 0, len(agentList.Items)*2)
+	for _, agent := range agentList.Items {
+		saName := agent.Name // bare CR name (default ServiceAccountName when create=true)
+		candidates = append(candidates,
+			// agent component
+			oldRBACNames{
+				clusterRole:        saName,
+				clusterRoleBinding: saName,
+			},
+			// k8s-sensor component
+			oldRBACNames{
+				clusterRole:        saName + "-k8sensor",
+				clusterRoleBinding: saName + "-k8sensor",
+			},
+		)
+	}
+
+	for _, names := range candidates {
+		// --- ClusterRole ---
+		oldCR := &rbacv1.ClusterRole{}
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: names.clusterRole}, oldCR); err != nil {
+			if !errors.IsNotFound(err) {
+				log.Error(err, "Failed to get legacy ClusterRole", "name", names.clusterRole)
+			}
+		} else if oldCR.Labels[managedByLabel] != managedByValue {
+			log.Info("ClusterRole found but not managed by this operator, skipping",
+				"name", names.clusterRole)
+		} else {
+			log.Info("Deleting legacy ClusterRole", "name", names.clusterRole)
+			if err := k8sClient.Delete(ctx, oldCR); err != nil && !errors.IsNotFound(err) {
+				log.Error(err, "Failed to delete legacy ClusterRole", "name", names.clusterRole)
+			} else {
+				log.Info("Successfully deleted legacy ClusterRole", "name", names.clusterRole)
+			}
+		}
+
+		// --- ClusterRoleBinding ---
+		oldCRB := &rbacv1.ClusterRoleBinding{}
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: names.clusterRoleBinding}, oldCRB); err != nil {
+			if !errors.IsNotFound(err) {
+				log.Error(
+					err,
+					"Failed to get legacy ClusterRoleBinding",
+					"name",
+					names.clusterRoleBinding,
+				)
+			}
+		} else if oldCRB.Labels[managedByLabel] != managedByValue {
+			log.Info("ClusterRoleBinding found but not managed by this operator, skipping",
+				"name", names.clusterRoleBinding)
+		} else {
+			log.Info("Deleting legacy ClusterRoleBinding", "name", names.clusterRoleBinding)
+			if err := k8sClient.Delete(ctx, oldCRB); err != nil && !errors.IsNotFound(err) {
+				log.Error(err, "Failed to delete legacy ClusterRoleBinding", "name", names.clusterRoleBinding)
+			} else {
+				log.Info("Successfully deleted legacy ClusterRoleBinding", "name", names.clusterRoleBinding)
 			}
 		}
 	}

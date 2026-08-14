@@ -6,6 +6,7 @@
 package helpers
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -26,6 +27,15 @@ type helpers struct {
 
 type Helpers interface {
 	ServiceAccountName() string
+	// ClusterScopedRBACName returns a cluster-unique name for the agent ClusterRole
+	// and ClusterRoleBinding by combining the CR namespace and ServiceAccount name.
+	// This prevents cross-tenant collisions when multiple InstanaAgent CRs in
+	// different namespaces share the same CR name.
+	ClusterScopedRBACName() string
+	// ClusterScopedK8sSensorRBACName returns a cluster-unique name for the k8s-sensor
+	// ClusterRole and ClusterRoleBinding by combining the CR namespace and the
+	// k8s-sensor resource name.
+	ClusterScopedK8sSensorRBACName() string
 	TLSIsEnabled() bool
 	TLSSecretName() string
 	HeadlessServiceName() string
@@ -47,6 +57,14 @@ func (h *helpers) serviceAccountNameDefault() string {
 
 func (h *helpers) ServiceAccountName() string {
 	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrDefault(h.serviceAccountNameDefault())
+}
+
+func (h *helpers) ClusterScopedRBACName() string {
+	return fmt.Sprintf("%s-%s", h.Namespace, h.ServiceAccountName())
+}
+
+func (h *helpers) ClusterScopedK8sSensorRBACName() string {
+	return fmt.Sprintf("%s-%s", h.Namespace, h.K8sSensorResourcesName())
 }
 
 func (h *helpers) TLSIsEnabled() bool {
