@@ -68,8 +68,9 @@ var _ operator_utils.OperatorUtils = (*mockOperatorUtils)(nil)
 func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-agent",
-			Namespace: "test-namespace",
+			Name: "test-agent",
+			// From now on, only those namespaces get auto ETCD discovery on OpenShift, that match the operator's namespace and `instana-agent` is the assumed default.
+			Namespace: "instana-agent",
 		},
 	}
 
@@ -269,6 +270,230 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		assert.Nil(t, deploymentContext)
 		mockClient.AssertExpectations(t)
 	})
+
+	t.Run(
+		"OpenShift namespace validation - agent in same namespace as operator",
+		func(t *testing.T) {
+			t.Setenv("POD_NAMESPACE", "instana-agent")
+
+			agentInSameNamespace := &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-agent",
+					Namespace: "instana-agent",
+				},
+			}
+
+			mockClient := &mocks.MockInstanaAgentClient{}
+
+			// Mock the Apply method for copying ETCD ConfigMap and Secret
+			mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).
+				Return(result.OfSuccess[client.Object](nil))
+			mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+				Return(result.OfSuccess[client.Object](nil))
+
+			// Mock Get calls for ETCD resource checks with valid data
+			mockClient.On(
+				"Get",
+				mock.Anything,
+				mock.Anything,
+				mock.AnythingOfType("*v1.ConfigMap"),
+				mock.Anything,
+			).Run(func(args mock.Arguments) {
+				cm := args.Get(2).(*corev1.ConfigMap)
+				cm.Data = map[string]string{
+					"ca-bundle.crt": "test-ca-cert-data",
+				}
+				cm.ResourceVersion = "12345"
+			}).Return(nil)
+			mockClient.On(
+				"Get",
+				mock.Anything,
+				mock.Anything,
+				mock.AnythingOfType("*v1.Secret"),
+				mock.Anything,
+			).Run(func(args mock.Arguments) {
+				secret := args.Get(2).(*corev1.Secret)
+				secret.Data = map[string][]byte{
+					"tls.crt": []byte("test-cert-data"),
+					"tls.key": []byte("test-key-data"),
+				}
+				secret.ResourceVersion = "67890"
+			}).Return(nil)
+
+			mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+				return nil, nil
+			}
+
+			deploymentContext, err := CreateDeploymentContext(
+				ctx,
+				mockClient,
+				agentInSameNamespace,
+				true,
+				logger,
+				mockDiscoverETCD,
+			)
+
+			require.NoError(t, err)
+			require.NotNil(t, deploymentContext)
+			assert.True(
+				t,
+				deploymentContext.OpenShiftETCDResourcesExist,
+				"ETCD resources should exist when agent is in same namespace as operator",
+			)
+			mockClient.AssertExpectations(t)
+		},
+	)
+
+	t.Run(
+		"OpenShift namespace validation - agent in different namespace skips ETCD",
+		func(t *testing.T) {
+			t.Setenv("POD_NAMESPACE", "instana-agent")
+
+			agentInDifferentNamespace := &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-agent",
+					Namespace: "other-namespace",
+				},
+			}
+
+			mockClient := &mocks.MockInstanaAgentClient{}
+
+			mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+				t.Fatal("discoverETCD should not be called when namespaces differ")
+				return nil, nil
+			}
+
+			deploymentContext, err := CreateDeploymentContext(
+				ctx,
+				mockClient,
+				agentInDifferentNamespace,
+				true,
+				logger,
+				mockDiscoverETCD,
+			)
+
+			require.NoError(t, err)
+			assert.Nil(
+				t,
+				deploymentContext,
+				"Should return nil when agent namespace differs from operator namespace",
+			)
+			mockClient.AssertExpectations(t)
+		},
+	)
+
+	t.Run(
+		"OpenShift namespace validation - POD_NAMESPACE not set uses default",
+		func(t *testing.T) {
+			// Ensure POD_NAMESPACE is not set
+			t.Setenv("POD_NAMESPACE", "")
+
+			agentInDefaultNamespace := &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-agent",
+					Namespace: "instana-agent",
+				},
+			}
+
+			mockClient := &mocks.MockInstanaAgentClient{}
+
+			// Mock the Apply method for copying ETCD ConfigMap and Secret
+			mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).
+				Return(result.OfSuccess[client.Object](nil))
+			mockClient.On("Apply", mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+				Return(result.OfSuccess[client.Object](nil))
+
+			// Mock Get calls for ETCD resource checks with valid data
+			mockClient.On(
+				"Get",
+				mock.Anything,
+				mock.Anything,
+				mock.AnythingOfType("*v1.ConfigMap"),
+				mock.Anything,
+			).Run(func(args mock.Arguments) {
+				cm := args.Get(2).(*corev1.ConfigMap)
+				cm.Data = map[string]string{
+					"ca-bundle.crt": "test-ca-cert-data",
+				}
+				cm.ResourceVersion = "12345"
+			}).Return(nil)
+			mockClient.On(
+				"Get",
+				mock.Anything,
+				mock.Anything,
+				mock.AnythingOfType("*v1.Secret"),
+				mock.Anything,
+			).Run(func(args mock.Arguments) {
+				secret := args.Get(2).(*corev1.Secret)
+				secret.Data = map[string][]byte{
+					"tls.crt": []byte("test-cert-data"),
+					"tls.key": []byte("test-key-data"),
+				}
+				secret.ResourceVersion = "67890"
+			}).Return(nil)
+
+			mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+				return nil, nil
+			}
+
+			deploymentContext, err := CreateDeploymentContext(
+				ctx,
+				mockClient,
+				agentInDefaultNamespace,
+				true,
+				logger,
+				mockDiscoverETCD,
+			)
+
+			require.NoError(t, err)
+			require.NotNil(t, deploymentContext)
+			assert.True(
+				t,
+				deploymentContext.OpenShiftETCDResourcesExist,
+				"ETCD resources should exist when POD_NAMESPACE not set and agent in default namespace",
+			)
+			mockClient.AssertExpectations(t)
+		},
+	)
+
+	t.Run(
+		"OpenShift namespace validation - POD_NAMESPACE not set with different agent namespace",
+		func(t *testing.T) {
+			// Ensure POD_NAMESPACE is not set
+			t.Setenv("POD_NAMESPACE", "")
+
+			agentInOtherNamespace := &instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-agent",
+					Namespace: "other-namespace",
+				},
+			}
+
+			mockClient := &mocks.MockInstanaAgentClient{}
+
+			mockDiscoverETCD := func(ctx context.Context, agent *instanav1.InstanaAgent) (*DiscoveredETCDTargets, error) {
+				t.Fatal("discoverETCD should not be called when namespaces differ")
+				return nil, nil
+			}
+
+			deploymentContext, err := CreateDeploymentContext(
+				ctx,
+				mockClient,
+				agentInOtherNamespace,
+				true,
+				logger,
+				mockDiscoverETCD,
+			)
+
+			require.NoError(t, err)
+			assert.Nil(
+				t,
+				deploymentContext,
+				"Should return nil when agent namespace differs from default operator namespace",
+			)
+			mockClient.AssertExpectations(t)
+		},
+	)
 }
 
 func TestGetDaemonSetBuildersReturnsFailureForZoneDaemonSetReadError(t *testing.T) {

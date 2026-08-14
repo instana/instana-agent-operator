@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -420,6 +421,23 @@ func CreateDeploymentContext(
 	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	if isOpenShift {
+		var ok bool
+		var operatorNamespace string
+		if operatorNamespace, ok = os.LookupEnv("POD_NAMESPACE"); !ok || operatorNamespace == "" {
+			operatorNamespace = "instana-agent"
+		}
+
+		if agent.Namespace != operatorNamespace {
+			logger.Info(
+				"Skipping OpenShift ETCD monitoring: agent CR namespace differs from operator namespace. "+
+					"ETCD credentials are only copied when the agent runs in the operator's own namespace.",
+				"agentNamespace",
+				agent.Namespace,
+				"operatorNamespace",
+				operatorNamespace,
+			)
+			return nil, nil
+		}
 		return setupOpenShiftETCDMonitoring(ctx, c, agent, logger), nil
 	}
 
