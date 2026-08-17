@@ -38,6 +38,7 @@ import (
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/version"
 	// +kubebuilder:scaffold:imports
 )
@@ -339,18 +340,10 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 	}
 }
 
-// cleanupLegacyAgentRBAC removes the old bare-name ClusterRole and ClusterRoleBinding
-// objects that were created before the namespace-qualified naming fix (H1-3875521).
-//
-// Prior to the fix, the operator created cluster-scoped RBAC objects keyed only by
-// the CR name (e.g. "instana-agent", "instana-agent-k8sensor"). After the fix, they
-// are keyed by namespace+name (e.g. "instana-agent-instana-agent"). On upgrade, the
-// old bare-name objects are orphaned — this function deletes them at startup so they
-// do not linger in the cluster.
-//
-// Safety check: only objects carrying the label
-// "app.kubernetes.io/managed-by=instana-agent-operator" are deleted, preventing
-// accidental deletion of any same-named objects not owned by this operator.
+// cleanupLegacyAgentRBAC removes ClusterRole/ClusterRoleBinding objects whose names were
+// derived solely from the CR name, before namespace-qualified naming was introduced.
+// Skipped when the CR namespace equals the ServiceAccount name (names are unchanged in that case).
+// Only objects owned by this operator (managed-by label) are deleted.
 func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
 	log.Info("Cleaning up legacy bare-name agent RBAC objects if present")
 
@@ -367,11 +360,6 @@ func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
 		return
 	}
 
-	// Build the set of old bare names to check.
-	// Before the fix: ClusterRole/ClusterRoleBinding name == CR name (or CR name + "-k8sensor").
-	// After the fix:  name == namespace + "-" + CR name (or + "-k8sensor").
-	// We only delete the old bare-name objects; the new namespace-qualified ones are
-	// created fresh by the reconciler.
 	type oldRBACNames struct {
 		clusterRole        string
 		clusterRoleBinding string
@@ -379,7 +367,13 @@ func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
 
 	candidates := make([]oldRBACNames, 0, len(agentList.Items)*2)
 	for _, agent := range agentList.Items {
-		saName := agent.Name // bare CR name (default ServiceAccountName when create=true)
+		h := helpers.NewHelpers(&agent)
+		saName := h.ServiceAccountName()
+
+		if agent.Namespace == saName {
+			continue
+		}
+
 		candidates = append(candidates,
 			// agent component
 			oldRBACNames{
