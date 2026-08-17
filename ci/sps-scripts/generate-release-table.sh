@@ -31,9 +31,9 @@ python3 -m pip install --quiet pytest
 python3 -m pytest "${SCRIPT_DIR}/test_generate_release_table.py" -v
 
 echo "--- Resolving tokens from SPS environment ---"
-GH_TOKEN="$(get_env git-token)"
+GH_TOKEN="$(get_secret git-token)"
 export GH_TOKEN
-GHE_TOKEN="$(get_env ghe-token)"
+GHE_TOKEN="$(get_secret ghe-token)"
 export GHE_TOKEN
 
 echo "--- Running generate-release-table.py ${RUN_ARGS[*]} ---"
