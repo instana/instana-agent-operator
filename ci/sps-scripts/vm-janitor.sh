@@ -11,7 +11,7 @@ MAX_AGE_SECONDS=$((90 * 60)) # 90 minutes in seconds
 
 # Authenticate to GCP
 echo "Authenticating to GCP..."
-echo -n "$(get_env GOOGLE_APPLICATION_CREDENTIALS_BASE64)" | base64 -d > gcp-key.json
+echo -n "$(get_secret GOOGLE_APPLICATION_CREDENTIALS_BASE64)" | base64 -d > gcp-key.json
 gcloud auth activate-service-account --key-file gcp-key.json
 gcloud config set project ${PROJECT_ID}
 
