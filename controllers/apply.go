@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/client"
 	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
@@ -421,11 +421,7 @@ func CreateDeploymentContext(
 	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	if isOpenShift {
-		var ok bool
-		var operatorNamespace string
-		if operatorNamespace, ok = os.LookupEnv("POD_NAMESPACE"); !ok || operatorNamespace == "" {
-			operatorNamespace = "instana-agent"
-		}
+		operatorNamespace := env.GetOperatorNamespace()
 
 		if agent.Namespace != operatorNamespace {
 			logger.Info(

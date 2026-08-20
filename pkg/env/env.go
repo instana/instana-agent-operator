@@ -19,14 +19,40 @@ package env
 
 import (
 	"os"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var operatorVersionEnvVarName = "OPERATOR_VERSION"
-var fallbackOperatorVersion = "v0.0.1-dev"
+var (
+	operatorVersionEnvVarName = "OPERATOR_VERSION"
+	fallbackOperatorVersion   = "v0.0.1-dev"
+	log                       = logf.Log.WithName("env")
+)
+
+var (
+	operatorNamespaceEnvVarName = "POD_NAMESPACE"
+	defaultOperatorNamespace    = "instana-agent"
+)
 
 func GetOperatorVersion() string {
 	if os.Getenv(operatorVersionEnvVarName) != "" {
 		return os.Getenv(operatorVersionEnvVarName)
 	}
 	return fallbackOperatorVersion
+}
+
+// GetOperatorNamespace returns the namespace where the operator is running.
+// It reads from POD_NAMESPACE environment variable, falling back to "instana-agent" if not set.
+func GetOperatorNamespace() string {
+	if ns := os.Getenv(operatorNamespaceEnvVarName); ns != "" {
+		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", ns)
+		return ns
+	}
+
+	log.Info(
+		"POD_NAMESPACE not set, using default namespace. "+
+			"Consider setting POD_NAMESPACE environment variable.",
+		"namespace", defaultOperatorNamespace,
+	)
+	return defaultOperatorNamespace
 }
