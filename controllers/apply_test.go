@@ -66,6 +66,7 @@ func (m *mockOperatorUtils) DeleteAll() error {
 var _ operator_utils.OperatorUtils = (*mockOperatorUtils)(nil)
 
 func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
+	t.Setenv("POD_NAMESPACE", "")
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-agent",
