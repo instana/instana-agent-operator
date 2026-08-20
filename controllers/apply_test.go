@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,7 +67,8 @@ func (m *mockOperatorUtils) DeleteAll() error {
 var _ operator_utils.OperatorUtils = (*mockOperatorUtils)(nil)
 
 func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
-	t.Setenv("POD_NAMESPACE", "")
+	t.Setenv("POD_NAMESPACE", "anything")
+	_ = os.Unsetenv("POD_NAMESPACE")
 	agent := &instanav1.InstanaAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-agent",
@@ -387,7 +389,8 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		"OpenShift namespace validation - POD_NAMESPACE not set uses default",
 		func(t *testing.T) {
 			// Ensure POD_NAMESPACE is not set
-			t.Setenv("POD_NAMESPACE", "")
+			t.Setenv("POD_NAMESPACE", "anything")
+			_ = os.Unsetenv("POD_NAMESPACE")
 
 			agentInDefaultNamespace := &instanav1.InstanaAgent{
 				ObjectMeta: metav1.ObjectMeta{
