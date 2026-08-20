@@ -464,7 +464,8 @@ func TestCreateDeploymentContext_SimplifiedTests(t *testing.T) {
 		"OpenShift namespace validation - POD_NAMESPACE not set with different agent namespace",
 		func(t *testing.T) {
 			// Ensure POD_NAMESPACE is not set
-			t.Setenv("POD_NAMESPACE", "")
+			t.Setenv("POD_NAMESPACE", "anything")
+			_ = os.Unsetenv("POD_NAMESPACE")
 
 			agentInOtherNamespace := &instanav1.InstanaAgent{
 				ObjectMeta: metav1.ObjectMeta{
