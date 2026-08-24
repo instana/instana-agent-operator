@@ -45,14 +45,7 @@ func GetOperatorVersion() string {
 // It reads from POD_NAMESPACE environment variable, falling back to "instana-agent" if not set.
 func GetOperatorNamespace() string {
 	if ns := os.Getenv(operatorNamespaceEnvVarName); ns != "" {
-		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", ns)
 		return ns
 	}
-
-	log.Info(
-		"POD_NAMESPACE not set, using default namespace. "+
-			"Consider setting POD_NAMESPACE environment variable.",
-		"namespace", defaultOperatorNamespace,
-	)
 	return defaultOperatorNamespace
 }
