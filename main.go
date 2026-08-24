@@ -46,10 +46,6 @@ import (
 var (
 	scheme = k8sruntime.NewScheme()
 	log    = logf.Log.WithName("main")
-
-	// defaultOperatorNamespace is the default namespace for the operator
-	// This matches the namespace configured in config/default/kustomization.yaml
-	defaultOperatorNamespace = "instana-agent"
 )
 
 func init() {
@@ -142,16 +138,7 @@ func main() {
 	instanaclient.ConfigureWarningHandler(cfg)
 
 	// Get the namespace where the operator is running for leader election
-	// Prefer POD_NAMESPACE environment variable, fallback to default
 	operatorNamespace := env.GetOperatorNamespace()
-	if operatorNamespace == defaultOperatorNamespace {
-		log.Info(
-			"POD_NAMESPACE not set, using default namespace. "+
-				"Consider setting POD_NAMESPACE environment variable.",
-			"namespace", operatorNamespace,
-		)
-	} else {
-	}
 
 	// Configure cache to watch only resources managed by this operator using label selectors
 	// This reduces memory usage while allowing the operator to work across namespaces
