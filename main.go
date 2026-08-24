@@ -139,6 +139,7 @@ func main() {
 
 	// Get the namespace where the operator is running for leader election
 	operatorNamespace := env.GetOperatorNamespace()
+	log.Info("Leader election namespace set", "namespace", operatorNamespace)
 
 	// Configure cache to watch only resources managed by this operator using label selectors
 	// This reduces memory usage while allowing the operator to work across namespaces
