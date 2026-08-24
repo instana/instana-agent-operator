@@ -28,7 +28,7 @@
         "/^Makefile$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "(?<currentValue>v\\d+\\.\\d+\\.\\d+)[^\\n]*# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)(?:\\s|$)"
       ],
       "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       "versioningTemplate": "semver"
