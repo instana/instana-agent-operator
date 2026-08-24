@@ -51,12 +51,12 @@ func (c *clusterRoleBindingBuilder) Build() optional.Optional[client.Object] {
 				Kind:       "ClusterRoleBinding",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.ServiceAccountName(),
+				Name: c.ClusterScopedRBACName(),
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: rbacApiGroup,
 				Kind:     roleKind,
-				Name:     c.ServiceAccountName(),
+				Name:     c.ClusterScopedRBACName(),
 			},
 			Subjects: []rbacv1.Subject{
 				{

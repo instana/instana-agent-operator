@@ -1,3 +1,19 @@
+/*
+(c) Copyright IBM Corp. 2026
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package helpers
 
 import (
@@ -359,5 +375,70 @@ func TestHelpers_UseContainersSecret(t *testing.T) {
 				assertions.Equal(expectedSecrets, actualSecrets)
 			},
 		)
+	}
+}
+
+func TestHelpers_ClusterScopedRBACNames(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		namespace     string
+		crName        string
+		saName        string
+		wantRBAC      string
+		wantK8sSensor string
+	}{
+		{
+			name:          "namespace_equals_sa_name_no_prefix",
+			namespace:     "instana-agent",
+			crName:        "instana-agent",
+			wantRBAC:      "instana-agent",
+			wantK8sSensor: "instana-agent-k8sensor",
+		},
+		{
+			name:          "namespace_differs_from_sa_name_prefix_added",
+			namespace:     "tenant-a",
+			crName:        "instana-agent",
+			wantRBAC:      "tenant-a-instana-agent",
+			wantK8sSensor: "tenant-a-instana-agent-k8sensor",
+		},
+		{
+			name:          "explicit_sa_name_equals_namespace_no_prefix",
+			namespace:     "my-ns",
+			crName:        "some-agent",
+			saName:        "my-ns",
+			wantRBAC:      "my-ns",
+			wantK8sSensor: "some-agent-k8sensor",
+		},
+		{
+			name:          "explicit_sa_name_differs_from_namespace_prefix_added",
+			namespace:     "my-ns",
+			crName:        "some-agent",
+			saName:        "other-sa",
+			wantRBAC:      "my-ns-other-sa",
+			wantK8sSensor: "my-ns-some-agent-k8sensor",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assertions := require.New(t)
+			spec := instanav1.InstanaAgentSpec{
+				ServiceAccountSpec: instanav1.ServiceAccountSpec{
+					Create: instanav1.Create{
+						Create: pointer.To(true),
+					},
+				},
+			}
+			if tt.saName != "" {
+				spec.ServiceAccountSpec.Name = instanav1.Name{Name: tt.saName}
+			}
+			h := NewHelpers(&instanav1.InstanaAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      tt.crName,
+					Namespace: tt.namespace,
+				},
+				Spec: spec,
+			})
+			assertions.Equal(tt.wantRBAC, h.ClusterScopedRBACName())
+			assertions.Equal(tt.wantK8sSensor, h.ClusterScopedK8sSensorRBACName())
+		})
 	}
 }
