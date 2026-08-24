@@ -95,7 +95,7 @@ gcloud compute instances create ${VM_NAME} \
   --project=${PROJECT_ID} \
   --zone=${ZONE} \
   --machine-type=e2-standard-4 \
-  --image=projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2404-noble-amd64-v20251002 \
+  --image=projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2604-resolute-amd64-v20260723 \
   --labels="purpose=e2e-testing,creation-time=$(date +%s),max-lifetime=90m" \
   --metadata="startup-script=#!/bin/bash
     # Install k3s with tls-san to include the external IP in the certificate
