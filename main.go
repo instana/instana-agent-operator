@@ -360,12 +360,10 @@ func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
 		return
 	}
 
-	type oldRBACNames struct {
-		clusterRole        string
-		clusterRoleBinding string
-	}
-
-	candidates := make([]oldRBACNames, 0, len(agentList.Items)*2)
+	// Use a set to deduplicate names: multiple CRs in different namespaces can share
+	// the same ServiceAccount name, which would produce identical legacy RBAC names
+	// and cause redundant Get+Delete attempts on already-deleted objects.
+	seen := make(map[string]struct{})
 	for _, agent := range agentList.Items {
 		h := helpers.NewHelpers(&agent)
 		saName := h.ServiceAccountName()
@@ -374,59 +372,42 @@ func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
 			continue
 		}
 
-		candidates = append(candidates,
-			// agent component
-			oldRBACNames{
-				clusterRole:        saName,
-				clusterRoleBinding: saName,
-			},
-			// k8s-sensor component
-			oldRBACNames{
-				clusterRole:        saName + "-k8sensor",
-				clusterRoleBinding: saName + "-k8sensor",
-			},
-		)
+		seen[saName] = struct{}{}
+		seen[saName+"-k8sensor"] = struct{}{}
 	}
 
-	for _, names := range candidates {
+	for name := range seen {
 		// --- ClusterRole ---
 		oldCR := &rbacv1.ClusterRole{}
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: names.clusterRole}, oldCR); err != nil {
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, oldCR); err != nil {
 			if !errors.IsNotFound(err) {
-				log.Error(err, "Failed to get legacy ClusterRole", "name", names.clusterRole)
+				log.Error(err, "Failed to get legacy ClusterRole", "name", name)
 			}
 		} else if oldCR.Labels[managedByLabel] != managedByValue {
-			log.Info("ClusterRole found but not managed by this operator, skipping",
-				"name", names.clusterRole)
+			log.Info("ClusterRole found but not managed by this operator, skipping", "name", name)
 		} else {
-			log.Info("Deleting legacy ClusterRole", "name", names.clusterRole)
-			if err := k8sClient.Delete(ctx, oldCR); err != nil && !errors.IsNotFound(err) {
-				log.Error(err, "Failed to delete legacy ClusterRole", "name", names.clusterRole)
+			log.Info("Deleting legacy ClusterRole", "name", name)
+			if err := k8sClient.Delete(ctx, oldCR); err != nil {
+				log.Error(err, "Failed to delete legacy ClusterRole", "name", name)
 			} else {
-				log.Info("Successfully deleted legacy ClusterRole", "name", names.clusterRole)
+				log.Info("Successfully deleted legacy ClusterRole", "name", name)
 			}
 		}
 
 		// --- ClusterRoleBinding ---
 		oldCRB := &rbacv1.ClusterRoleBinding{}
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: names.clusterRoleBinding}, oldCRB); err != nil {
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, oldCRB); err != nil {
 			if !errors.IsNotFound(err) {
-				log.Error(
-					err,
-					"Failed to get legacy ClusterRoleBinding",
-					"name",
-					names.clusterRoleBinding,
-				)
+				log.Error(err, "Failed to get legacy ClusterRoleBinding", "name", name)
 			}
 		} else if oldCRB.Labels[managedByLabel] != managedByValue {
-			log.Info("ClusterRoleBinding found but not managed by this operator, skipping",
-				"name", names.clusterRoleBinding)
+			log.Info("ClusterRoleBinding found but not managed by this operator, skipping", "name", name)
 		} else {
-			log.Info("Deleting legacy ClusterRoleBinding", "name", names.clusterRoleBinding)
-			if err := k8sClient.Delete(ctx, oldCRB); err != nil && !errors.IsNotFound(err) {
-				log.Error(err, "Failed to delete legacy ClusterRoleBinding", "name", names.clusterRoleBinding)
+			log.Info("Deleting legacy ClusterRoleBinding", "name", name)
+			if err := k8sClient.Delete(ctx, oldCRB); err != nil {
+				log.Error(err, "Failed to delete legacy ClusterRoleBinding", "name", name)
 			} else {
-				log.Info("Successfully deleted legacy ClusterRoleBinding", "name", names.clusterRoleBinding)
+				log.Info("Successfully deleted legacy ClusterRoleBinding", "name", name)
 			}
 		}
 	}
