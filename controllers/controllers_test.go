@@ -183,7 +183,7 @@ var (
 			Kind:    "ClusterRole",
 		},
 		key: client.ObjectKey{
-			Name:      agentNamespace.Name + "-k8sensor",
+			Name:      agentNamespace.Namespace + "-" + agentNamespace.Name + "-k8sensor",
 			Namespace: agentNamespace.Namespace,
 		},
 	}
@@ -194,7 +194,7 @@ var (
 			Kind:    "ClusterRoleBinding",
 		},
 		key: client.ObjectKey{
-			Name:      agentNamespace.Name + "-k8sensor",
+			Name:      agentNamespace.Namespace + "-" + agentNamespace.Name + "-k8sensor",
 			Namespace: agentNamespace.Namespace,
 		},
 	}

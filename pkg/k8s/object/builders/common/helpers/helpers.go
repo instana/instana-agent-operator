@@ -26,6 +26,10 @@ type helpers struct {
 
 type Helpers interface {
 	ServiceAccountName() string
+	// ClusterScopedRBACName returns a cluster-unique name for the agent ClusterRole and ClusterRoleBinding.
+	ClusterScopedRBACName() string
+	// ClusterScopedK8sSensorRBACName returns a cluster-unique name for the k8s-sensor ClusterRole and ClusterRoleBinding.
+	ClusterScopedK8sSensorRBACName() string
 	TLSIsEnabled() bool
 	TLSSecretName() string
 	HeadlessServiceName() string
@@ -47,6 +51,26 @@ func (h *helpers) serviceAccountNameDefault() string {
 
 func (h *helpers) ServiceAccountName() string {
 	return optional.Of(h.Spec.ServiceAccountSpec.Name.Name).GetOrDefault(h.serviceAccountNameDefault())
+}
+
+// ClusterScopedRBACName returns a cluster-unique name for the agent ClusterRole and ClusterRoleBinding.
+// Namespace is prepended unless it equals the ServiceAccount name (default single-tenant install).
+func (h *helpers) ClusterScopedRBACName() string {
+	saName := h.ServiceAccountName()
+	if h.Namespace == saName {
+		return saName
+	}
+	return h.Namespace + "-" + saName
+}
+
+// ClusterScopedK8sSensorRBACName returns a cluster-unique name for the k8s-sensor ClusterRole and ClusterRoleBinding.
+// Namespace is prepended unless it equals the ServiceAccount name (default single-tenant install).
+func (h *helpers) ClusterScopedK8sSensorRBACName() string {
+	k8sName := h.K8sSensorResourcesName()
+	if h.Namespace == h.ServiceAccountName() {
+		return k8sName
+	}
+	return h.Namespace + "-" + k8sName
 }
 
 func (h *helpers) TLSIsEnabled() bool {

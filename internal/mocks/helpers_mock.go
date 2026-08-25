@@ -31,6 +31,16 @@ func (m *MockHelpers) ServiceAccountName() string {
 	return args.String(0)
 }
 
+func (m *MockHelpers) ClusterScopedRBACName() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *MockHelpers) ClusterScopedK8sSensorRBACName() string {
+	args := m.Called()
+	return args.String(0)
+}
+
 func (m *MockHelpers) TLSIsEnabled() bool {
 	args := m.Called()
 	return args.Bool(0)

@@ -51,7 +51,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				Kind:       roleKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.ServiceAccountName(),
+				Name: c.ClusterScopedRBACName(),
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
