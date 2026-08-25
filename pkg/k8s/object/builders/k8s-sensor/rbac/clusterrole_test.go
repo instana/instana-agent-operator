@@ -43,7 +43,7 @@ func TestClusterRoleBuilder_IsNamespaced_ComponentName(t *testing.T) {
 func TestClusterRoleBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
 
-	sensorResourcesName := rand.String(10)
+	clusterScopedName := rand.String(10)
 
 	expected := optional.Of[client.Object](
 		&rbacv1.ClusterRole{
@@ -52,7 +52,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 				Kind:       "ClusterRole",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: sensorResourcesName,
+				Name: clusterScopedName,
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
@@ -134,7 +134,7 @@ func TestClusterRoleBuilder_Build(t *testing.T) {
 
 	helpers := &mocks.MockHelpers{}
 	defer helpers.AssertExpectations(t)
-	helpers.On("K8sSensorResourcesName").Return(sensorResourcesName).Once()
+	helpers.On("ClusterScopedK8sSensorRBACName").Return(clusterScopedName).Once()
 
 	cb := &clusterRoleBuilder{
 		Helpers: helpers,

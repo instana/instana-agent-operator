@@ -101,6 +101,16 @@ func (m *MockHelpers) UseContainersSecret() bool {
 	return args.Bool(0)
 }
 
+func (m *MockHelpers) ClusterScopedRBACName() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *MockHelpers) ClusterScopedK8sSensorRBACName() string {
+	args := m.Called()
+	return args.String(0)
+}
+
 type MockEnvBuilder struct {
 	mock.Mock
 }

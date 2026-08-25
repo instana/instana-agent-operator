@@ -30,9 +30,9 @@ PREV_VERSION ?= 0.0.0
 # Tool versions
 CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
 KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
-GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+GOLANGCI_LINT_VERSION ?= v2.13.1 # renovate: datasource=github-releases depName=golangci/golangci-lint
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
-BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
+BUILDKIT_IMAGE_TAG ?= v0.32.2 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
 BUILDCTL_VERSION = $(shell echo $(BUILDKIT_IMAGE_TAG) | sed -E 's/v([0-9]+\.[0-9]+)\.[0-9]+.*/v\1/')
 

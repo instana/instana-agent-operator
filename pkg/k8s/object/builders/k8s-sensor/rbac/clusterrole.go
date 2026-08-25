@@ -50,7 +50,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				Kind:       roleKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.K8sSensorResourcesName(),
+				Name: c.ClusterScopedK8sSensorRBACName(),
 			},
 			Rules: []rbacv1.PolicyRule{
 				{

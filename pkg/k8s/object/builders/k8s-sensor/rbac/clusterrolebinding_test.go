@@ -44,7 +44,8 @@ func TestClusterRoleBindingBuilder_IsNamespaced_ComponentName(t *testing.T) {
 func TestClusterRoleBindingBuilder_Build(t *testing.T) {
 	assertions := require.New(t)
 
-	sensorResourcesName := rand.String(10)
+	clusterScopedName := rand.String(10)
+	k8sSensorName := rand.String(10)
 	namespace := rand.String(10)
 
 	agent := &instanav1.InstanaAgent{
@@ -60,17 +61,17 @@ func TestClusterRoleBindingBuilder_Build(t *testing.T) {
 				Kind:       "ClusterRoleBinding",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: sensorResourcesName,
+				Name: clusterScopedName,
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "ClusterRole",
-				Name:     sensorResourcesName,
+				Name:     clusterScopedName,
 			},
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      "ServiceAccount",
-					Name:      sensorResourcesName,
+					Name:      k8sSensorName,
 					Namespace: namespace,
 				},
 			},
@@ -79,7 +80,8 @@ func TestClusterRoleBindingBuilder_Build(t *testing.T) {
 
 	helpers := &mocks.MockHelpers{}
 	defer helpers.AssertExpectations(t)
-	helpers.On("K8sSensorResourcesName").Return(sensorResourcesName).Times(3)
+	helpers.On("ClusterScopedK8sSensorRBACName").Return(clusterScopedName).Times(2)
+	helpers.On("K8sSensorResourcesName").Return(k8sSensorName).Once()
 
 	crb := &clusterRoleBindingBuilder{
 		InstanaAgent: agent,
