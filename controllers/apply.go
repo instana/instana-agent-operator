@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/client"
 	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
@@ -247,6 +248,17 @@ func copyETCDResourcesToNamespace(
 	sourceSecret *corev1.Secret,
 	logger logr.Logger,
 ) bool {
+	if operatorNamespace := env.GetOperatorNamespace(); agent.Namespace != operatorNamespace {
+		logger.Info(
+			"Forbidden: agent CR namespace differs from operator namespace. "+
+				"ETCD credentials are only copied when the agent runs in the operator's own namespace.",
+			"agentNamespace",
+			agent.Namespace,
+			"operatorNamespace",
+			operatorNamespace,
+		)
+		return false
+	}
 	// Copy ETCD ConfigMap to instana-agent namespace with synchronization tracking
 	targetCAConfigMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -420,6 +432,17 @@ func CreateDeploymentContext(
 	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	if isOpenShift {
+		if operatorNamespace := env.GetOperatorNamespace(); agent.Namespace != operatorNamespace {
+			logger.Info(
+				"Skipping OpenShift ETCD monitoring: agent CR namespace differs from operator namespace. "+
+					"ETCD credentials are only copied when the agent runs in the operator's own namespace.",
+				"agentNamespace",
+				agent.Namespace,
+				"operatorNamespace",
+				operatorNamespace,
+			)
+			return nil, nil
+		}
 		return setupOpenShiftETCDMonitoring(ctx, c, agent, logger), nil
 	}
 
