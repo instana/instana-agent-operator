@@ -33,6 +33,10 @@ import (
 
 const componentName = constants.ComponentK8Sensor
 
+// k8sensorUID is the numeric UID of the "k8sensor" user in the k8sensor image.
+// Used for both RunAsUser and FSGroup so that the two values cannot diverge.
+const k8sensorUID = int64(1000)
+
 // DeploymentContext holds additional context for the deployment.
 // The k8sensor discovers the etcd endpoints itself, so the operator only has to tell
 // it where the CA lives, it does not pass the endpoints in.
@@ -318,15 +322,15 @@ func (d *deploymentBuilder) build() *appsv1.Deployment {
 							// numeric UID the kubelet rejects the pod because it cannot resolve the
 							// symbolic username "k8sensor" from /etc/passwd at admission time.
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:    pointer.To(int64(1000)),
+								RunAsUser:    pointer.To(k8sensorUID),
 								RunAsNonRoot: pointer.To(true),
 							},
 						},
 					},
-					// k8sensor is run as a "k8sensor" user (i.e: uid 1000), and thus reading the files from the secret volume
-					// requires setting FSGroup to 1000
+					// k8sensor runs as k8sensorUID; FSGroup must match so the secret volume
+					// files are readable by the k8sensor process.
 					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup: pointer.To(int64(1000)),
+						FSGroup: pointer.To(k8sensorUID),
 					},
 					Volumes:     volumes,
 					Tolerations: d.Spec.K8sSensor.DeploymentSpec.Pod.Tolerations,
