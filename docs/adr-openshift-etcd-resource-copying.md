@@ -10,7 +10,9 @@ The Instana Agent operator needs to monitor OpenShift ETCD metrics to provide co
 1. **CA Certificate**: Located in `openshift-etcd/etcd-metrics-ca-bundle` ConfigMap
 2. **Client Certificates**: Located in `openshift-etcd/etcd-metric-client` Secret
 
-The k8sensor Deployment runs in the `instana-agent` namespace and needs access to these credentials to collect ETCD metrics.
+The k8sensor Deployment runs in the same namespace as the InstanaAgent CR (typically `instana-agent`) and needs access to these credentials to collect ETCD metrics.
+
+**Important:** On OpenShift, ETCD monitoring is only enabled when the InstanaAgent CR is deployed in the same namespace as the operator. If the CR is in a different namespace, the operator will not copy ETCD credentials and ETCD monitoring will be disabled.
 
 ### Problem
 
@@ -18,7 +20,7 @@ Kubernetes does not support cross-namespace volume mounts for ConfigMaps and Sec
 
 ## Decision
 
-**We copy the required ETCD ConfigMap and Secret from `openshift-etcd` namespace to `instana-agent` namespace during operator reconciliation.**
+**We copy the required ETCD ConfigMap and Secret from `openshift-etcd` namespace to the InstanaAgent CR's namespace during operator reconciliation.**
 
 The operator (not the k8sensor pod) performs this copying using its existing cluster-level permissions. The copied resources are:
 - Tracked with labels and annotations for proper lifecycle management
@@ -39,6 +41,7 @@ The operator (not the k8sensor pod) performs this copying using its existing clu
   - openshift-etcd is a critical system namespace
   - Mixing application workloads with system components is an anti-pattern
   - Complicates RBAC and security policies
+  - Would prevent users from deploying the agent in custom namespaces
 
 ### 3. Init Container to Fetch Credentials
 **Status**: Rejected - Adds Complexity and Security Risk
@@ -71,6 +74,7 @@ The operator (not the k8sensor pod) performs this copying using its existing clu
 ✅ **Standard Kubernetes Pattern**: Resource copying is a common operator pattern
 ✅ **Automated Sync**: Operator handles certificate rotation automatically
 ✅ **Clean Lifecycle**: Resources are garbage-collected with the InstanaAgent CR
+✅ **Flexible Deployment**: Supports InstanaAgent CR in any namespace, not just `instana-agent`
 
 ### Cons
 ⚠️ **Resource Duplication**: ConfigMap and Secret exist in two namespaces
@@ -124,7 +128,7 @@ When ETCD resources don't exist or InstanaAgent is deleted:
 ### Security Model
 
 - **Operator**: Has ClusterRole with `configmaps` and `secrets` GET/CREATE/UPDATE/DELETE across all namespaces
-- **k8sensor Pod**: Has NO cross-namespace permissions. Can only read resources in `instana-agent` namespace
+- **k8sensor Pod**: Has NO cross-namespace permissions. Can only read resources in its own namespace (the InstanaAgent CR's namespace)
 - **Principle of Least Privilege**: The component doing the work (k8sensor) has minimal permissions
 
 ## Consequences

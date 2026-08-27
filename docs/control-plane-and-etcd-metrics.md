@@ -15,11 +15,13 @@ and the optional ETCD metrics collection across different Kubernetes distributio
 
 On OpenShift clusters, the operator automatically configures ETCD metrics collection:
 
+**Important:** ETCD monitoring is only enabled when the InstanaAgent CR is deployed in the same namespace as the operator. If the CR is in a different namespace, the operator will not copy ETCD credentials and ETCD monitoring will be disabled.
+
 1. **Discovers OpenShift ETCD resources**:
    - Checks for `etcd-metrics-ca-bundle` ConfigMap in `openshift-etcd` namespace
    - Checks for `etcd-metric-client` Secret in `openshift-etcd` namespace
 
-2. **Copies ETCD credentials** to `instana-agent` namespace:
+2. **Copies ETCD credentials** to the InstanaAgent CR's namespace (typically `instana-agent`):
    - ConfigMap: `etcd-metrics-ca-bundle` (contains CA certificates)
    - Secret: `etcd-metric-client` (contains mTLS client certificates) <!-- pragma: allowlist secret -->
    - See [ADR: OpenShift ETCD Resource Copying](./adr-openshift-etcd-resource-copying.md) for architectural details
@@ -40,11 +42,12 @@ On OpenShift clusters, the operator automatically configures ETCD metrics collec
 
 ### Why Resource Copying?
 
-Kubernetes does not support cross-namespace volume mounts. Since k8sensor runs in `instana-agent` namespace but ETCD credentials exist in `openshift-etcd` namespace, the operator copies these resources during reconciliation. This approach:
+Kubernetes does not support cross-namespace volume mounts. Since k8sensor runs in the same namespace as the InstanaAgent CR (which may be any namespace, not just `instana-agent`) but ETCD credentials exist in `openshift-etcd` namespace, the operator copies these resources during reconciliation. This approach:
 - ✅ Maintains namespace isolation and security
 - ✅ Gives k8sensor only local namespace permissions
 - ✅ Leverages operator's existing cluster-level permissions
 - ✅ Handles certificate rotation automatically
+- ✅ Supports flexible namespace deployment (agent can be installed in any namespace)
 
 ## K3s Clusters
 
@@ -202,8 +205,8 @@ does not pass the endpoints in.
 
 - **No ETCD metrics appearing**: Ensure the ETCD service exists in `kube-system` namespace with proper labels
 - **TLS connection errors**: Verify CA certificates are properly mounted
-- **Timeout errors**: Check network connectivity between the k8sensor and the ETCD endpoints
-- **k8sensor pod fails with "configmap 'etcd-ca-bundle' not found"**: This occurs on OpenShift when ETCD monitoring resources are missing from the `openshift-etcd` namespace. The operator will log "OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled" but the pod should start successfully without ETCD monitoring. If the pod fails to start, this indicates the source ETCD resources (`etcd-metrics-ca-bundle` ConfigMap and `etcd-metric-client` Secret) need to be restored in the `openshift-etcd` namespace, or you can create empty placeholder resources in the `instana-agent` namespace as a temporary workaround.
+- **Timeout errors**: Check network connectivity and consider adjusting `ETCD_REQUEST_TIMEOUT`
+- **k8sensor pod fails with "configmap 'etcd-ca-bundle' not found"**: This occurs on OpenShift when ETCD monitoring resources are missing from the `openshift-etcd` namespace. The operator will log "OpenShift ETCD CA bundle not found, ETCD monitoring will be disabled" but the pod should start successfully without ETCD monitoring. If the pod fails to start, this indicates the source ETCD resources (`etcd-metrics-ca-bundle` ConfigMap and `etcd-metric-client` Secret) need to be restored in the `openshift-etcd` namespace, or you can create empty placeholder resources in the InstanaAgent CR's namespace as a temporary workaround.
 
 ### Debugging
 

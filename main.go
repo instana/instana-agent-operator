@@ -37,6 +37,7 @@ import (
 
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/version"
@@ -46,10 +47,6 @@ import (
 var (
 	scheme = k8sruntime.NewScheme()
 	log    = logf.Log.WithName("main")
-
-	// defaultOperatorNamespace is the default namespace for the operator
-	// This matches the namespace configured in config/default/kustomization.yaml
-	defaultOperatorNamespace = "instana-agent"
 )
 
 func init() {
@@ -152,18 +149,8 @@ func main() {
 	instanaclient.ConfigureWarningHandler(cfg)
 
 	// Get the namespace where the operator is running for leader election
-	// Prefer POD_NAMESPACE environment variable, fallback to default
-	operatorNamespace := os.Getenv("POD_NAMESPACE")
-	if operatorNamespace == "" {
-		operatorNamespace = defaultOperatorNamespace
-		log.Info(
-			"POD_NAMESPACE not set, using default namespace. "+
-				"Consider setting POD_NAMESPACE environment variable.",
-			"namespace", operatorNamespace,
-		)
-	} else {
-		log.Info("Leader election namespace set from POD_NAMESPACE", "namespace", operatorNamespace)
-	}
+	operatorNamespace := env.GetOperatorNamespace()
+	log.Info("Leader election namespace set", "namespace", operatorNamespace)
 
 	// Configure cache to watch only resources managed by this operator using label selectors
 	// This reduces memory usage while allowing the operator to work across namespaces
@@ -216,7 +203,7 @@ func main() {
 	// controller-manager only runs controllers/runnables after getting the lock
 	// we do the cleanup beforehand so our new deployment gets the lock
 	log.Info("Deleting the controller-manager deployment and RBAC if it's present")
-	//we need a new client because we have to delete old resources before starting the new manager
+	// we need a new client because we have to delete old resources before starting the new manager
 	if client, err := k8sClient.New(cfg, k8sClient.Options{
 		Scheme: scheme,
 	}); err != nil {

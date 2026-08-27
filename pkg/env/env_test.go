@@ -33,3 +33,14 @@ func TestGetOperatorVersion(t *testing.T) {
 	assertions.Equal(GetOperatorVersion(), "test")
 
 }
+
+func TestGetOperatorNamespace(t *testing.T) {
+	assertions := require.New(t)
+
+	// Clear any existing value
+	assertions.NoError(os.Unsetenv(operatorNamespaceEnvVarName))
+	assertions.Equal(defaultOperatorNamespace, GetOperatorNamespace())
+
+	assertions.NoError(os.Setenv(operatorNamespaceEnvVarName, "custom-namespace"))
+	assertions.Equal("custom-namespace", GetOperatorNamespace())
+}
