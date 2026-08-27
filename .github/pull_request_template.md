@@ -27,7 +27,6 @@ For any larger changes this should include design choices.
 <!-- Please tick of these checklist items if applicable (or remove if not applicable). -->
 
 - [ ] Backwards compatible?
-- [ ] [Release notes](https://github.ibm.com/instana/docs/blob/main/src/pages/releases/agent_operator_notes/index.md) in public docs updated?
 - [ ] unit/e2e test coverage added or updated?
 
 

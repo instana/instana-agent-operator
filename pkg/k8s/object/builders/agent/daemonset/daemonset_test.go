@@ -164,6 +164,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.DownloadKeyEnv,
 		env.InstanaAgentPodNameEnv,
 		env.PodIPEnv,
+		env.NodeNameEnv,
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
 		env.NamespacesDetailsPathEnv,
@@ -224,6 +225,7 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 	envBuilder := &mocks.MockEnvBuilder{}
 	defer envBuilder.AssertExpectations(t)
 	envBuilder.On("Build",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
@@ -357,7 +359,7 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 			defer volumeBuilder.AssertExpectations(t)
 
 			// Create the base volumes list
-			baseVolumes := []interface{}{
+			baseVolumes := []any{
 				volume.DevVolume,
 				volume.RunVolume,
 				volume.VarRunVolume,
@@ -366,7 +368,7 @@ func TestDaemonSetBuilder_getVolumes(t *testing.T) {
 				volume.VarContainerdConfigVolume,
 				volume.SysVolume,
 				volume.VarLogVolume,
-				//volume.VarLibVolume,(Removed as part of CSP)
+				volume.VarLibInstanaVolume,
 				volume.VarDataVolume,
 				volume.MachineIdVolume,
 				volume.ConfigVolume,
@@ -446,7 +448,7 @@ func TestDaemonSetBuilder_getUserVolumes(t *testing.T) {
 func TestDaemonSetBuilder_IsNamespaced_ComponentName(t *testing.T) {
 	assertions := assert.New(t)
 
-	dsBuilder := NewDaemonSetBuilder(&instanav1.InstanaAgent{}, false, nil)
+	dsBuilder := NewDaemonSetBuilder(&instanav1.InstanaAgent{}, false, nil, false)
 
 	assertions.True(dsBuilder.IsNamespaced())
 	assertions.Equal(constants.ComponentInstanaAgent, dsBuilder.ComponentName())
@@ -607,7 +609,7 @@ func TestDaemonSetBuilder_Build(t *testing.T) {
 					status.On("AddAgentDaemonset", mock.Anything)
 				}
 
-				dsBuilder := NewDaemonSetBuilder(test.agent, false, status)
+				dsBuilder := NewDaemonSetBuilder(test.agent, false, status, false)
 
 				result := dsBuilder.Build()
 				assertions.Equal(test.expectPresent, result.IsPresent())
@@ -642,7 +644,7 @@ func TestGetLivenessProbe_DefaultValues(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()
@@ -705,7 +707,7 @@ func TestGetLivenessProbe_CustomValues(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()
@@ -766,7 +768,7 @@ func TestGetLivenessProbe_PartialCustomValues(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()
@@ -822,7 +824,7 @@ func TestGetLivenessProbe_TCPSocket(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()
@@ -881,7 +883,7 @@ func TestGetLivenessProbe_ExecAction(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()
@@ -944,7 +946,7 @@ func TestBuild_LivenessProbeInDaemonSet(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Build the DaemonSet
 	ds := builder.build()
@@ -987,7 +989,7 @@ func TestBuild_DefaultLivenessProbeInDaemonSet(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Build the DaemonSet
 	ds := builder.build()
@@ -1033,7 +1035,7 @@ func TestGetLivenessProbe_NilPointer(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()
@@ -1090,7 +1092,7 @@ func TestGetLivenessProbe_WithSuccessThreshold(t *testing.T) {
 	mockClient := &mocks.MockInstanaAgentClient{}
 	eventRecorder := record.NewFakeRecorder(10)
 	statusManager := status.NewAgentStatusManager(mockClient, eventRecorder)
-	builder := NewDaemonSetBuilder(agent, false, statusManager).(*daemonSetBuilder)
+	builder := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
 
 	// Get the liveness probe
 	probe := builder.getLivenessProbe()

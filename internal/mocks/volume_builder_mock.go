@@ -32,7 +32,7 @@ func (m *MockVolumeBuilder) Build(
 	volumes ...volume.Volume,
 ) ([]corev1.Volume, []corev1.VolumeMount) {
 	// Convert variadic args to []interface{} for the mock framework
-	args := make([]interface{}, len(volumes))
+	args := make([]any, len(volumes))
 	for i, v := range volumes {
 		args[i] = v
 	}

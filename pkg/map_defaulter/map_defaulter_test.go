@@ -1,3 +1,8 @@
+/*
+ * (c) Copyright IBM Corp. 2024, 2026
+ * (c) Copyright Instana Inc. 2024, 2026
+ */
+
 package map_defaulter
 
 import (
@@ -9,10 +14,10 @@ import (
 func TestMapDefaulter_SetIfEmpty(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		input    map[string]interface{}
+		input    map[string]any
 		key      string
-		value    interface{}
-		expected interface{}
+		value    any
+		expected any
 	}{
 		{
 			name:     "sets_default",
@@ -23,7 +28,7 @@ func TestMapDefaulter_SetIfEmpty(t *testing.T) {
 		},
 		{
 			name:     "already_set",
-			input:    map[string]interface{}{"hello": "goodbye"},
+			input:    map[string]any{"hello": "goodbye"},
 			key:      "hello",
 			value:    "world",
 			expected: "goodbye",

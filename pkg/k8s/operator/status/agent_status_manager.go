@@ -239,10 +239,17 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 		Message:            "",
 	}
 
+	// Check if k8sensor is explicitly disabled
+	if !pointer.DerefOrDefault(a.agentOld.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled, true) {
+		// k8sensor is disabled, skip this condition entirely by returning a failure result
+		// We use a sentinel error to indicate this is intentionally skipped, not an actual error
+		return result.OfFailure[metav1.Condition](fmt.Errorf("k8sensor is disabled"))
+	}
+
 	if objectKeyHasNoName(a.k8sSensorDeployment) {
 		condition.Status = metav1.ConditionUnknown
-		condition.Reason = "K8sSensorDeploymentNotConfigured"
-		condition.Message = "K8sSensor deployment has not been configured for this agent"
+		condition.Reason = "K8sensorDeploymentNotConfigured"
+		condition.Message = "k8sensor deployment has not been configured for this agent"
 		return result.OfSuccess(condition)
 	}
 
@@ -252,9 +259,9 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 		_, err := res.Get()
 
 		condition.Status = metav1.ConditionUnknown
-		condition.Reason = "K8sSensorDeploymentInfoUnavailable"
+		condition.Reason = "K8sensorDeploymentInfoUnavailable"
 		msg := fmt.Sprintf(
-			"failed to retrieve status of K8sSensor Deployment: %s due to error: %s",
+			"failed to retrieve status of k8sensor deployment: %s due to error: %s",
 			a.k8sSensorDeployment.Name,
 			err.Error(),
 		)
@@ -267,12 +274,12 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	switch deploymentIsAvailableAndComplete(deployment) {
 	case true:
 		condition.Status = metav1.ConditionTrue
-		condition.Reason = "AllDesiredK8sSensorsAvailable"
-		condition.Message = "All desired K8sSensors are available and using up-to-date configuration"
+		condition.Reason = "AllDesiredK8sensorsAvailable"
+		condition.Message = "All desired k8sensors are available and using up-to-date configuration"
 	default:
 		condition.Status = metav1.ConditionFalse
-		condition.Reason = "NotAllDesiredK8sSensorsAvailable"
-		condition.Message = "Not all desired K8sSensors are available or some K8sSensors are not using up-to-date configuration"
+		condition.Reason = "NotAllDesiredK8sensorsAvailable"
+		condition.Message = "Not all desired k8sensors are available or some k8sensors are not using up-to-date configuration"
 	}
 
 	return result.OfSuccess(condition)
@@ -334,11 +341,14 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 			Get()
 	a.setConditionAndFireEvent(agentNew, allAgentsAvailableCondition)
 
-	allK8sSensorsAvailableCondition, _ :=
-		a.getAllK8sSensorsAvailableCondition(ctx).
-			OnFailure(errBuilder.AddSingle).
-			Get()
-	a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
+	allK8sSensorsAvailableConditionResult := a.getAllK8sSensorsAvailableCondition(ctx).
+		OnFailure(errBuilder.AddSingle)
+
+	// Only set the condition if k8sensor is enabled (result is successful)
+	if allK8sSensorsAvailableConditionResult.IsSuccess() {
+		allK8sSensorsAvailableCondition, _ := allK8sSensorsAvailableConditionResult.Get()
+		a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
+	}
 
 	return result.Of(agentNew, errBuilder.Build())
 }

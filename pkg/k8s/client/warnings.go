@@ -24,7 +24,10 @@ import (
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const sessionAffinityHeadlessWarning = "spec.SessionAffinity is ignored for headless services"
+const (
+	sessionAffinityHeadlessWarning = "spec.SessionAffinity is ignored for headless services"
+	podSecurityWarning             = "would violate PodSecurity"
+)
 
 // ConfigureWarningHandler replaces the default warning handler on the provided REST config with
 // one that suppresses noisy warnings we already account for while delegating everything else to
@@ -32,8 +35,11 @@ const sessionAffinityHeadlessWarning = "spec.SessionAffinity is ignored for head
 func ConfigureWarningHandler(cfg *rest.Config) {
 	delegate := crlog.NewKubeAPIWarningLogger(crlog.KubeAPIWarningLoggerOptions{})
 	cfg.WarningHandlerWithContext = &filteringWarningHandler{
-		delegate:        delegate,
-		ignoredMessages: []string{sessionAffinityHeadlessWarning},
+		delegate: delegate,
+		ignoredMessages: []string{
+			sessionAffinityHeadlessWarning,
+			podSecurityWarning,
+		},
 	}
 }
 

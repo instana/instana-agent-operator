@@ -50,7 +50,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				Kind:       roleKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.K8sSensorResourcesName(),
+				Name: c.ClusterScopedK8sSensorRBACName(),
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
@@ -101,6 +101,11 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 					Verbs:     constants.ReaderVerbs(),
 				},
 				{
+					APIGroups: []string{"discovery.k8s.io"},
+					Resources: []string{"endpointslices"},
+					Verbs:     constants.ReaderVerbs(),
+				},
+				{
 					APIGroups: []string{"networking.k8s.io"},
 					Resources: []string{"ingresses"},
 					Verbs:     constants.ReaderVerbs(),
@@ -119,12 +124,6 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 					APIGroups:     []string{"security.openshift.io"},
 					ResourceNames: []string{"privileged"},
 					Resources:     []string{"securitycontextconstraints"},
-					Verbs:         []string{"use"},
-				},
-				{
-					APIGroups:     []string{"policy"},
-					ResourceNames: []string{c.K8sSensorResourcesName()},
-					Resources:     []string{"podsecuritypolicies"},
 					Verbs:         []string{"use"},
 				},
 			},

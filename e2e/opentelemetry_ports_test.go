@@ -25,6 +25,7 @@ const (
 )
 
 func TestOpenTelemetryPorts(t *testing.T) {
+	CollectOperatorLogsOnFailure(t)
 	// Define the test feature
 	openTelemetryPortsFeature := features.New("opentelemetry ports configuration").
 		Setup(SetupOperatorDevBuild()).

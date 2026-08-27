@@ -30,7 +30,7 @@ type MockEnvBuilder struct {
 
 func (m *MockEnvBuilder) Build(envVars ...env.EnvVar) []corev1.EnvVar {
 	// Convert variadic args to []interface{} for the mock framework
-	args := make([]interface{}, len(envVars))
+	args := make([]any, len(envVars))
 	for i, v := range envVars {
 		args[i] = v
 	}

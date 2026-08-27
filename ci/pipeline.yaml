@@ -8,6 +8,7 @@ groups:
     - self-update
     - manual-patch-trigger
     - manual-minor-trigger
+    - unit-tests
     - tag-release
     - docker-build
     - end-to-end-tests
@@ -279,6 +280,64 @@ jobs:
         params:
           directory: increment-type
 
+  - name: unit-tests
+    max_in_flight: 1
+    on_success:
+      put: gh-status
+      inputs: [ agent-operator-git-source ]
+      params: { state: success, context: unit-tests }
+    on_failure:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator unit-tests have failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: failure, context: unit-tests }
+    on_error:
+      do:
+        - put: slack-alert
+          params:
+            channel: '#tech-agent-delivery-notifications'
+            text: |
+              :x: the operator unit-tests have failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
+        - put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: error, context: unit-tests }
+    on_abort:
+      put: gh-status
+      inputs: [ agent-operator-git-source ]
+      params: { state: error, context: unit-tests }
+    plan:
+      - get: agent-operator-git-source
+      - get: version-increment-type
+        trigger: true
+      - task: run-unit-tests
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: icr.io/instana-int/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+              tag: main
+              username: ((icr-api-key.username))
+              password: ((icr-api-key.password))
+          inputs:
+            - name: agent-operator-git-source
+          run:
+            path: bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+                cd agent-operator-git-source
+                source installGolang.sh amd64
+                export PATH=$PATH:/usr/local/go/bin
+                make test
+
   - name: docker-build
     max_in_flight: 1
     on_success:
@@ -501,6 +560,8 @@ jobs:
                   - -ceu
                   - |
                     cd agent-operator-git-source
+                    source ./installGolang.sh amd64
+                    export PATH=$PATH:/usr/local/go/bin
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             on_success:
@@ -608,6 +669,8 @@ jobs:
                   - -ceu
                   - |
                     cd agent-operator-git-source
+                    source ./installGolang.sh amd64
+                    export PATH=$PATH:/usr/local/go/bin
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             on_success:
@@ -856,9 +919,6 @@ jobs:
             RED_HAT_REGISTRY_USERNAME: ((redhat-container-registry-5e961c2c93604e02afa9ebdf.user))
             ICR_PASSWORD: ((icr-api-key.password))
             ICR_USERNAME: ((icr-api-key.username))
-            ARTIFACTORY_USERNAME: ((delivery-instana-io-release-project-artifact-read-writer-creds.username))
-            ARTIFACTORY_PASSWORD: ((delivery-instana-io-release-project-artifact-read-writer-creds.password))
-            ARTIFACTORY_CONTAINER_DOCKER_URL: ((delivery-artifactory-docker-agent-release-url))
           run:
             path: bash
             args:
@@ -867,7 +927,6 @@ jobs:
                 DEV_BUILD_IMAGE=icr.io/instana-agent-dev/instana-agent-operator
                 ICR_REPOSITORY=icr.io/instana/instana-agent-operator
                 ICR_REL_REPO=icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator
-                ARTIFACTORY_REPOSITORY="${ARTIFACTORY_CONTAINER_DOCKER_URL}/instana-agent-operator"
                 RED_HAT_REGISTRY="quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf"
 
                 DIGEST=$(cat agent-operator-image-manifest-sha/digest)
@@ -915,15 +974,6 @@ jobs:
                 else
                   echo "---> Skipping push with latest tag as not running on main branch"
                 fi
-
-                echo "---> Pushing multi-architectural manifest to ${ARTIFACTORY_REPOSITORY}"
-                skopeo copy -a --preserve-digests \
-                  --src-username ${ICR_USERNAME} \
-                  --src-password ${ICR_PASSWORD} \
-                  --dest-username ${ARTIFACTORY_USERNAME} \
-                  --dest-password ${ARTIFACTORY_PASSWORD} \
-                  docker://${DEV_BUILD_IMAGE}@${DIGEST} \
-                  docker://${ARTIFACTORY_REPOSITORY}:${OPERATOR_DOCKER_VERSION}
 
                 echo "---> Pushing multi-architectural manifest to rel repo in icr.io with version tag"
                 # introduced during artifactory migration
@@ -1071,6 +1121,8 @@ jobs:
                 fi
 
                 pushd agent-operator-git-source
+                source ./installGolang.sh amd64
+                export PATH=$PATH:/usr/local/go/bin
 
                 # Create a place to store our output for packaging up
                 mkdir -p target
@@ -1109,12 +1161,108 @@ jobs:
                   AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \
                   bundle
 
+                echo ""
+                echo "=== Validating Operator Version Label in Bundle ==="
+                
+                # Validate: No placeholders remain
+                if grep -r "OPERATOR_VERSION_PLACEHOLDER" bundle/manifests/ 2>/dev/null; then
+                  echo "ERROR: OPERATOR_VERSION_PLACEHOLDER found in bundle manifests"
+                  exit 1
+                fi
+                echo "✓ No placeholders found"
+                
+                # Validate: Version label present
+                if ! grep -r "operator-version: ${OLM_RELEASE_VERSION}" bundle/manifests/ 2>/dev/null; then
+                  echo "ERROR: operator-version label not found in bundle manifests"
+                  exit 1
+                fi
+                echo "✓ Version label found: operator-version: ${OLM_RELEASE_VERSION}"
+                
+                # Validate: Version label in CSV
+                CSV_FILE="bundle/manifests/instana-agent-operator.clusterserviceversion.yaml"
+                if [ ! -f "$CSV_FILE" ]; then
+                  echo "ERROR: CSV file not found"
+                  exit 1
+                fi
+                if ! grep -q "operator-version: ${OLM_RELEASE_VERSION}" "$CSV_FILE"; then
+                  echo "ERROR: operator-version label not found in CSV"
+                  exit 1
+                fi
+                echo "✓ Version label found in CSV"
+                echo "=== Bundle validation complete ==="
+                echo ""
+
                 pushd bundle
                 zip -r ../target/olm-${OLM_RELEASE_VERSION}.zip .
                 popd
 
                 # Create the YAML for installing the Agent Operator, which we want to package with the release
-                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" controller-yaml > target/instana-agent-operator.yaml
+                # Redirect stderr to temporary file to avoid contaminating YAML output, but preserve for debugging
+                STDERR_LOG=$(mktemp)
+                make --silent IMG=" icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" VERSION="${OLM_RELEASE_VERSION}" controller-yaml 2>"$STDERR_LOG" >target/instana-agent-operator.yaml
+                
+                # Display stderr output for debugging, then clean up
+                if [ -s "$STDERR_LOG" ]; then
+                  echo "=== Tool installation/version check messages ==="
+                  cat "$STDERR_LOG"
+                  echo "================================================"
+                fi
+                rm -f "$STDERR_LOG"
+
+                echo ""
+                echo "=== Validating Operator Version Label in Controller YAML ==="
+                
+                # Validate: No placeholders remain
+                if grep -q "OPERATOR_VERSION_PLACEHOLDER" target/instana-agent-operator.yaml; then
+                  echo "ERROR: OPERATOR_VERSION_PLACEHOLDER found in controller YAML"
+                  exit 1
+                fi
+                echo "✓ No placeholders found"
+                
+                # Validate: Version label present (should appear twice)
+                LABEL_COUNT=$(grep -c "operator-version: ${OLM_RELEASE_VERSION}" target/instana-agent-operator.yaml || true)
+                if [ "$LABEL_COUNT" -ne 2 ]; then
+                  echo "ERROR: Expected 2 occurrences of operator-version label, found $LABEL_COUNT"
+                  exit 1
+                fi
+                echo "✓ Version label found in deployment metadata and pod template (2 occurrences)"
+                
+                # Validate: Version label NOT in selector
+                if grep -A 3 "selector:" target/instana-agent-operator.yaml | grep -q "operator-version"; then
+                  echo "ERROR: operator-version found in selector (immutable field)"
+                  exit 1
+                fi
+                echo "✓ Selector does not contain operator-version (correct)"
+                
+                # Validate: YAML is well-formed
+                echo "Validating YAML structure..."
+                if ! python3 -c "import yaml" 2>/dev/null; then
+                  echo "ERROR: PyYAML is not installed. This should be in the base image"
+                  exit 1
+                fi
+                YAML_ERROR=$(mktemp)
+                if ! python3 -c "import yaml; list(yaml.safe_load_all(open('target/instana-agent-operator.yaml')))" 2>"$YAML_ERROR"; then
+                  echo "ERROR: Controller YAML is not well-formed"
+                  echo ""
+                  echo "=== YAML Validation Error Details ==="
+                  cat "$YAML_ERROR"
+                  echo "======================================"
+                  echo ""
+                  echo "=== First 50 lines of generated YAML ==="
+                  head -n 50 target/instana-agent-operator.yaml
+                  echo "========================================="
+                  echo ""
+                  echo "=== Last 50 lines of generated YAML ==="
+                  tail -n 50 target/instana-agent-operator.yaml
+                  echo "========================================"
+                  rm -f "$YAML_ERROR"
+                  exit 1
+                fi
+                rm -f "$YAML_ERROR"
+                echo "✓ YAML structure validated"
+                
+                echo "=== Controller YAML validation complete ==="
+                echo ""
 
                 echo "icr.io/instana/instana-agent-operator:${OLM_RELEASE_VERSION}" >> target/images.txt
                 

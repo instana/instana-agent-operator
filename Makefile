@@ -28,11 +28,11 @@ VERSION ?= 0.0.1
 PREV_VERSION ?= 0.0.0
 
 # Tool versions
-CONTROLLER_GEN_VERSION ?= v0.19.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
+CONTROLLER_GEN_VERSION ?= v0.21.0 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
 KUSTOMIZE_VERSION ?= v4.5.5 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
-GOLANGCI_LINT_VERSION ?= v2.4.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+GOLANGCI_LINT_VERSION ?= v2.13.1 # renovate: datasource=github-releases depName=golangci/golangci-lint
 # Buildkit versions - the image tag is the actual release version, CLI version is derived from it
-BUILDKIT_IMAGE_TAG ?= v0.16.0 # renovate: datasource=github-releases depName=moby/buildkit
+BUILDKIT_IMAGE_TAG ?= v0.32.2 # renovate: datasource=github-releases depName=moby/buildkit
 # Extract major.minor version for buildctl CLI (strip patch version)
 BUILDCTL_VERSION = $(shell echo $(BUILDKIT_IMAGE_TAG) | sed -E 's/v([0-9]+\.[0-9]+)\.[0-9]+.*/v\1/')
 
@@ -343,6 +343,7 @@ bundle: operator-sdk manifests kustomize ## Create the OLM bundle
 		| sed -e 's|\(containerImage:[[:space:]]*\).*|\1$(IMG)|' \
 		| sed -e 's|\(image:[[:space:]]*\).*instana-agent-operator:0.0.0|\1$(IMG)|' \
 		| sed -e 's|\(image:[[:space:]]*\).*agent:latest|\1$(AGENT_IMG)|' \
+		| sed 's|OPERATOR_VERSION_PLACEHOLDER|$(VERSION)|g' \
 		| $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./hack/patch-bundle.sh
 	$(OPERATOR_SDK) bundle validate ./bundle
@@ -354,7 +355,7 @@ bundle-build: buildctl ## Build the bundle image for OLM.
 
 controller-yaml: manifests kustomize ## Output the YAML for deployment, so it can be packaged with the release. Use `make --silent` to suppress other output.
 	@cd config/manager && $(KUSTOMIZE) edit set image "instana/instana-agent-operator=$(IMG)" > /dev/null
-	@$(KUSTOMIZE) build config/default
+	@$(KUSTOMIZE) build config/default | sed 's|OPERATOR_VERSION_PLACEHOLDER|$(VERSION)|g'
 
 CONTROLLER_RUNTIME_VERSION := $(shell go list -m all | grep sigs.k8s.io/controller-runtime | awk '{print $$2}')
 
@@ -365,15 +366,17 @@ controller-gen: ## Download controller-gen locally if necessary.
 	@if [ -f $(CONTROLLER_GEN) ]; then \
 		echo "Controller-gen binary found in $(CONTROLLER_GEN)" >&2; \
 		version=$$($(CONTROLLER_GEN) --version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(CONTROLLER_GEN_VERSION)" ]; then \
-			echo "Controller-gen version $(CONTROLLER_GEN_VERSION) is already installed" >&2; \
+		expected_version=$$(echo "$(CONTROLLER_GEN_VERSION)" | xargs); \
+		if [ "$$version" = "$$expected_version" ]; then \
+			echo "Controller-gen version $$expected_version is already installed" >&2; \
 		else \
-			echo "Updating controller-gen from $$version to $(CONTROLLER_GEN_VERSION)" >&2; \
-			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+			echo "Updating controller-gen from $$version to $$expected_version" >&2; \
+			go install sigs.k8s.io/controller-tools/cmd/controller-gen@$$expected_version; \
 		fi \
 	else \
-		echo "Installing controller-gen $(CONTROLLER_GEN_VERSION)" >&2; \
-		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION); \
+		expected_version=$$(echo "$(CONTROLLER_GEN_VERSION)" | xargs); \
+		echo "Installing controller-gen $$expected_version" >&2; \
+		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$$expected_version; \
 	fi
 
 .PHONY: kustomize
@@ -381,15 +384,34 @@ kustomize: ## Download kustomize locally if necessary.
 	@if [ -f $(KUSTOMIZE) ]; then \
 		echo "Kustomize binary found in $(KUSTOMIZE)" >&2; \
 		version=$$($(KUSTOMIZE) version | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown"); \
-		if [ "$$version" = "$(KUSTOMIZE_VERSION)" ]; then \
-			echo "Kustomize version $(KUSTOMIZE_VERSION) is already installed" >&2; \
+		expected_version=$$(echo "$(KUSTOMIZE_VERSION)" | xargs); \
+		if [ "$$version" = "$$expected_version" ]; then \
+			echo "Kustomize version $$expected_version is already installed" >&2; \
 		else \
-			echo "Updating kustomize from $$version to $(KUSTOMIZE_VERSION)" >&2; \
-			go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+			echo "Updating kustomize from $$version to $$expected_version" >&2; \
+			rm -f $(KUSTOMIZE); \
+			if [ -n "$$GH_API_TOKEN" ]; then \
+				echo "Using GitHub API token for authenticated download" >&2; \
+				curl -sSfL --retry 3 --retry-delay 2 -H "Authorization: Bearer $$GH_API_TOKEN" -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+			else \
+				curl -sSfL --retry 3 --retry-delay 2 -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+			fi; \
+			tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN) || { echo "Failed to extract kustomize" >&2; rm -f $(KUSTOMIZE).tar.gz; exit 1; }; \
+			rm -f $(KUSTOMIZE).tar.gz; \
+			chmod +x $(KUSTOMIZE); \
 		fi \
 	else \
-		echo "Installing kustomize $(KUSTOMIZE_VERSION)" >&2; \
-		go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION); \
+		expected_version=$$(echo "$(KUSTOMIZE_VERSION)" | xargs); \
+		echo "Installing kustomize $$expected_version" >&2; \
+		if [ -n "$$GH_API_TOKEN" ]; then \
+			echo "Using GitHub API token for authenticated download" >&2; \
+			curl -sSfL --retry 3 --retry-delay 2 -H "Authorization: Bearer $$GH_API_TOKEN" -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+		else \
+			curl -sSfL --retry 3 --retry-delay 2 -o $(KUSTOMIZE).tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$$expected_version/kustomize_$${expected_version}_$(OS)_$(ARCH).tar.gz || { echo "Failed to download kustomize after retries" >&2; exit 1; }; \
+		fi; \
+		tar -xzf $(KUSTOMIZE).tar.gz -C $(GOBIN) || { echo "Failed to extract kustomize" >&2; rm -f $(KUSTOMIZE).tar.gz; exit 1; }; \
+		rm -f $(KUSTOMIZE).tar.gz; \
+		chmod +x $(KUSTOMIZE); \
 	fi
 
 .PHONY: envtest

@@ -140,7 +140,6 @@ func (r *InstanaAgentRemoteReconciler) reconcile(
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=instana.io,resources=agentsremote/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=instana.io,resources=agentsremote/finalizers,verbs=update
-// +kubebuilder:rbac:groups=policy,resources=podsecuritypolicies,verbs=use
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=anyuid,resources=securitycontextconstraints,verbs=use
 
 func (r *InstanaAgentRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (

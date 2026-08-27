@@ -51,7 +51,7 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 				Kind:       roleKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: c.ServiceAccountName(),
+				Name: c.ClusterScopedRBACName(),
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
@@ -82,13 +82,6 @@ func (c *clusterRoleBuilder) Build() optional.Optional[client.Object] {
 					ResourceNames: []string{"privileged"},
 					Resources: []string{
 						"securitycontextconstraints",
-					},
-					Verbs: []string{"use"},
-				},
-				{
-					APIGroups: []string{"policy"},
-					Resources: []string{
-						"podsecuritypolicies",
 					},
 					Verbs: []string{"use"},
 				},

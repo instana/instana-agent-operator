@@ -63,6 +63,7 @@ const (
 	K8sServiceDomainEnv
 	EnableAgentSocketEnv
 	NamespacesDetailsPathEnv
+	NodeNameEnv
 	InstanaOpenTelemetryGRPCEnabled
 	InstanaOpenTelemetryGRPCPort
 	InstanaOpenTelemetryHTTPEnabled
@@ -125,7 +126,7 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, BackendURLEnv,
 		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
-		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv,
+		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv, NodeNameEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
 		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort, CrdMonitoring:
 		return false
@@ -258,6 +259,8 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return e.envWithObjectFieldSelector("POD_UID", "metadata.uid")
 	case PodNamespaceEnv:
 		return e.envWithObjectFieldSelector("POD_NAMESPACE", "metadata.namespace")
+	case NodeNameEnv:
+		return e.envWithObjectFieldSelector("NODE_NAME", "spec.nodeName")
 	case K8sServiceDomainEnv:
 		return &corev1.EnvVar{
 			Name:  "K8S_SERVICE_DOMAIN",
@@ -278,7 +281,16 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case ETCDInsecureEnv:
 		return e.etcdInsecureEnv()
 	case ETCDTargetsEnv:
-		return e.etcdTargetsEnv()
+		// The k8sensor discovers the ETCD endpoints itself and never read ETCD_TARGETS,
+		// so the field is ignored. Log only when it is actually configured.
+		if len(e.agent.Spec.K8sSensor.ETCD.Targets) > 0 {
+			e.logger.Info(
+				"The k8sSensor.etcd.targets configuration field is deprecated and will be ignored. " +
+					"The k8sensor discovers the ETCD endpoints itself. " +
+					"Please remove it from your InstanaAgent configuration.",
+			)
+		}
+		return nil
 	case ControlPlaneCAFileEnv:
 		return e.controlPlaneCAFileEnv()
 	case RestClientHostAllowlistEnv:
@@ -453,17 +465,6 @@ func (e *envBuilder) etcdInsecureEnv() *corev1.EnvVar {
 	return &corev1.EnvVar{
 		Name:  "ETCD_INSECURE",
 		Value: strconv.FormatBool(*e.agent.Spec.K8sSensor.ETCD.Insecure),
-	}
-}
-
-func (e *envBuilder) etcdTargetsEnv() *corev1.EnvVar {
-	if len(e.agent.Spec.K8sSensor.ETCD.Targets) == 0 {
-		return nil
-	}
-
-	return &corev1.EnvVar{
-		Name:  "ETCD_TARGETS",
-		Value: strings.Join(e.agent.Spec.K8sSensor.ETCD.Targets, ","),
 	}
 }
 

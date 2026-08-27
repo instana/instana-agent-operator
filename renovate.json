@@ -10,6 +10,17 @@
   "prConcurrentLimit": 2,
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
+  "baseBranchPatterns": [
+    "main",
+    "/^release-\\d+\\.\\d+$/"
+  ],
+  "packageRules": [
+    {
+      "matchBaseBranches": ["/^release-\\d+\\.\\d+$/"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
@@ -17,7 +28,7 @@
         "/^Makefile$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "(?<currentValue>v\\d+\\.\\d+\\.\\d+)[^\\n]*# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)(?:\\s|$)"
       ],
       "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       "versioningTemplate": "semver"

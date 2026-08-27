@@ -1,3 +1,8 @@
+/*
+ * (c) Copyright IBM Corp. 2024, 2026
+ * (c) Copyright Instana Inc. 2024, 2026
+ */
+
 package list
 
 type ListFilter[T any] interface {
@@ -21,7 +26,6 @@ func NewListMapTo[T any, S any]() ListMapTo[T, S] {
 func (t *transformer[T, S]) Filter(in []T, shouldBeIncluded func(val T) bool) []T {
 	res := make([]T, 0, len(in))
 	for _, v := range in {
-		v := v
 		if shouldBeIncluded(v) {
 			res = append(res, v)
 		}
@@ -32,7 +36,6 @@ func (t *transformer[T, S]) Filter(in []T, shouldBeIncluded func(val T) bool) []
 func (t *transformer[T, S]) MapTo(in []T, mapItemTo func(val T) S) []S {
 	res := make([]S, 0, len(in))
 	for _, v := range in {
-		v := v
 		res = append(res, mapItemTo(v))
 	}
 	return res

@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/env"
@@ -63,7 +64,8 @@ type Transformations interface {
 
 type transformations struct {
 	metav1.OwnerReference
-	generation string
+	ownerNamespace string
+	generation     string
 }
 
 func (t *transformations) AddCommonLabels(obj client.Object, component string) {
@@ -113,7 +115,31 @@ func (t *transformations) PreviousGenerationsSelector() labels.Selector {
 // existing owner refs with the same Name but different UID are removed. Other
 // owner refs (different names) are preserved. If our owner ref isn't present,
 // it is appended.
+//
+// Namespaced objects living in a different namespace than the CR are skipped
+// entirely, which means neither adding our owner ref nor pruning stale ones:
+// Kubernetes does not support cross-namespace owner references, so the garbage
+// collector would delete such an object right after we create it and we would
+// recreate it on the next reconcile, forever. Those objects are still removed on
+// uninstall or when they go out of scope, since the dependent lifecycle manager
+// deletes them explicitly rather than relying on owner reference GC.
+//
+// Nothing should reach that branch today. It is logged rather than silently
+// ignored so that a builder emitting an object in the wrong namespace shows up
+// instead of quietly producing an un-owned object.
 func (t *transformations) AddOwnerReference(obj client.Object) {
+	if objNamespace := obj.GetNamespace(); objNamespace != "" && objNamespace != t.ownerNamespace {
+		logf.Log.WithName("transformations").Info(
+			"not setting an owner reference on an object outside of the custom resource namespace",
+			"name", obj.GetName(),
+			"namespace", objNamespace,
+			"ownerNamespace", t.ownerNamespace,
+			"owner", t.OwnerReference.Name,
+		)
+
+		return
+	}
+
 	existing := obj.GetOwnerReferences()
 
 	// Build a new slice preserving:
@@ -155,7 +181,8 @@ func NewTransformations(agent *instanav1.InstanaAgent) Transformations {
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
-		generation: strconv.Itoa(int(agent.Generation)),
+		ownerNamespace: agent.Namespace,
+		generation:     strconv.Itoa(int(agent.Generation)),
 	}
 }
 
@@ -169,6 +196,7 @@ func NewTransformationsRemote(agent *instanav1.InstanaAgentRemote) Transformatio
 			Controller:         pointer.To(true),
 			BlockOwnerDeletion: pointer.To(true),
 		},
-		generation: strconv.Itoa(int(agent.Generation)),
+		ownerNamespace: agent.Namespace,
+		generation:     strconv.Itoa(int(agent.Generation)),
 	}
 }

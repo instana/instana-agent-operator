@@ -85,8 +85,11 @@ func TestDeploymentBuilder_GetEnvVars_IncludesETCDEnvVars(t *testing.T) {
 	assert.Equal(t, "false", etcdInsecureEnv.Value)
 
 	etcdTargetsEnv := findEnvVar(envVars, "ETCD_TARGETS")
-	assert.NotNil(t, etcdTargetsEnv, "ETCD_TARGETS env var should be present")
-	assert.Equal(t, "https://etcd-1:2379", etcdTargetsEnv.Value)
+	assert.Nil(
+		t,
+		etcdTargetsEnv,
+		"ETCD_TARGETS should be absent, targets on the CR are deprecated and ignored",
+	)
 
 	hostAllowlistEnv := findEnvVar(envVars, "REST_CLIENT_HOST_ALLOWLIST")
 	assert.NotNil(t, hostAllowlistEnv, "REST_CLIENT_HOST_ALLOWLIST env var should be present")

@@ -41,7 +41,7 @@ import (
 
 func genMockObjsRemote(amount int) []client.Object {
 	objects := []client.Object{}
-	for i := 0; i < amount; i++ {
+	for i := range amount {
 		unstrctrd := &unstructured.Unstructured{}
 		unstrctrd.SetName("i" + strconv.Itoa(i))
 		unstrctrd.SetKind("remote-agent-data")
@@ -60,8 +60,7 @@ func TestAsObjectConversionRemote(t *testing.T) {
 // contains more than the current generated key to hold data in, the code will
 // remove that field from the array
 func TestCleanupDependentsDeletesUnmatchedDataRemote(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	instanaAgentClient := &mocks.MockInstanaAgentClient{}
 	defer instanaAgentClient.AssertExpectations(t)
@@ -115,8 +114,7 @@ func TestCleanupDependentsDeletesUnmatchedDataRemote(t *testing.T) {
 // delete all and returns that correctly back to the caller
 func TestCleanupDependentsDeleteAllReturnsErrorRemote(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	instanaAgentClient := &mocks.MockInstanaAgentClient{}
 	defer instanaAgentClient.AssertExpectations(t)
@@ -235,8 +233,7 @@ func TestCleanupDependentsRemote(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 				assertions := require.New(t)
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+				ctx := t.Context()
 
 				instanaAgentClient := &mocks.MockInstanaAgentClient{}
 				defer instanaAgentClient.AssertExpectations(t)
@@ -361,8 +358,7 @@ func TestUpdateLifecycleInfoRemote(t *testing.T) {
 		t.Run(
 			test.name, func(t *testing.T) {
 
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+				ctx := t.Context()
 
 				instanaAgentClient := &mocks.MockInstanaAgentClient{}
 				defer instanaAgentClient.AssertExpectations(t)

@@ -29,11 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
@@ -41,6 +43,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/operator_utils"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/recovery"
 )
 
@@ -77,6 +80,9 @@ func Add(mgr manager.Manager) error {
 
 				return requests
 			}),
+			// Only trigger reconciliation when namespace labels change
+			// This prevents unnecessary reconciliations on namespace status updates
+			builder.WithPredicates(predicate.LabelChangedPredicate{}),
 		).
 		Owns(&appsv1.DaemonSet{}).
 		Owns(&appsv1.Deployment{}).
@@ -103,17 +109,22 @@ func NewInstanaAgentReconciler(
 	scheme *runtime.Scheme,
 	recorder record.EventRecorder,
 ) *InstanaAgentReconciler {
-	return &InstanaAgentReconciler{
-		client:   instanaclient.NewInstanaAgentClient(client),
+	instanaClient := instanaclient.NewInstanaAgentClient(client)
+	reconciler := &InstanaAgentReconciler{
+		client:   instanaClient,
 		recorder: recorder,
 		scheme:   scheme,
 	}
+	// Initialize the ETCD discoverer with the reconciler
+	reconciler.etcdDiscoverer = NewDefaultETCDDiscoverer(instanaClient, reconciler)
+	return reconciler
 }
 
 type InstanaAgentReconciler struct {
-	client   instanaclient.InstanaAgentClient
-	recorder record.EventRecorder
-	scheme   *runtime.Scheme
+	client         instanaclient.InstanaAgentClient
+	recorder       record.EventRecorder
+	scheme         *runtime.Scheme
+	etcdDiscoverer ETCDDiscoverer
 }
 
 func (r *InstanaAgentReconciler) reconcile(
@@ -133,6 +144,14 @@ func (r *InstanaAgentReconciler) reconcile(
 	log.Info("reconciling Agent CR")
 
 	agent.Default()
+
+	// Log if k8sensor is disabled
+	if !pointer.DerefOrDefault(agent.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled, true) {
+		log.Info(
+			"k8sensor deployment is disabled - Kubernetes cluster monitoring will not be available",
+		)
+	}
+
 	operatorUtils := operator_utils.NewOperatorUtils(
 		ctx,
 		r.client,
@@ -153,6 +172,20 @@ func (r *InstanaAgentReconciler) reconcile(
 		return isOpenShiftRes
 	}
 
+	// Determine whether to set INSTANA_PERSIST_HOST_UNIQUE_ID for non-zoned deployments
+	shouldSetPersistHostUniqueIDEnvVar := false
+	if len(agent.Spec.Zones) == 0 {
+		var shouldSetRes reconcileReturn
+		shouldSetPersistHostUniqueIDEnvVar, shouldSetRes = r.shouldSetPersistHostUniqueIDEnvVar(
+			ctx,
+			agent,
+			nil,
+		)
+		if shouldSetRes.suppliesReconcileResult() {
+			return shouldSetRes
+		}
+	}
+
 	keysSecret := &corev1.Secret{}
 	if agent.Spec.Agent.KeysSecret != "" {
 		if err := r.client.Get(ctx, client.ObjectKey{Name: agent.Spec.Agent.KeysSecret, Namespace: agent.Namespace}, keysSecret); err != nil {
@@ -171,6 +204,7 @@ func (r *InstanaAgentReconciler) reconcile(
 		ctx,
 		agent,
 		isOpenShift,
+		shouldSetPersistHostUniqueIDEnvVar,
 		operatorUtils,
 		statusManager,
 		keysSecret,
@@ -193,7 +227,6 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=instana.io,resources=agents/finalizers,verbs=update
-// +kubebuilder:rbac:groups=policy,resources=podsecuritypolicies,verbs=use
 
 // adding role property required to manage instana-agent-k8sensor ClusterRole
 // +kubebuilder:rbac:urls=/version;/healthz;/metrics;/metrics/*;/metrics/cadvisor;/stats/summary,verbs=get
@@ -202,11 +235,11 @@ func (r *InstanaAgentReconciler) reconcile(
 // +kubebuilder:rbac:groups=core,resources=services;endpoints,verbs=get;list;watch,namespace=kube-system
 // +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments;replicasets;statefulsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps.openshift.io,resources=deploymentconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=use
-// +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=podsecuritypolicies,verbs=use
 // +kubebuilder:rbac:groups=policy,resourceNames=instana-agent-k8sensor,resources=poddisruptionbudgets,verbs=create;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=watch;list
 

@@ -18,6 +18,7 @@ package secrets
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -174,8 +175,6 @@ func toInlineVariable(key string, value string, fallback ...string) string {
 }
 
 func mergeMaps(map1, map2 map[string][]byte) map[string][]byte {
-	for key, value := range map2 {
-		map1[key] = value
-	}
+	maps.Copy(map1, map2)
 	return map1
 }

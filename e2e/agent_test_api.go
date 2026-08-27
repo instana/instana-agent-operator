@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -44,6 +45,25 @@ import (
 
 // env.Funcs to be used in the test initialization
 
+// CollectOperatorLogsOnFailure collects operator logs when a test fails for easier debugging
+// This is a common utility function used across multiple e2e tests
+func CollectOperatorLogsOnFailure(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log("==== Test failed, collecting operator logs ====")
+			p := utils.RunCommand(
+				"kubectl logs -n instana-agent deployment/instana-agent-controller-manager --tail=100",
+			)
+			if p.Err() != nil {
+				t.Logf("Could not collect operator logs: %v", p.Err())
+			} else {
+				t.Logf("Operator logs (last 100 lines):\n%s", p.Result())
+			}
+		}
+	})
+}
+
 // DeleteAgentNamespace ensures a proper cleanup of existing instana agent installations.
 // The namespace cannot be just deleted in all scenarios, as finalizers on the agent CR might block the namespace termination
 func EnsureAgentNamespaceDeletion() env.Func {
@@ -76,14 +96,21 @@ func EnsureAgentNamespaceDeletion() env.Func {
 
 		log.Info("Agent CR cleanup completed")
 
+		// Clean up ALL Agent CRs from ALL namespaces to prevent CRD deletion from getting stuck
+		// This is critical because CRDs cannot be deleted while CRs with finalizers exist
+		log.Info("Cleaning up all Agent CRs from all namespaces to prevent CRD deletion issues")
+		cleanupAllAgentCRs()
+
 		// full purge of resources if anything would be left in the cluster
 		p = utils.RunCommand(
-			"kubectl delete crd/agents.instana.io " +
+			"kubectl delete " +
+				"-n " + InstanaNamespace + " " +
+				"crd/agents.instana.io " +
 				"clusterrole/instana-agent-k8sensor " +
 				"clusterrole/instana-agent-clusterrole " +
-				"clusterrole/leader-election-role " +
-				"clusterrolebinding/leader-election-rolebinding " +
-				"clusterrolebinding/instana-agent-clusterrolebinding",
+				"clusterrolebinding/instana-agent-clusterrolebinding " +
+				"role/leader-election-role " +
+				"rolebinding/leader-election-rolebinding",
 		)
 		if p.Err() != nil {
 			log.Warningf(
@@ -199,6 +226,88 @@ func DeleteAgentCRIfPresent() env.Func {
 		log.Info("Agent CR is gone")
 		return ctx, nil
 	}
+}
+
+// cleanupAllAgentCRs removes all Agent CRs from all namespaces to prevent CRD deletion from getting stuck.
+// This is critical because CRDs cannot be deleted while CRs with finalizers exist in any namespace.
+func cleanupAllAgentCRs() {
+	log.Info("Searching for Agent CRs in all namespaces")
+
+	// Get all Agent CRs across all namespaces
+	p := utils.RunCommand(
+		"kubectl get agents.instana.io -A --no-headers -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name",
+	)
+	if p.Err() != nil {
+		log.Warningf("Could not list Agent CRs across namespaces: %v", p.Err())
+		return
+	}
+
+	output := strings.TrimSpace(p.Result())
+	if output == "" {
+		log.Info("No Agent CRs found in any namespace")
+		return
+	}
+
+	// Parse and delete each Agent CR
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		namespace := fields[0]
+		name := fields[1]
+
+		log.Infof("Found Agent CR %s/%s, removing finalizers and deleting", namespace, name)
+
+		// Remove finalizers first to allow deletion
+		patchCmd := fmt.Sprintf(
+			"kubectl patch agent %s -n %s -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge 2>&1",
+			name,
+			namespace,
+		)
+		patchResult := utils.RunCommand(patchCmd)
+		if patchResult.Err() != nil {
+			// Check if error is because CRD doesn't exist (which is fine)
+			output := patchResult.Result()
+			if strings.Contains(output, "the server doesn't have a resource type") ||
+				strings.Contains(output, "no matches for kind") {
+				log.Infof("Agent CRD already deleted, skipping cleanup of %s/%s", namespace, name)
+				continue
+			}
+			log.Warningf(
+				"Could not remove finalizers from Agent CR %s/%s: %v - %s",
+				namespace,
+				name,
+				patchResult.Err(),
+				output,
+			)
+		}
+
+		// Delete the Agent CR (force delete if needed)
+		deleteCmd := fmt.Sprintf(
+			"kubectl delete agent %s -n %s --ignore-not-found --timeout=30s --force --grace-period=0 2>&1",
+			name,
+			namespace,
+		)
+		deleteResult := utils.RunCommand(deleteCmd)
+		if deleteResult.Err() != nil {
+			// Check if error is because CRD doesn't exist (which is fine)
+			output := deleteResult.Result()
+			if strings.Contains(output, "the server doesn't have a resource type") ||
+				strings.Contains(output, "no matches for kind") {
+				log.Infof("Agent CRD already deleted, CR %s/%s is gone", namespace, name)
+			} else {
+				log.Warningf("Could not delete Agent CR %s/%s: %v - %s", namespace, name, deleteResult.Err(), output)
+			}
+		} else {
+			log.Infof("Successfully deleted Agent CR %s/%s", namespace, name)
+		}
+	}
+
+	// Give Kubernetes a moment to process the deletions
+	time.Sleep(2 * time.Second)
+	log.Info("Completed cleanup of all Agent CRs")
 }
 
 func EnsureReusableEnvironment() env.Func {
@@ -475,13 +584,7 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 				InstanaNamespace,
 				"instana-agent",
 			)
-			userFound := false
-			for _, user := range users {
-				if user == serviceAccountId {
-					userFound = true
-					break
-				}
-			}
+			userFound := slices.Contains(users, serviceAccountId)
 
 			if userFound {
 				log.Infof(
@@ -544,6 +647,64 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 				)
 			}
 			t.Log("Deployment submitted")
+
+			// Wait for CRD to be established after make install deploy
+			// This prevents "create not allowed while custom resource definition is terminating" errors
+			t.Log("Waiting for CRD to be established")
+			crdClient, err := cfg.NewClient()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Wait for CRD to exist and be established (not terminating)
+			err = wait.For(
+				func(ctx context.Context) (bool, error) {
+					crd := &unstructured.Unstructured{}
+					crd.SetGroupVersionKind(schema.GroupVersionKind{
+						Group:   "apiextensions.k8s.io",
+						Version: "v1",
+						Kind:    "CustomResourceDefinition",
+					})
+					err := crdClient.Resources().Get(ctx, "agents.instana.io", "", crd)
+					if err != nil {
+						return false, nil // CRD doesn't exist yet
+					}
+
+					// Check if CRD has deletionTimestamp (is terminating)
+					deletionTimestamp, found, err := unstructured.NestedString(
+						crd.Object,
+						"metadata",
+						"deletionTimestamp",
+					)
+					if err == nil && found && deletionTimestamp != "" {
+						t.Log("CRD is terminating, waiting for new CRD to be created")
+						return false, nil // CRD is being deleted, wait for new one
+					}
+
+					// Check if CRD is established
+					conditions, found, err := unstructured.NestedSlice(
+						crd.Object,
+						"status",
+						"conditions",
+					)
+					if err != nil || !found {
+						return false, nil
+					}
+					for _, c := range conditions {
+						condition := c.(map[string]interface{})
+						if condition["type"] == "Established" && condition["status"] == "True" {
+							return true, nil
+						}
+					}
+					return false, nil
+				},
+				wait.WithTimeout(time.Minute*3),
+				wait.WithInterval(time.Second*2),
+			)
+			if err != nil {
+				t.Fatalf("CRD did not become established: %v", err)
+			}
+			t.Log("CRD is established and ready")
 		} else {
 			t.Logf("Operator already running desired image %s, skipping redeploy", desiredImage)
 		}
@@ -551,6 +712,33 @@ func SetupOperatorDevBuild() e2etypes.StepFunc {
 		if err := ensureOperatorHasPullSecret(ctx, cfg); err != nil {
 			t.Fatalf("Failed to ensure operator pull secret: %v", err)
 		}
+
+		// Wait for operator deployment to be ready before proceeding
+		// This ensures the controller is fully started and watching for CRs
+		// Fixes race condition where CR is created before controller is ready
+		t.Log("Waiting for operator deployment to be ready")
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dep := appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      InstanaOperatorDeploymentName,
+				Namespace: cfg.Namespace(),
+			},
+		}
+
+		// Wait for deployment to exist and be ready
+		err = wait.For(
+			conditions.New(client.Resources()).
+				DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue),
+			wait.WithTimeout(time.Minute*2),
+		)
+		if err != nil {
+			t.Fatalf("Operator deployment did not become ready: %v", err)
+		}
+		t.Log("Operator deployment is ready")
+
 		return ctx
 	}
 }
@@ -614,11 +802,9 @@ func ensureOperatorHasPullSecret(ctx context.Context, cfg *envconf.Config) error
 
 	if err := r.Patch(ctx, dep, k8s.Patch{
 		PatchType: types.MergePatchType,
-		Data: []byte(
-			fmt.Sprintf(
-				`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
-				InstanaTestCfg.ContainerRegistry.Name,
-			),
+		Data: fmt.Appendf(nil,
+			`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
+			InstanaTestCfg.ContainerRegistry.Name,
 		),
 	}); err != nil {
 		return fmt.Errorf("patch deployment to inject pull secret: %w", err)
@@ -626,7 +812,7 @@ func ensureOperatorHasPullSecret(ctx context.Context, cfg *envconf.Config) error
 
 	if err := r.Patch(ctx, dep, k8s.Patch{
 		PatchType: types.MergePatchType,
-		Data:      []byte(fmt.Sprintf(`{"spec":{ "replicas": %d }}`, replicas)),
+		Data:      fmt.Appendf(nil, `{"spec":{ "replicas": %d }}`, replicas),
 	}); err != nil {
 		return fmt.Errorf("scale deployment back after pull secret patch: %w", err)
 	}
@@ -702,26 +888,40 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
 		}
 
-		// active wait for deployment to be created by the operator, if it is not coming up within 1 minute, something is really off
-		for range 12 {
-			err = client.Resources().Get(ctx, name, cfg.Namespace(), &dep)
-			if err != nil {
-				t.Log("Give the operator a few more seconds to inject resources")
-				time.Sleep(5 * time.Second)
-			} else {
-				t.Logf("Deployment %s was present", name)
-				break
-			}
-		}
+		conds := conditions.New(client.Resources())
 
-		// wait for operator pods of the deployment to become ready
+		// A deployment can briefly disappear during release installs or reconciliation.
+		// Keep fetching a fresh object until it exists and reports Available.
 		err = wait.For(
-			conditions.New(client.Resources()).
-				DeploymentConditionMatch(&dep, appsv1.DeploymentAvailable, corev1.ConditionTrue),
+			func(ctx context.Context) (done bool, err error) {
+				dep = appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
+				}
+				if getErr := client.Resources().Get(ctx, name, cfg.Namespace(), &dep); getErr != nil {
+					t.Log("Deployment not available yet, waiting for it to be created or recreated")
+					return false, nil
+				}
+
+				for _, condition := range dep.Status.Conditions {
+					if condition.Type == appsv1.DeploymentAvailable &&
+						condition.Status == corev1.ConditionTrue {
+						return true, nil
+					}
+				}
+
+				done, err = conds.DeploymentConditionMatch(
+					&dep,
+					appsv1.DeploymentAvailable,
+					corev1.ConditionTrue,
+				)(ctx)
+				return done, err
+			},
 			wait.WithTimeout(time.Minute*3),
+			wait.WithInterval(5*time.Second),
 		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
+			PrintNamespaceEvents(t, cfg.Namespace())
 
 			// Add kubectl describe deployment to debug why the deployment failed to become ready
 			t.Logf("Running kubectl describe deployment %s to debug deployment issues", name)
@@ -740,6 +940,20 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 		t.Logf("Deployment %s is ready", name)
 		return ctx
 	}
+}
+
+func PrintNamespaceEvents(t *testing.T, namespace string) {
+	t.Helper()
+
+	p := utils.RunCommand(
+		fmt.Sprintf("kubectl get events -n %s --sort-by=.lastTimestamp", namespace),
+	)
+	t.Logf("====== Namespace %s events start ======", namespace)
+	t.Log(p.Out())
+	if p.Err() != nil {
+		t.Logf("Error collecting namespace events: %v", p.Err())
+	}
+	t.Logf("====== Namespace %s events end ======", namespace)
 }
 
 // optional argument for the custom daemons set name
@@ -868,28 +1082,36 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			t.Fatal(err)
 		}
 		time.Sleep(20 * time.Second)
-		podList, err := clientSet.CoreV1().
-			Pods(cfg.Namespace()).
-			List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(podList.Items) == 0 {
-			t.Fatal("No pods found")
-		}
 
 		connectionSuccessful := false
 		var buf *bytes.Buffer
-		for i := 0; i < 9; i++ {
+		for range 9 {
 			t.Log("Sleeping 20 seconds")
 			time.Sleep(20 * time.Second)
 			t.Log("Fetching logs")
+
+			// Re-fetch pod list to handle pod recreation during upgrades
+			podList, err := clientSet.CoreV1().
+				Pods(cfg.Namespace()).
+				List(ctx, metav1.ListOptions{LabelSelector: "app.kubernetes.io/component=instana-agent"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(podList.Items) == 0 {
+				t.Fatal("No pods found")
+			}
+
 			logReq := clientSet.CoreV1().
 				Pods(cfg.Namespace()).
 				GetLogs(podList.Items[0].Name, &corev1.PodLogOptions{})
 			podLogs, err := logReq.Stream(ctx)
 			if err != nil {
-				t.Fatal("Could not stream logs", err)
+				t.Logf(
+					"Could not stream logs from pod %s: %v, will retry",
+					podList.Items[0].Name,
+					err,
+				)
+				continue
 			}
 			defer podLogs.Close()
 
@@ -897,7 +1119,8 @@ func WaitForAgentSuccessfulBackendConnection() e2etypes.StepFunc {
 			_, err = io.Copy(buf, podLogs)
 
 			if err != nil {
-				t.Fatal(err)
+				t.Logf("Error copying logs from pod %s: %v, will retry", podList.Items[0].Name, err)
+				continue
 			}
 			if strings.Contains(buf.String(), "Connected using HTTP/2 to") {
 				t.Log("Connection established correctly")

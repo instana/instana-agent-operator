@@ -21,6 +21,7 @@ There are two ways to install the operator:
 
 #### Configuration
 
+- [Agent Deployment and Scheduling](docs/agent-deployment-scheduling.md): Explains where agents are deployed and how to configure scheduling for different node types, including handling taints, tolerations, and host coverage.
 - [Secret Mounts](docs/secret-mounts.md): Improves security by mounting sensitive information as files instead of exposing them as environment variables.
 - [Liveness Probe Configuration](docs/liveness-probe-configuration.md): Customize liveness probe settings for the agent container to match your environment's requirements.
 
@@ -39,17 +40,11 @@ On OpenShift clusters, the operator automatically discovers and configures ETCD 
    - Client certificate at `/etc/etcd-client/tls.crt`
    - Client key at `/etc/etcd-client/tls.key`
 4. Sets environment variables:
-   - `ETCD_METRICS_URL` = `https://etcd.openshift-etcd.svc.cluster.local:9979/metrics`
    - `ETCD_CA_FILE` = `/etc/etcd-metrics-ca/ca-bundle.crt`
    - `ETCD_CERT_FILE` = `/etc/etcd-client/tls.crt`
    - `ETCD_KEY_FILE` = `/etc/etcd-client/tls.key`
-   - `ETCD_REQUEST_TIMEOUT` = `15s`
 
 If ETCD resources are not found or are invalid, ETCD monitoring is gracefully disabled and the operator continues normal operation.
-
-**Note:** The 15s value for `ETCD_REQUEST_TIMEOUT` comes from testing ETCD request-round-trip times during our internal cluster benchmarks.
-For single-datacenter setups it is intentionally conservative to avoid noisy retries during leader changes.
-For inter-continental clusters (e.g., cross-Pacific) it is still below the upper bound suggested in the [ETCD tuning guide](https://etcd.io/docs/v3.4/tuning/)
 
 #### Vanilla Kubernetes Clusters
 
@@ -83,10 +78,41 @@ spec:
 
 The operator automatically sets these environment variables:
 
-- `ETCD_TARGETS`: Comma-separated list of ETCD metrics endpoints (vanilla K8s)
 - `ETCD_CA_FILE`: Path to the CA certificate for ETCD TLS
-- `ETCD_METRICS_URL`: Direct URL to ETCD metrics (OpenShift)
-- `ETCD_REQUEST_TIMEOUT`: Timeout for ETCD requests (default: 15s)
+- `ETCD_CERT_FILE`: Path to the client certificate for ETCD TLS (OpenShift)
+- `ETCD_KEY_FILE`: Path to the client key for ETCD TLS (OpenShift)
+
+The k8sensor discovers the ETCD endpoints itself, from the `etcd-metrics` service or
+from pods labelled `component=etcd`, so the operator only supplies the TLS settings and
+does not pass the endpoints in.
+
+### CI/CD Pipeline Log Analysis
+
+For analyzing failing CI/CD pipelines, this repository includes a log parser tool that reduces verbose Tekton logs by ~98%.
+
+#### Prerequisites
+
+**IBM Cloud CLI**: Required for fetching pipeline logs. If not installed, follow the [IBM Cloud CLI installation guide](https://cloud.ibm.com/docs/cli?topic=cli-getting-started).
+
+**Authentication**: Before fetching logs, authenticate with:
+```bash
+ibmcloud login --sso
+```
+
+This requires interactive authentication and cannot be automated.
+
+#### Usage
+
+```bash
+# Parse logs directly from ibmcloud CLI
+ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID> | ./ci/sps-scripts/parse-tekton-logs.sh
+
+# Save parsed output for analysis
+ibmcloud dev tekton-logs <PIPELINE_ID> --run-id <RUN_ID> | \
+  ./ci/sps-scripts/parse-tekton-logs.sh > failure-summary.txt
+```
+
+The parser extracts only essential failure information (test failures, panic traces, error messages) while filtering out noise like Docker initialization and package installation logs. See [AGENTS.md](AGENTS.md) for detailed usage guidance.
 
 ### Contributing
 

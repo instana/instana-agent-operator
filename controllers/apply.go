@@ -19,17 +19,15 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	"github.com/instana/instana-agent-operator/pkg/k8s/client"
 	namespaces_configmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/configmap/namespaces-configmap"
 	agentdaemonset "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/agent/daemonset"
@@ -43,7 +41,6 @@ import (
 	backends "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/backends"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/builder"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/constants"
-	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/namespaces"
 	k8ssensorconfigmap "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/configmap"
 	k8ssensordeployment "github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/deployment"
@@ -55,19 +52,39 @@ import (
 )
 
 func getDaemonSetBuilders(
+	ctx context.Context,
+	r *InstanaAgentReconciler,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 	statusManager status.AgentStatusManager,
-) []builder.ObjectBuilder {
+) ([]builder.ObjectBuilder, reconcileReturn) {
 	if len(agent.Spec.Zones) == 0 {
 		return []builder.ObjectBuilder{
-			agentdaemonset.NewDaemonSetBuilder(agent, isOpenShift, statusManager),
-		}
+			agentdaemonset.NewDaemonSetBuilder(
+				agent,
+				isOpenShift,
+				statusManager,
+				shouldSetPersistHostUniqueIDEnvVar,
+			),
+		}, reconcileContinue()
 	}
 
 	builders := make([]builder.ObjectBuilder, 0, len(agent.Spec.Zones))
 
-	for _, zone := range agent.Spec.Zones {
+	// First, collect all zone check results to ensure consistency
+	// If any check fails, we abort before creating any builders
+	zoneSettings := make([]bool, len(agent.Spec.Zones))
+	for i, zone := range agent.Spec.Zones {
+		shouldSetForZone, shouldSetRes := r.shouldSetPersistHostUniqueIDEnvVar(ctx, agent, &zone)
+		if shouldSetRes.suppliesReconcileResult() {
+			return nil, shouldSetRes
+		}
+		zoneSettings[i] = shouldSetForZone
+	}
+
+	// All checks passed, now create builders with the collected settings
+	for i, zone := range agent.Spec.Zones {
 		builders = append(
 			builders,
 			agentdaemonset.NewDaemonSetBuilderWithZoneInfo(
@@ -75,11 +92,12 @@ func getDaemonSetBuilders(
 				isOpenShift,
 				statusManager,
 				&zone,
+				zoneSettings[i],
 			),
 		)
 	}
 
-	return builders
+	return builders, reconcileContinue()
 }
 
 func getK8sSensorDeployments(
@@ -107,60 +125,6 @@ func getK8sSensorDeployments(
 	}
 
 	return builders
-}
-
-// getSortedTargets returns a sorted copy of the given targets slice
-func getSortedTargets(targets []string) []string {
-	sortedTargets := make([]string, len(targets))
-	copy(sortedTargets, targets)
-	sort.Strings(sortedTargets)
-	return sortedTargets
-}
-
-// compareAndUpdateETCDTargets compares current ETCD targets with new discovered targets
-// and determines if an update is needed. This function handles environment variable extraction,
-// target sorting, and comparison logic.
-func compareAndUpdateETCDTargets(
-	existingDeployment *appsv1.Deployment,
-	discoveredTargets []string,
-	log logr.Logger,
-) bool {
-	log.Info(
-		"Comparing current ETCD targets with discovered targets to determine if update is needed",
-	)
-
-	// Extract current ETCD targets from deployment environment variables
-	currentTargets := ""
-	for _, container := range existingDeployment.Spec.Template.Spec.Containers {
-		if container.Name == constants.ContainerK8Sensor {
-			for _, env := range container.Env {
-				if env.Name == constants.EnvETCDTargets {
-					currentTargets = env.Value
-					break
-				}
-			}
-			break
-		}
-	}
-
-	// Sort discovered targets to ensure consistent comparison
-	sortedDiscoveredTargets := getSortedTargets(discoveredTargets)
-	newTargets := strings.Join(sortedDiscoveredTargets, ",")
-
-	// Sort current targets for proper comparison
-	if currentTargets != "" {
-		currentTargetsList := strings.Split(currentTargets, ",")
-		sort.Strings(currentTargetsList)
-		currentTargets = strings.Join(currentTargetsList, ",")
-	}
-
-	log.Info("Target comparison details",
-		"currentTargets", currentTargets,
-		"newTargets", newTargets,
-		"needsUpdate", currentTargets != newTargets)
-
-	// Return true if targets are different (update needed)
-	return currentTargets != newTargets
 }
 
 // ETCDDiscoverFunc is a function type for discovering ETCD endpoints
@@ -284,6 +248,17 @@ func copyETCDResourcesToNamespace(
 	sourceSecret *corev1.Secret,
 	logger logr.Logger,
 ) bool {
+	if operatorNamespace := env.GetOperatorNamespace(); agent.Namespace != operatorNamespace {
+		logger.Info(
+			"Forbidden: agent CR namespace differs from operator namespace. "+
+				"ETCD credentials are only copied when the agent runs in the operator's own namespace.",
+			"agentNamespace",
+			agent.Namespace,
+			"operatorNamespace",
+			operatorNamespace,
+		)
+		return false
+	}
 	// Copy ETCD ConfigMap to instana-agent namespace with synchronization tracking
 	targetCAConfigMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -457,10 +432,25 @@ func CreateDeploymentContext(
 	discoverETCD ETCDDiscoverFunc,
 ) (*k8ssensordeployment.DeploymentContext, error) {
 	if isOpenShift {
+		if operatorNamespace := env.GetOperatorNamespace(); agent.Namespace != operatorNamespace {
+			logger.Info(
+				"Skipping OpenShift ETCD monitoring: agent CR namespace differs from operator namespace. "+
+					"ETCD credentials are only copied when the agent runs in the operator's own namespace.",
+				"agentNamespace",
+				agent.Namespace,
+				"operatorNamespace",
+				operatorNamespace,
+			)
+			return nil, nil
+		}
 		return setupOpenShiftETCDMonitoring(ctx, c, agent, logger), nil
 	}
 
-	// For vanilla Kubernetes, discover ETCD endpoints
+	// For vanilla Kubernetes, discovery only establishes whether there is an etcd to
+	// monitor and whether a CA is available for it. The endpoints themselves are
+	// discovered by the k8sensor, so nothing here has to be compared against the live
+	// Deployment: the context is derived the same way on every reconcile, which keeps
+	// the rendered Deployment stable and stops the apply from rolling the pod.
 	discoveredETCD, err := discoverETCD(ctx, agent)
 	if err != nil {
 		logger.Error(err, "Failed to discover ETCD endpoints")
@@ -468,47 +458,22 @@ func CreateDeploymentContext(
 		return nil, nil
 	}
 
-	if discoveredETCD == nil || len(discoveredETCD.Targets) == 0 {
+	if discoveredETCD == nil || !discoveredETCD.CAFound {
 		return nil, nil
 	}
 
-	// Check if we need to update the Deployment with new ETCD targets
-	existingDeployment := &appsv1.Deployment{}
-	helperInstance := helpers.NewHelpers(agent)
-	err = c.Get(ctx, types.NamespacedName{
-		Namespace: agent.Namespace,
-		Name:      helperInstance.K8sSensorResourcesName(),
-	}, existingDeployment)
+	logger.V(1).Info("Using the discovered ETCD CA")
 
-	if err != nil {
-		logger.Info("K8sensor deployment not found, will create with discovered ETCD targets")
-	} else {
-		// Compare current and discovered ETCD targets
-		needsUpdate := compareAndUpdateETCDTargets(existingDeployment, discoveredETCD.Targets, logger)
-		if !needsUpdate {
-			logger.Info("ETCD targets unchanged, skipping Deployment update")
-			return nil, nil
-		}
-	}
-
-	// Use sorted targets for consistency
-	sortedTargets := getSortedTargets(discoveredETCD.Targets)
-
-	logger.Info("Using discovered ETCD targets", "targets", sortedTargets)
-	deploymentContext := &k8ssensordeployment.DeploymentContext{
-		DiscoveredETCDTargets: sortedTargets,
-	}
-	if discoveredETCD.CAFound {
-		deploymentContext.ETCDCASecretName = constants.ETCDCASecretName
-	}
-
-	return deploymentContext, nil
+	return &k8ssensordeployment.DeploymentContext{
+		ETCDCASecretName: constants.ETCDCASecretName,
+	}, nil
 }
 
 func (r *InstanaAgentReconciler) applyResources(
 	ctx context.Context,
 	agent *instanav1.InstanaAgent,
 	isOpenShift bool,
+	shouldSetPersistHostUniqueIDEnvVar bool,
 	operatorUtils operator_utils.OperatorUtils,
 	statusManager status.AgentStatusManager,
 	keysSecret *corev1.Secret,
@@ -532,8 +497,20 @@ func (r *InstanaAgentReconciler) applyResources(
 		return reconcileFailure(err)
 	}
 
+	daemonSetBuilders, daemonSetBuildersRes := getDaemonSetBuilders(
+		ctx,
+		r,
+		agent,
+		isOpenShift,
+		shouldSetPersistHostUniqueIDEnvVar,
+		statusManager,
+	)
+	if daemonSetBuildersRes.suppliesReconcileResult() {
+		return daemonSetBuildersRes
+	}
+
 	builders := append(
-		getDaemonSetBuilders(agent, isOpenShift, statusManager),
+		daemonSetBuilders,
 		headlessservice.NewHeadlessServiceBuilder(agent),
 		agentsecrets.NewConfigBuilder(agent, statusManager, keysSecret, k8SensorBackends),
 		agentsecrets.NewContainerBuilder(agent, keysSecret),
@@ -545,8 +522,6 @@ func (r *InstanaAgentReconciler) applyResources(
 		k8ssensorpoddisruptionbudget.NewPodDisruptionBudgetBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBuilder(agent),
 		k8ssensorrbac.NewClusterRoleBindingBuilder(agent),
-		k8ssensorrbac.NewRoleBuilder(agent),
-		k8ssensorrbac.NewRoleBindingBuilder(agent),
 		k8ssensorserviceaccount.NewServiceAccountBuilder(agent),
 		k8ssensorconfigmap.NewConfigMapBuilder(agent, k8SensorBackends),
 		keyssecret.NewSecretBuilder(agent, k8SensorBackends),

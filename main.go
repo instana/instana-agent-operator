@@ -11,9 +11,12 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -24,6 +27,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -33,7 +37,9 @@ import (
 
 	agentoperatorv1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/controllers"
+	"github.com/instana/instana-agent-operator/pkg/env"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/helpers"
 	"github.com/instana/instana-agent-operator/version"
 	// +kubebuilder:scaffold:imports
 )
@@ -51,12 +57,73 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
+// getCacheOptions returns the cache configuration for the operator
+// This configuration enables multi-namespace support while maintaining memory efficiency
+// through label-based filtering
+func getCacheOptions() (cache.Options, error) {
+	// Label selector for resources managed by this operator
+	managedByOperator, err := labels.Parse("app.kubernetes.io/managed-by=instana-agent-operator")
+	if err != nil {
+		return cache.Options{}, err
+	}
+
+	return cache.Options{
+		ByObject: map[client.Object]cache.ByObject{
+			// InstanaAgent and InstanaAgentRemote CRs - watch all namespaces
+			&agentoperatorv1.InstanaAgent{}:       {},
+			&agentoperatorv1.InstanaAgentRemote{}: {},
+
+			// Namespace objects - watch all for label monitoring (instana-workload-monitoring)
+			&corev1.Namespace{}: {},
+
+			// Operator-managed resources - filter by label across all namespaces
+			&appsv1.DaemonSet{}: {
+				Label: managedByOperator,
+			},
+			&appsv1.Deployment{}: {
+				Label: managedByOperator,
+			},
+			&corev1.ServiceAccount{}: {
+				Label: managedByOperator,
+			},
+			&policyv1.PodDisruptionBudget{}: {
+				Label: managedByOperator,
+			},
+			&rbacv1.ClusterRole{}: {
+				Label: managedByOperator,
+			},
+			&rbacv1.ClusterRoleBinding{}: {
+				Label: managedByOperator,
+			},
+
+			// ConfigMaps and Secrets - watch all namespaces without label filter
+			// This allows access to user-provided KeysSecrets and ETCD resources
+			// in openshift-etcd and kube-system namespaces
+			&corev1.ConfigMap{}: {},
+			&corev1.Secret{}:    {},
+
+			// Services - watch all namespaces for ETCD service discovery
+			&corev1.Service{}: {},
+		},
+	}, nil
+}
+
 func main() {
 	var metricsAddr string
 	var probeAddr string
 	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(
+		&metricsAddr,
+		"metrics-bind-address",
+		":8080",
+		"The address the metric endpoint binds to.",
+	)
+	flag.StringVar(
+		&probeAddr,
+		"health-probe-bind-address",
+		":8081",
+		"The address the probe endpoint binds to.",
+	)
 	// By default disable leader-election and assume single instance gets installed. Via parameters (--leader-elect) it will be
 	// enabled from the Operator Deployment spec.
 	flag.BoolVar(
@@ -81,15 +148,32 @@ func main() {
 	cfg := ctrl.GetConfigOrDie()
 	instanaclient.ConfigureWarningHandler(cfg)
 
+	// Get the namespace where the operator is running for leader election
+	operatorNamespace := env.GetOperatorNamespace()
+	log.Info("Leader election namespace set", "namespace", operatorNamespace)
+
+	// Configure cache to watch only resources managed by this operator using label selectors
+	// This reduces memory usage while allowing the operator to work across namespaces
+	// Resources created by the operator have label: app.kubernetes.io/managed-by=instana-agent-operator
+	log.Info("Configuring cache with label-based filtering for operator-managed resources")
+
+	cacheOpts, err := getCacheOptions()
+	if err != nil {
+		log.Error(err, "Failed to create cache options")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(
 		cfg, ctrl.Options{
+			Cache: cacheOpts,
 			Metrics: metricsserver.Options{
 				BindAddress: metricsAddr,
 			},
-			Scheme:                 scheme,
-			HealthProbeBindAddress: probeAddr,
-			LeaderElection:         enableLeaderElection,
-			LeaderElectionID:       "819a9291.instana.io",
+			Scheme:                  scheme,
+			HealthProbeBindAddress:  probeAddr,
+			LeaderElection:          enableLeaderElection,
+			LeaderElectionID:        "819a9291.instana.io",
+			LeaderElectionNamespace: operatorNamespace,
 		},
 	)
 	if err != nil {
@@ -119,25 +203,14 @@ func main() {
 	// controller-manager only runs controllers/runnables after getting the lock
 	// we do the cleanup beforehand so our new deployment gets the lock
 	log.Info("Deleting the controller-manager deployment and RBAC if it's present")
-	//we need a new client because we have to delete old resources before starting the new manager
+	// we need a new client because we have to delete old resources before starting the new manager
 	if client, err := k8sClient.New(cfg, k8sClient.Options{
 		Scheme: scheme,
 	}); err != nil {
 		log.Error(err, "Failed to create a new k8s client")
 	} else {
 		cleanupOldOperator(client)
-	}
-
-	// controller-manager only runs controllers/runnables after getting the lock
-	// we do the cleanup beforehand so our new deployment gets the lock
-	log.Info("Deleting the controller-manager deployment and RBAC if it's present")
-	//we need a new client because we have to delete old resources before starting the new manager
-	if client, err := k8sClient.New(cfg, k8sClient.Options{
-		Scheme: scheme,
-	}); err != nil {
-		log.Error(err, "Failed to create a new k8s client")
-	} else {
-		cleanupOldOperator(client)
+		cleanupLegacyAgentRBAC(client)
 	}
 
 	log.Info("Starting manager")
@@ -167,7 +240,14 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 	}
 
 	if err := k8sClient.List(context.Background(), deploymentsList, deploymentOptions); err != nil {
-		log.Info(fmt.Sprintf("Failed to get list the deployment with the label %s:%s and name %s", labelKey, instanaclient.FieldOwnerName, InstanaOperatorOldDeploymentName))
+		log.Info(
+			fmt.Sprintf(
+				"Failed to get list the deployment with the label %s:%s and name %s",
+				labelKey,
+				instanaclient.FieldOwnerName,
+				InstanaOperatorOldDeploymentName,
+			),
+		)
 	} else {
 		// there should be only one deployment but we iterate just in case
 		log.Info(fmt.Sprintf("Found %v deployments that match the criteria", len(deploymentsList.Items)))
@@ -197,11 +277,8 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 		// check if it has an API group "instana.io"
 		hasInstanaApiGroup := false
 		for _, rule := range oldRole.Rules {
-			for _, apiGroup := range rule.APIGroups {
-				if apiGroup == "instana.io" {
-					hasInstanaApiGroup = true
-					break
-				}
+			if slices.Contains(rule.APIGroups, "instana.io") {
+				hasInstanaApiGroup = true
 			}
 			if hasInstanaApiGroup {
 				break
@@ -245,6 +322,79 @@ func cleanupOldOperator(k8sClient k8sClient.Client) {
 				log.Info("Failed to delete the old operator clusterrolebinding " + InstanaOperatorOldClusterRoleBindingName)
 			} else {
 				log.Info(fmt.Sprintf("Successfully deleted the clusterrolebinding %s", InstanaOperatorOldClusterRoleBindingName))
+			}
+		}
+	}
+}
+
+// cleanupLegacyAgentRBAC removes ClusterRole/ClusterRoleBinding objects whose names were
+// derived solely from the CR name, before namespace-qualified naming was introduced.
+// Skipped when the CR namespace equals the ServiceAccount name (names are unchanged in that case).
+// Only objects owned by this operator (managed-by label) are deleted.
+func cleanupLegacyAgentRBAC(k8sClient k8sClient.Client) {
+	log.Info("Cleaning up legacy bare-name agent RBAC objects if present")
+
+	const managedByLabel = "app.kubernetes.io/managed-by"
+	const managedByValue = "instana-agent-operator"
+
+	ctx := context.Background()
+
+	// List all InstanaAgent CRs across all namespaces to discover which bare names
+	// may have been used as RBAC object names before the fix.
+	agentList := &agentoperatorv1.InstanaAgentList{}
+	if err := k8sClient.List(ctx, agentList); err != nil {
+		log.Error(err, "Failed to list InstanaAgent CRs during legacy RBAC cleanup")
+		return
+	}
+
+	// Use a set to deduplicate names: multiple CRs in different namespaces can share
+	// the same ServiceAccount name, which would produce identical legacy RBAC names
+	// and cause redundant Get+Delete attempts on already-deleted objects.
+	seen := make(map[string]struct{})
+	for _, agent := range agentList.Items {
+		h := helpers.NewHelpers(&agent)
+		saName := h.ServiceAccountName()
+
+		if agent.Namespace == saName {
+			continue
+		}
+
+		seen[saName] = struct{}{}
+		seen[saName+"-k8sensor"] = struct{}{}
+	}
+
+	for name := range seen {
+		// --- ClusterRole ---
+		oldCR := &rbacv1.ClusterRole{}
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, oldCR); err != nil {
+			if !errors.IsNotFound(err) {
+				log.Error(err, "Failed to get legacy ClusterRole", "name", name)
+			}
+		} else if oldCR.Labels[managedByLabel] != managedByValue {
+			log.Info("ClusterRole found but not managed by this operator, skipping", "name", name)
+		} else {
+			log.Info("Deleting legacy ClusterRole", "name", name)
+			if err := k8sClient.Delete(ctx, oldCR); err != nil {
+				log.Error(err, "Failed to delete legacy ClusterRole", "name", name)
+			} else {
+				log.Info("Successfully deleted legacy ClusterRole", "name", name)
+			}
+		}
+
+		// --- ClusterRoleBinding ---
+		oldCRB := &rbacv1.ClusterRoleBinding{}
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, oldCRB); err != nil {
+			if !errors.IsNotFound(err) {
+				log.Error(err, "Failed to get legacy ClusterRoleBinding", "name", name)
+			}
+		} else if oldCRB.Labels[managedByLabel] != managedByValue {
+			log.Info("ClusterRoleBinding found but not managed by this operator, skipping", "name", name)
+		} else {
+			log.Info("Deleting legacy ClusterRoleBinding", "name", name)
+			if err := k8sClient.Delete(ctx, oldCRB); err != nil {
+				log.Error(err, "Failed to delete legacy ClusterRoleBinding", "name", name)
+			} else {
+				log.Info("Successfully deleted legacy ClusterRoleBinding", "name", name)
 			}
 		}
 	}

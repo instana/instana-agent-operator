@@ -30,7 +30,7 @@ type MockRemoteEnvBuilder struct {
 
 func (m *MockRemoteEnvBuilder) Build(envVars ...env.EnvVarRemote) []corev1.EnvVar {
 	// Convert variadic args to slice for mock matching
-	varArgs := make([]interface{}, len(envVars))
+	varArgs := make([]any, len(envVars))
 	for i, v := range envVars {
 		varArgs[i] = v
 	}

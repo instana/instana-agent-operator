@@ -68,7 +68,7 @@ trap cleanup EXIT SIGINT SIGTERM
 
 # Authenticate to GCP
 echo "Authenticating to GCP..."
-echo -n "$(get_env GOOGLE_APPLICATION_CREDENTIALS_BASE64)" | base64 -d > gcp-key.json
+echo -n "$(get_secret GOOGLE_APPLICATION_CREDENTIALS_BASE64)" | base64 -d > gcp-key.json
 gcloud auth activate-service-account --key-file gcp-key.json
 gcloud config set project ${PROJECT_ID}
 
@@ -95,11 +95,12 @@ gcloud compute instances create ${VM_NAME} \
   --project=${PROJECT_ID} \
   --zone=${ZONE} \
   --machine-type=e2-standard-4 \
-  --image=projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2404-noble-amd64-v20251002 \
+  --image=projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2604-resolute-amd64-v20260723 \
   --labels="purpose=e2e-testing,creation-time=$(date +%s),max-lifetime=90m" \
   --metadata="startup-script=#!/bin/bash
     # Install k3s with tls-san to include the external IP in the certificate
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC=\"--disable=traefik --tls-san=\$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H 'Metadata-Flavor: Google')\" sh -
+    # Use --cluster-init to enable embedded ETCD instead of SQLite (required for ETCD scraping tests)
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC=\"--cluster-init --disable=traefik --tls-san=\$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H 'Metadata-Flavor: Google')\" sh -
   " \
   --tags=k3s-server
 
@@ -139,7 +140,7 @@ ICR_PASSWORD=$(cat /config/api-key)
 
 # Setup Instana backend details
 echo "Setting up Instana backend details..."
-INSTANA_E2E_BACKEND_DETAILS=$(get_env instana-e2e-backend-details)
+INSTANA_E2E_BACKEND_DETAILS=$(get_secret instana-e2e-backend-details)
 INSTANA_ENDPOINT_HOST=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".endpoint_host")
 INSTANA_ENDPOINT_PORT=443
 INSTANA_API_KEY=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".agent_key")

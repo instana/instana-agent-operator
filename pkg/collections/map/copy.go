@@ -3,6 +3,8 @@
  */
 package _map
 
+import "maps"
+
 type Copier[K comparable, V any] interface {
 	Copy() map[K]V
 }
@@ -14,9 +16,7 @@ type copier[K comparable, V any] struct {
 func (c *copier[K, V]) Copy() map[K]V {
 	res := make(map[K]V, len(c.m))
 
-	for k, v := range c.m {
-		res[k] = v
-	}
+	maps.Copy(res, c.m)
 
 	return res
 }
