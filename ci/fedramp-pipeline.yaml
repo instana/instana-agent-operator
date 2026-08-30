@@ -1,0 +1,327 @@
+#
+# (c) Copyright IBM Corp. 2025
+#
+# On manual trigger, this fedramp-pipeline will build a operator image and pass it over to a container registry and
+# create a kubernetes manifest-file collecting all the resources needed.
+#
+---
+var_sources:
+  - name: local-variables
+    type: dummy
+    config:
+      vars:
+        fedramp-version-default: "1.0.0"
+
+var:
+  e2e-test-base-image: &e2e-test-base-image
+    type: registry-image
+    source:
+      repository: delivery.instana.io/int-docker-agent-local/instana-agent-operator/e2e-test-base-image
+      tag: main
+      username: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+      password: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+
+jobs:
+  - name: build-and-push-multiarch-fedramp-image
+    max_in_flight: 1
+    plan:
+      # Use the filesystem to have dynamic variables that change based on the fedramp-version
+      - task: determine-variables-from-fedramp-version
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          outputs:
+            - name: variables
+          params:
+            FEDRAMP_VERSION: ((local-variables:fedramp-version-default))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                echo "Using FedRAMP version: ${FEDRAMP_VERSION}"
+                # Define the updated repository paths with the correct version
+                PRERELEASE_CONTAINER_REPO_URL="delivery.instana.io/int-docker-agent-fedramp-prerelease-local/instana-agent-operator/fedramp-v${FEDRAMP_VERSION}/instana-agent-operator"
+                RELEASE_CONTAINER_REPO_URL="delivery.instana.io/int-docker-agent-fedramp-release-local/instana-agent-operator/fedramp-v${FEDRAMP_VERSION}/instana-agent-operator"
+                RELEASE_GENERIC_REPO="https://delivery.instana.io/artifactory/int-generic-agent-fedramp-release-local/instana-agent-operator/fedramp-v${FEDRAMP_VERSION}/instana-agent-operator"
+
+                # Save for later use
+                echo "${PRERELEASE_CONTAINER_REPO_URL}" > variables/prerelease-container-repo-url
+                echo "${RELEASE_CONTAINER_REPO_URL}" > variables/release-container-repo-url
+                echo "${RELEASE_GENERIC_REPO}" > variables/release-generic-repo-url
+                echo "fedramp-release-v${FEDRAMP_VERSION}" > variables/release-branch
+
+                echo "Variables have been updated with FedRAMP version ${FEDRAMP_VERSION}"
+      - load_var: prerelease-container-repo-url
+        file: variables/prerelease-container-repo-url
+        reveal: true
+      - load_var: release-container-repo-url
+        file: variables/release-container-repo-url
+        reveal: true
+      - load_var: release-generic-repo-url
+        file: variables/release-generic-repo-url
+        reveal: true
+      - load_var: release-branch
+        file: variables/release-branch
+        reveal: true
+      # Copy the source code as now we know which version to release with the right branch
+      - task: clone-source-code
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: variables
+          outputs:
+            - name: source-code
+          params:
+            BRANCH_NAME: ((.:release-branch))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                # Make a shallow clone
+                git clone --branch ${BRANCH_NAME} --single-branch --depth 1 https://github.com/instana/instana-agent-operator.git source-code
+                cd source-code && git checkout --detach
+                echo "Pulled instana-agent-operator source code with branch: ${BRANCH_NAME}"
+      # Use the filesystem to create dynamic variables that change based on the git repository
+      - task: determine-variables-from-git
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: source-code
+          outputs:
+            - name: variables
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                cd source-code
+                echo $(git describe --tags --abbrev=0) > ../variables/git-tag
+                echo $(cat .git/HEAD) > ../variables/git-commit
+      - load_var: git-tag
+        file: variables/git-tag
+        reveal: true
+      - load_var: git-commit
+        file: variables/git-commit
+        reveal: true
+      # Build images for all supported platforms.
+      - in_parallel:
+          fail_fast: true
+          steps:
+            - task: build-amd64-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-amd64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/amd64
+                version: ((.:git-tag))
+                git-commit: ((.:git-commit))
+            - task: build-arm64-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-arm64
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/arm64
+                version: ((.:git-tag))
+                git-commit: ((.:git-commit))
+            - task: build-s390x-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-s390x
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/s390x
+                version: ((.:git-tag))
+                git-commit: ((.:git-commit))
+            - task: build-ppc64le-image
+              privileged: true
+              file: source-code/ci/container-image-build-task.yml
+              input_mapping:
+                source: source-code
+              output_mapping:
+                image: image-ppc64le
+              vars:
+                dockerfile: Dockerfile
+                target-platform: linux/ppc64le
+                version: ((.:git-tag))
+                git-commit: ((.:git-commit))
+      # Create tags for previously built images.
+      - task: create-image-tags-for-built-images
+        privileged: true
+        file: source-code/ci/create-tag-file.yml
+        vars:
+          git-commit: ((.:git-commit))
+          version: ((.:fedramp-version))
+      # Store built images in prerelease container repository until everything is ready.
+      - task: push-built-images-to-prerelease-container-repository
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: image-amd64
+            - name: image-arm64
+            - name: image-ppc64le
+            - name: image-s390x
+            - name: image-tags
+            - name: variables
+          params:
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            PRERELEASE_CONTAINER_REPO_URL: ((.:prerelease-container-repo-url))
+            GIT_COMMIT: ((.:git-commit))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                echo "Pushing images to ${PRERELEASE_CONTAINER_REPO_URL}"
+
+                # Push amd64 image with tag created by create-tag-file.yml
+                AMD64_TAGS=$(cat image-tags/amd64)
+                for TAG in ${GIT_COMMIT}-amd64 ${AMD64_TAGS}; do
+                  echo "Pushing amd64 image with tag: ${TAG}"
+                  skopeo copy \
+                    --dest-username ${ARTIFACTORY_USERNAME} \
+                    --dest-password ${ARTIFACTORY_PASSWORD} \
+                    docker-archive:image-amd64/image.tar \
+                    docker://${PRERELEASE_CONTAINER_REPO_URL}:${TAG}
+                done
+
+                # Push arm64 image with tag created by create-tag-file.yml
+                ARM64_TAGS=$(cat image-tags/arm64)
+                for TAG in ${GIT_COMMIT}-arm64 ${ARM64_TAGS}; do
+                  echo "Pushing arm64 image with tag: ${TAG}"
+                  skopeo copy \
+                    --dest-username ${ARTIFACTORY_USERNAME} \
+                    --dest-password ${ARTIFACTORY_PASSWORD} \
+                    docker-archive:image-arm64/image.tar \
+                    docker://${PRERELEASE_CONTAINER_REPO_URL}:${TAG}
+                done
+
+                # Push ppc64le image with tag created by create-tag-file.yml
+                PPC64LE_TAGS=$(cat image-tags/ppc64le)
+                for TAG in ${GIT_COMMIT}-ppc64le ${PPC64LE_TAGS}; do
+                  echo "Pushing ppc64le image with tag: ${TAG}"
+                  skopeo copy \
+                    --dest-username ${ARTIFACTORY_USERNAME} \
+                    --dest-password ${ARTIFACTORY_PASSWORD} \
+                    docker-archive:image-ppc64le/image.tar \
+                    docker://${PRERELEASE_CONTAINER_REPO_URL}:${TAG}
+                done
+
+                # Push s390x image with tag created by create-tag-file.yml
+                S390X_TAGS=$(cat image-tags/s390x)
+                for TAG in ${GIT_COMMIT}-s390x ${S390X_TAGS}; do
+                  echo "Pushing s390x image with tag: ${TAG}"
+                  skopeo copy \
+                    --dest-username ${ARTIFACTORY_USERNAME} \
+                    --dest-password ${ARTIFACTORY_PASSWORD} \
+                    docker-archive:image-s390x/image.tar \
+                    docker://${PRERELEASE_CONTAINER_REPO_URL}:${TAG}
+                done
+
+                echo "All images pushed successfully to ${PRERELEASE_CONTAINER_REPO_URL}"
+      - task: create-container-manifest-list
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          outputs:
+            - name: manifest-list
+          params:
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            PRERELEASE_CONTAINER_REPO_URL: ((.:prerelease-container-repo-url))
+            GIT_COMMIT: ((.:git-commit))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                echo "Attempting to create container manifest-list for ${PRERELEASE_CONTAINER_REPO_URL}."
+                manifest-tool \
+                  --username ${ARTIFACTORY_USERNAME} \
+                  --password ${ARTIFACTORY_PASSWORD} \
+                  push from-args \
+                  --platforms linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+                  --template ${PRERELEASE_CONTAINER_REPO_URL}:${GIT_COMMIT}-ARCH \
+                  --target ${PRERELEASE_CONTAINER_REPO_URL}:${GIT_COMMIT} | tee manifest-output.txt
+                OPERATOR_IMG_DIGEST=$(awk '{ print $2 }' manifest-output.txt)
+                echo "Successfully generated a container manifest-list: $OPERATOR_IMG_DIGEST"
+                echo ${OPERATOR_IMG_DIGEST} > manifest-list/digest
+      # Release images by copying them from prerelease repository to release repository.
+      - task: push-prerelease-images-to-release-container-repository
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: manifest-list
+          params:
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            PRERELEASE_CONTAINER_REPO_URL: ((.:prerelease-container-repo-url))
+            RELEASE_CONTAINER_REPO_URL: ((.:release-container-repo-url))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                DIGEST=$(cat manifest-list/digest)
+                echo "Attempting to copy ${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} over to the registry ${RELEASE_CONTAINER_REPO_URL}."
+
+                skopeo copy -a --preserve-digests \
+                  --src-username ${ARTIFACTORY_USERNAME} \
+                  --src-password ${ARTIFACTORY_PASSWORD} \
+                  --dest-username ${ARTIFACTORY_USERNAME} \
+                  --dest-password ${ARTIFACTORY_PASSWORD} \
+                  docker://${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} \
+                  docker://${RELEASE_CONTAINER_REPO_URL}:latest
+
+                echo "${PRERELEASE_CONTAINER_REPO_URL}@${DIGEST} has been copied over to registry successfully."
+      # Release operator yaml by pushing it to the release generic repository.
+      - task: push-kubernetes-manifest-file-to-release-generic-repository
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            <<: *e2e-test-base-image
+          inputs:
+            - name: source-code
+          params:
+            ARTIFACTORY_USERNAME: ((delivery-instana-io-internal-project-artifact-read-writer-creds.username))
+            ARTIFACTORY_PASSWORD: ((delivery-instana-io-internal-project-artifact-read-writer-creds.password))
+            RELEASE_GENERIC_REPO_URL: ((.:release-generic-repo-url))
+            RELEASE_CONTAINER_REPO_URL: ((.:release-container-repo-url))
+            GIT_TAG: ((.:git-tag))
+          run:
+            path: bash
+            args:
+              - -ceu
+              - |
+                echo "Attempting to push Instana Agent Operator Kubernetes manifest YAML-file to ${RELEASE_GENERIC_REPO_URL} that points to ${RELEASE_CONTAINER_REPO_URL}:latest"
+                cd source-code
+                make --silent IMG="${RELEASE_CONTAINER_REPO_URL}:latest" controller-yaml > instana-agent-operator-manifest.yaml
+                curl --fail --show-error -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD}  -X PUT "${RELEASE_GENERIC_REPO_URL}/instana-agent-operator-manifest-${GIT_TAG}.yaml" -T "./instana-agent-operator-manifest.yaml"
+                echo "Pushing of Instana Agent Operator Kubernetes manifest YAML-file successful."
