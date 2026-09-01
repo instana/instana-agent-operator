@@ -72,7 +72,7 @@ if [[ $(get_env run-"${CLUSTER_ID}") == "false" ]]; then
     exit 0
 fi
 
-CLUSTER_DETAILS=$(get_env "${CLUSTER_ID}")
+CLUSTER_DETAILS=$(get_secret "${CLUSTER_ID}")
 CLUSTER_TYPE=$(echo "${CLUSTER_DETAILS}" | jq -r ".type")
 CLUSTER_NAME=$(echo "${CLUSTER_DETAILS}" | jq -r ".name")
 ICR_USERNAME=iamapikey
@@ -133,7 +133,7 @@ elif [ "${CLUSTER_TYPE}" == "gke" ]; then
     CLUSTER_ZONE=$(echo "${CLUSTER_DETAILS}" | jq -r ".zone")
     CLUSTER_PROJECT=$(echo "${CLUSTER_DETAILS}" | jq -r ".project")
     # login into GCP
-    get_env gcp-service-account > keyfile.json
+    get_secret gcp-service-account > keyfile.json
     gcloud auth activate-service-account --key-file keyfile.json
     gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}" --project "${CLUSTER_PROJECT}"
 else
@@ -150,7 +150,7 @@ export PATH=${PATH}:/usr/local/go/bin:/usr/local/bin
 go version
 
 # fetching e2e test backend details
-INSTANA_E2E_BACKEND_DETAILS=$(get_env instana-e2e-backend-details)
+INSTANA_E2E_BACKEND_DETAILS=$(get_secret instana-e2e-backend-details)
 INSTANA_ENDPOINT_HOST=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".endpoint_host")
 INSTANA_ENDPOINT_PORT=443
 INSTANA_API_KEY=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".agent_key")

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# (c) Copyright IBM Corp. 2025
+#
 # Helper script to calculate CI Server specific metadata to be used for locking.
 # When invoked, it generates a unique lock owner name from concourse meta-data and
 # fetched the most recent go binary from github to execute the lock or release command. 
@@ -11,7 +14,7 @@ echo "${RESLOCK_COMMAND} lock ${RESLOCK_RESOURCE_NAME}"
 
 export RESLOCK_GITHUB_REPO_OWNER=instana
 export RESLOCK_LOCK_OWNER="${APP_REPO_NAME}/${BRANCH}/${PIPELINE_RUN_NAME}/${BUILD_NUMBER}"
-RESLOCK_GITHUB_TOKEN=$(get_env reslock-github-token)
+RESLOCK_GITHUB_TOKEN=$(get_secret reslock-github-token)
 export RESLOCK_GITHUB_TOKEN
 
 echo "RESLOCK_GITHUB_REPO_OWNER=${RESLOCK_GITHUB_REPO_OWNER}"
