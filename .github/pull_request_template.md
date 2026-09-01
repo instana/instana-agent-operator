@@ -34,4 +34,4 @@ Note: Remember to run a [helm chart](https://github.ibm.com/instana/instana-agen
 
 ## Backporting Checklist
 
-- [ ] **CVE or Bug Fix** — backport PR to `release-2.1` is automatically created. Please review afterwards.
+- [ ] **CVE or Bug Fix** — backport PR to supported release branches, e.g. `release-2.1` is automatically created. Please review afterwards.
