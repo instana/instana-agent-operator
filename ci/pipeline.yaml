@@ -544,7 +544,7 @@ jobs:
                   password: ((icr-api-key.password))
               params:
                 GIT_COMMIT: ((.:git-commit))
-                CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                CLUSTER_INFO: '{ "name": "operator-lowest", "zone": "europe-central2", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
                 NAME: gke-operator-lowest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
@@ -602,7 +602,7 @@ jobs:
                   platform: linux
                   image_resource: *e2e-test-image-resource
                   params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-lowest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                    CLUSTER_INFO: '{ "name": "operator-lowest", "zone": "europe-central2", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-operator-lowest
                     GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
@@ -652,7 +652,7 @@ jobs:
               <<: *gke-e2e-test-config
               params:
                 GIT_COMMIT: ((.:git-commit))
-                CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                CLUSTER_INFO: '{ "name": "operator-latest", "zone": "europe-central2", "project": "instana-agent-qa" }'
                 CLUSTER_TYPE: gke
                 NAME: gke-operator-latest
                 GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
@@ -711,7 +711,7 @@ jobs:
                   platform: linux
                   image_resource: *e2e-test-image-resource
                   params:
-                    CLUSTER_INFO: '{ "name": "project-berlin-latest", "zone": "us-central1", "project": "instana-agent-qa" }'
+                    CLUSTER_INFO: '{ "name": "operator-latest", "zone": "europe-central2", "project": "instana-agent-qa" }'
                     CLUSTER_TYPE: gke
                     NAME: gke-operator-latest
 
