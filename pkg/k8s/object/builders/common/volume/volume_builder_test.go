@@ -40,14 +40,24 @@ func rangeUntil(n int) []Volume {
 	return res
 }
 
-func assertAllElementsUnique[T comparable](assertions *require.Assertions, list []T) {
-	m := make(map[T]bool, len(list))
+func assertAllVolumesUnique(assertions *require.Assertions, list []corev1.Volume) {
+	names := make(map[string]bool, len(list))
 
 	for _, element := range list {
-		m[element] = true
+		names[element.Name] = true
 	}
 
-	assertions.Equal(len(list), len(m))
+	assertions.Equal(len(list), len(names))
+}
+
+func assertAllVolumeMountsUnique(assertions *require.Assertions, list []corev1.VolumeMount) {
+	names := make(map[string]bool, len(list))
+
+	for _, element := range list {
+		names[element.Name] = true
+	}
+
+	assertions.Equal(len(list), len(names))
 }
 
 func TestVolumeBuilderBuildsAreUnique(t *testing.T) {
@@ -60,8 +70,8 @@ func TestVolumeBuilderBuildsAreUnique(t *testing.T) {
 
 			assertions.Len(volume, numDefinedVolumes-2)
 			assertions.Len(volumeMount, numDefinedVolumes-2)
-			assertAllElementsUnique(assertions, volume)
-			assertAllElementsUnique(assertions, volumeMount)
+			assertAllVolumesUnique(assertions, volume)
+			assertAllVolumeMountsUnique(assertions, volumeMount)
 		},
 	)
 
