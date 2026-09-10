@@ -138,9 +138,10 @@ resources:
 jobs:
   - name: self-update
     on_success:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: success, context: self-update }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: success, context: self-update }
     on_failure:
       do:
         - put: slack-alert
@@ -148,9 +149,10 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: failure, context: self-update }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: failure, context: self-update }
     on_error:
       do:
         - put: slack-alert
@@ -158,37 +160,46 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator self-update has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: self-update }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: error, context: self-update }
     on_abort:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: error, context: self-update }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: error, context: self-update }
     plan:
       - get: agent-operator-git-source
         trigger: true
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: self-update }
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: build/docker }
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
-      - put: gh-status
-        inputs: [ agent-operator-git-source ]
-        params: { state: pending, context: operator-olm-github-release/build }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: self-update }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: build/docker }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: end-to-end-tests/run-e2e-test-openshift-4-11 }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+      - try:
+          put: gh-status
+          inputs: [ agent-operator-git-source ]
+          params: { state: pending, context: operator-olm-github-release/build }
       - set_pipeline: self
         file: agent-operator-git-source/ci/pipeline.yaml
 
@@ -283,9 +294,10 @@ jobs:
   - name: unit-tests
     max_in_flight: 1
     on_success:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: success, context: unit-tests }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: success, context: unit-tests }
     on_failure:
       do:
         - put: slack-alert
@@ -293,9 +305,10 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator unit-tests have failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: failure, context: unit-tests }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: failure, context: unit-tests }
     on_error:
       do:
         - put: slack-alert
@@ -303,13 +316,15 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator unit-tests have failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: unit-tests }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: error, context: unit-tests }
     on_abort:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: error, context: unit-tests }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: error, context: unit-tests }
     plan:
       - get: agent-operator-git-source
       - get: version-increment-type
@@ -341,9 +356,10 @@ jobs:
   - name: docker-build
     max_in_flight: 1
     on_success:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: success, context: build/docker }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: success, context: build/docker }
     on_failure:
       do:
         - put: slack-alert
@@ -351,9 +367,10 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: failure, context: build/docker }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: failure, context: build/docker }
     on_error:
         do:
         - put: slack-alert
@@ -361,13 +378,15 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator docker-build has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: build/docker }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: error, context: build/docker }
     on_abort:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: error, context: build/docker }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: error, context: build/docker }
     plan:
       - get: agent-operator-git-source
       - get: version-increment-type
@@ -565,9 +584,10 @@ jobs:
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             on_success:
-              put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
+              try:
+                put: gh-status
+                inputs: [ agent-operator-git-source ]
+                params: { state: success, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             on_failure:
               do:
               - put: slack-alert
@@ -575,9 +595,10 @@ jobs:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
                     :x: the operator run-e2e-test-gke-operator-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ agent-operator-git-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
+              - try:
+                  put: gh-status
+                  inputs: [ agent-operator-git-source ]
+                  params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             on_error:
               do:
               - put: slack-alert
@@ -585,13 +606,15 @@ jobs:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
                     :x: the operator run-e2e-test-gke-operator-lowest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
+              - try:
+                  put: gh-status
+                  inputs: [ agent-operator-git-source ]
+                  params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
+            on_abort:
+              try:
+                put: gh-status
                 inputs: [ agent-operator-git-source ]
                 params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
-            on_abort:
-              put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-lowest }
             ensure:
               do:
               - task: cleanup-resources
@@ -674,9 +697,10 @@ jobs:
                     bash ./ci/scripts/cluster-authentication.sh
                     make pre-pull-images generate e2e
             on_success:
-              put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: success, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
+              try:
+                put: gh-status
+                inputs: [ agent-operator-git-source ]
+                params: { state: success, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             on_failure:
               do:
               - put: slack-alert
@@ -684,9 +708,10 @@ jobs:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
                     :x: the operator run-e2e-test-gke-operator-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
-                inputs: [ agent-operator-git-source ]
-                params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
+              - try:
+                  put: gh-status
+                  inputs: [ agent-operator-git-source ]
+                  params: { state: failure, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             on_error:
               do:
               - put: slack-alert
@@ -694,13 +719,15 @@ jobs:
                   channel: '#tech-agent-delivery-notifications'
                   text: |
                     :x: the operator run-e2e-test-gke-operator-latest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-              - put: gh-status
+              - try:
+                  put: gh-status
+                  inputs: [ agent-operator-git-source ]
+                  params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
+            on_abort:
+              try:
+                put: gh-status
                 inputs: [ agent-operator-git-source ]
                 params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
-            on_abort:
-              put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: error, context: end-to-end-tests/run-e2e-test-gke-operator-latest }
             ensure:
               do:
               - task: cleanup-resources
@@ -814,9 +841,10 @@ jobs:
         - put: release-version
           params:
             directory: version-output
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: success, context: tag-release }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: success, context: tag-release }
     on_failure:
       do:
         - put: slack-alert
@@ -824,9 +852,10 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: failure, context: tag-release }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: failure, context: tag-release }
     on_error:
       do:
         - put: slack-alert
@@ -834,13 +863,15 @@ jobs:
             channel: '#tech-agent-delivery-notifications'
             text: |
               :x: the operator tag-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-        - put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: tag-release }
+        - try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: error, context: tag-release }
     on_abort:
-      put: gh-status
-      inputs: [ agent-operator-git-source ]
-      params: { state: error, context: tag-release }
+      try:
+        put: gh-status
+        inputs: [ agent-operator-git-source ]
+        params: { state: error, context: tag-release }
     max_in_flight: 1
     plan:
       - get: agent-operator-image-manifest-sha
@@ -994,9 +1025,10 @@ jobs:
                   docker://${DEV_BUILD_IMAGE}@${DIGEST} \
                   docker://${RED_HAT_REGISTRY}:${OPERATOR_DOCKER_VERSION}
         on_success:
-          put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: success, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_failure:
           do:
             - put: slack-alert
@@ -1004,9 +1036,10 @@ jobs:
                 channel: '#tech-agent-delivery-notifications'
                 text: |
                   :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-            - put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+            - try:
+                put: gh-status
+                inputs: [ agent-operator-git-source ]
+                params: { state: failure, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_error:
           do:
             - put: slack-alert
@@ -1014,13 +1047,15 @@ jobs:
                 channel: '#tech-agent-delivery-notifications'
                 text: |
                   :x: the operator build-multiarch-manifest has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-            - put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+            - try:
+                put: gh-status
+                inputs: [ agent-operator-git-source ]
+                params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
         on_abort:
-          put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
+          try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: error, context: multiarch-operator-manifest-promotion/build-multiarch-manifest }
       - get: preflight
         params:
           globs:
@@ -1283,9 +1318,10 @@ jobs:
                 echo "**** Public release, create github.com release $VERSION. ****"
                 ./ci/scripts/create-github-release.sh $OLM_RELEASE_VERSION $GH_API_TOKEN $TARGET_DIR $BRANCH
         on_success:
-          put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: success, context: operator-olm-github-release/build }
+          try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: success, context: operator-olm-github-release/build }
         on_failure:
           do:
             - put: slack-alert
@@ -1293,9 +1329,10 @@ jobs:
                 channel: '#tech-agent-delivery-notifications'
                 text: |
                   :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-            - put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: failure, context: operator-olm-github-release/build }
+            - try:
+                put: gh-status
+                inputs: [ agent-operator-git-source ]
+                params: { state: failure, context: operator-olm-github-release/build }
         on_error:
           do:
             - put: slack-alert
@@ -1303,13 +1340,15 @@ jobs:
                 channel: '#tech-agent-delivery-notifications'
                 text: |
                   :x: the operator operator-olm-github-release has failed. <!subteam^SNMD75GH3> please check <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|the build job>.
-            - put: gh-status
-              inputs: [ agent-operator-git-source ]
-              params: { state: error, context: operator-olm-github-release/build }
+            - try:
+                put: gh-status
+                inputs: [ agent-operator-git-source ]
+                params: { state: error, context: operator-olm-github-release/build }
         on_abort:
-          put: gh-status
-          inputs: [ agent-operator-git-source ]
-          params: { state: error, context: operator-olm-github-release/build }
+          try:
+            put: gh-status
+            inputs: [ agent-operator-git-source ]
+            params: { state: error, context: operator-olm-github-release/build }
       - task: push-fedramp-version
         config:
           platform: linux
