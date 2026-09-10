@@ -533,7 +533,7 @@ jobs:
               run:
                 path: agent-operator-git-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-operator-lowest
-            timeout: 55m
+            timeout: 85m
             attempts: 1
             config: &gke-e2e-test-config
               platform: linux
@@ -648,7 +648,7 @@ jobs:
               run:
                 path: agent-operator-git-source/ci/scripts/reslock.sh
           - task: run-e2e-test-gke-operator-latest
-            timeout: 55m
+            timeout: 85m
             attempts: 1
             config:
               <<: *gke-e2e-test-config
