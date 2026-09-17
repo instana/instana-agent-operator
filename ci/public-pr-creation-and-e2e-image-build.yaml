@@ -16,7 +16,7 @@ var:
     uri: https://github.com/instana/instana-agent-operator.git
     branch: main
     username: instanacd
-    password: ((instanacd-github-api-token))
+    password: ((agent-public-github-token))
 
 resource_types:
   - name: cogito
@@ -84,7 +84,7 @@ resources:
     source:
       owner: instana
       repo: instana-agent-operator
-      access_token: ((instanacd-github-api-token))
+      access_token: ((agent-public-github-token))
       context_prefix: concourse
       github_host: github.com
 
@@ -104,7 +104,7 @@ resources:
       uri: https://github.com/instana/community-operators.git
       branch: main
       username: instanacd
-      password: ((instanacd-github-api-token))
+      password: ((agent-public-github-token))
 
   - name: certified-operators-repo
     type: git
@@ -113,7 +113,7 @@ resources:
       uri: https://github.com/instana/certified-operators.git
       branch: main
       username: instanacd
-      password: ((instanacd-github-api-token))
+      password: ((agent-public-github-token))
 
   - name: redhat-marketplace-operators-repo
     type: git
@@ -122,7 +122,7 @@ resources:
       uri: https://github.com/instana/redhat-marketplace-operators.git
       branch: main
       username: instanacd
-      password: ((instanacd-github-api-token))
+      password: ((agent-public-github-token))
 
 jobs:
   - name: self-update
@@ -190,7 +190,7 @@ jobs:
             - name: instana-agent-operator-release
             - name: agent-operator-release-source
           params:
-            GH_API_TOKEN: ((instanacd-github-api-token))
+            GH_API_TOKEN: ((agent-public-github-token))
           run:
             path: /bin/bash
             args:
@@ -304,7 +304,7 @@ jobs:
                     outputs:
                       - name: community-operators-repo
                     params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      GH_API_TOKEN: ((agent-public-github-token))
                       OWNER: k8s-operatorhub
                       REPO: community-operators
                       PUBLIC_REPO_LOCAL_NAME: community-operators-repo
@@ -360,7 +360,7 @@ jobs:
                     outputs:
                       - name: community-operators-repo
                     params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      GH_API_TOKEN: ((agent-public-github-token))
                       USERNAME: instanacd
                       OWNER: k8s-operatorhub
                       REPO: community-operators
@@ -416,7 +416,7 @@ jobs:
                     outputs:
                       - name: certified-operators-repo
                     params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      GH_API_TOKEN: ((agent-public-github-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
                       PUBLIC_REPO_LOCAL_NAME: certified-operators-repo
@@ -472,7 +472,7 @@ jobs:
                     outputs:
                       - name: certified-operators-repo
                     params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      GH_API_TOKEN: ((agent-public-github-token))
                       USERNAME: instanacd
                       OWNER: redhat-openshift-ecosystem
                       REPO: certified-operators
@@ -528,7 +528,7 @@ jobs:
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      GH_API_TOKEN: ((agent-public-github-token))
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
                       PUBLIC_REPO_LOCAL_NAME: redhat-marketplace-operators-repo
@@ -584,7 +584,7 @@ jobs:
                     outputs:
                       - name: redhat-marketplace-operators-repo
                     params:
-                      GH_API_TOKEN: ((instanacd-github-api-token))
+                      GH_API_TOKEN: ((agent-public-github-token))
                       USERNAME: instanacd
                       OWNER: redhat-openshift-ecosystem
                       REPO: redhat-marketplace-operators
