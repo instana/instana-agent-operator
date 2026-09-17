@@ -17,7 +17,7 @@ var:
     uri: https://github.com/instana/instana-agent-operator.git
     branch: main
     username: instanacd
-    password: ((instanacd-github-api-token))
+    password: ((agent-public-github-token))
 
 resource_types:
   - name: cogito
@@ -41,7 +41,7 @@ resources:
     source:
       owner: instana
       repo: instana-agent-operator
-      access_token: ((instanacd-github-api-token))
+      access_token: ((agent-public-github-token))
       context_prefix: concourse
       github_host: github.com
 
