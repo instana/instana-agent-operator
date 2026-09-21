@@ -477,10 +477,10 @@ func analyzeLogsForAttachments(
 ) {
 	// Regex patterns for extracting information from logs
 	// Pattern 1: VM discovery with PID and container ID
-	// Example: "adding new VM with PID 57368, ContainerizedVirtualMachineImpl
+	// Example: "Adding new VM from discovery scan (PID 57368): ContainerizedVirtualMachineImpl
 	// [pid=57368...containerId=2e88aa9bd86c8fbb..."
 	vmDiscoveryRegex := regexp.MustCompile(
-		`adding new VM with PID (\d+).*containerId=([a-f0-9]+)`,
+		`Adding new VM from discovery scan \(PID (\d+)\).*containerId=([a-f0-9]+)`,
 	)
 
 	// Pattern 2: Successful JVM attachment
