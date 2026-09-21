@@ -31,3 +31,7 @@ For any larger changes this should include design choices.
 
 
 Note: Remember to run a [helm chart](https://github.ibm.com/instana/instana-agent-charts) release after the the operator release to make the changes available thru helm.
+
+## Backporting Checklist
+
+- [ ] **CVE or Bug Fix** — backport PR to supported release branches, e.g. `release-2.1` is automatically created. Please review afterwards.
