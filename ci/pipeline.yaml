@@ -20,7 +20,7 @@ var:
     uri: https://github.com/instana/instana-agent-operator.git
     branch: ((branch))
     username: instanacd
-    password: ((instanacd-github-api-token))
+    password: ((agent-public-github-token))
 
 resource_types:
   - name: cogito
@@ -70,7 +70,7 @@ resources:
     source:
       owner: instana
       repo: instana-agent-operator
-      access_token: ((instanacd-github-api-token))
+      access_token: ((agent-public-github-token))
       context_prefix: concourse
       github_host: github.com
 
@@ -1140,7 +1140,7 @@ jobs:
             VERSION: ((.:operator-version))
             AGENT_IMG_DIGEST: ((.:agent-image-digest))
             BRANCH: ((branch))
-            GH_API_TOKEN: ((instanacd-github-api-token))
+            GH_API_TOKEN: ((agent-public-github-token))
           run:
             path: bash
             args:
@@ -1363,7 +1363,7 @@ jobs:
             - name: agent-operator-git-source
           params:
             BRANCH: ((branch))
-            GH_API_TOKEN: ((instanacd-github-api-token))
+            GH_API_TOKEN: ((agent-public-github-token))
             VERSION: ((.:operator-version))
           run:
             path: bash
