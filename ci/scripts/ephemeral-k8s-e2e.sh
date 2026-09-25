@@ -68,7 +68,7 @@ trap cleanup EXIT SIGINT SIGTERM
 
 # Authenticate to GCP
 echo "Authenticating to GCP..."
-echo -n "$(get_secret GOOGLE_APPLICATION_CREDENTIALS_BASE64)" | base64 -d > gcp-key.json
+echo -n "$(get_secret google-application-credentials-base64)" | base64 -d > gcp-key.json
 gcloud auth activate-service-account --key-file gcp-key.json
 gcloud config set project ${PROJECT_ID}
 
