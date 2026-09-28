@@ -1,0 +1,109 @@
+# Release-build pipeline for instana-agent-operator + instana-agent-charts.
+# Trigger: Manual only (SPS toolchain UI). No commit-push trigger.
+# See: ci/RELEASE-PIPELINE-DESIGN.md
+#
+# Pipeline properties — set these in the SPS toolchain UI (not in this file):
+#   release-line   required  MAJOR.MINOR of the release line to publish (e.g. "2.2")
+#                            Patch is computed automatically from existing tags.
+#   release-branch default: main
+version: '2'
+
+tasks:
+  prepare:
+    steps:
+      - name: run-stage
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/prepare.sh
+
+  code-checks:
+    runAfter:
+      - prepare
+    include:
+      - dind
+    steps:
+      - name: detect-secrets
+        include:
+          - docker-socket
+      - name: compliance-checks
+        include:
+          - docker-socket
+      - name: static-scan
+        include:
+          - docker-socket
+
+  code-build:
+    runAfter:
+      - prepare
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-and-stage.sh
+
+  e2e-operator-ocp-latest:
+    runAfter:
+      - code-build
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=ocp-fyre-latest
+          export E2E_MODE=operator
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
+
+  e2e-operator-gke-lowest:
+    runAfter:
+      - code-build
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=gke-operator-lowest
+          export E2E_MODE=operator
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
+
+  e2e-helm-ocp-lowest:
+    runAfter:
+      - code-build
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=ocp-fyre-lowest
+          export E2E_MODE=helm
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
+
+  e2e-helm-gke-latest:
+    runAfter:
+      - code-build
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=gke-operator-latest
+          export E2E_MODE=helm
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
