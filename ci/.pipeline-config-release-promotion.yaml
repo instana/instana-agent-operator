@@ -1,0 +1,82 @@
+# Release-promotion pipeline for instana-agent-operator + instana-agent-charts.
+# Trigger: Manual only (SPS toolchain UI). Runs after QA sign-off on release-build output.
+# See: ci/RELEASE-PIPELINE-DESIGN.md
+#
+# Pipeline properties — set these in the SPS toolchain UI (not in this file):
+#   release-state-path  default: pipeline-state/latest-release-candidate/bom.json
+#                       (override to re-promote an older candidate)
+#   skip-e2e-check      default: false  (set to "true" for emergency bypass only)
+version: '2'
+
+tasks:
+  validate:
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/validate-release.sh
+
+  promote-images:
+    runAfter:
+      - validate
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/promote-images.sh
+
+  preflight-scan:
+    runAfter:
+      - promote-images
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          # Read BOM to get version
+          COS_BUCKET=$(get_env cos-bucket-name)
+          BOM_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
+          TMPBOM=$(mktemp)
+          ibmcloud cos get-object --bucket "${COS_BUCKET}" --key "${BOM_PATH}" --output json "${TMPBOM}"
+          VERSION=$(jq -r '.version' "${TMPBOM}")
+
+          PREFLIGHT_TOKEN=$(get_secret redhat-pyxis-api-token)
+          preflight check container \
+            "quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf:${VERSION}" \
+            --certification-component-id=5e961c2c93604e02afa9ebdf \
+            --submit \
+            --pyxis-api-token="${PREFLIGHT_TOKEN}"
+
+  publish-helm-and-release:
+    runAfter:
+      - preflight-scan
+    include:
+      - dind
+    steps:
+      - name: repackage-helm
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/repackage-helm.sh
+      - name: publish
+        onError: stopAndFail
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/publish-helm.sh
