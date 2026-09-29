@@ -9,7 +9,11 @@
 version: '2'
 
 tasks:
-  prepare:
+  # "code-setup" is the standard SPS slot that runs before code-checks / code-build.
+  # Using this name is required: user-defined task names that are not present in the
+  # base compliance pipeline cannot be referenced in runAfter — Tekton's admission
+  # webhook rejects PipelineRuns where a runAfter dependency is absent from spec.tasks.
+  code-setup:
     steps:
       - name: run-stage
         image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
@@ -17,9 +21,11 @@ tasks:
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/prepare.sh
 
+  # code-checks already has runAfter: [code-setup] in the base pipeline; the
+  # runAfter entry is kept here for explicitness but is not strictly required.
   code-checks:
     runAfter:
-      - prepare
+      - code-setup
     include:
       - dind
     steps:
@@ -33,9 +39,10 @@ tasks:
         include:
           - docker-socket
 
+  # Same: code-build runs after code-setup in the base pipeline.
   code-build:
     runAfter:
-      - prepare
+      - code-setup
     include:
       - dind
     steps:
@@ -48,7 +55,11 @@ tasks:
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-and-stage.sh
 
+  # The four e2e-* tasks are new nodes not present in the base pipeline.
+  # They must be introduced with "from: code-build" so the preprocessor
+  # injects them into spec.tasks, making the runAfter reference valid.
   e2e-operator-ocp-latest:
+    from: code-build
     runAfter:
       - code-build
     include:
@@ -64,6 +75,7 @@ tasks:
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
 
   e2e-operator-gke-lowest:
+    from: code-build
     runAfter:
       - code-build
     include:
@@ -79,6 +91,7 @@ tasks:
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
 
   e2e-helm-ocp-lowest:
+    from: code-build
     runAfter:
       - code-build
     include:
@@ -94,6 +107,7 @@ tasks:
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
 
   e2e-helm-gke-latest:
+    from: code-build
     runAfter:
       - code-build
     include:
