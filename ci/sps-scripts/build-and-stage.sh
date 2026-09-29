@@ -250,4 +250,22 @@ echo "COS upload: cos://${COS_BUCKET}/pipeline-state/latest-release-candidate/bo
 
 rm -f "${BOM_FILE}" "${UPDATED_BOM_FILE}"
 
+# ---------------------------------------------------------------------------
+# Trigger async E2E tests
+# ---------------------------------------------------------------------------
+echo "=== Triggering async E2E tests ==="
+E2E_STAGES=(
+  "e2e-operator-ocp-latest"
+  "e2e-operator-gke-lowest"
+  "e2e-helm-ocp-lowest"
+  "e2e-helm-gke-latest"
+)
+
+for stage in "${E2E_STAGES[@]}"; do
+  echo "Triggering: ${stage}"
+  trigger-task "${stage}" || {
+    echo "WARNING: Failed to trigger ${stage}, continuing..."
+  }
+done
+
 echo "===== build-and-stage.sh - end ====="
