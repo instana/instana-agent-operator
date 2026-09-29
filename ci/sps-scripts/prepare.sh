@@ -43,32 +43,53 @@ command -v git >/dev/null 2>&1 || dnf install -y git
 # Clone operator repo and record HEAD SHA
 # ---------------------------------------------------------------------------
 GH_TOKEN=$(get_secret github-token)
+GHE_TOKEN=$(get_secret ghe-token)
 OPERATOR_REPO="github.ibm.com/instana/instana-agent-operator"
 CHARTS_REPO="github.ibm.com/instana/instana-agent-charts"
 
+GH_TOKEN_FILE=$(mktemp)
+echo "${GH_TOKEN}" > "${GH_TOKEN_FILE}"
+chmod 600 "${GH_TOKEN_FILE}"
+
+GHE_TOKEN_FILE=$(mktemp)
+echo "${GHE_TOKEN}" > "${GHE_TOKEN_FILE}"
+chmod 600 "${GHE_TOKEN_FILE}"
+
 echo "Cloning operator repo at branch ${RELEASE_BRANCH}..."
-clone_repo_v2 \
-  --repo "https://${OPERATOR_REPO}" \
-  --token-path <(echo "${GH_TOKEN}") \
+set +u
+# shellcheck source=/dev/null
+. "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
+  --repository "https://${OPERATOR_REPO}" \
+  --token-path "${GH_TOKEN_FILE}" \
   --branch "${RELEASE_BRANCH}" \
   --depth 50 \
-  --directory operator-src
+  --directory operator-src \
+  --use-lfs false \
+  --force-exit false
+set -u
 
-OPERATOR_SHA=$(git -C operator-src rev-parse HEAD)
+OPERATOR_SHA=$(git -C "${WORKSPACE}/operator-src" rev-parse HEAD)
 echo "operator-sha=${OPERATOR_SHA}"
 
 # ---------------------------------------------------------------------------
 # Clone charts repo and record HEAD SHA
 # ---------------------------------------------------------------------------
 echo "Cloning charts repo at branch ${RELEASE_BRANCH}..."
-clone_repo_v2 \
-  --repo "https://${CHARTS_REPO}" \
-  --token-path <(echo "${GH_TOKEN}") \
+set +u
+# shellcheck source=/dev/null
+. "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
+  --repository "https://${CHARTS_REPO}" \
+  --token-path "${GHE_TOKEN_FILE}" \
   --branch "${RELEASE_BRANCH}" \
   --depth 1 \
-  --directory charts-src
+  --directory charts-src \
+  --use-lfs false \
+  --force-exit false
+set -u
 
-CHARTS_SHA=$(git -C charts-src rev-parse HEAD)
+rm -f "${GHE_TOKEN_FILE}"
+
+CHARTS_SHA=$(git -C "${WORKSPACE}/charts-src" rev-parse HEAD)
 echo "charts-sha=${CHARTS_SHA}"
 
 # ---------------------------------------------------------------------------

@@ -59,23 +59,39 @@ export PATH=$PATH:/usr/local/go/bin
 # ---------------------------------------------------------------------------
 GH_TOKEN=$(get_secret github-token)
 
-clone_repo_v2 \
-  --repo "https://github.ibm.com/instana/instana-agent-operator" \
-  --token-path <(echo "${GH_TOKEN}") \
+GH_TOKEN_FILE=$(mktemp)
+echo "${GH_TOKEN}" > "${GH_TOKEN_FILE}"
+chmod 600 "${GH_TOKEN_FILE}"
+
+set +u
+# shellcheck source=/dev/null
+. "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
+  --repository "https://github.ibm.com/instana/instana-agent-operator" \
+  --token-path "${GH_TOKEN_FILE}" \
   --branch "${SOURCE_BRANCH}" \
   --depth 1 \
-  --directory operator-src
+  --directory operator-src \
+  --use-lfs false \
+  --force-exit false
+set -u
 
-git -C operator-src checkout "${OPERATOR_SHA}"
+git -C "${WORKSPACE}/operator-src" checkout "${OPERATOR_SHA}"
 
-clone_repo_v2 \
-  --repo "https://github.ibm.com/instana/instana-agent-charts" \
-  --token-path <(echo "${GH_TOKEN}") \
+set +u
+# shellcheck source=/dev/null
+. "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
+  --repository "https://github.ibm.com/instana/instana-agent-charts" \
+  --token-path "${GH_TOKEN_FILE}" \
   --branch "${SOURCE_BRANCH}" \
   --depth 1 \
-  --directory charts-src
+  --directory charts-src \
+  --use-lfs false \
+  --force-exit false
+set -u
 
-git -C charts-src checkout "${CHARTS_SHA}"
+rm -f "${GH_TOKEN_FILE}"
+
+git -C "${WORKSPACE}/charts-src" checkout "${CHARTS_SHA}"
 
 # ---------------------------------------------------------------------------
 # Go unit tests
@@ -249,5 +265,23 @@ ibmcloud cos put-object \
 echo "COS upload: cos://${COS_BUCKET}/pipeline-state/latest-release-candidate/bom.json"
 
 rm -f "${BOM_FILE}" "${UPDATED_BOM_FILE}"
+
+# ---------------------------------------------------------------------------
+# Trigger async E2E tests
+# ---------------------------------------------------------------------------
+echo "=== Triggering async E2E tests ==="
+E2E_STAGES=(
+  "e2e-operator-ocp-latest"
+  "e2e-operator-gke-lowest"
+  "e2e-helm-ocp-lowest"
+  "e2e-helm-gke-latest"
+)
+
+for stage in "${E2E_STAGES[@]}"; do
+  echo "Triggering: ${stage}"
+  trigger-task "${stage}" || {
+    echo "WARNING: Failed to trigger ${stage}, continuing..."
+  }
+done
 
 echo "===== build-and-stage.sh - end ====="
