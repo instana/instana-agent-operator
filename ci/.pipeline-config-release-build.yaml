@@ -1,0 +1,84 @@
+# Release-build pipeline for instana-agent-operator + instana-agent-charts.
+# Trigger: Manual only (SPS toolchain UI). No commit-push trigger.
+#
+# Uses the SPS simple-execute pipeline to avoid compliance-pipeline overhead
+# (code-checks, detect-secrets, peer-review, CRA). This is appropriate because:
+#   - The pipeline is manually triggered (no PR, no branch push)
+#   - Compliance gates are handled by the individual repo PR pipelines
+#   - The release pipeline's only job is build, stage, and E2E dispatch
+#
+# Pipeline properties — set these in the SPS toolchain UI (not in this file):
+#   release-line   required  MAJOR.MINOR of the release line to publish (e.g. "2.2")
+#                            Patch is computed automatically from existing tags.
+#   release-branch default: main
+version: '2'
+
+tasks:
+  simple-execute:
+    include:
+      - dind
+    steps:
+      # Step 1: Compute version, freeze SHAs, write initial BOM to COS.
+      # Exports cos-state-path via set_env / export_env for the build step.
+      # Step 2: Clone frozen SHAs, build multiarch image, OLM bundle, helm chart,
+      # push all artifacts to COS, update BOM, then fire async E2E stages.
+      - name: execute
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        script: |
+          #!/usr/bin/env bash
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/prepare.sh
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/build-and-stage.sh
+
+  # async-stage is the SPS built-in slot for stages dispatched via trigger-task.
+  # The four E2E steps below are each fired independently by build-and-stage.sh;
+  # they run in parallel and do not share workspace with the simple-execute task.
+  async-stage:
+    include:
+      - dind
+    steps:
+      - name: run-stage
+        # Required entry-point step; actual work is done in the named steps below.
+        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+
+      - name: e2e-operator-ocp-latest
+        onError: continue
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=ocp-fyre-latest
+          export E2E_MODE=operator
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
+
+      - name: e2e-operator-gke-lowest
+        onError: continue
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=gke-operator-lowest
+          export E2E_MODE=operator
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
+
+      - name: e2e-helm-ocp-lowest
+        onError: continue
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=ocp-fyre-lowest
+          export E2E_MODE=helm
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
+
+      - name: e2e-helm-gke-latest
+        onError: continue
+        include:
+          - docker-socket
+        script: |
+          #!/usr/bin/env bash
+          export CLUSTER_ID=gke-operator-latest
+          export E2E_MODE=helm
+          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/e2e-async.sh
