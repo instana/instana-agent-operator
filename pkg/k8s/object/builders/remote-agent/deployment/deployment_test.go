@@ -166,6 +166,7 @@ func TestDeploymentBuilder_getBaseEnvVars(t *testing.T) {
 		env.ListenAddressEnvRemote,
 		env.RedactK8sSecretsEnvRemote,
 		env.ConfigPathEnvRemote,
+		env.InstanaAgentConfigPathEnvRemote,
 		env.EntrypointSkipBackendTemplateGenerationRemote,
 		env.InstanaAgentKeyEnvRemote,
 		env.DownloadKeyEnvRemote,

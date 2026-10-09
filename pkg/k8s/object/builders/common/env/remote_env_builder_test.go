@@ -108,6 +108,7 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				BackendURLEnvRemote,
 				NoProxyEnvRemote,
 				ConfigPathEnvRemote,
+				InstanaAgentConfigPathEnvRemote,
 				BackendEnvRemote,
 				InstanaAgentKeyEnvRemote,
 				AgentKeyEnvRemote,
@@ -147,6 +148,7 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 				{Name: "BACKEND_URL", Value: "https://$(BACKEND)"},
 				{Name: "NO_PROXY", Value: "kubernetes.default.svc"},
 				{Name: "CONFIG_PATH", Value: "/opt/instana/agent/etc/remote-config-yml"},
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/opt/instana/agent/etc/remote-config-yml"},
 				{Name: "BACKEND", Value: ""},
 				{Name: "INSTANA_AGENT_KEY", Value: ""},
 				{Name: "AGENT_KEY", Value: ""},
@@ -229,6 +231,38 @@ func TestRemoteEnvBuilderBuild(t *testing.T) {
 			},
 			expected: []corev1.EnvVar{
 				{Name: "HTTPS_PROXY", Value: "https://testuser:testpassword@INSTANA_AGENT_PROXY_HOST:443"},
+			},
+		},
+		{
+			name: "Should mirror CONFIG_PATH from pod.env into INSTANA_AGENT_CONFIG_PATH for seamless upgrade",
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
+					Agent: instanav1.BaseAgentSpec{
+						Pod: instanav1.AgentPodSpec{
+							Env: []corev1.EnvVar{
+								{Name: "CONFIG_PATH", Value: "/my/custom/config"},
+							},
+						},
+					},
+				},
+			},
+			envVars: []EnvVarRemote{InstanaAgentConfigPathEnvRemote},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/my/custom/config"},
+			},
+		},
+		{
+			name: "Should use default for INSTANA_AGENT_CONFIG_PATH when CONFIG_PATH is not in pod.env",
+			agent: &instanav1.InstanaAgentRemote{
+				Spec: instanav1.InstanaAgentRemoteSpec{
+					Agent: instanav1.BaseAgentSpec{
+						Pod: instanav1.AgentPodSpec{},
+					},
+				},
+			},
+			envVars: []EnvVarRemote{InstanaAgentConfigPathEnvRemote},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/opt/instana/agent/etc/remote-config-yml"},
 			},
 		},
 	} {

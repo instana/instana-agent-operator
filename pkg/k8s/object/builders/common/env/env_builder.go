@@ -50,6 +50,7 @@ const (
 	BackendURLEnv
 	NoProxyEnv
 	ConfigPathEnv
+	InstanaAgentConfigPathEnv
 	EntrypointSkipBackendTemplateGeneration
 	BackendEnv
 	InstanaAgentKeyEnv
@@ -124,7 +125,7 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		MavenRepoURLEnv, MavenRepoFeaturesPath, MavenRepoSharedPath, MirrorReleaseRepoUrlEnv,
 		MirrorSharedRepoUrlEnv, ProxyHostEnv, ProxyPortEnv, ProxyProtocolEnv, ProxyUseDNSEnv,
 		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, BackendURLEnv,
-		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
+		NoProxyEnv, ConfigPathEnv, InstanaAgentConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
 		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv, NodeNameEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
@@ -230,6 +231,18 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnv:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: constants.InstanaConfigDirectory}
+	case InstanaAgentConfigPathEnv:
+		// If the customer already set CONFIG_PATH in pod.env, mirror that value so
+		// INSTANA_AGENT_CONFIG_PATH is consistent and upgrades are seamless.
+		for _, podEnvVar := range e.agent.Spec.Agent.Pod.Env {
+			if podEnvVar.Name == "CONFIG_PATH" && podEnvVar.Value != "" {
+				return &corev1.EnvVar{Name: "INSTANA_AGENT_CONFIG_PATH", Value: podEnvVar.Value}
+			}
+		}
+		return &corev1.EnvVar{
+			Name:  "INSTANA_AGENT_CONFIG_PATH",
+			Value: constants.InstanaConfigDirectory,
+		}
 	case NamespacesDetailsPathEnv:
 		return &corev1.EnvVar{
 			Name: "NAMESPACES_DETAILS_PATH",
