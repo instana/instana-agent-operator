@@ -277,9 +277,13 @@ spec:
     podDisruptionBudget:
       # Specifies whether or not to setup a pod disruption budget for the k8sensor deployment
       enabled: false
+    # pollrate is deprecated: set the poll rate in agent.configuration_yaml instead, which wins when both are set:
+    #   configuration_yaml: |
+    #     com.instana.plugin.kubernetes:
+    #       poll_rate: 30
     # pollrate controls the frequency at which k8sensor sends collected information to the backend.
-    # Valid values must be in seconds format between 1s and 30s. Values outside this range are clamped to nearest threshold. Default value is 10s.
-    pollrate: "10s"
+    # Valid values are in seconds format from 1s up to 60s; k8sensor adjusts other values to one it supports. Default value is 10s.
+    # pollrate: "10s"
     # ETCD configuration for secure scraping
     # etcd:
     #   # Whether to use insecure connection to ETCD (default: false)
