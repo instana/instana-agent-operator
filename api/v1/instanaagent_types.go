@@ -187,8 +187,8 @@ func (in *InstanaAgent) Default() {
 	// Default CA mount path for OpenShift
 	optional.ValueOrDefault(&in.Spec.K8sSensor.ETCD.CA.MountPath, "/var/run/secrets/kubernetes.io/serviceaccount")
 
-	// Default pollrate to 10s
-	optional.ValueOrDefault(&in.Spec.K8sSensor.PollRate, "10s")
+	// K8sSensor.PollRate is deliberately not defaulted: the k8sensor pollrate resolver weighs it against
+	// configuration_yaml and has to tell an explicit value from an unset one.
 
 	optional.ValueOrDefault(&in.Spec.OpenTelemetry.Enabled.Enabled, pointer.To(true))
 	optional.ValueOrDefault(&in.Spec.OpenTelemetry.GRPC.Enabled, in.Spec.OpenTelemetry.Enabled.Enabled)
