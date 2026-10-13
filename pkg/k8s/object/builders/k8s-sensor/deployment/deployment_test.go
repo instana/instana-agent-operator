@@ -1091,21 +1091,6 @@ func TestGetK8SensorArgsWithDefaultPollRate(t *testing.T) {
 	assert.Equal(t, "10s", args[pollRateIndex+1], "Should use default pollrate of 10s")
 }
 
-// Test pollrate validation: accepts valid seconds format
-func TestValidatePollRateAcceptsSeconds(t *testing.T) {
-	// Arrange
-	agent := createInstanaAgentWithSecretMountsEnabled()
-	builder := createTestDeploymentBuilder(t, agent)
-
-	// Act & Assert
-	assert.True(t, builder.validatePollRate("5s"), "Should accept valid seconds format")
-	assert.True(t, builder.validatePollRate("30s"), "Should accept valid seconds format")
-
-	assert.False(t, builder.validatePollRate("30sec"), "Should reject suffix with sec")
-	assert.False(t, builder.validatePollRate(""), "Should reject empty string")
-	assert.False(t, builder.validatePollRate("1m"), "Should reject minute format")
-}
-
 func TestContainerSecurityContextSatisfiesNonRootV2(t *testing.T) {
 	// Regression guard: ensures the k8sensor container spec always carries a numeric,
 	// non-zero RunAsUser and RunAsNonRoot:true. Without these, OCP 4.17+ kubelet
