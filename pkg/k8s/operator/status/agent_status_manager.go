@@ -50,7 +50,10 @@ type agentStatusManager struct {
 	agentNamespacesConfigmap client.ObjectKey
 }
 
-func NewAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) AgentStatusManager {
+func NewAgentStatusManager(
+	instAgentClient instanaclient.InstanaAgentClient,
+	eventRecorder record.EventRecorder,
+) AgentStatusManager {
 	return &agentStatusManager{
 		instAgentClient: instAgentClient,
 		eventRecorder:   eventRecorder,
@@ -76,11 +79,16 @@ func (a *agentStatusManager) SetAgentSecretConfig(agentSecretConfig types.Namesp
 	a.agentSecretConfig = agentSecretConfig
 }
 
-func (a *agentStatusManager) SetAgentNamespacesConfigMap(agentNamespacesConfigmap types.NamespacedName) {
+func (a *agentStatusManager) SetAgentNamespacesConfigMap(
+	agentNamespacesConfigmap types.NamespacedName,
+) {
 	a.agentNamespacesConfigmap = agentNamespacesConfigmap
 }
 
-func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
+func (a *agentStatusManager) UpdateAgentStatus(
+	ctx context.Context,
+	reconcileErr error,
+) (finalErr error) {
 	defer recovery.Catch(&finalErr)
 
 	if a.agentOld == nil {
@@ -106,7 +114,9 @@ func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr
 	return errBuilder.Build()
 }
 
-func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *agentStatusManager) getDaemonSet(
+	ctx context.Context,
+) result.Result[instanav1.ResourceInfo] {
 	if len(a.agentDaemonsets) != 1 {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -116,7 +126,9 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 	return result.Map(ds, toResourceInfo)
 }
 
-func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *agentStatusManager) getConfigSecret(
+	ctx context.Context,
+) result.Result[instanav1.ResourceInfo] {
 	if objectKeyHasNoName(a.agentSecretConfig) {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -126,7 +138,9 @@ func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[
 	return result.Map(cm, toResourceInfo)
 }
 
-func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *agentStatusManager) getNamespacesConfigMap(
+	ctx context.Context,
+) result.Result[instanav1.ResourceInfo] {
 	if objectKeyHasNoName(a.agentNamespacesConfigmap) {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -136,9 +150,17 @@ func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.
 	return result.Map(cm, toResourceInfo)
 }
 
-func (a *agentStatusManager) setConditionAndFireEvent(agentNew *instanav1.InstanaAgent, condition metav1.Condition) {
+func (a *agentStatusManager) setConditionAndFireEvent(
+	agentNew *instanav1.InstanaAgent,
+	condition metav1.Condition,
+) {
 	meta.SetStatusCondition(&agentNew.Status.Conditions, condition)
-	a.eventRecorder.Event(agentNew, eventTypeFromCondition(condition), condition.Reason, condition.Message)
+	a.eventRecorder.Event(
+		agentNew,
+		eventTypeFromCondition(condition),
+		condition.Reason,
+		condition.Message,
+	)
 }
 
 func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) metav1.Condition {
@@ -165,7 +187,9 @@ func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) 
 	return res
 }
 
-func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
+func (a *agentStatusManager) getAllAgentsAvailableCondition(
+	ctx context.Context,
+) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               ConditionTypeAllAgentsAvailable,
 		Status:             "",
@@ -230,7 +254,9 @@ func (a *agentStatusManager) updateWasPerformed() bool {
 	}
 }
 
-func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
+func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(
+	ctx context.Context,
+) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               CondtionTypeAllK8sSensorsAvailable,
 		Status:             "",
@@ -255,7 +281,11 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 
 	var deployment appsv1.Deployment
 
-	if res := a.instAgentClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
+	if res := a.instAgentClient.GetAsResult(
+		ctx,
+		a.k8sSensorDeployment,
+		&deployment,
+	); res.IsFailure() {
 		_, err := res.Get()
 
 		condition.Status = metav1.ConditionUnknown
@@ -330,7 +360,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	// Handle Conditions
 
-	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
+	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).
+		GetOrDefault(make([]metav1.Condition, 0, 3))
 
 	reconcileSucceededCondition := a.getReconcileSucceededCondition(reconcileErr)
 	a.setConditionAndFireEvent(agentNew, reconcileSucceededCondition)
