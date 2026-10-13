@@ -1,12 +1,12 @@
 #
 # (c) Copyright IBM Corp. 2021, 2025
 #
-ARG BUILDPLATFORM
+ARG BUILDPLATFORM=linux/amd64
 
 FROM --platform=${BUILDPLATFORM} registry.access.redhat.com/ubi9/ubi-minimal:latest AS builder
 
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
+ARG BUILDPLATFORM=linux/amd64
+ARG TARGETPLATFORM=linux/amd64
 ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
 WORKDIR /workspace
@@ -47,7 +47,7 @@ RUN export TARGET_ARCHITECTURE="$(echo ${TARGETPLATFORM} | cut -d'/' -f2)" \
 # Resulting image with actual Operator
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
-ARG TARGETPLATFORM
+ARG TARGETPLATFORM=linux/amd64
 ARG VERSION=dev
 ARG BUILD=1
 ARG GIT_COMMIT=unspecified

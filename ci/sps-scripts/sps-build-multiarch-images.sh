@@ -50,4 +50,4 @@ docker buildx build \
     "$BUILD_CONTEXT"
 
 # mark for scanning
-pipelinectl save_artifact operator_image "name=${REGISTRY_IMAGE_TAG_ICR}" "type=image"
+pipelinectl save_artifact operator_image "name=${REGISTRY_IMAGE_TAG_ICR}" "type=image" "digest=$(skopeo inspect "docker://${REGISTRY_IMAGE_TAG_ICR}" --format '{{.Digest}}')"
