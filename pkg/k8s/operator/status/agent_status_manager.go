@@ -20,10 +20,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/go-logr/logr"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/env"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/k8s-sensor/pollrate"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -315,6 +317,68 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(
 	return result.OfSuccess(condition)
 }
 
+// setK8sSensorPollRateConflictCondition reports a k8sensor poll rate set in both configuration_yaml and
+// spec.k8s_sensor.pollrate with different values, and removes the condition once they agree. configuration_yaml wins
+// and the reconcile goes on. A configuration_yaml value that cannot be used is reported as a Warning event instead.
+func (a *agentStatusManager) setK8sSensorPollRateConflictCondition(
+	agentNew *instanav1.InstanaAgent,
+	logger logr.Logger,
+) {
+	if !pointer.DerefOrDefault(a.agentOld.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled, true) {
+		meta.RemoveStatusCondition(
+			&agentNew.Status.Conditions,
+			ConditionTypeK8sSensorPollRateConflict,
+		)
+		return
+	}
+
+	res := pollrate.Resolve(
+		a.agentOld.Spec.Agent.ConfigurationYaml,
+		a.agentOld.Spec.K8sSensor.PollRate,
+	)
+
+	if res.Warning != nil {
+		msg := fmt.Sprintf(
+			"%s; k8sensor uses %s from %s",
+			res.Warning.Error(),
+			res.Value,
+			res.Source,
+		)
+		logger.Info("k8sensor poll rate in configuration_yaml ignored", "reason", msg)
+		a.eventRecorder.Event(
+			agentNew,
+			corev1.EventTypeWarning,
+			"K8sSensorPollRateIgnored",
+			truncateMessage(msg),
+		)
+	}
+
+	if res.Conflict == nil {
+		meta.RemoveStatusCondition(
+			&agentNew.Status.Conditions,
+			ConditionTypeK8sSensorPollRateConflict,
+		)
+		return
+	}
+
+	a.setConditionAndFireEvent(agentNew, metav1.Condition{
+		Type:               ConditionTypeK8sSensorPollRateConflict,
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: a.agentOld.GetGeneration(),
+		Reason:             "ConfigurationYamlWins",
+		Message: fmt.Sprintf(
+			"%s.%s in %s is %s and %s is %s; k8sensor uses %s",
+			pollrate.PluginKey,
+			pollrate.PollRateKey,
+			pollrate.SourceConfigurationYaml,
+			res.Conflict.ConfigurationYaml,
+			pollrate.SourceCR,
+			res.Conflict.CR,
+			res.Value,
+		),
+	})
+}
+
 func objectKeyHasNoName(key client.ObjectKey) bool {
 	return key.Name == ""
 }
@@ -380,6 +444,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 		allK8sSensorsAvailableCondition, _ := allK8sSensorsAvailableConditionResult.Get()
 		a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
 	}
+
+	a.setK8sSensorPollRateConflictCondition(agentNew, logger)
 
 	return result.Of(agentNew, errBuilder.Build())
 }
