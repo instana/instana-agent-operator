@@ -114,7 +114,43 @@ func TestResolve(t *testing.T) {
 			configurationYaml: "- com.instana.plugin.kubernetes\n",
 			crPollRate:        "20s",
 			expected:          Resolution{Value: "20s", Source: SourceCR},
-			expectWarning:     "not valid YAML",
+			expectWarning:     "the top level is not a map",
+		},
+		{
+			name: "duplicate keys elsewhere are accepted like the agent does",
+			configurationYaml: "com.instana.plugin.host:\n  tags: [a]\n" +
+				"com.instana.plugin.kubernetes:\n  poll_rate: 30\n" +
+				"com.instana.plugin.host:\n  tags: [b]\n",
+			crPollRate: "10s",
+			expected: Resolution{
+				Value:    "30s",
+				Source:   SourceConfigurationYaml,
+				Conflict: &Conflict{ConfigurationYaml: "30s", CR: "10s"},
+			},
+		},
+		{
+			name: "duplicate kubernetes plugin keys use the last one like the agent does",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: 5\n" +
+				"com.instana.plugin.kubernetes:\n  poll_rate: 20\n  poll_rate: 30\n",
+			expected: Resolution{Value: "30s", Source: SourceConfigurationYaml},
+		},
+		{
+			name:              "non string keys under the kubernetes plugin are ignored",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  1: foo\n  poll_rate: 30\n",
+			expected:          Resolution{Value: "30s", Source: SourceConfigurationYaml},
+		},
+		{
+			name: "aliased kubernetes plugin section is followed",
+			configurationYaml: "base: &k8s\n  poll_rate: 20\n" +
+				"com.instana.plugin.kubernetes: *k8s\n",
+			expected: Resolution{Value: "20s", Source: SourceConfigurationYaml},
+		},
+		{
+			name:              "poll_rate that is a map warns",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate:\n    seconds: 30\n",
+			crPollRate:        "20s",
+			expected:          Resolution{Value: "20s", Source: SourceCR},
+			expectWarning:     "is not a number",
 		},
 		{
 			name:              "kubernetes plugin section that is not a map warns",

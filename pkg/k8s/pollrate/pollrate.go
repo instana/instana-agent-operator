@@ -87,24 +87,32 @@ func Resolve(configurationYaml string, crPollRate string) Resolution {
 	}
 }
 
-// fromConfigurationYaml returns the poll rate in configurationYaml as "<n>s", or "" when it is not set.
+// fromConfigurationYaml returns the poll rate in configurationYaml as "<n>s", or "" when it is not set. It walks the
+// YAML nodes instead of decoding into a map because yaml.v3 rejects duplicate keys in a map, while the agent reads
+// configuration.yaml with Jackson, which accepts them and keeps the last one.
 func fromConfigurationYaml(configurationYaml string) (string, error) {
-	var config map[string]any
-	if err := yaml.Unmarshal([]byte(configurationYaml), &config); err != nil {
+	var document yaml.Node
+	if err := yaml.Unmarshal([]byte(configurationYaml), &document); err != nil {
 		return "", errors.Wrap(err, "not valid YAML")
 	}
-
-	plugin, ok := config[PluginKey]
-	if !ok || plugin == nil {
+	if len(document.Content) == 0 {
 		return "", nil
 	}
-	pluginConfig, ok := plugin.(map[string]any)
-	if !ok {
-		return "", errors.Errorf("%s is not a map", PluginKey)
+
+	plugin, err := lastValue(document.Content[0], PluginKey, "the top level")
+	if err != nil || plugin == nil {
+		return "", err
+	}
+	node, err := lastValue(plugin, PollRateKey, PluginKey)
+	if err != nil || node == nil {
+		return "", err
 	}
 
-	value, ok := pluginConfig[PollRateKey]
-	if !ok || value == nil {
+	var value any
+	if err := node.Decode(&value); err != nil {
+		return "", errors.Wrapf(err, "%s cannot be read", PollRateKey)
+	}
+	if value == nil {
 		return "", nil
 	}
 	seconds, err := toSeconds(value)
@@ -112,6 +120,28 @@ func fromConfigurationYaml(configurationYaml string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%ds", seconds), nil
+}
+
+// lastValue returns the value of the last occurrence of key in mapping, or nil when mapping is null or does not
+// have the key. name describes mapping in the error when it is not a map.
+func lastValue(mapping *yaml.Node, key string, name string) (*yaml.Node, error) {
+	for mapping.Kind == yaml.AliasNode {
+		mapping = mapping.Alias
+	}
+	if mapping.Kind == yaml.ScalarNode && mapping.ShortTag() == "!!null" {
+		return nil, nil
+	}
+	if mapping.Kind != yaml.MappingNode {
+		return nil, errors.Errorf("%s is not a map", name)
+	}
+
+	var value *yaml.Node
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if k := mapping.Content[i]; k.Kind == yaml.ScalarNode && k.Value == key {
+			value = mapping.Content[i+1]
+		}
+	}
+	return value, nil
 }
 
 // toSeconds reads a poll rate the way the agent does (PollRateUtil): numbers and numeric strings are accepted,
