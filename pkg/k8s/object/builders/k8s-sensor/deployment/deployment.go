@@ -123,16 +123,25 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
 			envVars = append(envVars, []corev1.EnvVar{
 				{
-					Name:  constants.EnvETCDCAFile,
-					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
+					Name: constants.EnvETCDCAFile,
+					Value: path.Join(
+						constants.ETCDMetricsCAMountPath,
+						constants.ETCDCABundleFileName,
+					),
 				},
 				{
-					Name:  constants.EnvETCDCertFile,
-					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientCertFileName),
+					Name: constants.EnvETCDCertFile,
+					Value: path.Join(
+						constants.ETCDClientCertMountPath,
+						constants.ETCDClientCertFileName,
+					),
 				},
 				{
-					Name:  constants.EnvETCDKeyFile,
-					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientKeyFileName),
+					Name: constants.EnvETCDKeyFile,
+					Value: path.Join(
+						constants.ETCDClientCertMountPath,
+						constants.ETCDClientKeyFileName,
+					),
 				},
 			}...)
 		}
