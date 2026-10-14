@@ -105,9 +105,15 @@ func TestResolve(t *testing.T) {
 		},
 		{
 			name:              "invalid YAML without a CR value falls back to the default and warns",
-			configurationYaml: "\tnot: yaml",
+			configurationYaml: "com.instana.plugin.kubernetes:\n\tpoll_rate: 30\n",
 			expected:          Resolution{Value: "10s", Source: SourceDefault},
 			expectWarning:     "not valid YAML",
+		},
+		{
+			name:              "invalid YAML that does not mention the kubernetes plugin does not warn",
+			configurationYaml: "com.instana.plugin.host:\n\ttags: [a]\n",
+			crPollRate:        "20s",
+			expected:          Resolution{Value: "20s", Source: SourceCR},
 		},
 		{
 			name:              "configuration_yaml that is not a map warns",

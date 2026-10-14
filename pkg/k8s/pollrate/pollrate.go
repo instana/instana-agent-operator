@@ -56,13 +56,18 @@ type Resolution struct {
 
 // Resolve picks the k8sensor poll rate: com.instana.plugin.kubernetes.poll_rate in configurationYaml wins, then
 // crPollRate (spec.k8s_sensor.pollrate), then Default. It never fails: a configurationYaml that cannot be read is
-// ignored and reported in Resolution.Warning.
+// ignored, and reported in Resolution.Warning when it mentions the kubernetes plugin.
 func Resolve(configurationYaml string, crPollRate string) Resolution {
 	if !crPollRatePattern.MatchString(crPollRate) {
 		crPollRate = ""
 	}
 
 	fromConfigurationYaml, err := fromConfigurationYaml(configurationYaml)
+	if err != nil && !strings.Contains(configurationYaml, PluginKey) {
+		// A configuration_yaml that cannot be read only matters here when it could hold the poll rate, so nobody
+		// gets a poll rate warning for a setting they never touched.
+		err = nil
+	}
 	if err != nil {
 		err = errors.Wrapf(
 			err,
