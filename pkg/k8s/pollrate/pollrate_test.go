@@ -40,6 +40,12 @@ func TestResolve(t *testing.T) {
 			expected:          Resolution{Value: "20s", Source: SourceConfigurationYaml},
 		},
 		{
+			name:              "both set and equal by number",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: 10\n",
+			crPollRate:        "010s",
+			expected:          Resolution{Value: "10s", Source: SourceConfigurationYaml},
+		},
+		{
 			name:              "both set and different, configuration_yaml wins",
 			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: 60\n",
 			crPollRate:        "10s",

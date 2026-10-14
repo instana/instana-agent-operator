@@ -81,7 +81,7 @@ func Resolve(configurationYaml string, crPollRate string) Resolution {
 	switch {
 	case fromConfigurationYaml != "":
 		res := Resolution{Value: fromConfigurationYaml, Source: SourceConfigurationYaml}
-		if crPollRate != "" && crPollRate != fromConfigurationYaml {
+		if crPollRate != "" && !sameSeconds(crPollRate, fromConfigurationYaml) {
 			res.Conflict = &Conflict{ConfigurationYaml: fromConfigurationYaml, CR: crPollRate}
 		}
 		return res
@@ -90,6 +90,13 @@ func Resolve(configurationYaml string, crPollRate string) Resolution {
 	default:
 		return Resolution{Value: Default, Source: SourceDefault, Warning: err}
 	}
+}
+
+// sameSeconds compares two "<n>s" values by number, so "010s" and "10s" agree.
+func sameSeconds(a string, b string) bool {
+	x, errA := strconv.ParseInt(strings.TrimSuffix(a, "s"), 10, 64)
+	y, errB := strconv.ParseInt(strings.TrimSuffix(b, "s"), 10, 64)
+	return errA == nil && errB == nil && x == y
 }
 
 // fromConfigurationYaml returns the poll rate in configurationYaml as "<n>s", or "" when it is not set. It walks the
