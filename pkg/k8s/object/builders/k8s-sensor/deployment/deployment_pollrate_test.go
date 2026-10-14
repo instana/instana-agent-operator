@@ -12,7 +12,7 @@ import (
 )
 
 // builderForPollRateTests returns a builder for an agent defaulted the same way the controller defaults it before the
-// builders run, so a default applied in Default() cannot hide an unset pollrate from the resolver.
+// builders run. TestInstanaAgent_Default is what guards against Default() setting pollrate again.
 func builderForPollRateTests(configurationYaml string, crPollRate string) *deploymentBuilder {
 	agent := agentForETCDEnvTests()
 	agent.Spec.Agent.ConfigurationYaml = configurationYaml
