@@ -282,7 +282,7 @@ spec:
     #     com.instana.plugin.kubernetes:
     #       poll_rate: 30
     # pollrate controls the frequency at which k8sensor sends collected information to the backend.
-    # Valid values are in seconds format from 1s up to 60s; k8sensor adjusts other values to one it supports. Default value is 10s.
+    # Valid values are in seconds format. k8sensor adjusts the value to one it supports: older k8sensor versions allow 1s to 30s, newer ones 1s to 60s. Default value is 10s.
     # pollrate: "10s"
     # ETCD configuration for secure scraping
     # etcd:
