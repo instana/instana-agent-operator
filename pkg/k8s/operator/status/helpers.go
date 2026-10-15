@@ -23,6 +23,8 @@ const (
 	ConditionTypeReconcileSucceeded    = "ReconcileSucceeded"
 	ConditionTypeAllAgentsAvailable    = "AllAgentsAvailable"
 	CondtionTypeAllK8sSensorsAvailable = "AllK8sSensorsAvailable"
+	// ConditionTypeK8sSensorPollRateConflict is informational, the reconcile does not fail on it.
+	ConditionTypeK8sSensorPollRateConflict = "K8sSensorPollRateConflict"
 )
 
 func getAgentPhase(reconcileErr error) instanav1.AgentOperatorState {

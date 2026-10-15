@@ -20,10 +20,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/go-logr/logr"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/pkg/collections/list"
 	"github.com/instana/instana-agent-operator/pkg/env"
 	instanaclient "github.com/instana/instana-agent-operator/pkg/k8s/client"
+	"github.com/instana/instana-agent-operator/pkg/k8s/pollrate"
 	"github.com/instana/instana-agent-operator/pkg/multierror"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -50,7 +52,10 @@ type agentStatusManager struct {
 	agentNamespacesConfigmap client.ObjectKey
 }
 
-func NewAgentStatusManager(instAgentClient instanaclient.InstanaAgentClient, eventRecorder record.EventRecorder) AgentStatusManager {
+func NewAgentStatusManager(
+	instAgentClient instanaclient.InstanaAgentClient,
+	eventRecorder record.EventRecorder,
+) AgentStatusManager {
 	return &agentStatusManager{
 		instAgentClient: instAgentClient,
 		eventRecorder:   eventRecorder,
@@ -76,11 +81,16 @@ func (a *agentStatusManager) SetAgentSecretConfig(agentSecretConfig types.Namesp
 	a.agentSecretConfig = agentSecretConfig
 }
 
-func (a *agentStatusManager) SetAgentNamespacesConfigMap(agentNamespacesConfigmap types.NamespacedName) {
+func (a *agentStatusManager) SetAgentNamespacesConfigMap(
+	agentNamespacesConfigmap types.NamespacedName,
+) {
 	a.agentNamespacesConfigmap = agentNamespacesConfigmap
 }
 
-func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr error) (finalErr error) {
+func (a *agentStatusManager) UpdateAgentStatus(
+	ctx context.Context,
+	reconcileErr error,
+) (finalErr error) {
 	defer recovery.Catch(&finalErr)
 
 	if a.agentOld == nil {
@@ -106,7 +116,9 @@ func (a *agentStatusManager) UpdateAgentStatus(ctx context.Context, reconcileErr
 	return errBuilder.Build()
 }
 
-func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *agentStatusManager) getDaemonSet(
+	ctx context.Context,
+) result.Result[instanav1.ResourceInfo] {
 	if len(a.agentDaemonsets) != 1 {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -116,7 +128,9 @@ func (a *agentStatusManager) getDaemonSet(ctx context.Context) result.Result[ins
 	return result.Map(ds, toResourceInfo)
 }
 
-func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *agentStatusManager) getConfigSecret(
+	ctx context.Context,
+) result.Result[instanav1.ResourceInfo] {
 	if objectKeyHasNoName(a.agentSecretConfig) {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -126,7 +140,9 @@ func (a *agentStatusManager) getConfigSecret(ctx context.Context) result.Result[
 	return result.Map(cm, toResourceInfo)
 }
 
-func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.Result[instanav1.ResourceInfo] {
+func (a *agentStatusManager) getNamespacesConfigMap(
+	ctx context.Context,
+) result.Result[instanav1.ResourceInfo] {
 	if objectKeyHasNoName(a.agentNamespacesConfigmap) {
 		return result.OfSuccess(instanav1.ResourceInfo{})
 	}
@@ -136,9 +152,17 @@ func (a *agentStatusManager) getNamespacesConfigMap(ctx context.Context) result.
 	return result.Map(cm, toResourceInfo)
 }
 
-func (a *agentStatusManager) setConditionAndFireEvent(agentNew *instanav1.InstanaAgent, condition metav1.Condition) {
+func (a *agentStatusManager) setConditionAndFireEvent(
+	agentNew *instanav1.InstanaAgent,
+	condition metav1.Condition,
+) {
 	meta.SetStatusCondition(&agentNew.Status.Conditions, condition)
-	a.eventRecorder.Event(agentNew, eventTypeFromCondition(condition), condition.Reason, condition.Message)
+	a.eventRecorder.Event(
+		agentNew,
+		eventTypeFromCondition(condition),
+		condition.Reason,
+		condition.Message,
+	)
 }
 
 func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) metav1.Condition {
@@ -165,7 +189,9 @@ func (a *agentStatusManager) getReconcileSucceededCondition(reconcileErr error) 
 	return res
 }
 
-func (a *agentStatusManager) getAllAgentsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
+func (a *agentStatusManager) getAllAgentsAvailableCondition(
+	ctx context.Context,
+) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               ConditionTypeAllAgentsAvailable,
 		Status:             "",
@@ -230,7 +256,9 @@ func (a *agentStatusManager) updateWasPerformed() bool {
 	}
 }
 
-func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Context) result.Result[metav1.Condition] {
+func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(
+	ctx context.Context,
+) result.Result[metav1.Condition] {
 	condition := metav1.Condition{
 		Type:               CondtionTypeAllK8sSensorsAvailable,
 		Status:             "",
@@ -255,7 +283,11 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 
 	var deployment appsv1.Deployment
 
-	if res := a.instAgentClient.GetAsResult(ctx, a.k8sSensorDeployment, &deployment); res.IsFailure() {
+	if res := a.instAgentClient.GetAsResult(
+		ctx,
+		a.k8sSensorDeployment,
+		&deployment,
+	); res.IsFailure() {
 		_, err := res.Get()
 
 		condition.Status = metav1.ConditionUnknown
@@ -283,6 +315,71 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(ctx context.Cont
 	}
 
 	return result.OfSuccess(condition)
+}
+
+// setK8sSensorPollRateConflictCondition reports a k8sensor poll rate set in both configuration_yaml and
+// spec.k8s_sensor.pollrate with different values, and removes the condition once they agree. configuration_yaml wins
+// and the reconcile goes on. A configuration_yaml value that cannot be used is reported as a Warning event instead.
+// Both name the value the operator passes, not the rate k8sensor runs at: the operator does not know which k8sensor
+// version runs, and k8sensor clamps or snaps the value to one it supports.
+func (a *agentStatusManager) setK8sSensorPollRateConflictCondition(
+	agentNew *instanav1.InstanaAgent,
+	logger logr.Logger,
+) {
+	if !pointer.DerefOrDefault(a.agentOld.Spec.K8sSensor.DeploymentSpec.Enabled.Enabled, true) {
+		meta.RemoveStatusCondition(
+			&agentNew.Status.Conditions,
+			ConditionTypeK8sSensorPollRateConflict,
+		)
+		return
+	}
+
+	res := pollrate.Resolve(
+		a.agentOld.Spec.Agent.ConfigurationYaml,
+		a.agentOld.Spec.K8sSensor.PollRate,
+	)
+
+	if res.Warning != nil {
+		msg := fmt.Sprintf(
+			"%s; the operator passes -pollrate %s from %s",
+			res.Warning.Error(),
+			res.Value,
+			res.Source,
+		)
+		logger.Info("k8sensor poll rate in configuration_yaml ignored", "reason", msg)
+		a.eventRecorder.Event(
+			agentNew,
+			corev1.EventTypeWarning,
+			"K8sSensorPollRateIgnored",
+			truncateMessage(msg),
+		)
+	}
+
+	if res.Conflict == nil {
+		meta.RemoveStatusCondition(
+			&agentNew.Status.Conditions,
+			ConditionTypeK8sSensorPollRateConflict,
+		)
+		return
+	}
+
+	a.setConditionAndFireEvent(agentNew, metav1.Condition{
+		Type:               ConditionTypeK8sSensorPollRateConflict,
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: a.agentOld.GetGeneration(),
+		Reason:             "ConfigurationYamlWins",
+		Message: fmt.Sprintf(
+			"%s.%s in %s is %s and %s is %s; the operator passes -pollrate %s to k8sensor, "+
+				"which may adjust it to a rate it supports",
+			pollrate.PluginKey,
+			pollrate.PollRateKey,
+			pollrate.SourceConfigurationYaml,
+			res.Conflict.ConfigurationYaml,
+			pollrate.SourceCR,
+			res.Conflict.CR,
+			res.Value,
+		),
+	})
 }
 
 func objectKeyHasNoName(key client.ObjectKey) bool {
@@ -330,7 +427,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 
 	// Handle Conditions
 
-	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).GetOrDefault(make([]metav1.Condition, 0, 3))
+	agentNew.Status.Conditions = optional.Of(agentNew.Status.Conditions).
+		GetOrDefault(make([]metav1.Condition, 0, 3))
 
 	reconcileSucceededCondition := a.getReconcileSucceededCondition(reconcileErr)
 	a.setConditionAndFireEvent(agentNew, reconcileSucceededCondition)
@@ -349,6 +447,8 @@ func (a *agentStatusManager) agentWithUpdatedStatus(
 		allK8sSensorsAvailableCondition, _ := allK8sSensorsAvailableConditionResult.Get()
 		a.setConditionAndFireEvent(agentNew, allK8sSensorsAvailableCondition)
 	}
+
+	a.setK8sSensorPollRateConflictCondition(agentNew, logger)
 
 	return result.Of(agentNew, errBuilder.Build())
 }
