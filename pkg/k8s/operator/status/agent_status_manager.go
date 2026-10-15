@@ -320,6 +320,8 @@ func (a *agentStatusManager) getAllK8sSensorsAvailableCondition(
 // setK8sSensorPollRateConflictCondition reports a k8sensor poll rate set in both configuration_yaml and
 // spec.k8s_sensor.pollrate with different values, and removes the condition once they agree. configuration_yaml wins
 // and the reconcile goes on. A configuration_yaml value that cannot be used is reported as a Warning event instead.
+// Both name the value the operator passes, not the rate k8sensor runs at: the operator does not know which k8sensor
+// version runs, and k8sensor clamps or snaps the value to one it supports.
 func (a *agentStatusManager) setK8sSensorPollRateConflictCondition(
 	agentNew *instanav1.InstanaAgent,
 	logger logr.Logger,
@@ -339,7 +341,7 @@ func (a *agentStatusManager) setK8sSensorPollRateConflictCondition(
 
 	if res.Warning != nil {
 		msg := fmt.Sprintf(
-			"%s; k8sensor uses %s from %s",
+			"%s; the operator passes -pollrate %s from %s",
 			res.Warning.Error(),
 			res.Value,
 			res.Source,
@@ -367,7 +369,8 @@ func (a *agentStatusManager) setK8sSensorPollRateConflictCondition(
 		ObservedGeneration: a.agentOld.GetGeneration(),
 		Reason:             "ConfigurationYamlWins",
 		Message: fmt.Sprintf(
-			"%s.%s in %s is %s and %s is %s; k8sensor uses %s",
+			"%s.%s in %s is %s and %s is %s; the operator passes -pollrate %s to k8sensor, "+
+				"which may adjust it to a rate it supports",
 			pollrate.PluginKey,
 			pollrate.PollRateKey,
 			pollrate.SourceConfigurationYaml,

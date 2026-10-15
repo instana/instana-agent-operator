@@ -546,7 +546,8 @@ func TestSetK8sSensorPollRateConflictCondition(t *testing.T) {
 				assertions.Equal("ConfigurationYamlWins", condition.Reason)
 				assertions.Equal(
 					"com.instana.plugin.kubernetes.poll_rate in spec.agent.configuration_yaml is 30s and "+
-						"spec.k8s_sensor.pollrate is 10s; k8sensor uses 30s",
+						"spec.k8s_sensor.pollrate is 10s; the operator passes -pollrate 30s to k8sensor, "+
+						"which may adjust it to a rate it supports",
 					condition.Message,
 				)
 			} else {
