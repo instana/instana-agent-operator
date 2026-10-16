@@ -97,6 +97,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 				BackendURLEnv,
 				NoProxyEnv,
 				ConfigPathEnv,
+				InstanaAgentConfigPathEnv,
 				BackendEnv,
 				InstanaAgentKeyEnv,
 				AgentKeyEnv,
@@ -138,6 +139,7 @@ func TestEnvBuilderBuild(t *testing.T) {
 				{Name: "BACKEND_URL", Value: "https://$(BACKEND)"},
 				{Name: "NO_PROXY", Value: "kubernetes.default.svc"},
 				{Name: "CONFIG_PATH", Value: "/opt/instana/agent/etc/instana-config-yml"},
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/opt/instana/agent/etc/instana-config-yml"},
 				{Name: "BACKEND", Value: ""},
 				{Name: "INSTANA_AGENT_KEY", Value: ""},
 				{Name: "AGENT_KEY", Value: ""},
@@ -356,6 +358,38 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 			envVars:  []EnvVar{CrdMonitoring},
 			expected: []corev1.EnvVar{},
+		},
+		{
+			name: "Should mirror CONFIG_PATH from pod.env into INSTANA_AGENT_CONFIG_PATH for seamless upgrade",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						Pod: instanav1.AgentPodSpec{
+							Env: []corev1.EnvVar{
+								{Name: "CONFIG_PATH", Value: "/my/custom/config"},
+							},
+						},
+					},
+				},
+			},
+			envVars: []EnvVar{InstanaAgentConfigPathEnv},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/my/custom/config"},
+			},
+		},
+		{
+			name: "Should use default for INSTANA_AGENT_CONFIG_PATH when CONFIG_PATH is not in pod.env",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						Pod: instanav1.AgentPodSpec{},
+					},
+				},
+			},
+			envVars: []EnvVar{InstanaAgentConfigPathEnv},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/opt/instana/agent/etc/instana-config-yml"},
+			},
 		},
 	} {
 		t.Run(
