@@ -111,7 +111,7 @@ REL_MAJOR=$(echo "${RELEASE_LINE}" | cut -d. -f1)
 REL_MINOR=$(echo "${RELEASE_LINE}" | cut -d. -f2)
 
 # All tags for this exact major.minor (strips leading 'v', filters to MAJOR.MINOR.*)
-MATCHING_PATCHES=$(git -C operator-src tag --list "v${REL_MAJOR}.${REL_MINOR}.*" \
+MATCHING_PATCHES=$(git -C "${WORKSPACE}/operator-src" tag --list "v${REL_MAJOR}.${REL_MINOR}.*" \
   | sed 's/^v//' \
   | sort -V)
 
