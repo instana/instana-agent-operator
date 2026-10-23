@@ -26,7 +26,7 @@ tasks:
         onError: stopAndFail
         include:
           - docker-socket
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
           source ${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/prepare.sh
@@ -41,7 +41,7 @@ tasks:
     steps:
       - name: run-stage
         # Required entry-point step; actual work is done in the named steps below.
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
 
       - name: e2e-operator-ocp-latest
         onError: continue
