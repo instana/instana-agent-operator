@@ -174,6 +174,13 @@ BOM_FILE=$(mktemp)
 echo "${BOM}" > "${BOM_FILE}"
 
 # ---------------------------------------------------------------------------
+# Log in to IBM Cloud (required for ibmcloud cos commands)
+# ---------------------------------------------------------------------------
+IBMCLOUD_API_KEY=$(get_secret ibmcloud-api-key)
+ibmcloud login --apikey "${IBMCLOUD_API_KEY}" --no-region
+unset IBMCLOUD_API_KEY
+
+# ---------------------------------------------------------------------------
 # Push BOM to two COS locations
 # ---------------------------------------------------------------------------
 echo "Uploading BOM to COS (timestamp-scoped)..."
