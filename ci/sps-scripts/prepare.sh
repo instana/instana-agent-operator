@@ -20,6 +20,7 @@ echo "===== prepare.sh - start ====="
 RELEASE_LINE=$(get_env release-line "")
 RELEASE_BRANCH=$(get_env release-branch "main")
 COS_BUCKET=$(get_env cos-bucket-name)
+COS_REGION=$(get_env cos-region "us-south")
 
 if [[ -z "${RELEASE_LINE}" ]]; then
   echo "ERROR: pipeline property 'release-line' is not set (expected format: MAJOR.MINOR, e.g. '2.2')" >&2
@@ -33,6 +34,7 @@ fi
 echo "release-line=${RELEASE_LINE}"
 echo "release-branch=${RELEASE_BRANCH}"
 echo "cos-bucket-name=${COS_BUCKET}"
+echo "cos-region=${COS_REGION}"
 
 # ---------------------------------------------------------------------------
 # Install git (already present in pipeline-base-ubi; belt-and-suspenders)
@@ -174,12 +176,11 @@ BOM_FILE=$(mktemp)
 echo "${BOM}" > "${BOM_FILE}"
 
 # ---------------------------------------------------------------------------
-# Log in to IBM Cloud (required for ibmcloud cos commands)
+# Log in to IBM Cloud and configure COS plugin
 # ---------------------------------------------------------------------------
 IBMCLOUD_API_KEY=$(get_secret ibmcloud-api-key)
 ibmcloud login --apikey "${IBMCLOUD_API_KEY}" --no-region
 unset IBMCLOUD_API_KEY
-
 # ---------------------------------------------------------------------------
 # Push BOM to two COS locations
 # ---------------------------------------------------------------------------
@@ -187,14 +188,16 @@ echo "Uploading BOM to COS (timestamp-scoped)..."
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${COS_STATE_PATH}/bom.json" \
-  --body "${BOM_FILE}"
+  --body "${BOM_FILE}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/bom.json"
 
 echo "Uploading BOM to COS (latest-release-candidate pointer)..."
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "pipeline-state/latest-release-candidate/bom.json" \
-  --body "${BOM_FILE}"
+  --body "${BOM_FILE}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/pipeline-state/latest-release-candidate/bom.json"
 
 rm -f "${BOM_FILE}"
