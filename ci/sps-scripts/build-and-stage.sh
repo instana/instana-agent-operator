@@ -25,6 +25,7 @@ echo "===== build-and-stage.sh - start ====="
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
 COS_STATE_PATH=$(get_env cos-state-path)
+COS_REGION=$(get_env cos-region "us-south")
 
 echo "COS_BUCKET=${COS_BUCKET}"
 echo "COS_STATE_PATH=${COS_STATE_PATH}"
@@ -32,10 +33,13 @@ echo "COS_STATE_PATH=${COS_STATE_PATH}"
 # ---------------------------------------------------------------------------
 # Read BOM from COS
 # ---------------------------------------------------------------------------
-BOM_FILE=$(mktemp)
+# Use a non-pre-existing path — ibmcloud cos get-object prompts interactively
+# if the output file already exists (e.g. a path returned by mktemp).
+BOM_FILE="${WORKSPACE}/bom-read-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "pipeline-state/latest-release-candidate/bom.json" \
+  --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
 VERSION=$(jq -r '.version'                 "${BOM_FILE}")
@@ -224,19 +228,22 @@ echo "=== Pushing artifacts to COS under ${COS_STATE_PATH} ==="
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${COS_STATE_PATH}/helm/instana-agent-${BARE_VERSION}.tgz" \
-  --body "${HELM_TGZ}"
+  --body "${HELM_TGZ}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/helm/instana-agent-${BARE_VERSION}.tgz"
 
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${COS_STATE_PATH}/olm/olm-${BARE_VERSION}.zip" \
-  --body "${OLM_ZIP_PATH}"
+  --body "${OLM_ZIP_PATH}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/olm/olm-${BARE_VERSION}.zip"
 
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${COS_STATE_PATH}/olm/instana-agent-operator.yaml" \
-  --body "${OPERATOR_YAML_PATH}"
+  --body "${OPERATOR_YAML_PATH}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/olm/instana-agent-operator.yaml"
 
 # ---------------------------------------------------------------------------
@@ -265,13 +272,15 @@ echo "${UPDATED_BOM}" | jq .
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${COS_STATE_PATH}/bom.json" \
-  --body "${UPDATED_BOM_FILE}"
+  --body "${UPDATED_BOM_FILE}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/bom.json"
 
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "pipeline-state/latest-release-candidate/bom.json" \
-  --body "${UPDATED_BOM_FILE}"
+  --body "${UPDATED_BOM_FILE}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/pipeline-state/latest-release-candidate/bom.json"
 
 rm -f "${BOM_FILE}" "${UPDATED_BOM_FILE}"
