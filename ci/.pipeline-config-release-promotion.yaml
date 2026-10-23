@@ -13,7 +13,7 @@ tasks:
     steps:
       - name: run-stage
         onError: stopAndFail
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/validate-release.sh
@@ -28,7 +28,7 @@ tasks:
         onError: stopAndFail
         include:
           - docker-socket
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/promote-images.sh
@@ -43,7 +43,7 @@ tasks:
         onError: stopAndFail
         include:
           - docker-socket
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
           # Read BOM to get version
@@ -70,13 +70,13 @@ tasks:
         onError: stopAndFail
         include:
           - docker-socket
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/repackage-helm.sh
       - name: publish
         onError: stopAndFail
-        image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
           source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/publish-helm.sh
