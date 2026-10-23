@@ -108,6 +108,10 @@ echo "charts-sha=${CHARTS_SHA}"
 #   2. If none found → use <MAJOR>.<MINOR>.0 (first release on this line).
 #   3. If found → take the highest patch via sort -V and increment by 1.
 #   The 2.3.x tags are ignored when computing the next 2.2.x version.
+#
+# clone_repo_v2 with --depth does not fetch tags; fetch them explicitly now.
+echo "Fetching tags from operator repo..."
+git -C "${WORKSPACE}/operator-src" fetch --tags --quiet
 
 REL_MAJOR=$(echo "${RELEASE_LINE}" | cut -d. -f1)
 REL_MINOR=$(echo "${RELEASE_LINE}" | cut -d. -f2)
