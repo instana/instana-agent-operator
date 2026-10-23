@@ -42,9 +42,10 @@ command -v git >/dev/null 2>&1 || dnf install -y git
 # ---------------------------------------------------------------------------
 # Clone operator repo and record HEAD SHA
 # ---------------------------------------------------------------------------
+# operator is on github.com (public GH); charts is on github.ibm.com (GHE)
 GH_TOKEN=$(get_secret github-token)
 GHE_TOKEN=$(get_secret ghe-token)
-OPERATOR_REPO="github.ibm.com/instana/instana-agent-operator"
+OPERATOR_REPO="github.com/instana/instana-agent-operator"
 CHARTS_REPO="github.ibm.com/instana/instana-agent-charts"
 
 GH_TOKEN_FILE=$(mktemp)
@@ -55,6 +56,7 @@ GHE_TOKEN_FILE=$(mktemp)
 echo "${GHE_TOKEN}" > "${GHE_TOKEN_FILE}"
 chmod 600 "${GHE_TOKEN_FILE}"
 
+# github.com accepts the default GIT_AUTH_USER (x-oauth-basic); no override needed
 echo "Cloning operator repo at branch ${RELEASE_BRANCH}..."
 set +u
 # shellcheck source=/dev/null
@@ -74,8 +76,10 @@ echo "operator-sha=${OPERATOR_SHA}"
 # ---------------------------------------------------------------------------
 # Clone charts repo and record HEAD SHA
 # ---------------------------------------------------------------------------
+# github.ibm.com (GHE) requires GIT_AUTH_USER=x-access-token
 echo "Cloning charts repo at branch ${RELEASE_BRANCH}..."
 set +u
+GIT_AUTH_USER="x-access-token"
 # shellcheck source=/dev/null
 . "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
   --repository "https://${CHARTS_REPO}" \
@@ -85,9 +89,10 @@ set +u
   --directory charts-src \
   --use-lfs false \
   --force-exit false
+unset GIT_AUTH_USER
 set -u
 
-rm -f "${GHE_TOKEN_FILE}"
+rm -f "${GH_TOKEN_FILE}" "${GHE_TOKEN_FILE}"
 
 CHARTS_SHA=$(git -C "${WORKSPACE}/charts-src" rev-parse HEAD)
 echo "charts-sha=${CHARTS_SHA}"
