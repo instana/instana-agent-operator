@@ -57,16 +57,23 @@ export PATH=$PATH:/usr/local/go/bin
 # ---------------------------------------------------------------------------
 # Clone repos at frozen SHAs
 # ---------------------------------------------------------------------------
+# operator is on github.com (public GH); charts is on github.ibm.com (GHE)
 GH_TOKEN=$(get_secret github-token)
+GHE_TOKEN=$(get_secret ghe-token)
 
 GH_TOKEN_FILE=$(mktemp)
 echo "${GH_TOKEN}" > "${GH_TOKEN_FILE}"
 chmod 600 "${GH_TOKEN_FILE}"
 
+GHE_TOKEN_FILE=$(mktemp)
+echo "${GHE_TOKEN}" > "${GHE_TOKEN_FILE}"
+chmod 600 "${GHE_TOKEN_FILE}"
+
+# github.com accepts the default GIT_AUTH_USER (x-oauth-basic); no override needed
 set +u
 # shellcheck source=/dev/null
 . "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
-  --repository "https://github.ibm.com/instana/instana-agent-operator" \
+  --repository "https://github.com/instana/instana-agent-operator" \
   --token-path "${GH_TOKEN_FILE}" \
   --branch "${SOURCE_BRANCH}" \
   --depth 1 \
@@ -77,19 +84,22 @@ set -u
 
 git -C "${WORKSPACE}/operator-src" checkout "${OPERATOR_SHA}"
 
+# github.ibm.com (GHE) requires GIT_AUTH_USER=x-access-token
 set +u
+GIT_AUTH_USER="x-access-token"
 # shellcheck source=/dev/null
 . "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
   --repository "https://github.ibm.com/instana/instana-agent-charts" \
-  --token-path "${GH_TOKEN_FILE}" \
+  --token-path "${GHE_TOKEN_FILE}" \
   --branch "${SOURCE_BRANCH}" \
   --depth 1 \
   --directory charts-src \
   --use-lfs false \
   --force-exit false
+unset GIT_AUTH_USER
 set -u
 
-rm -f "${GH_TOKEN_FILE}"
+rm -f "${GH_TOKEN_FILE}" "${GHE_TOKEN_FILE}"
 
 git -C "${WORKSPACE}/charts-src" checkout "${CHARTS_SHA}"
 
