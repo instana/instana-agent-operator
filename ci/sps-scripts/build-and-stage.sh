@@ -135,6 +135,9 @@ docker buildx inspect --bootstrap
 cd "${WORKSPACE}/operator-src"
 docker buildx build \
   --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le \
+  --build-arg VERSION="${VERSION}" \
+  --build-arg GIT_COMMIT="${OPERATOR_SHA}" \
+  --build-arg DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --tag "${OPERATOR_DEV_IMAGE}" \
   --push \
   .
