@@ -127,6 +127,7 @@ docker login -u iamapikey --password-stdin "${ICR_REGISTRY_DOMAIN}" < /config/ap
 # Build and push multiarch operator image to dev ICR
 # ---------------------------------------------------------------------------
 OPERATOR_DEV_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${OPERATOR_SHA}"
+OPERATOR_DEV_TAG_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${VERSION}"
 
 echo "=== Building multiarch operator image ==="
 docker buildx create --name multiarch-builder --use
@@ -139,6 +140,7 @@ docker buildx build \
   --build-arg GIT_COMMIT="${OPERATOR_SHA}" \
   --build-arg DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --tag "${OPERATOR_DEV_IMAGE}" \
+  --tag "${OPERATOR_DEV_TAG_IMAGE}" \
   --push \
   .
 
@@ -151,15 +153,15 @@ echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 # Runs BEFORE helm package so the YAML is available for ci/build.sh.
 # ---------------------------------------------------------------------------
 echo "=== Building instana-agent-operator.yaml ==="
-OPERATOR_IMAGE_WITH_DIGEST="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator@${OPERATOR_MANIFEST_DIGEST}"
 BARE_VERSION="${VERSION}"   # no 'v' prefix
+OPERATOR_DEV_VERSIONED_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${BARE_VERSION}"
 
 cd "${WORKSPACE}/operator-src"
 mkdir -p target
 
 STDERR_LOG=$(mktemp)
 make --silent \
-  IMG="${OPERATOR_IMAGE_WITH_DIGEST}" \
+  IMG="${OPERATOR_DEV_VERSIONED_IMAGE}" \
   VERSION="${BARE_VERSION}" \
   controller-yaml 2>"${STDERR_LOG}" > target/instana-agent-operator.yaml
 if [[ -s "${STDERR_LOG}" ]]; then
@@ -197,7 +199,7 @@ mkdir -p "${WORKSPACE}/operator-src/target"
 
 cd "${WORKSPACE}/operator-src"
 make \
-  IMG="${OPERATOR_IMAGE_WITH_DIGEST}" \
+  IMG="${OPERATOR_DEV_VERSIONED_IMAGE}" \
   VERSION="${BARE_VERSION}" \
   PREV_VERSION="${PREV_VERSION}" \
   AGENT_IMG="icr.io/instana/agent@${AGENT_IMG_DIGEST}" \

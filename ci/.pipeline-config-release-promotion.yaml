@@ -16,7 +16,8 @@ tasks:
         image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/validate-release.sh
+          SCRIPT_DIR="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH:-${APP_REPO_FOLDER:-. }}/ci/sps-scripts"
+          source "${SCRIPT_DIR}/validate-release.sh"
 
   promote-images:
     runAfter:
@@ -31,7 +32,8 @@ tasks:
         image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/promote-images.sh
+          SCRIPT_DIR="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH:-${APP_REPO_FOLDER:-. }}/ci/sps-scripts"
+          source "${SCRIPT_DIR}/promote-images.sh"
 
   preflight-scan:
     runAfter:
@@ -48,10 +50,12 @@ tasks:
           #!/usr/bin/env bash
           # Read BOM to get version
           COS_BUCKET=$(get_env cos-bucket-name)
+          COS_REGION=$(get_env cos-region "us-south")
           BOM_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
-          TMPBOM=$(mktemp)
-          ibmcloud cos get-object --bucket "${COS_BUCKET}" --key "${BOM_PATH}" --output json "${TMPBOM}"
+          TMPBOM="${WORKSPACE}/bom-preflight-$$.json"
+          ibmcloud cos get-object --bucket "${COS_BUCKET}" --key "${BOM_PATH}" --region "${COS_REGION}" --output json "${TMPBOM}"
           VERSION=$(jq -r '.version' "${TMPBOM}")
+          rm -f "${TMPBOM}"
 
           PREFLIGHT_TOKEN=$(get_secret redhat-pyxis-api-token)
           preflight check container \
@@ -73,10 +77,12 @@ tasks:
         image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/repackage-helm.sh
+          SCRIPT_DIR="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH:-${APP_REPO_FOLDER:-. }}/ci/sps-scripts"
+          source "${SCRIPT_DIR}/repackage-helm.sh"
       - name: publish
         onError: stopAndFail
         image: icr.io/instana-agent-dev/agent-delivery/build-image:main
         script: |
           #!/usr/bin/env bash
-          source $WORKSPACE/$APP_REPO_FOLDER/ci/sps-scripts/publish-helm.sh
+          SCRIPT_DIR="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH:-${APP_REPO_FOLDER:-. }}/ci/sps-scripts"
+          source "${SCRIPT_DIR}/publish-helm.sh"

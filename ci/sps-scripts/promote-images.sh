@@ -18,12 +18,14 @@ echo "===== promote-images.sh - start ====="
 # Read BOM
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
+COS_REGION=$(get_env cos-region "us-south")
 RELEASE_STATE_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
 
-BOM_FILE=$(mktemp)
+BOM_FILE="${WORKSPACE}/bom-promote-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${RELEASE_STATE_PATH}" \
+  --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
 VERSION=$(jq -r '.version'                             "${BOM_FILE}")

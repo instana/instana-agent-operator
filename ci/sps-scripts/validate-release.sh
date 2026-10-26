@@ -18,6 +18,7 @@ echo "===== validate-release.sh - start ====="
 # Read pipeline properties
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
+COS_REGION=$(get_env cos-region "us-south")
 RELEASE_STATE_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
 SKIP_E2E_CHECK=$(get_env skip-e2e-check "false")
 
@@ -27,10 +28,11 @@ echo "skip-e2e-check=${SKIP_E2E_CHECK}"
 # ---------------------------------------------------------------------------
 # Read BOM
 # ---------------------------------------------------------------------------
-BOM_FILE=$(mktemp)
+BOM_FILE="${WORKSPACE}/bom-validate-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${RELEASE_STATE_PATH}" \
+  --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
 echo "BOM contents:"
@@ -97,12 +99,14 @@ else
   echo "=== Validating E2E status files ==="
   for CLUSTER in "${E2E_CLUSTERS[@]}"; do
     STATUS_KEY="${COS_STATE_PATH}/e2e/${CLUSTER}.json"
-    STATUS_FILE=$(mktemp)
+    STATUS_FILE="${WORKSPACE}/status-${CLUSTER}-$$.json"
+    rm -f "${STATUS_FILE}"
     echo "  Checking ${STATUS_KEY}..."
 
     if ! ibmcloud cos get-object \
         --bucket "${COS_BUCKET}" \
         --key "${STATUS_KEY}" \
+        --region "${COS_REGION}" \
         --output json "${STATUS_FILE}" 2>/dev/null; then
       echo "ERROR: E2E status missing for ${CLUSTER} — stage may not have completed (key: ${STATUS_KEY})"
       rm -f "${STATUS_FILE}"

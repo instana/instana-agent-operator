@@ -20,13 +20,15 @@ echo "===== publish-helm.sh - start ====="
 # Read BOM and promoted helm path
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
+COS_REGION=$(get_env cos-region "us-south")
 RELEASE_STATE_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
 HELM_TGZ=$(get_env repackaged-helm-tgz)
 
-BOM_FILE=$(mktemp)
+BOM_FILE="${WORKSPACE}/bom-publish-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${RELEASE_STATE_PATH}" \
+  --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
 VERSION=$(jq -r '.version'                             "${BOM_FILE}")
@@ -46,15 +48,19 @@ echo "helm-tgz=${HELM_TGZ}"
 # Download OLM zip and operator YAML from COS
 # ---------------------------------------------------------------------------
 OLM_ZIP="${WORKSPACE}/olm-${VERSION}.zip"
+rm -f "${OLM_ZIP}"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${OLM_BUNDLE_COS}" \
+  --region "${COS_REGION}" \
   --output json "${OLM_ZIP}"
 
 OPERATOR_YAML="${WORKSPACE}/instana-agent-operator.yaml"
+rm -f "${OPERATOR_YAML}"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${OPERATOR_YAML_COS}" \
+  --region "${COS_REGION}" \
   --output json "${OPERATOR_YAML}"
 
 # ---------------------------------------------------------------------------

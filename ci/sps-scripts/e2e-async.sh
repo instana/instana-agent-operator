@@ -29,15 +29,19 @@ echo "CLUSTER_ID=${CLUSTER_ID}  E2E_MODE=${E2E_MODE}"
 # Read pipeline environment
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
+COS_REGION=$(get_env cos-region "us-south")
 COS_STATE_PATH=$(get_env cos-state-path)
 
 # ---------------------------------------------------------------------------
 # Read BOM from COS
 # ---------------------------------------------------------------------------
-BOM_FILE=$(mktemp)
+# Use a non-pre-existing path — ibmcloud cos get-object prompts interactively
+# if the output file already exists (e.g. a path returned by mktemp).
+BOM_FILE="${WORKSPACE}/bom-e2e-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "pipeline-state/latest-release-candidate/bom.json" \
+  --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
 VERSION=$(jq -r '.version'                         "${BOM_FILE}")
@@ -46,6 +50,7 @@ CHARTS_SHA=$(jq -r '.sources."charts-sha"'         "${BOM_FILE}")
 OPERATOR_MANIFEST_DIGEST=$(jq -r '.images."operator-manifest-digest"' "${BOM_FILE}")
 HELM_CHART_COS=$(jq -r '.artifacts."helm-chart"'   "${BOM_FILE}")
 SOURCE_BRANCH=$(jq -r '."source-branch"'           "${BOM_FILE}")
+rm -f "${BOM_FILE}"
 
 echo "version=${VERSION}  operator-sha=${OPERATOR_SHA}"
 echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
@@ -53,20 +58,37 @@ echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 # ---------------------------------------------------------------------------
 # Install dependencies
 # ---------------------------------------------------------------------------
-source "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" amd64
+if [[ -f "./installGolang.sh" ]]; then
+  source ./installGolang.sh amd64
+elif [[ -n "${PIPELINE_CONFIG_REPO_PATH:-}" && -f "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" ]]; then
+  source "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" amd64
+elif [[ -n "${APP_REPO_FOLDER:-}" && -f "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" ]]; then
+  source "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" amd64
+fi
 export PATH=$PATH:/usr/local/go/bin
 
 # ---------------------------------------------------------------------------
 # Clone operator repo at frozen SHA (E2E tests live in the operator repo)
 # ---------------------------------------------------------------------------
 GH_TOKEN=$(get_secret github-token)
-clone_repo_v2 \
-  --repo "https://github.ibm.com/instana/instana-agent-operator" \
-  --token-path <(echo "${GH_TOKEN}") \
+GH_TOKEN_FILE=$(mktemp)
+echo "${GH_TOKEN}" > "${GH_TOKEN_FILE}"
+chmod 600 "${GH_TOKEN_FILE}"
+
+set +u
+# shellcheck source=/dev/null
+. "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
+  --repository "https://github.com/instana/instana-agent-operator" \
+  --token-path "${GH_TOKEN_FILE}" \
   --branch "${SOURCE_BRANCH}" \
   --depth 1 \
-  --directory operator-src
-git -C operator-src checkout "${OPERATOR_SHA}"
+  --directory operator-src \
+  --use-lfs false \
+  --force-exit false
+set -u
+rm -f "${GH_TOKEN_FILE}"
+
+git -C "${WORKSPACE}/operator-src" checkout "${OPERATOR_SHA}"
 
 SOURCE_DIRECTORY="${WORKSPACE}/operator-src"
 
@@ -160,10 +182,11 @@ E2E_EXIT_CODE=0
 echo "=== Running E2E tests (mode=${E2E_MODE}) — output captured to ${LOG_FILE} ==="
 if [[ "${E2E_MODE}" == "helm" ]]; then
   # For helm mode: pull chart tarball from COS first, then run helm e2e target
-  HELM_TGZ=$(mktemp --suffix=".tgz")
+  HELM_TGZ="${WORKSPACE}/helm-chart-$$.tgz"
   ibmcloud cos get-object \
     --bucket "${COS_BUCKET}" \
     --key "${HELM_CHART_COS}" \
+    --region "${COS_REGION}" \
     --output json "${HELM_TGZ}"
   export HELM_CHART_PATH="${HELM_TGZ}"
   make e2e-helm 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?

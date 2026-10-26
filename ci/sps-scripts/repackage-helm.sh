@@ -20,12 +20,14 @@ echo "===== repackage-helm.sh - start ====="
 # Read BOM
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
+COS_REGION=$(get_env cos-region "us-south")
 RELEASE_STATE_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
 
-BOM_FILE=$(mktemp)
+BOM_FILE="${WORKSPACE}/bom-repackage-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${RELEASE_STATE_PATH}" \
+  --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
 VERSION=$(jq -r '.version'                             "${BOM_FILE}")
@@ -41,9 +43,11 @@ echo "helm-chart COS key=${HELM_CHART_COS}"
 # Download staged helm tarball from COS
 # ---------------------------------------------------------------------------
 STAGED_TGZ="${WORKSPACE}/instana-agent-${VERSION}-staged.tgz"
+rm -f "${STAGED_TGZ}"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "${HELM_CHART_COS}" \
+  --region "${COS_REGION}" \
   --output json "${STAGED_TGZ}"
 echo "Downloaded ${STAGED_TGZ}"
 
@@ -58,22 +62,20 @@ tar -xzf "${STAGED_TGZ}" -C "${UNPACK_DIR}"
 # The tarball root is the chart directory (instana-agent/)
 CHART_DIR="${UNPACK_DIR}/instana-agent"
 
-# Substitute: dev image tag → public image digest
-# values.yaml: controllerManager.image.name and .tag are both set by ci/build.sh;
-# replace the entire reference so it uses the public icr.io/instana path + digest.
+# Substitute: dev image reference → public image tag
 PUBLIC_REPO="icr.io/instana/instana-agent-operator"
-PUBLIC_REF="${PUBLIC_REPO}@${OPERATOR_MANIFEST_DIGEST}"
+PUBLIC_REF="${PUBLIC_REPO}:${VERSION}"
 
 echo "Patching image reference in values.yaml: → ${PUBLIC_REF}"
 yq eval -i \
   ".controllerManager.image.name = \"${PUBLIC_REPO}\" | \
-   .controllerManager.image.tag  = \"\"" \
+   .controllerManager.image.tag  = \"${VERSION}\" | \
+   del(.controllerManager.image.digest)" \
   "${CHART_DIR}/values.yaml"
 
-# The operator deployment template uses the tag value; replace with digest reference
-# Use sed since Helm templates contain {{ }} syntax that yq cannot handle
-DEV_IMAGE_PATTERN="icr\.io/instana-agent-dev/instana-agent-operator:[^\"]*"
-sed -i "s|${DEV_IMAGE_PATTERN}|${PUBLIC_REF}|g" \
+# The operator deployment template uses the fallback image; replace with public version tag
+DEV_IMAGE_PATTERN="icr\.io/instana-agent-dev/instana-agent-operator(@sha256:[a-f0-9]+|:[^\"]*)"
+sed -E -i "s|${DEV_IMAGE_PATTERN}|${PUBLIC_REF}|g" \
   "${CHART_DIR}/templates/operator_deployment_instana-agent-controller-manager.yml"
 
 echo "Image reference patched."
