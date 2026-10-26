@@ -16,6 +16,15 @@ version: '2'
 
 tasks:
   simple-execute:
+    # Available runtimeClassName profiles:
+    #   runtimeClassName  vCPU  RAM   Storage
+    #   small             1     4GB   32GB
+    #   medium            2     8GB   32GB
+    #   large             4     16GB  32GB
+    #   x86-large         4     16GB  150GB
+    #   x86-xlarge        8     32GB  300GB
+    #   x86-xxlarge       16    64GB  600GB
+    runtimeClassName: large
     include:
       - dind
     steps:
