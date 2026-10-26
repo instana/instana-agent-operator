@@ -47,6 +47,7 @@ RELEASE_TAG=$(jq -r '."release-tag"'       "${BOM_FILE}")
 OPERATOR_SHA=$(jq -r '.sources."operator-sha"' "${BOM_FILE}")
 CHARTS_SHA=$(jq -r '.sources."charts-sha"'     "${BOM_FILE}")
 SOURCE_BRANCH=$(jq -r '."source-branch"'   "${BOM_FILE}")
+CHARTS_BRANCH=$(jq -r '."charts-branch"'   "${BOM_FILE}")
 
 echo "version=${VERSION}  release-tag=${RELEASE_TAG}"
 echo "operator-sha=${OPERATOR_SHA}  charts-sha=${CHARTS_SHA}"
@@ -95,7 +96,7 @@ GIT_AUTH_USER="x-access-token"
 . "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
   --repository "https://github.ibm.com/instana/instana-agent-charts" \
   --token-path "${GHE_TOKEN_FILE}" \
-  --branch "${SOURCE_BRANCH}" \
+  --branch "${CHARTS_BRANCH}" \
   --depth 1 \
   --directory charts-src \
   --use-lfs false \
@@ -216,8 +217,15 @@ OPERATOR_YAML="${OPERATOR_YAML_PATH}" \
 CHART_VERSION="${BARE_VERSION}" \
   bash ci/build.sh
 
-HELM_TGZ=$(ls "${WORKSPACE}/charts-src/artefacts/instana-agent-${BARE_VERSION}.tgz" 2>/dev/null || \
-           ls "${WORKSPACE}/charts-src/artefacts/instana-agent-*.tgz" | head -1)
+HELM_TGZ="${WORKSPACE}/charts-src/artefacts/instana-agent-${BARE_VERSION}.tgz"
+if [[ ! -f "${HELM_TGZ}" ]]; then
+  echo "ERROR: expected ${HELM_TGZ} but found:" >&2
+  ls -l "${WORKSPACE}/charts-src/artefacts/" >&2 || true
+  echo "The charts repo at ${CHARTS_SHA} (branch ${CHARTS_BRANCH}) probably has an old ci/build.sh" >&2
+  echo "that ignores CHART_VERSION/OPERATOR_YAML." >&2
+  echo "Check the 'release-branch-charts' pipeline property." >&2
+  exit 1
+fi
 echo "Helm chart built: ${HELM_TGZ}"
 
 # ---------------------------------------------------------------------------

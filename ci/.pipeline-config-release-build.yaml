@@ -10,7 +10,8 @@
 # Pipeline properties — set these in the SPS toolchain UI (not in this file):
 #   release-line   required  MAJOR.MINOR of the release line to publish (e.g. "2.2")
 #                            Patch is computed automatically from existing tags.
-#   release-branch default: main
+#   release-branch-operator  default: main   branch of the operator repo
+#   release-branch-charts    default: main   branch of the instana-agent-charts repo
 version: '2'
 
 tasks:

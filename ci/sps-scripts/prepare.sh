@@ -18,7 +18,8 @@ echo "===== prepare.sh - start ====="
 # Resolve pipeline properties
 # ---------------------------------------------------------------------------
 RELEASE_LINE=$(get_env release-line "")
-RELEASE_BRANCH=$(get_env release-branch "main")
+RELEASE_BRANCH=$(get_env release-branch-operator "main")
+CHARTS_BRANCH=$(get_env release-branch-charts "main")
 COS_BUCKET=$(get_env cos-bucket-name)
 COS_REGION=$(get_env cos-region "us-south")
 
@@ -32,7 +33,8 @@ if ! [[ "${RELEASE_LINE}" =~ ^[0-9]+\.[0-9]+$ ]]; then
 fi
 
 echo "release-line=${RELEASE_LINE}"
-echo "release-branch=${RELEASE_BRANCH}"
+echo "release-branch-operator=${RELEASE_BRANCH}"
+echo "release-branch-charts=${CHARTS_BRANCH}"
 echo "cos-bucket-name=${COS_BUCKET}"
 echo "cos-region=${COS_REGION}"
 
@@ -79,14 +81,14 @@ echo "operator-sha=${OPERATOR_SHA}"
 # Clone charts repo and record HEAD SHA
 # ---------------------------------------------------------------------------
 # github.ibm.com (GHE) requires GIT_AUTH_USER=x-access-token
-echo "Cloning charts repo at branch ${RELEASE_BRANCH}..."
+echo "Cloning charts repo at branch ${CHARTS_BRANCH}..."
 set +u
 GIT_AUTH_USER="x-access-token"
 # shellcheck source=/dev/null
 . "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
   --repository "https://${CHARTS_REPO}" \
   --token-path "${GHE_TOKEN_FILE}" \
-  --branch "${RELEASE_BRANCH}" \
+  --branch "${CHARTS_BRANCH}" \
   --depth 1 \
   --directory charts-src \
   --use-lfs false \
@@ -155,6 +157,7 @@ BOM=$(jq -n \
   --arg version       "${VERSION}" \
   --arg release_tag   "${RELEASE_TAG}" \
   --arg source_branch "${RELEASE_BRANCH}" \
+  --arg charts_branch "${CHARTS_BRANCH}" \
   --arg cos_state     "${COS_STATE_PATH}" \
   --arg run_id        "${PIPELINE_RUN_ID}" \
   --arg op_sha        "${OPERATOR_SHA}" \
@@ -163,6 +166,7 @@ BOM=$(jq -n \
     "version":          $version,
     "release-tag":      $release_tag,
     "source-branch":    $source_branch,
+    "charts-branch":    $charts_branch,
     "cos-state-path":   $cos_state,
     "pipeline-run-id":  $run_id,
     "sources": {
