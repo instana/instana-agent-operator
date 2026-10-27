@@ -123,8 +123,11 @@ ICR_USERNAME=iamapikey
 ICR_PASSWORD=$(cat /config/api-key)
 export ICR_USERNAME ICR_PASSWORD CLUSTER_NAME
 
+# setup.sh reads SKIP_INSTALL_GCLOUD; it must always be defined (set -u)
 if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
   SKIP_INSTALL_GCLOUD=true
+else
+  SKIP_INSTALL_GCLOUD=false
 fi
 # shellcheck disable=SC1090
 source "${SOURCE_DIRECTORY}/ci/sps-scripts/setup.sh"
