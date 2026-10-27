@@ -64,6 +64,7 @@ CHARTS_SHA=$(jq -r '.sources."charts-sha"'         "${BOM_FILE}")
 OPERATOR_MANIFEST_DIGEST=$(jq -r '.images."operator-manifest-digest"' "${BOM_FILE}")
 HELM_CHART_COS=$(jq -r '.artifacts."helm-chart"'   "${BOM_FILE}")
 SOURCE_BRANCH=$(jq -r '."source-branch"'           "${BOM_FILE}")
+BOM_JSON=$(cat "${BOM_FILE}")
 rm -f "${BOM_FILE}"
 
 echo "version=${VERSION}  operator-sha=${OPERATOR_SHA}"
@@ -106,11 +107,41 @@ git -C "${WORKSPACE}/operator-src" checkout "${OPERATOR_SHA}"
 
 SOURCE_DIRECTORY="${WORKSPACE}/operator-src"
 
-# Build operator binary (required by e2e harness)
-cd "${SOURCE_DIRECTORY}"
-make generate
-go install
-make build
+# ---------------------------------------------------------------------------
+# Helm mode: the chart E2E tests live in the charts repo (GHE), not the operator
+# repo. Clone it at the frozen SHA.
+# ---------------------------------------------------------------------------
+if [[ "${E2E_MODE}" == "helm" ]]; then
+  GHE_TOKEN=$(get_secret ghe-token)
+  GHE_TOKEN_FILE=$(mktemp)
+  echo "${GHE_TOKEN}" > "${GHE_TOKEN_FILE}"
+  chmod 600 "${GHE_TOKEN_FILE}"
+
+  # github.ibm.com (GHE) requires GIT_AUTH_USER=x-access-token
+  set +u
+  GIT_AUTH_USER="x-access-token"
+  # shellcheck source=/dev/null
+  . "${ONE_PIPELINE_PATH}"/git/clone_repo_v2 \
+    --repository "https://github.ibm.com/instana/instana-agent-charts" \
+    --token-path "${GHE_TOKEN_FILE}" \
+    --branch "$(jq -r '."charts-branch"' <<< "${BOM_JSON}")" \
+    --depth 1 \
+    --directory charts-src \
+    --use-lfs false \
+    --force-exit false
+  unset GIT_AUTH_USER
+  set -u
+  rm -f "${GHE_TOKEN_FILE}"
+
+  git -C "${WORKSPACE}/charts-src" checkout "${CHARTS_SHA}"
+  CHARTS_DIRECTORY="${WORKSPACE}/charts-src"
+else
+  # Build operator binary (required by the operator e2e harness)
+  cd "${SOURCE_DIRECTORY}"
+  make generate
+  go install
+  make build
+fi
 
 # ---------------------------------------------------------------------------
 # Authenticate with clusters
@@ -129,8 +160,15 @@ if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
 else
   SKIP_INSTALL_GCLOUD=false
 fi
-# shellcheck disable=SC1090
-source "${SOURCE_DIRECTORY}/ci/sps-scripts/setup.sh"
+# Helm mode uses the charts repo's setup (helm v4, Go, kubectl, gcloud);
+# operator mode uses the operator repo's setup.
+if [[ "${E2E_MODE}" == "helm" ]]; then
+  # shellcheck disable=SC1090,SC1091
+  source "${CHARTS_DIRECTORY}/ci/sps/setup.sh"
+else
+  # shellcheck disable=SC1090
+  source "${SOURCE_DIRECTORY}/ci/sps-scripts/setup.sh"
+fi
 
 if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
   CLUSTER_SERVER=$(echo "${CLUSTER_DETAILS}"   | jq -r ".server")
@@ -172,7 +210,9 @@ INSTANA_ENDPOINT_PORT=443
 INSTANA_API_KEY=$(echo "${INSTANA_E2E_BACKEND_DETAILS}"   | jq -r ".agent_key")
 INSTANA_API_URL=$(echo "${INSTANA_E2E_BACKEND_DETAILS}"   | jq -r ".api_url")
 INSTANA_API_TOKEN=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_token")
-export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_API_KEY INSTANA_API_URL INSTANA_API_TOKEN
+# The charts e2e tests read INSTANA_AGENT_KEY; the operator e2e tests read INSTANA_API_KEY.
+INSTANA_AGENT_KEY="${INSTANA_API_KEY}"
+export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_API_KEY INSTANA_AGENT_KEY INSTANA_API_URL INSTANA_API_TOKEN
 
 # Export the dev ICR image digest so E2E tests pick it up
 export GIT_COMMIT="${OPERATOR_SHA}"
@@ -205,15 +245,18 @@ E2E_EXIT_CODE=0
 
 echo "=== Running E2E tests (mode=${E2E_MODE}) — output captured to ${LOG_FILE} ==="
 if [[ "${E2E_MODE}" == "helm" ]]; then
-  # For helm mode: pull chart tarball from COS first, then run helm e2e target
-  HELM_TGZ="${WORKSPACE}/helm-chart-$$.tgz"
+  # For helm mode: pull the chart tarball built by the release pipeline from COS,
+  # then run the charts repo e2e tests against it.
+  # The file name must match instana-agent-*.tgz and must not pre-exist.
+  HELM_TGZ="${WORKSPACE}/$(basename "${HELM_CHART_COS}")"
   ibmcloud cos get-object \
     --bucket "${COS_BUCKET}" \
     --key "${HELM_CHART_COS}" \
     --region "${COS_REGION}" \
     --output json "${HELM_TGZ}"
-  export HELM_CHART_PATH="${HELM_TGZ}"
-  make e2e-helm 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
+  export INSTANA_AGENT_HELM_CHART_LOCATION="${HELM_TGZ}"
+  echo "INSTANA_AGENT_HELM_CHART_LOCATION=${INSTANA_AGENT_HELM_CHART_LOCATION}"
+  (cd "${CHARTS_DIRECTORY}" && make e2e) 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
 else
   make e2e 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
 fi
@@ -237,7 +280,8 @@ LOG_COS_KEY="${COS_STATE_PATH}/e2e/${CLUSTER_ID}/test-${E2E_TIMESTAMP}-${E2E_STA
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${LOG_COS_KEY}" \
-  --body "${LOG_FILE}"
+  --body "${LOG_FILE}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${LOG_COS_KEY}"
 
 # ---------------------------------------------------------------------------
@@ -262,7 +306,8 @@ STATUS_COS_KEY="${COS_STATE_PATH}/e2e/${CLUSTER_ID}.json"
 ibmcloud cos put-object \
   --bucket "${COS_BUCKET}" \
   --key "${STATUS_COS_KEY}" \
-  --body "${STATUS_FILE}"
+  --body "${STATUS_FILE}" \
+  --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${STATUS_COS_KEY}"
 rm -f "${STATUS_FILE}"
 
