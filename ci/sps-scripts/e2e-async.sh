@@ -33,16 +33,30 @@ COS_REGION=$(get_env cos-region "us-south")
 COS_STATE_PATH=$(get_env cos-state-path)
 
 # ---------------------------------------------------------------------------
+# Log in to IBM Cloud (async stages run in a fresh container; the login done
+# in prepare.sh is not inherited)
+# ---------------------------------------------------------------------------
+IBMCLOUD_API_KEY=$(get_secret ibmcloud-api-key)
+if ! ibmcloud login --apikey "${IBMCLOUD_API_KEY}" --no-region; then
+  echo "ERROR: ibmcloud login failed" >&2
+  exit 1
+fi
+unset IBMCLOUD_API_KEY
+
+# ---------------------------------------------------------------------------
 # Read BOM from COS
 # ---------------------------------------------------------------------------
 # Use a non-pre-existing path — ibmcloud cos get-object prompts interactively
 # if the output file already exists (e.g. a path returned by mktemp).
 BOM_FILE="${WORKSPACE}/bom-e2e-$$.json"
-ibmcloud cos get-object \
+if ! ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
   --key "pipeline-state/latest-release-candidate/bom.json" \
   --region "${COS_REGION}" \
-  --output json "${BOM_FILE}"
+  --output json "${BOM_FILE}" || [[ ! -s "${BOM_FILE}" ]]; then
+  echo "ERROR: failed to read BOM from COS" >&2
+  exit 1
+fi
 
 VERSION=$(jq -r '.version'                         "${BOM_FILE}")
 OPERATOR_SHA=$(jq -r '.sources."operator-sha"'     "${BOM_FILE}")
@@ -252,7 +266,7 @@ curl --silent --fail --show-error -X POST \
   -H "Authorization: Bearer ${GH_API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{\"state\":\"${COMMIT_STATE}\",\"context\":\"tekton/e2e-${CLUSTER_ID}\",\"description\":\"E2E test (${E2E_MODE})\",\"target_url\":\"${PIPELINE_RUN_URL:-}\"}" \
-  "https://api.github.ibm.com/repos/instana/instana-agent-operator/statuses/${OPERATOR_SHA}"
+  "https://api.github.com/repos/instana/instana-agent-operator/statuses/${OPERATOR_SHA}"
 
 echo "Posted commit status '${COMMIT_STATE}' to operator repo at ${OPERATOR_SHA}"
 
