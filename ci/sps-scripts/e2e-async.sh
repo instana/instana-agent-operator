@@ -179,9 +179,19 @@ if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
   cd "${SOURCE_DIRECTORY}/bin"
   curl -sk "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${CLUSTER_CHANNEL}/openshift-client-linux.tar.gz" \
     -o openshift-client-linux.tar.gz
-  tar -xf openshift-client-linux.tar.gz
+  if ! tar -xf openshift-client-linux.tar.gz; then
+    echo "ERROR: could not extract oc client for channel '${CLUSTER_CHANNEL}'" >&2
+    exit 1
+  fi
   rm -f openshift-client-linux.tar.gz README.md
   PATH=$(pwd):${PATH}; export PATH
+  # Non-secret diagnostics to debug login failures (password is never printed)
+  echo "oc binary: $(command -v oc)  channel=${CLUSTER_CHANNEL}"
+  oc version --client 2>&1 | head -2
+  echo "cluster=${CLUSTER_ID} server=${CLUSTER_SERVER} username=${CLUSTER_USERNAME} password-length=${#CLUSTER_PASSWORD}"
+  if [[ "${CLUSTER_PASSWORD}" =~ [[:space:]] || "${CLUSTER_PASSWORD}" == "null" || -z "${CLUSTER_PASSWORD}" ]]; then
+    echo "WARNING: password is empty, 'null' or contains whitespace" >&2
+  fi
   if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then set +x; fi
   oc login --insecure-skip-tls-verify=true \
     -u "${CLUSTER_USERNAME}" -p "${CLUSTER_PASSWORD}" --server="${CLUSTER_SERVER}"
