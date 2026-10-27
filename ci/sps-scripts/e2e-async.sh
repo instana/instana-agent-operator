@@ -177,6 +177,13 @@ export GIT_COMMIT="${OPERATOR_SHA}"
 # ---------------------------------------------------------------------------
 # Claim reslock
 # ---------------------------------------------------------------------------
+# reslock.sh builds its lock owner from these variables, which are only
+# provided by the PR pipelines; set them for the release async stage.
+export APP_REPO_NAME="${APP_REPO_NAME:-instana-agent-operator}"
+export BRANCH="${BRANCH:-${SOURCE_BRANCH}}"
+export PIPELINE_RUN_NAME="${PIPELINE_RUN_NAME:-release-${VERSION}}"
+export BUILD_NUMBER="${BUILD_NUMBER:-${E2E_MODE}-${CLUSTER_ID}}"
+
 echo "=== Claiming reslock for ${CLUSTER_ID} ==="
 bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
 RESLOCK_CLAIMED=true
