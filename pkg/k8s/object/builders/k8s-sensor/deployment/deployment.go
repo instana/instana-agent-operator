@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"maps"
 	"path"
-	"regexp"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +25,7 @@ import (
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/builders/common/volume"
 	"github.com/instana/instana-agent-operator/pkg/k8s/object/transformations"
 	"github.com/instana/instana-agent-operator/pkg/k8s/operator/status"
+	"github.com/instana/instana-agent-operator/pkg/k8s/pollrate"
 	"github.com/instana/instana-agent-operator/pkg/map_defaulter"
 	"github.com/instana/instana-agent-operator/pkg/optional"
 	"github.com/instana/instana-agent-operator/pkg/pointer"
@@ -123,16 +123,25 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
 			envVars = append(envVars, []corev1.EnvVar{
 				{
-					Name:  constants.EnvETCDCAFile,
-					Value: path.Join(constants.ETCDMetricsCAMountPath, constants.ETCDCABundleFileName),
+					Name: constants.EnvETCDCAFile,
+					Value: path.Join(
+						constants.ETCDMetricsCAMountPath,
+						constants.ETCDCABundleFileName,
+					),
 				},
 				{
-					Name:  constants.EnvETCDCertFile,
-					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientCertFileName),
+					Name: constants.EnvETCDCertFile,
+					Value: path.Join(
+						constants.ETCDClientCertMountPath,
+						constants.ETCDClientCertFileName,
+					),
 				},
 				{
-					Name:  constants.EnvETCDKeyFile,
-					Value: path.Join(constants.ETCDClientCertMountPath, constants.ETCDClientKeyFileName),
+					Name: constants.EnvETCDKeyFile,
+					Value: path.Join(
+						constants.ETCDClientCertMountPath,
+						constants.ETCDClientKeyFileName,
+					),
 				},
 			}...)
 		}
@@ -410,30 +419,10 @@ func NewDeploymentBuilder(
 	}
 }
 
-const (
-	// PollRateRegex defines the validation pattern for pollrate values (seconds only)
-	PollRateRegex = `^[0-9]+s$`
-	// DefaultPollRate is the default polling rate for k8sensor
-	DefaultPollRate = "10s"
-)
-
-// validatePollRate checks if the pollrate matches the same pattern as the CRD validation
-func (d *deploymentBuilder) validatePollRate(pollRate string) bool {
-	matched, err := regexp.MatchString(PollRateRegex, pollRate)
-	if err != nil {
-		return false
-	}
-	return matched
-}
-
 // getK8SensorArgs returns the command line arguments for the k8sensor
 func (d *deploymentBuilder) getK8SensorArgs() []string {
-	pollRate := DefaultPollRate
-	if d.Spec.K8sSensor.PollRate != "" {
-		if d.validatePollRate(d.Spec.K8sSensor.PollRate) {
-			pollRate = d.Spec.K8sSensor.PollRate
-		}
-	}
+	// Only the resolved value reaches the Deployment, so other configuration_yaml edits do not roll k8sensor.
+	pollRate := pollrate.Resolve(d.Spec.Agent.ConfigurationYaml, d.Spec.K8sSensor.PollRate).Value
 
 	args := []string{"-pollrate", pollRate}
 

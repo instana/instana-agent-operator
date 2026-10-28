@@ -9,12 +9,15 @@ import (
 	"testing"
 
 	"github.com/go-errors/errors"
+	"github.com/go-logr/logr"
 	instanav1 "github.com/instana/instana-agent-operator/api/v1"
 	"github.com/instana/instana-agent-operator/internal/mocks"
 
+	"github.com/instana/instana-agent-operator/pkg/pointer"
 	"github.com/instana/instana-agent-operator/pkg/result"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -460,4 +463,103 @@ func TestGetAllK8sSensorsAvailableCondition_WhenEnabledNil(t *testing.T) {
 		"k8sensor deployment has not been configured for this agent",
 		condition.Message,
 	)
+}
+
+func TestSetK8sSensorPollRateConflictCondition(t *testing.T) {
+	staleConflict := metav1.Condition{
+		Type:   ConditionTypeK8sSensorPollRateConflict,
+		Status: metav1.ConditionTrue,
+		Reason: "ConfigurationYamlWins",
+	}
+
+	for _, test := range []struct {
+		name              string
+		configurationYaml string
+		crPollRate        string
+		k8sSensorEnabled  *bool
+		existing          []metav1.Condition
+		expectCondition   bool
+		expectEvent       string
+	}{
+		{
+			name:              "both set and different sets the condition",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: 30\n",
+			crPollRate:        "10s",
+			expectCondition:   true,
+			expectEvent:       "Normal ConfigurationYamlWins",
+		},
+		{
+			name:              "both set and equal clears the condition",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: 30\n",
+			crPollRate:        "30s",
+			existing:          []metav1.Condition{staleConflict},
+		},
+		{
+			name:       "only CR set clears the condition",
+			crPollRate: "30s",
+			existing:   []metav1.Condition{staleConflict},
+		},
+		{
+			name:              "invalid configuration_yaml warns without a condition",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: [30\n",
+			crPollRate:        "10s",
+			existing:          []metav1.Condition{staleConflict},
+			expectEvent:       "Warning K8sSensorPollRateIgnored",
+		},
+		{
+			name:              "k8sensor disabled clears the condition",
+			configurationYaml: "com.instana.plugin.kubernetes:\n  poll_rate: 30\n",
+			crPollRate:        "10s",
+			k8sSensorEnabled:  pointer.To(false),
+			existing:          []metav1.Condition{staleConflict},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertions := require.New(t)
+
+			agent := &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{ConfigurationYaml: test.configurationYaml},
+					K8sSensor: instanav1.K8sSpec{
+						PollRate: test.crPollRate,
+						DeploymentSpec: instanav1.KubernetesDeploymentSpec{
+							Enabled: instanav1.Enabled{Enabled: test.k8sSensorEnabled},
+						},
+					},
+				},
+				Status: instanav1.InstanaAgentStatus{Conditions: test.existing},
+			}
+			recorder := record.NewFakeRecorder(10)
+			agentStatusManager := NewAgentStatusManager(&mocks.MockInstanaAgentClient{}, recorder).(*agentStatusManager)
+			agentStatusManager.SetAgentOld(agent)
+			agentNew := agent.DeepCopy()
+
+			agentStatusManager.setK8sSensorPollRateConflictCondition(agentNew, logr.Discard())
+
+			condition := meta.FindStatusCondition(
+				agentNew.Status.Conditions,
+				ConditionTypeK8sSensorPollRateConflict,
+			)
+			if test.expectCondition {
+				assertions.NotNil(condition)
+				assertions.Equal(metav1.ConditionTrue, condition.Status)
+				assertions.Equal("ConfigurationYamlWins", condition.Reason)
+				assertions.Equal(
+					"com.instana.plugin.kubernetes.poll_rate in spec.agent.configuration_yaml is 30s and "+
+						"spec.k8s_sensor.pollrate is 10s; the operator passes -pollrate 30s to k8sensor, "+
+						"which may adjust it to a rate it supports",
+					condition.Message,
+				)
+			} else {
+				assertions.Nil(condition)
+			}
+
+			if test.expectEvent == "" {
+				assertions.Empty(recorder.Events)
+			} else {
+				assertions.Len(recorder.Events, 1)
+				assertions.Contains(<-recorder.Events, test.expectEvent)
+			}
+		})
+	}
 }

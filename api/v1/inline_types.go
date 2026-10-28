@@ -402,9 +402,12 @@ type K8sSpec struct {
 	// +kubebuilder:validation:Optional
 	RestClient RestClientSpec `json:"restClient,omitempty"`
 
+	// Deprecated: set com.instana.plugin.kubernetes.poll_rate in configuration_yaml instead. When both are set and
+	// differ, configuration_yaml wins and the K8sSensorPollRateConflict condition is set.
 	// PollRate controls the frequency at which k8sensor sends collected information to the backend.
-	// PollRate value should be provided in seconds
-	// Example: 1s, 5s, 10s, 30s
+	// PollRate value should be provided in seconds. k8sensor adjusts it to a value it supports: older k8sensor
+	// versions allow 1s to 30s, newer ones 1s to 60s. When neither is set, 10s is used.
+	// Example: 1s, 5s, 10s, 30s, 60s
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[0-9]+s$`
 	PollRate string `json:"pollrate,omitempty"`
