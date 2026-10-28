@@ -232,17 +232,10 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 	case ConfigPathEnv:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: constants.InstanaConfigDirectory}
 	case InstanaAgentConfigPathEnv:
-		// If the customer already set CONFIG_PATH in pod.env, mirror that value so
-		// INSTANA_AGENT_CONFIG_PATH is consistent and upgrades are seamless.
-		for _, podEnvVar := range e.agent.Spec.Agent.Pod.Env {
-			if podEnvVar.Name == "CONFIG_PATH" && podEnvVar.Value != "" {
-				return &corev1.EnvVar{Name: "INSTANA_AGENT_CONFIG_PATH", Value: podEnvVar.Value}
-			}
-		}
-		return &corev1.EnvVar{
-			Name:  "INSTANA_AGENT_CONFIG_PATH",
-			Value: constants.InstanaConfigDirectory,
-		}
+		return instanaAgentConfigPathEnv(
+			e.agent.Spec.Agent.Pod.Env,
+			constants.InstanaConfigDirectory,
+		)
 	case NamespacesDetailsPathEnv:
 		return &corev1.EnvVar{
 			Name: "NAMESPACES_DETAILS_PATH",
@@ -433,6 +426,19 @@ func (e *envBuilder) getUserProvidedEnvs() []corev1.EnvVar {
 		})
 	}
 	return envVars
+}
+
+// Mirror the final CONFIG_PATH override, including references and explicit empty values.
+// Workload builders apply pod.env last, so an explicit INSTANA_AGENT_CONFIG_PATH still wins.
+func instanaAgentConfigPathEnv(podEnv []corev1.EnvVar, defaultPath string) *corev1.EnvVar {
+	for i := len(podEnv) - 1; i >= 0; i-- {
+		if podEnv[i].Name == "CONFIG_PATH" {
+			mirrored := podEnv[i].DeepCopy()
+			mirrored.Name = "INSTANA_AGENT_CONFIG_PATH"
+			return mirrored
+		}
+	}
+	return &corev1.EnvVar{Name: "INSTANA_AGENT_CONFIG_PATH", Value: defaultPath}
 }
 
 func stringToEnvVar(name string, val string) *corev1.EnvVar {

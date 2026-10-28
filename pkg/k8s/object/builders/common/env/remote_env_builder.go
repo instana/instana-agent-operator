@@ -190,17 +190,7 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 	case ConfigPathEnvRemote:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.RemoteConfigDirectory}
 	case InstanaAgentConfigPathEnvRemote:
-		// If the customer already set CONFIG_PATH in pod.env, mirror that value so
-		// INSTANA_AGENT_CONFIG_PATH is consistent and upgrades are seamless.
-		for _, podEnvVar := range e.agent.Spec.Agent.Pod.Env {
-			if podEnvVar.Name == "CONFIG_PATH" && podEnvVar.Value != "" {
-				return &corev1.EnvVar{Name: "INSTANA_AGENT_CONFIG_PATH", Value: podEnvVar.Value}
-			}
-		}
-		return &corev1.EnvVar{
-			Name:  "INSTANA_AGENT_CONFIG_PATH",
-			Value: volume.RemoteConfigDirectory,
-		}
+		return instanaAgentConfigPathEnv(e.agent.Spec.Agent.Pod.Env, volume.RemoteConfigDirectory)
 	case EntrypointSkipBackendTemplateGenerationRemote:
 		return &corev1.EnvVar{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"}
 	case BackendEnvRemote:

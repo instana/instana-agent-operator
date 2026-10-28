@@ -391,6 +391,27 @@ func TestEnvBuilderBuild(t *testing.T) {
 				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/opt/instana/agent/etc/instana-config-yml"},
 			},
 		},
+		{
+			name: "Should mirror CONFIG_PATH ValueFrom into INSTANA_AGENT_CONFIG_PATH",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						Pod: instanav1.AgentPodSpec{
+							Env: []corev1.EnvVar{{
+								Name: "CONFIG_PATH",
+								ValueFrom: &corev1.EnvVarSource{
+									FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"},
+								},
+							}},
+						},
+					},
+				},
+			},
+			envVars: []EnvVar{InstanaAgentConfigPathEnv},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "metadata.name"},
+			},
+		},
 	} {
 		t.Run(
 			test.name, func(t *testing.T) {
