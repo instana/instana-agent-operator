@@ -239,9 +239,33 @@ export BRANCH="${BRANCH:-${SOURCE_BRANCH}}"
 export PIPELINE_RUN_NAME="${PIPELINE_RUN_NAME:-release-${VERSION}}"
 export BUILD_NUMBER="${BUILD_NUMBER:-${E2E_MODE}-${CLUSTER_ID}}"
 
+RESLOCK_CLAIMED=false
+E2E_STATUS="failure"
+E2E_EXIT_CODE=0
+
+release_reslock() {
+  if [[ "${RESLOCK_CLAIMED}" == "true" ]]; then
+    RESLOCK_CLAIMED=false
+    echo "=== Releasing reslock for ${CLUSTER_ID} ==="
+    bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}" || \
+      echo "WARNING: failed to release reslock for ${CLUSTER_ID}" >&2
+  fi
+}
+
+# Safety net: release the lock on any exit path (error, cancellation, signal).
+on_exit() {
+  release_reslock
+  if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then env; fi
+}
+trap on_exit EXIT
+
 echo "=== Claiming reslock for ${CLUSTER_ID} ==="
-bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"
-RESLOCK_CLAIMED=true
+if bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"; then
+  RESLOCK_CLAIMED=true
+else
+  echo "ERROR: failed to claim reslock for ${CLUSTER_ID}; E2E tests will not be started" >&2
+  E2E_EXIT_CODE=1
+fi
 
 # ---------------------------------------------------------------------------
 # Record run timestamp
@@ -252,11 +276,11 @@ E2E_TIMESTAMP=$(date -u '+%Y%m%d%H%M')
 # Run E2E tests (capture output; never exit early on failure)
 # ---------------------------------------------------------------------------
 LOG_FILE="${WORKSPACE}/e2e-${CLUSTER_ID}-${E2E_TIMESTAMP}.log"
-E2E_STATUS="failure"
-E2E_EXIT_CODE=0
 
-echo "=== Running E2E tests (mode=${E2E_MODE}) — output captured to ${LOG_FILE} ==="
-if [[ "${E2E_MODE}" == "helm" ]]; then
+if [[ "${RESLOCK_CLAIMED}" != "true" ]]; then
+  echo "E2E tests skipped: reslock for ${CLUSTER_ID} could not be claimed" | tee "${LOG_FILE}"
+elif [[ "${E2E_MODE}" == "helm" ]]; then
+  echo "=== Running E2E tests (mode=${E2E_MODE}) — output captured to ${LOG_FILE} ==="
   # For helm mode: pull the chart tarball built by the release pipeline from COS,
   # then run the charts repo e2e tests against it.
   # The file name must match instana-agent-*.tgz and must not pre-exist.
@@ -270,6 +294,7 @@ if [[ "${E2E_MODE}" == "helm" ]]; then
   echo "INSTANA_AGENT_HELM_CHART_LOCATION=${INSTANA_AGENT_HELM_CHART_LOCATION}"
   (cd "${CHARTS_DIRECTORY}" && make e2e) 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
 else
+  echo "=== Running E2E tests (mode=${E2E_MODE}) — output captured to ${LOG_FILE} ==="
   make e2e 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
 fi
 
@@ -281,9 +306,7 @@ echo "E2E result: ${E2E_STATUS} (exit code: ${E2E_EXIT_CODE})"
 # ---------------------------------------------------------------------------
 # Release reslock (always, even on failure)
 # ---------------------------------------------------------------------------
-echo "=== Releasing reslock for ${CLUSTER_ID} ==="
-bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}" || true
-RESLOCK_CLAIMED=false
+release_reslock
 
 # ---------------------------------------------------------------------------
 # Upload log file to COS (always uploaded)
