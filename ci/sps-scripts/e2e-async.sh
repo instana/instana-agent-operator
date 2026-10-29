@@ -73,6 +73,8 @@ echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 # ---------------------------------------------------------------------------
 # Install dependencies
 # ---------------------------------------------------------------------------
+# The operator repo's installGolang.sh is the single source of truth for the Go
+# version, also in helm mode (the charts setup.sh no longer installs Go).
 if [[ -f "./installGolang.sh" ]]; then
   source ./installGolang.sh amd64
 elif [[ -n "${PIPELINE_CONFIG_REPO_PATH:-}" && -f "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" ]]; then
