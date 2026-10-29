@@ -38,7 +38,7 @@ echo "COS_STATE_PATH=${COS_STATE_PATH}"
 BOM_FILE="${WORKSPACE}/bom-read-$$.json"
 ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
-  --key "pipeline-state/latest-release-candidate/bom.json" \
+  --key "${COS_STATE_PATH}/bom.json" \
   --region "${COS_REGION}" \
   --output json "${BOM_FILE}"
 
@@ -87,7 +87,8 @@ set +u
   --force-exit false
 set -u
 
-git -C "${WORKSPACE}/operator-src" checkout "${OPERATOR_SHA}"
+git -C "${WORKSPACE}/operator-src" fetch --depth 1 origin "${OPERATOR_SHA}"
+git -C "${WORKSPACE}/operator-src" checkout --detach "${OPERATOR_SHA}"
 
 # github.ibm.com (GHE) requires GIT_AUTH_USER=x-access-token
 set +u
@@ -104,9 +105,10 @@ GIT_AUTH_USER="x-access-token"
 unset GIT_AUTH_USER
 set -u
 
-rm -f "${GH_TOKEN_FILE}" "${GHE_TOKEN_FILE}"
+git -C "${WORKSPACE}/charts-src" fetch --depth 1 origin "${CHARTS_SHA}"
+git -C "${WORKSPACE}/charts-src" checkout --detach "${CHARTS_SHA}"
 
-git -C "${WORKSPACE}/charts-src" checkout "${CHARTS_SHA}"
+rm -f "${GH_TOKEN_FILE}" "${GHE_TOKEN_FILE}"
 
 # ---------------------------------------------------------------------------
 # Go unit tests

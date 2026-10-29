@@ -126,6 +126,8 @@ else
 fi
 
 # Export the COS state path so downstream promotion stages can use it
+# Only this stage resolves the mutable latest-release-candidate pointer.
+# Every later stage reads this candidate's scoped BOM, never the pointer again.
 set_env cos-state-path "${COS_STATE_PATH}"
 export_env cos-state-path
 

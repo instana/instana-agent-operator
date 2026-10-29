@@ -51,7 +51,7 @@ unset IBMCLOUD_API_KEY
 BOM_FILE="${WORKSPACE}/bom-e2e-$$.json"
 if ! ibmcloud cos get-object \
   --bucket "${COS_BUCKET}" \
-  --key "pipeline-state/latest-release-candidate/bom.json" \
+  --key "${COS_STATE_PATH}/bom.json" \
   --region "${COS_REGION}" \
   --output json "${BOM_FILE}" || [[ ! -s "${BOM_FILE}" ]]; then
   echo "ERROR: failed to read BOM from COS" >&2
@@ -103,9 +103,9 @@ set +u
   --use-lfs false \
   --force-exit false
 set -u
+git -C "${WORKSPACE}/operator-src" fetch --depth 1 origin "${OPERATOR_SHA}" || exit 1
+git -C "${WORKSPACE}/operator-src" checkout --detach "${OPERATOR_SHA}" || exit 1
 rm -f "${GH_TOKEN_FILE}"
-
-git -C "${WORKSPACE}/operator-src" checkout "${OPERATOR_SHA}"
 
 SOURCE_DIRECTORY="${WORKSPACE}/operator-src"
 
@@ -133,9 +133,9 @@ if [[ "${E2E_MODE}" == "helm" ]]; then
     --force-exit false
   unset GIT_AUTH_USER
   set -u
+  git -C "${WORKSPACE}/charts-src" fetch --depth 1 origin "${CHARTS_SHA}" || exit 1
+  git -C "${WORKSPACE}/charts-src" checkout --detach "${CHARTS_SHA}" || exit 1
   rm -f "${GHE_TOKEN_FILE}"
-
-  git -C "${WORKSPACE}/charts-src" checkout "${CHARTS_SHA}"
   CHARTS_DIRECTORY="${WORKSPACE}/charts-src"
 else
   # Build operator binary (required by the operator e2e harness)

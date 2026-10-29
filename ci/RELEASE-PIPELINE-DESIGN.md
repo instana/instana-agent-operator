@@ -311,6 +311,10 @@ The QA team tests against the dev ICR images. The release owner manually updates
    - If file is **missing**: fail with `"E2E status missing for <cluster> — stage may not have completed"`
    - If `status != "success"`: fail with `"E2E failed for <cluster>"`
 3. Confirm all required BOM fields are present (version, SHAs, image digest, artifact paths)
+4. Export the selected candidate's `cos-state-path`. All remaining stages read
+   `<cos-state-path>/bom.json`, so a concurrent build cannot change the candidate
+   during promotion. The default still selects the latest candidate when the
+   manually approved promotion starts.
 
 ### Stage: `promote-images`
 
@@ -337,7 +341,11 @@ preflight check container \
 
 Steps run in sequence.
 
-1. **Repackage helm chart**: download tarball from COS, unpack, patch image references from dev ICR → `icr.io/instana/instana-agent-operator@<manifest-digest>`, re-run `helm package`
+1. **Prepare public artifacts**: download the helm tarball, operator YAML, and OLM
+   bundle from the selected candidate in COS. Repackage the chart with public ICR
+   image references and rewrite the operator YAML and OLM image namespaces from
+   dev ICR to public ICR, preserving their version tags or digests. Keep the staged
+   COS artifacts unchanged: release-build and E2E continue using dev images.
 2. **Push git tags** at the frozen SHAs from the BOM — tags must exist before the GitHub release is created:
    - Push tag `v2.2.22` on the operator repo at `operator-sha`
    - Push tag `2.2.22` on the charts repo at `charts-sha`
@@ -346,8 +354,8 @@ Steps run in sequence.
    - Push tarball to GCP bucket `gs://agents.instana.io/helm/`, update `index.yaml`
    - Push tarball to TaaS Artifactory `instana-team-release-agent-helm-local`
 4. **Create public GitHub release** on `github.com/instana/instana-agent-operator` at tag `v2.2.22`:
-   - Attach `olm-2.2.22.zip` (from COS)
-   - Attach `instana-agent-operator.yaml` (from COS)
+    - Attach the repackaged public `olm-2.2.22.zip`
+    - Attach the repackaged public `instana-agent-operator.yaml`
    - Attach helm chart tarball
    - Release is created as a real (non-draft) release with auto-generated release notes (`generate_release_notes: true`); no changelog editing by the pipeline
 

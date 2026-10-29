@@ -1,3 +1,5 @@
+# (c) Copyright IBM Corp. 2026
+#
 # Release-promotion pipeline for instana-agent-operator + instana-agent-charts.
 # Trigger: Manual only (SPS toolchain UI). Runs after QA sign-off on release-build output.
 # See: ci/RELEASE-PIPELINE-DESIGN.md
@@ -6,6 +8,8 @@
 #   release-state-path  default: pipeline-state/latest-release-candidate/bom.json
 #                       (override to re-promote an older candidate)
 #   skip-e2e-check      default: false  (set to "true" for emergency bypass only)
+# validate selects the latest candidate at manual start; subsequent stages keep
+# that selection even if another release-build updates the pointer meanwhile.
 version: '2'
 
 tasks:
@@ -51,7 +55,7 @@ tasks:
           # Read BOM to get version
           COS_BUCKET=$(get_env cos-bucket-name)
           COS_REGION=$(get_env cos-region "us-south")
-          BOM_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
+          BOM_PATH="$(get_env cos-state-path)/bom.json"
           TMPBOM="${WORKSPACE}/bom-preflight-$$.json"
           ibmcloud cos get-object --bucket "${COS_BUCKET}" --key "${BOM_PATH}" --region "${COS_REGION}" --output json "${TMPBOM}"
           VERSION=$(jq -r '.version' "${TMPBOM}")

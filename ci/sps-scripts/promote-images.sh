@@ -19,7 +19,7 @@ echo "===== promote-images.sh - start ====="
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
 COS_REGION=$(get_env cos-region "us-south")
-RELEASE_STATE_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
+RELEASE_STATE_PATH="$(get_env cos-state-path)/bom.json"
 
 BOM_FILE="${WORKSPACE}/bom-promote-$$.json"
 ibmcloud cos get-object \
@@ -60,10 +60,12 @@ echo "Source: ${SRC_IMAGE}"
 
 skopeo_copy() {
   local dst="$1"
+  local dst_creds="$2"
   echo "Promoting → ${dst}"
-  skopeo copy \
+  skopeo copy --all \
     --src-creds "iamapikey:${ICR_API_KEY}" \
-    "$2" \
+    --dest-creds "${dst_creds}" \
+    "docker://${SRC_IMAGE}" \
     "${dst}"
 }
 
@@ -72,39 +74,29 @@ skopeo_copy() {
 # ---------------------------------------------------------------------------
 skopeo_copy \
   "docker://icr.io/instana/instana-agent-operator:${VERSION}" \
-  "--dest-creds iamapikey:${ICR_API_KEY}" \
-  "docker://${SRC_IMAGE}"
+  "iamapikey:${ICR_API_KEY}"
 
 # ---------------------------------------------------------------------------
 # 2. public ICR — :latest (only when releasing from main)
 # ---------------------------------------------------------------------------
 if [[ "${SOURCE_BRANCH}" == "main" ]]; then
-  skopeo copy \
-    --src-creds "iamapikey:${ICR_API_KEY}" \
-    --dest-creds "iamapikey:${ICR_API_KEY}" \
-    "docker://${SRC_IMAGE}" \
-    "docker://icr.io/instana/instana-agent-operator:latest"
-  echo "Promoted → icr.io/instana/instana-agent-operator:latest"
+  skopeo_copy \
+    "docker://icr.io/instana/instana-agent-operator:latest" \
+    "iamapikey:${ICR_API_KEY}"
 fi
 
 # ---------------------------------------------------------------------------
 # 3. icr.io/instana-rel (internal release registry)
 # ---------------------------------------------------------------------------
-skopeo copy \
-  --src-creds "iamapikey:${ICR_API_KEY}" \
-  --dest-creds "iamapikey:${ICRREL_API_KEY}" \
-  "docker://${SRC_IMAGE}" \
-  "docker://icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator:${VERSION}"
-echo "Promoted → icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator:${VERSION}"
+skopeo_copy \
+  "docker://icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator:${VERSION}" \
+  "iamapikey:${ICRREL_API_KEY}"
 
 # ---------------------------------------------------------------------------
 # 4. quay.io (Red Hat ISV)
 # ---------------------------------------------------------------------------
-skopeo copy \
-  --src-creds "iamapikey:${ICR_API_KEY}" \
-  --dest-creds "${QUAY_USERNAME}:${QUAY_PASSWORD}" \
-  "docker://${SRC_IMAGE}" \
-  "docker://quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf:${VERSION}"
-echo "Promoted → quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf:${VERSION}"
+skopeo_copy \
+  "docker://quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf:${VERSION}" \
+  "${QUAY_USERNAME}:${QUAY_PASSWORD}"
 
 echo "===== promote-images.sh - end ====="

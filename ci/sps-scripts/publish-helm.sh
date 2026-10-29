@@ -21,8 +21,10 @@ echo "===== publish-helm.sh - start ====="
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
 COS_REGION=$(get_env cos-region "us-south")
-RELEASE_STATE_PATH=$(get_env release-state-path "pipeline-state/latest-release-candidate/bom.json")
+RELEASE_STATE_PATH="$(get_env cos-state-path)/bom.json"
 HELM_TGZ=$(get_env repackaged-helm-tgz)
+OLM_ZIP=$(get_env repackaged-olm-zip)
+OPERATOR_YAML=$(get_env repackaged-operator-yaml)
 
 BOM_FILE="${WORKSPACE}/bom-publish-$$.json"
 ibmcloud cos get-object \
@@ -36,8 +38,6 @@ RELEASE_TAG=$(jq -r '."release-tag"'                   "${BOM_FILE}")
 COS_STATE_PATH=$(jq -r '."cos-state-path"'             "${BOM_FILE}")
 OPERATOR_SHA=$(jq -r '.sources."operator-sha"'         "${BOM_FILE}")
 CHARTS_SHA=$(jq -r '.sources."charts-sha"'             "${BOM_FILE}")
-OLM_BUNDLE_COS=$(jq -r '.artifacts."olm-bundle"'       "${BOM_FILE}")
-OPERATOR_YAML_COS=$(jq -r '.artifacts."operator-yaml"' "${BOM_FILE}")
 rm -f "${BOM_FILE}"
 
 echo "version=${VERSION}  release-tag=${RELEASE_TAG}"
@@ -45,28 +45,19 @@ echo "operator-sha=${OPERATOR_SHA}  charts-sha=${CHARTS_SHA}"
 echo "helm-tgz=${HELM_TGZ}"
 
 # ---------------------------------------------------------------------------
-# Download OLM zip and operator YAML from COS
+# Require the public copies prepared by repackage-helm.sh before any publication
 # ---------------------------------------------------------------------------
-OLM_ZIP="${WORKSPACE}/olm-${VERSION}.zip"
-rm -f "${OLM_ZIP}"
-ibmcloud cos get-object \
-  --bucket "${COS_BUCKET}" \
-  --key "${OLM_BUNDLE_COS}" \
-  --region "${COS_REGION}" \
-  --output json "${OLM_ZIP}"
-
-OPERATOR_YAML="${WORKSPACE}/instana-agent-operator.yaml"
-rm -f "${OPERATOR_YAML}"
-ibmcloud cos get-object \
-  --bucket "${COS_BUCKET}" \
-  --key "${OPERATOR_YAML_COS}" \
-  --region "${COS_REGION}" \
-  --output json "${OPERATOR_YAML}"
+for artifact in "${HELM_TGZ}" "${OLM_ZIP}" "${OPERATOR_YAML}"; do
+  if [[ ! -s "${artifact}" ]]; then
+    echo "ERROR: missing repackaged public artifact: ${artifact}" >&2
+    exit 1
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
-GH_TOKEN=$(get_secret github-token)
+GHE_TOKEN=$(get_secret ghe-token)
 
 PUBLIC_GITHUB_CREDENTIALS=$(get_secret github-instana-agent-build)
 PUBLIC_GITHUB_USERNAME=$(echo "${PUBLIC_GITHUB_CREDENTIALS}" | jq -r ".username")
@@ -79,12 +70,11 @@ PUBLIC_GITHUB_TOKEN=$(echo "${PUBLIC_GITHUB_CREDENTIALS}" | jq -r ".token")
 echo "=== Pushing git tags ==="
 
 # Operator repo tag: v2.2.22
-git -c "http.extraheader=Authorization: Bearer ${GH_TOKEN}" \
-  clone --depth 1 \
-  "https://x-access-token:${GH_TOKEN}@github.ibm.com/instana/instana-agent-operator.git" \
+git clone --depth 1 \
+  "https://x-access-token:${PUBLIC_GITHUB_TOKEN}@github.com/instana/instana-agent-operator.git" \
   op-tag-work
-git -C op-tag-work config user.email "instana.ibm.github.enterprise@ibm.com"
-git -C op-tag-work config user.name  "Instana-IBM-GitHub-Enterprise"
+git -C op-tag-work config user.email "${PUBLIC_GITHUB_EMAIL}"
+git -C op-tag-work config user.name  "${PUBLIC_GITHUB_USERNAME}"
 git -C op-tag-work fetch --depth 1 origin "${OPERATOR_SHA}"
 git -C op-tag-work tag "${RELEASE_TAG}" "${OPERATOR_SHA}"
 git -C op-tag-work push origin "${RELEASE_TAG}"
@@ -92,7 +82,7 @@ echo "Pushed operator tag ${RELEASE_TAG} at ${OPERATOR_SHA}"
 
 # Charts repo tag: 2.2.22 (no 'v' prefix)
 git clone --depth 1 \
-  "https://x-access-token:${GH_TOKEN}@github.ibm.com/instana/instana-agent-charts.git" \
+  "https://x-access-token:${GHE_TOKEN}@github.ibm.com/instana/instana-agent-charts.git" \
   charts-tag-work
 git -C charts-tag-work config user.email "instana.ibm.github.enterprise@ibm.com"
 git -C charts-tag-work config user.name  "Instana-IBM-GitHub-Enterprise"
