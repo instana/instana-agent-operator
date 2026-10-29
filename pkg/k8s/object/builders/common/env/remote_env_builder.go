@@ -58,6 +58,7 @@ const (
 	BackendURLEnvRemote
 	NoProxyEnvRemote
 	ConfigPathEnvRemote
+	InstanaAgentConfigPathEnvRemote
 	EntrypointSkipBackendTemplateGenerationRemote
 	BackendEnvRemote
 	InstanaAgentKeyEnvRemote
@@ -116,7 +117,8 @@ func (e *envBuilderRemote) isSecret(envVar EnvVarRemote) bool {
 		MavenRepoURLEnvRemote, MavenRepoFeaturesPathRemote, MavenRepoSharedPathRemote, MirrorReleaseRepoUrlEnvRemote,
 		MirrorSharedRepoUrlEnvRemote, ProxyHostEnvRemote, ProxyPortEnvRemote, ProxyProtocolEnvRemote, ProxyUseDNSEnvRemote,
 		ListenAddressEnvRemote, RedactK8sSecretsEnvRemote, AgentZoneEnvRemote, BackendURLEnvRemote,
-		NoProxyEnvRemote, ConfigPathEnvRemote, EntrypointSkipBackendTemplateGenerationRemote, BackendEnvRemote,
+		NoProxyEnvRemote, ConfigPathEnvRemote, InstanaAgentConfigPathEnvRemote,
+		EntrypointSkipBackendTemplateGenerationRemote, BackendEnvRemote,
 		InstanaAgentPodNameEnvRemote, PodNameEnvRemote, PodIPEnvRemote, PodUIDEnvRemote, PodNamespaceEnvRemote:
 		return false
 	default:
@@ -187,6 +189,8 @@ func (e *envBuilderRemote) buildRemote(envVar EnvVarRemote) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnvRemote:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: volume.RemoteConfigDirectory}
+	case InstanaAgentConfigPathEnvRemote:
+		return instanaAgentConfigPathEnv(e.agent.Spec.Agent.Pod.Env, volume.RemoteConfigDirectory)
 	case EntrypointSkipBackendTemplateGenerationRemote:
 		return &corev1.EnvVar{Name: "ENTRYPOINT_SKIP_BACKEND_TEMPLATE_GENERATION", Value: "true"}
 	case BackendEnvRemote:
