@@ -213,3 +213,44 @@ func TestDeploymentBuilder_DiscoveredETCDCAUsedWithoutCustomCA(t *testing.T) {
 		"there should be one etcd-ca mount",
 	)
 }
+
+// TestDeploymentBuilder_CustomETCDCAWinsOnOpenShift covers a CR that configures its own
+// ETCD CA on OpenShift where the etcd resources also exist. getVolumes mounts the CR's
+// secret, so ETCD_CA_FILE has to point at it rather than at the OpenShift bundle.
+func TestDeploymentBuilder_CustomETCDCAWinsOnOpenShift(t *testing.T) {
+	// Given
+	agent := agentWithCustomETCDCA()
+
+	mockStatusManager := &status.MockAgentStatusManager{}
+	backendObj := backend.NewK8SensorBackend("", "test-key", "", "test-host", "443")
+
+	deploymentContext := &DeploymentContext{
+		OpenShiftETCDResourcesExist: true,
+	}
+
+	builder := NewDeploymentBuilder(
+		agent,
+		true,
+		mockStatusManager,
+		*backendObj,
+		nil,
+		deploymentContext,
+	).(*deploymentBuilder)
+
+	// When
+	envVars := builder.getEnvVars()
+
+	// Then
+	assert.Equal(
+		t,
+		1,
+		countEnvVars(envVars, constants.EnvETCDCAFile),
+		"ETCD_CA_FILE should be set exactly once",
+	)
+	assert.Equal(
+		t,
+		"/custom/etcd/ca.crt",
+		findEnvVar(envVars, constants.EnvETCDCAFile).Value,
+		"the CA file configured on the CR should win over the OpenShift bundle",
+	)
+}

@@ -101,13 +101,18 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		d.deploymentContext.ETCDCASecretName != "" &&
 		d.Spec.K8sSensor.ETCD.CA.SecretName == ""
 
+	// A CA secret configured on the CR wins over the OpenShift auto-discovered one, in
+	// line with getVolumes, which mounts the CR's secret in that case.
+	customETCDCA := d.Spec.K8sSensor.ETCD.CA.SecretName != ""
+
 	// Include ETCDCAFileEnv unless the ETCD CA comes from somewhere else, either
 	// OpenShift auto-discovered resources or the discovered CA below. In both of those
 	// cases ETCD_CA_FILE is set further down, and emitting it here as well would leave
 	// the container with the env var twice.
 	includeETCDCAFileEnv := (!d.isOpenShift ||
 		d.deploymentContext == nil ||
-		!d.deploymentContext.OpenShiftETCDResourcesExist) &&
+		!d.deploymentContext.OpenShiftETCDResourcesExist ||
+		customETCDCA) &&
 		!useDiscoveredETCDCA
 
 	if includeETCDCAFileEnv {
@@ -121,14 +126,16 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 	if d.isOpenShift {
 		// Only add ETCD configuration if resources are available
 		if d.deploymentContext != nil && d.deploymentContext.OpenShiftETCDResourcesExist {
-			envVars = append(envVars, []corev1.EnvVar{
-				{
+			if !customETCDCA {
+				envVars = append(envVars, corev1.EnvVar{
 					Name: constants.EnvETCDCAFile,
 					Value: path.Join(
 						constants.ETCDMetricsCAMountPath,
 						constants.ETCDCABundleFileName,
 					),
-				},
+				})
+			}
+			envVars = append(envVars, []corev1.EnvVar{
 				{
 					Name: constants.EnvETCDCertFile,
 					Value: path.Join(

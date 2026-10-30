@@ -257,11 +257,17 @@ func (d *dependentLifecycleManager) unmarshalToUnstructured(jsonString string) (
 }
 
 func (d *dependentLifecycleManager) deleteAll(toBeDeleted []unstructured.Unstructured) ([]client.Object, error) {
+	var validToBeDeleted []unstructured.Unstructured
+	for _, obj := range toBeDeleted {
+		if obj.GetName() != "" {
+			validToBeDeleted = append(validToBeDeleted, obj)
+		}
+	}
 	return d.instanaAgentClient.DeleteAllInTimeLimit(
 		d.ctx,
 		list.
 			NewListMapTo[unstructured.Unstructured, client.Object]().
-			MapTo(toBeDeleted, asObject),
+			MapTo(validToBeDeleted, asObject),
 		30*time.Second,
 		5*time.Second).Get()
 }
