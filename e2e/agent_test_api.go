@@ -994,25 +994,46 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 				ds := appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{Name: daemonSetName, Namespace: cfg.Namespace()},
 				}
+				// Explicit Get (DaemonSetReady fetches again) so that NotFound can be told apart
+				// from other errors, which must fail the wait instead of being retried until timeout.
 				if getErr := client.Resources().
 					Get(ctx, daemonSetName, cfg.Namespace(), &ds); getErr != nil {
-					t.Logf(
-						"DaemonSet %s not available yet, waiting for it to be created or recreated",
-						daemonSetName,
-					)
-					return false, nil
+					if apierrors.IsNotFound(getErr) {
+						t.Logf(
+							"DaemonSet %s not available yet, waiting for it to be created or recreated",
+							daemonSetName,
+						)
+						return false, nil
+					}
+					return false, getErr
 				}
 
 				done, matchErr := conds.DaemonSetReady(&ds)(ctx)
 				if matchErr != nil {
+					if apierrors.IsNotFound(matchErr) {
+						t.Logf(
+							"DaemonSet %s disappeared while checking readiness, retrying",
+							daemonSetName,
+						)
+						return false, nil
+					}
+					return false, matchErr
+				}
+				if !done {
+					return false, nil
+				}
+
+				// DaemonSetReady also passes for 0 == 0 right after (re)creation, before the DaemonSet
+				// controller has scheduled anything. Require a processed spec with at least one pod.
+				if ds.Status.ObservedGeneration < ds.Generation ||
+					ds.Status.DesiredNumberScheduled == 0 {
 					t.Logf(
-						"Checking DaemonSet %s readiness error: %v, retrying",
+						"DaemonSet %s not yet processed by the DaemonSet controller, waiting",
 						daemonSetName,
-						matchErr,
 					)
 					return false, nil
 				}
-				return done, nil
+				return true, nil
 			},
 			wait.WithTimeout(time.Minute*5),
 			wait.WithInterval(5*time.Second),
