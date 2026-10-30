@@ -68,6 +68,7 @@ BOM_JSON=$(cat "${BOM_FILE}")
 rm -f "${BOM_FILE}"
 
 echo "version=${VERSION}  operator-sha=${OPERATOR_SHA}"
+echo "charts-sha=${CHARTS_SHA}"
 echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 
 # ---------------------------------------------------------------------------
