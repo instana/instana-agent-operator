@@ -11,13 +11,11 @@
 # 6. Builds OLM bundle (make bundle) → olm-<version>.zip.
 # 7. Packages helm chart (ci/build.sh with OPERATOR_YAML + CHART_VERSION).
 # 8. Pushes all artifacts to COS under the timestamp-scoped path.
-# 9. Updates and re-pushes BOM to both COS locations.
+# 9. Completes the scoped BOM and dispatches all four E2E scenarios.
 #
 set -euo pipefail
-if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then
-  trap env EXIT
-  set -x
-fi
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SCRIPT_DIR}/release-common.sh"
 echo "===== build-and-stage.sh - start ====="
 
 # ---------------------------------------------------------------------------
@@ -48,6 +46,8 @@ OPERATOR_SHA=$(jq -r '.sources."operator-sha"' "${BOM_FILE}")
 CHARTS_SHA=$(jq -r '.sources."charts-sha"'     "${BOM_FILE}")
 SOURCE_BRANCH=$(jq -r '."source-branch"'   "${BOM_FILE}")
 CHARTS_BRANCH=$(jq -r '."charts-branch"'   "${BOM_FILE}")
+CANDIDATE_ID=$(jq -er '."candidate-id"' "${BOM_FILE}")
+PREV_VERSION=$(jq -er '."previous-version"' "${BOM_FILE}")
 
 echo "version=${VERSION}  release-tag=${RELEASE_TAG}"
 echo "operator-sha=${OPERATOR_SHA}  charts-sha=${CHARTS_SHA}"
@@ -128,8 +128,7 @@ docker login -u iamapikey --password-stdin "${ICR_REGISTRY_DOMAIN}" < /config/ap
 # ---------------------------------------------------------------------------
 # Build and push multiarch operator image to dev ICR
 # ---------------------------------------------------------------------------
-OPERATOR_DEV_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${OPERATOR_SHA}"
-OPERATOR_DEV_TAG_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${VERSION}"
+OPERATOR_DEV_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${VERSION}-${CANDIDATE_ID}"
 
 echo "=== Building multiarch operator image ==="
 docker buildx create --name multiarch-builder --use
@@ -142,12 +141,13 @@ docker buildx build \
   --build-arg GIT_COMMIT="${OPERATOR_SHA}" \
   --build-arg DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --tag "${OPERATOR_DEV_IMAGE}" \
-  --tag "${OPERATOR_DEV_TAG_IMAGE}" \
+  --metadata-file "${WORKSPACE}/build-metadata.json" \
   --push \
   .
 
 # Capture manifest digest
-OPERATOR_MANIFEST_DIGEST=$(skopeo inspect --format "{{.Digest}}" "docker://${OPERATOR_DEV_IMAGE}")
+OPERATOR_MANIFEST_DIGEST=$(jq -er '."containerimage.digest"' "${WORKSPACE}/build-metadata.json")
+verify_tag "${OPERATOR_DEV_IMAGE}" "${OPERATOR_MANIFEST_DIGEST}"
 echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 # ---------------------------------------------------------------------------
 echo "=== Building instana-agent-operator.yaml ==="
 BARE_VERSION="${VERSION}"   # no 'v' prefix
-OPERATOR_DEV_VERSIONED_IMAGE="${ICR_REGISTRY_DOMAIN}/instana-agent-dev/instana-agent-operator:${BARE_VERSION}"
+OPERATOR_DEV_VERSIONED_IMAGE="${OPERATOR_DEV_IMAGE}"
 
 cd "${WORKSPACE}/operator-src"
 mkdir -p target
@@ -179,18 +179,7 @@ echo "instana-agent-operator.yaml written to ${OPERATOR_YAML_PATH}"
 # ---------------------------------------------------------------------------
 echo "=== Building OLM bundle ==="
 
-# Fetch previous released version tag for the 'replaces' field
-GH_API_TOKEN=$(get_secret github-token)
-PREV_VERSION=$(curl --silent --fail --show-error -L \
-  -H "Authorization: Bearer ${GH_API_TOKEN}" \
-  "https://api.github.com/repos/instana/instana-agent-operator/tags" | \
-  jq 'map(select(.name | test("^v[0-9]+.[0-9]+.[0-9]+$"))) | .[0].name' | \
-  sed 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-
-if [[ -z "${PREV_VERSION}" ]]; then
-  echo "ERROR: Could not determine previous released version for OLM 'replaces' field"
-  exit 1
-fi
+# Frozen by API discovery during preparation, including across minor lines.
 echo "OLM PREV_VERSION=${PREV_VERSION}"
 
 # Get agent image digest
@@ -262,10 +251,13 @@ ibmcloud cos put-object \
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/olm/instana-agent-operator.yaml"
 
 # ---------------------------------------------------------------------------
-# Update BOM with image and artifact entries, re-push to both COS locations
+# Complete the scoped BOM with image, artifact and checksum entries
 # ---------------------------------------------------------------------------
 echo "=== Updating BOM ==="
 UPDATED_BOM=$(jq \
+  --arg helm_sha "$(sha256sum "${HELM_TGZ}" | cut -d' ' -f1)" \
+  --arg olm_sha "$(sha256sum "${OLM_ZIP_PATH}" | cut -d' ' -f1)" \
+  --arg yaml_sha "$(sha256sum "${OPERATOR_YAML_PATH}" | cut -d' ' -f1)" \
   --arg op_manifest     "${OPERATOR_DEV_IMAGE}" \
   --arg op_digest       "${OPERATOR_MANIFEST_DIGEST}" \
   --arg helm_path       "${COS_STATE_PATH}/helm/instana-agent-${BARE_VERSION}.tgz" \
@@ -275,7 +267,9 @@ UPDATED_BOM=$(jq \
    .images["operator-manifest-digest"] = $op_digest |
    .artifacts["helm-chart"]            = $helm_path |
    .artifacts["olm-bundle"]            = $olm_path |
-   .artifacts["operator-yaml"]         = $op_yaml_path' \
+    .artifacts["operator-yaml"]         = $op_yaml_path |
+    .checksums = {"helm-chart": $helm_sha, "olm-bundle": $olm_sha, "operator-yaml": $yaml_sha} |
+    .["build-complete"] = true' \
   "${BOM_FILE}")
 
 UPDATED_BOM_FILE=$(mktemp)
@@ -291,12 +285,7 @@ ibmcloud cos put-object \
   --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/bom.json"
 
-ibmcloud cos put-object \
-  --bucket "${COS_BUCKET}" \
-  --key "pipeline-state/latest-release-candidate/bom.json" \
-  --body "${UPDATED_BOM_FILE}" \
-  --region "${COS_REGION}"
-echo "COS upload: cos://${COS_BUCKET}/pipeline-state/latest-release-candidate/bom.json"
+echo "PROMOTION INPUT: release-state-path=${COS_STATE_PATH}/bom.json"
 
 rm -f "${BOM_FILE}" "${UPDATED_BOM_FILE}"
 
@@ -311,11 +300,14 @@ E2E_STAGES=(
   "e2e-helm-gke-latest"
 )
 
+DISPATCH_FAILED=0
 for stage in "${E2E_STAGES[@]}"; do
   echo "Triggering: ${stage}"
   trigger-task "${stage}" || {
-    echo "WARNING: Failed to trigger ${stage}, continuing..."
+    echo "ERROR: Failed to trigger ${stage}; attempting remaining dispatches" >&2
+    DISPATCH_FAILED=1
   }
 done
+if [[ ${DISPATCH_FAILED} -ne 0 ]]; then exit 1; fi
 
 echo "===== build-and-stage.sh - end ====="

@@ -1,4 +1,5 @@
 # Release-build pipeline for instana-agent-operator + instana-agent-charts.
+# (c) Copyright IBM Corp. 2026
 # Trigger: Manual only (SPS toolchain UI). No commit-push trigger.
 #
 # Uses the SPS simple-execute pipeline to avoid compliance-pipeline overhead
@@ -54,7 +55,7 @@ tasks:
         image: icr.io/instana-agent-dev/agent-delivery/build-image:main
 
       - name: e2e-operator-ocp-latest
-        onError: continue
+        onError: stopAndFail
         include:
           - docker-socket
         script: |
@@ -64,7 +65,7 @@ tasks:
           source ${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/e2e-async.sh
 
       - name: e2e-operator-gke-lowest
-        onError: continue
+        onError: stopAndFail
         include:
           - docker-socket
         script: |
@@ -74,7 +75,7 @@ tasks:
           source ${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/e2e-async.sh
 
       - name: e2e-helm-ocp-lowest
-        onError: continue
+        onError: stopAndFail
         include:
           - docker-socket
         script: |
@@ -84,7 +85,7 @@ tasks:
           source ${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts/e2e-async.sh
 
       - name: e2e-helm-gke-latest
-        onError: continue
+        onError: stopAndFail
         include:
           - docker-socket
         script: |

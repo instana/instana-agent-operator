@@ -11,10 +11,8 @@
 # Output: ${WORKSPACE}/helm-public/instana-agent-<version>.tgz
 #
 set -euo pipefail
-if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then
-  trap env EXIT
-  set -x
-fi
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SCRIPT_DIR}/release-common.sh"
 echo "===== repackage-helm.sh - start ====="
 
 # ---------------------------------------------------------------------------
@@ -22,21 +20,14 @@ echo "===== repackage-helm.sh - start ====="
 # ---------------------------------------------------------------------------
 COS_BUCKET=$(get_env cos-bucket-name)
 COS_REGION=$(get_env cos-region "us-south")
-RELEASE_STATE_PATH="$(get_env cos-state-path)/bom.json"
-
-BOM_FILE="${WORKSPACE}/bom-repackage-$$.json"
-ibmcloud cos get-object \
-  --bucket "${COS_BUCKET}" \
-  --key "${RELEASE_STATE_PATH}" \
-  --region "${COS_REGION}" \
-  --output json "${BOM_FILE}"
+BOM_FILE="${SELECTED_BOM_FILE:?Run through run-promotion.sh}"
 
 VERSION=$(jq -r '.version'                             "${BOM_FILE}")
 OPERATOR_MANIFEST_DIGEST=$(jq -r '.images."operator-manifest-digest"' "${BOM_FILE}")
 HELM_CHART_COS=$(jq -r '.artifacts."helm-chart"'       "${BOM_FILE}")
 OLM_BUNDLE_COS=$(jq -r '.artifacts."olm-bundle"'       "${BOM_FILE}")
 OPERATOR_YAML_COS=$(jq -r '.artifacts."operator-yaml"' "${BOM_FILE}")
-rm -f "${BOM_FILE}"
+DEV_REF=$(jq -er '.images["operator-manifest"]' "${BOM_FILE}")
 
 echo "version=${VERSION}"
 echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
@@ -53,6 +44,7 @@ ibmcloud cos get-object \
   --region "${COS_REGION}" \
   --output json "${STAGED_TGZ}"
 echo "Downloaded ${STAGED_TGZ}"
+verify_sha256 "${STAGED_TGZ}" "$(jq -er '.checksums["helm-chart"]' "${BOM_FILE}")"
 
 # ---------------------------------------------------------------------------
 # Unpack, patch image references, repackage
@@ -124,15 +116,17 @@ ibmcloud cos get-object \
   --key "${OLM_BUNDLE_COS}" \
   --region "${COS_REGION}" \
   --output json "${STAGED_OLM}"
+verify_sha256 "${OPERATOR_YAML}" "$(jq -er '.checksums["operator-yaml"]' "${BOM_FILE}")"
+verify_sha256 "${STAGED_OLM}" "$(jq -er '.checksums["olm-bundle"]' "${BOM_FILE}")"
 
 OLM_UNPACK_DIR=$(mktemp -d "${OPERATOR_OUT_DIR}/olm-unpack-XXXXXX")
 unzip -q "${STAGED_OLM}" -d "${OLM_UNPACK_DIR}"
 
-# Retain the version tag or digest; only the registry namespace changes.
-sed -i 's|icr.io/instana-agent-dev/instana-agent-operator|icr.io/instana/instana-agent-operator|g' \
+# Candidate-specific readable tags become the public semantic-version tag.
+sed -i "s|${DEV_REF}|${PUBLIC_REF}|g" \
   "${OPERATOR_YAML}"
 find "${OLM_UNPACK_DIR}" -type f -exec \
-  sed -i 's|icr.io/instana-agent-dev/instana-agent-operator|icr.io/instana/instana-agent-operator|g' {} +
+  sed -i "s|${DEV_REF}|${PUBLIC_REF}|g" {} +
 
 (cd "${OLM_UNPACK_DIR}" && zip -qr "${OLM_ZIP}" .)
 rm -rf "${OLM_UNPACK_DIR}"
@@ -140,5 +134,7 @@ rm -f "${STAGED_OLM}"
 
 set_env repackaged-operator-yaml "${OPERATOR_YAML}"
 set_env repackaged-olm-zip "${OLM_ZIP}"
+python3 "${SCRIPT_DIR}/normalize-release-archives.py" \
+  "${HELM_OUT_DIR}/instana-agent-${VERSION}.tgz" "${OLM_ZIP}"
 
 echo "===== repackage-helm.sh - end ====="

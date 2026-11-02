@@ -7,21 +7,19 @@
 #   CLUSTER_ID  — one of: ocp-fyre-latest, gke-operator-lowest, ocp-fyre-lowest, gke-operator-latest
 #   E2E_MODE    — "operator" or "helm"
 #
-# Behaviour (never exits early — always uploads log + status file):
+# Behavior (EXIT finalizer attempts log/result uploads, including setup failures):
 #   1. Read BOM from COS
 #   2. Claim reslock
 #   3. Run E2E tests (captures exit code, does not exit immediately on failure)
 #   4. Release reslock
 #   5. Upload timestamped log file
-#   6. Write (overwrite) status pointer JSON
+#   6. Retain each attempt; only successful attempts update the durable pass pointer
 #   7. Post git commit status to operator repo at operator-sha
 #   8. Exit non-zero if tests failed
 #
-set -uo pipefail   # intentionally no -e; we control exit manually
-if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then
-  trap env EXIT
-  set -x
-fi
+set -euo pipefail
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SCRIPT_DIR}/release-common.sh"
 echo "===== e2e-async.sh - start ====="
 echo "CLUSTER_ID=${CLUSTER_ID}  E2E_MODE=${E2E_MODE}"
 
@@ -31,6 +29,63 @@ echo "CLUSTER_ID=${CLUSTER_ID}  E2E_MODE=${E2E_MODE}"
 COS_BUCKET=$(get_env cos-bucket-name)
 COS_REGION=$(get_env cos-region "us-south")
 COS_STATE_PATH=$(get_env cos-state-path)
+E2E_TIMESTAMP="$(date -u '+%Y%m%d%H%M%S')-$(cat /proc/sys/kernel/random/uuid)"
+LOG_FILE="${WORKSPACE}/e2e-${CLUSTER_ID}-${E2E_TIMESTAMP}.log"
+touch "${LOG_FILE}"
+RESLOCK_CLAIMED=false
+E2E_STATUS=failure
+BOM_JSON='{}'
+
+release_reslock() {
+  if [[ "${RESLOCK_CLAIMED}" == true ]]; then
+    if bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}"; then
+      RESLOCK_CLAIMED=false
+    else
+      echo "ERROR: lock release failed for ${CLUSTER_ID}" >&2
+      return 1
+    fi
+  fi
+}
+
+finalize_e2e() {
+  local rc=$? status_file log_key pointer
+  trap - EXIT TERM INT
+  set +e
+  release_reslock || rc=1
+  if [[ ${rc} -ne 0 ]]; then E2E_STATUS=failure; fi
+  echo "Attempt result: ${E2E_STATUS} (exit ${rc})" | tee -a "${LOG_FILE}"
+  log_key="${COS_STATE_PATH}/e2e/${CLUSTER_ID}/test-${E2E_TIMESTAMP}-${E2E_STATUS}.log"
+  status_file="${WORKSPACE}/status-${CLUSTER_ID}-${E2E_TIMESTAMP}.json"
+  jq -n --argjson bom "${BOM_JSON}" --arg status "${E2E_STATUS}" --arg cluster "${CLUSTER_ID}" \
+    --arg mode "${E2E_MODE}" --arg attempt "${E2E_TIMESTAMP}" --arg log "${log_key}" \
+    --arg log_sha "$(sha256sum "${LOG_FILE}" | cut -d' ' -f1)" \
+    '{status:$status, cluster:$cluster, mode:$mode, attempt:$attempt, log:$log, "log-sha256":$log_sha,
+      "candidate-id":$bom["candidate-id"], sources:$bom.sources, images:$bom.images,
+      checksums:$bom.checksums}' > "${status_file}"
+  # Every attempt is retained. Failure never erases a prior pass for this candidate.
+  if cos_put "${log_key}" "${LOG_FILE}" &&
+      cos_put "${COS_STATE_PATH}/e2e/${CLUSTER_ID}/${E2E_TIMESTAMP}.json" "${status_file}"; then
+    if [[ "${E2E_STATUS}" == success ]]; then
+      pointer="${COS_STATE_PATH}/e2e/success/${CLUSTER_ID}.json"
+      cos_put "${pointer}" "${status_file}" || rc=1
+    fi
+  else
+    rc=1
+  fi
+  if [[ -n "${OPERATOR_SHA:-}" ]]; then
+    GH_API_TOKEN=$(get_secret github-token)
+    curl --silent --fail --show-error -X POST -H "Authorization: Bearer ${GH_API_TOKEN}" \
+      -H 'Content-Type: application/json' \
+      -d "$(jq -n --arg state "${E2E_STATUS}" --arg context "tekton/e2e-${CLUSTER_ID}" \
+        --arg url "${PIPELINE_RUN_URL:-}" '{state:$state,context:$context,target_url:$url,
+        description:"Release candidate E2E attempt"}')" \
+      "https://api.github.com/repos/instana/instana-agent-operator/statuses/${OPERATOR_SHA}" || rc=1
+  fi
+  exit "${rc}"
+}
+trap finalize_e2e EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 
 # ---------------------------------------------------------------------------
 # Log in to IBM Cloud (async stages run in a fresh container; the login done
@@ -62,6 +117,7 @@ VERSION=$(jq -r '.version'                         "${BOM_FILE}")
 OPERATOR_SHA=$(jq -r '.sources."operator-sha"'     "${BOM_FILE}")
 CHARTS_SHA=$(jq -r '.sources."charts-sha"'         "${BOM_FILE}")
 OPERATOR_MANIFEST_DIGEST=$(jq -r '.images."operator-manifest-digest"' "${BOM_FILE}")
+OPERATOR_MANIFEST=$(jq -er '.images."operator-manifest"' "${BOM_FILE}")
 HELM_CHART_COS=$(jq -r '.artifacts."helm-chart"'   "${BOM_FILE}")
 SOURCE_BRANCH=$(jq -r '."source-branch"'           "${BOM_FILE}")
 BOM_JSON=$(cat "${BOM_FILE}")
@@ -84,6 +140,7 @@ elif [[ -n "${APP_REPO_FOLDER:-}" && -f "${WORKSPACE}/${APP_REPO_FOLDER}/install
   source "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" amd64
 fi
 export PATH=$PATH:/usr/local/go/bin
+export GO_ALREADY_INSTALLED=true
 
 # ---------------------------------------------------------------------------
 # Clone operator repo at frozen SHA (E2E tests live in the operator repo)
@@ -145,6 +202,7 @@ else
   go install
   make build
 fi
+set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # Authenticate with clusters
@@ -172,6 +230,7 @@ else
   # shellcheck disable=SC1090
   source "${SOURCE_DIRECTORY}/ci/sps-scripts/setup.sh"
 fi
+set -euo pipefail
 
 if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
   CLUSTER_SERVER=$(echo "${CLUSTER_DETAILS}"   | jq -r ".server")
@@ -195,10 +254,8 @@ if [[ "${CLUSTER_TYPE}" == "fyre-ocp" ]]; then
   if [[ "${CLUSTER_PASSWORD}" =~ [[:space:]] || "${CLUSTER_PASSWORD}" == "null" || -z "${CLUSTER_PASSWORD}" ]]; then
     echo "WARNING: password is empty, 'null' or contains whitespace" >&2
   fi
-  if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then set +x; fi
   oc login --insecure-skip-tls-verify=true \
     -u "${CLUSTER_USERNAME}" -p "${CLUSTER_PASSWORD}" --server="${CLUSTER_SERVER}"
-  if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then set -x; fi
 elif [[ "${CLUSTER_TYPE}" == "gke" ]]; then
   CLUSTER_ZONE=$(echo "${CLUSTER_DETAILS}"    | jq -r ".zone")
   CLUSTER_PROJECT=$(echo "${CLUSTER_DETAILS}" | jq -r ".project")
@@ -227,8 +284,10 @@ INSTANA_API_TOKEN=$(echo "${INSTANA_E2E_BACKEND_DETAILS}" | jq -r ".api_token")
 INSTANA_AGENT_KEY="${INSTANA_API_KEY}"
 export INSTANA_ENDPOINT_HOST INSTANA_ENDPOINT_PORT INSTANA_API_KEY INSTANA_AGENT_KEY INSTANA_API_URL INSTANA_API_TOKEN
 
-# Export the dev ICR image digest so E2E tests pick it up
+# Use the readable candidate tag; the BOM digest is checked around the suite.
 export GIT_COMMIT="${OPERATOR_SHA}"
+export OPERATOR_IMAGE_NAME="${OPERATOR_MANIFEST%:*}"
+export OPERATOR_IMAGE_TAG="${OPERATOR_MANIFEST##*:}"
 
 # ---------------------------------------------------------------------------
 # Claim reslock
@@ -240,25 +299,7 @@ export BRANCH="${BRANCH:-${SOURCE_BRANCH}}"
 export PIPELINE_RUN_NAME="${PIPELINE_RUN_NAME:-release-${VERSION}}"
 export BUILD_NUMBER="${BUILD_NUMBER:-${E2E_MODE}-${CLUSTER_ID}}"
 
-RESLOCK_CLAIMED=false
-E2E_STATUS="failure"
 E2E_EXIT_CODE=0
-
-release_reslock() {
-  if [[ "${RESLOCK_CLAIMED}" == "true" ]]; then
-    RESLOCK_CLAIMED=false
-    echo "=== Releasing reslock for ${CLUSTER_ID} ==="
-    bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" release "${CLUSTER_ID}" || \
-      echo "WARNING: failed to release reslock for ${CLUSTER_ID}" >&2
-  fi
-}
-
-# Safety net: release the lock on any exit path (error, cancellation, signal).
-on_exit() {
-  release_reslock
-  if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then env; fi
-}
-trap on_exit EXIT
 
 echo "=== Claiming reslock for ${CLUSTER_ID} ==="
 if bash "${SOURCE_DIRECTORY}/ci/sps-scripts/reslock.sh" claim "${CLUSTER_ID}"; then
@@ -271,13 +312,11 @@ fi
 # ---------------------------------------------------------------------------
 # Record run timestamp
 # ---------------------------------------------------------------------------
-E2E_TIMESTAMP=$(date -u '+%Y%m%d%H%M')
+verify_tag "${OPERATOR_MANIFEST}" "${OPERATOR_MANIFEST_DIGEST}"
 
 # ---------------------------------------------------------------------------
 # Run E2E tests (capture output; never exit early on failure)
 # ---------------------------------------------------------------------------
-LOG_FILE="${WORKSPACE}/e2e-${CLUSTER_ID}-${E2E_TIMESTAMP}.log"
-
 if [[ "${RESLOCK_CLAIMED}" != "true" ]]; then
   echo "E2E tests skipped: reslock for ${CLUSTER_ID} could not be claimed" | tee "${LOG_FILE}"
 elif [[ "${E2E_MODE}" == "helm" ]]; then
@@ -286,19 +325,23 @@ elif [[ "${E2E_MODE}" == "helm" ]]; then
   # then run the charts repo e2e tests against it.
   # The file name must match instana-agent-*.tgz and must not pre-exist.
   HELM_TGZ="${WORKSPACE}/$(basename "${HELM_CHART_COS}")"
-  ibmcloud cos get-object \
+  rm -f "${HELM_TGZ}"
+  timeout 5m ibmcloud cos get-object \
     --bucket "${COS_BUCKET}" \
     --key "${HELM_CHART_COS}" \
     --region "${COS_REGION}" \
     --output json "${HELM_TGZ}"
+  verify_sha256 "${HELM_TGZ}" "$(jq -er '.checksums["helm-chart"]' <<< "${BOM_JSON}")"
   export INSTANA_AGENT_HELM_CHART_LOCATION="${HELM_TGZ}"
   echo "INSTANA_AGENT_HELM_CHART_LOCATION=${INSTANA_AGENT_HELM_CHART_LOCATION}"
-  (cd "${CHARTS_DIRECTORY}" && make e2e) 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
+  (cd "${CHARTS_DIRECTORY}" && timeout --signal=TERM --kill-after=60s 55m make e2e) \
+    2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
 else
   echo "=== Running E2E tests (mode=${E2E_MODE}) — output captured to ${LOG_FILE} ==="
-  make e2e 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
+  timeout --signal=TERM --kill-after=60s 55m make e2e 2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?
 fi
 
+verify_tag "${OPERATOR_MANIFEST}" "${OPERATOR_MANIFEST_DIGEST}"
 if [[ ${E2E_EXIT_CODE} -eq 0 ]]; then
   E2E_STATUS="success"
 fi
@@ -310,58 +353,6 @@ echo "E2E result: ${E2E_STATUS} (exit code: ${E2E_EXIT_CODE})"
 release_reslock
 
 # ---------------------------------------------------------------------------
-# Upload log file to COS (always uploaded)
-# ---------------------------------------------------------------------------
-LOG_COS_KEY="${COS_STATE_PATH}/e2e/${CLUSTER_ID}/test-${E2E_TIMESTAMP}-${E2E_STATUS}.log"
-ibmcloud cos put-object \
-  --bucket "${COS_BUCKET}" \
-  --key "${LOG_COS_KEY}" \
-  --body "${LOG_FILE}" \
-  --region "${COS_REGION}"
-echo "COS upload: cos://${COS_BUCKET}/${LOG_COS_KEY}"
-
-# ---------------------------------------------------------------------------
-# Write (overwrite) the status pointer file
-# ---------------------------------------------------------------------------
-STATUS_JSON=$(jq -n \
-  --arg status    "${E2E_STATUS}" \
-  --arg cluster   "${CLUSTER_ID}" \
-  --arg timestamp "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-  --arg log       "${LOG_COS_KEY}" \
-  '{
-    "status":    $status,
-    "cluster":   $cluster,
-    "timestamp": $timestamp,
-    "log":       $log
-  }')
-
-STATUS_FILE=$(mktemp)
-echo "${STATUS_JSON}" > "${STATUS_FILE}"
-
-STATUS_COS_KEY="${COS_STATE_PATH}/e2e/${CLUSTER_ID}.json"
-ibmcloud cos put-object \
-  --bucket "${COS_BUCKET}" \
-  --key "${STATUS_COS_KEY}" \
-  --body "${STATUS_FILE}" \
-  --region "${COS_REGION}"
-echo "COS upload: cos://${COS_BUCKET}/${STATUS_COS_KEY}"
-rm -f "${STATUS_FILE}"
-
-# ---------------------------------------------------------------------------
-# Post git commit status to operator repo
-# ---------------------------------------------------------------------------
-GH_API_TOKEN=$(get_secret github-token)
-COMMIT_STATE="${E2E_STATUS}"    # "success" or "failure"
-
-curl --silent --fail --show-error -X POST \
-  -H "Authorization: Bearer ${GH_API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "{\"state\":\"${COMMIT_STATE}\",\"context\":\"tekton/e2e-${CLUSTER_ID}\",\"description\":\"E2E test (${E2E_MODE})\",\"target_url\":\"${PIPELINE_RUN_URL:-}\"}" \
-  "https://api.github.com/repos/instana/instana-agent-operator/statuses/${OPERATOR_SHA}"
-
-echo "Posted commit status '${COMMIT_STATE}' to operator repo at ${OPERATOR_SHA}"
-
-# ---------------------------------------------------------------------------
 # Fail the SPS stage if E2E tests failed
 # ---------------------------------------------------------------------------
 if [[ ${E2E_EXIT_CODE} -ne 0 ]]; then
@@ -370,3 +361,4 @@ if [[ ${E2E_EXIT_CODE} -ne 0 ]]; then
 fi
 
 echo "===== e2e-async.sh - end ====="
+exit 0

@@ -8,10 +8,8 @@
 # Exports cos-state-path for all downstream stages via set_env / export_env.
 #
 set -euo pipefail
-if [[ "${PIPELINE_DEBUG:-0}" == 1 ]]; then
-  trap env EXIT
-  set -x
-fi
+RELEASE_SCRIPTS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${RELEASE_SCRIPTS}/release-common.sh"
 echo "===== prepare.sh - start ====="
 
 # ---------------------------------------------------------------------------
@@ -27,7 +25,7 @@ if [[ -z "${RELEASE_LINE}" ]]; then
   echo "ERROR: pipeline property 'release-line' is not set (expected format: MAJOR.MINOR, e.g. '2.2')" >&2
   exit 1
 fi
-if ! [[ "${RELEASE_LINE}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+if ! [[ "${RELEASE_LINE}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
   echo "ERROR: 'release-line' must be in MAJOR.MINOR format (e.g. '2.2'), got: '${RELEASE_LINE}'" >&2
   exit 1
 fi
@@ -102,7 +100,7 @@ CHARTS_SHA=$(git -C "${WORKSPACE}/charts-src" rev-parse HEAD)
 echo "charts-sha=${CHARTS_SHA}"
 
 # ---------------------------------------------------------------------------
-# Compute next version from release-line + existing tags on the operator repo
+# Compute next version and published OLM predecessor through authenticated APIs
 # ---------------------------------------------------------------------------
 # Tags use the 'v' prefix on the operator repo (e.g. v2.2.21).
 # Algorithm:
@@ -111,38 +109,30 @@ echo "charts-sha=${CHARTS_SHA}"
 #   3. If found → take the highest patch via sort -V and increment by 1.
 #   The 2.3.x tags are ignored when computing the next 2.2.x version.
 #
-# clone_repo_v2 with --depth does not fetch tags; fetch them explicitly now.
-echo "Fetching tags from operator repo..."
-git -C "${WORKSPACE}/operator-src" fetch --tags --quiet
-
-REL_MAJOR=$(echo "${RELEASE_LINE}" | cut -d. -f1)
-REL_MINOR=$(echo "${RELEASE_LINE}" | cut -d. -f2)
-
-# All tags for this exact major.minor (strips leading 'v', filters to MAJOR.MINOR.*)
-MATCHING_PATCHES=$(git -C "${WORKSPACE}/operator-src" tag --list "v${REL_MAJOR}.${REL_MINOR}.*" \
-  | sed 's/^v//' \
-  | sort -V)
-
-echo "Existing tags for ${RELEASE_LINE}.x: ${MATCHING_PATCHES:-<none>}"
-
-if [[ -z "${MATCHING_PATCHES}" ]]; then
-  # No release on this line yet — start at .0
-  NEXT_PATCH=0
-else
-  LATEST_PATCH=$(echo "${MATCHING_PATCHES}" | tail -1 | cut -d. -f3)
-  NEXT_PATCH=$((LATEST_PATCH + 1))
+export GH_TOKEN GHE_TOKEN
+VERSIONS=$(python3 "${RELEASE_SCRIPTS}/release_api.py" versions "${RELEASE_LINE}")
+echo "API version discovery: ${VERSIONS}"
+VERSION=$(jq -er '.version' <<< "${VERSIONS}")
+PREV_VERSION=$(jq -r '."previous-version"' <<< "${VERSIONS}")
+if [[ -z "${PREV_VERSION}" ]]; then
+  echo "ERROR: no published OLM predecessor found; define the initial catalog upgrade policy first" >&2
+  exit 1
 fi
-
-VERSION="${REL_MAJOR}.${REL_MINOR}.${NEXT_PATCH}"
 RELEASE_TAG="v${VERSION}"
 echo "Computed version: ${VERSION}  (operator tag: ${RELEASE_TAG})"
 
 # ---------------------------------------------------------------------------
 # Build the timestamp-scoped COS state path
 # ---------------------------------------------------------------------------
-BUILD_TIMESTAMP=$(date -u '+%Y%m%d%H%M')
-COS_STATE_PATH="pipeline-state/release-${VERSION}/${BUILD_TIMESTAMP}"
+# The run URL carries the real SPS UUID; fall back to a generated UUID, not the
+# generic PIPELINE_RUN_NAME (often simply 'simple-pipelinerun').
+PIPELINE_RUN_ID=$(printf '%s' "${PIPELINE_RUN_URL:-}" | sed -nE 's|.*/runs/([a-f0-9-]{36}).*|\1|p')
+PIPELINE_RUN_ID=${PIPELINE_RUN_ID:-$(cat /proc/sys/kernel/random/uuid)}
+BUILD_TIMESTAMP=$(date -u '+%Y%m%d%H%M%S')
+CANDIDATE_ID="${BUILD_TIMESTAMP}-${PIPELINE_RUN_ID}"
+COS_STATE_PATH="pipeline-state/release-${VERSION}/${CANDIDATE_ID}"
 echo "COS state path: ${COS_STATE_PATH}"
+echo "PROMOTION INPUT: release-state-path=${COS_STATE_PATH}/bom.json"
 
 # Export for downstream stages
 set_env cos-state-path "${COS_STATE_PATH}"
@@ -151,9 +141,10 @@ export_env cos-state-path
 # ---------------------------------------------------------------------------
 # Write initial BOM
 # ---------------------------------------------------------------------------
-PIPELINE_RUN_ID="${PIPELINE_RUN_NAME:-unknown}"
-
 BOM=$(jq -n \
+  --arg candidate_id "${CANDIDATE_ID}" \
+  --arg previous_version "${PREV_VERSION}" \
+  --arg run_url "${PIPELINE_RUN_URL:-}" \
   --arg version       "${VERSION}" \
   --arg release_tag   "${RELEASE_TAG}" \
   --arg source_branch "${RELEASE_BRANCH}" \
@@ -163,6 +154,9 @@ BOM=$(jq -n \
   --arg op_sha        "${OPERATOR_SHA}" \
   --arg ch_sha        "${CHARTS_SHA}" \
   '{
+    "candidate-id":     $candidate_id,
+    "previous-version": $previous_version,
+    "pipeline-run-url": $run_url,
     "version":          $version,
     "release-tag":      $release_tag,
     "source-branch":    $source_branch,
@@ -190,7 +184,7 @@ IBMCLOUD_API_KEY=$(get_secret ibmcloud-api-key)
 ibmcloud login --apikey "${IBMCLOUD_API_KEY}" --no-region
 unset IBMCLOUD_API_KEY
 # ---------------------------------------------------------------------------
-# Push BOM to two COS locations
+# Push initial scoped BOM (no mutable latest pointer)
 # ---------------------------------------------------------------------------
 echo "Uploading BOM to COS (timestamp-scoped)..."
 ibmcloud cos put-object \
@@ -199,14 +193,6 @@ ibmcloud cos put-object \
   --body "${BOM_FILE}" \
   --region "${COS_REGION}"
 echo "COS upload: cos://${COS_BUCKET}/${COS_STATE_PATH}/bom.json"
-
-echo "Uploading BOM to COS (latest-release-candidate pointer)..."
-ibmcloud cos put-object \
-  --bucket "${COS_BUCKET}" \
-  --key "pipeline-state/latest-release-candidate/bom.json" \
-  --body "${BOM_FILE}" \
-  --region "${COS_REGION}"
-echo "COS upload: cos://${COS_BUCKET}/pipeline-state/latest-release-candidate/bom.json"
 
 rm -f "${BOM_FILE}"
 
