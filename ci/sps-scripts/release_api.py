@@ -28,10 +28,12 @@ def semver(tag):
 
 
 class GitHub:
-    def __init__(self, base, token):
-        self.base, self.token = base, token
+    def __init__(self, base, token, read_only=False):
+        self.base, self.token, self.read_only = base, token, read_only
 
     def request(self, path, data=None, method=None, missing=False, raw=False, content_type=None):
+        if self.read_only and (data is not None or method not in (None, "GET", "HEAD")):
+            raise ValueError("GitHub client is read-only; refusing a write request")
         url = path if path.startswith("https://") else self.base + path
         headers = {"Authorization": f"Bearer {self.token}",
                    "Accept": "application/octet-stream" if raw else "application/vnd.github+json"}
@@ -137,9 +139,10 @@ def ensure_release(api, bom, files):
 
 
 def main():
-    api = GitHub("https://api.github.com", os.environ["GH_TOKEN"])
-    charts = GitHub("https://github.ibm.com/api/v3", os.environ.get("GHE_TOKEN", ""))
     command = sys.argv[1]
+    api = GitHub("https://api.github.com", os.environ["GH_TOKEN"], read_only=command == "check-tags")
+    charts = GitHub("https://github.ibm.com/api/v3", os.environ.get("GHE_TOKEN", ""),
+                    read_only=command == "check-tags")
     if command == "versions":
         print(json.dumps(discover(api, charts, sys.argv[2])))
     elif command in ("tags", "check-tags"):

@@ -17,7 +17,7 @@ cos_get() {
 }
 
 cos_put() {
-  ibmcloud cos put-object --bucket "${COS_BUCKET}" --key "$1" --body "$2" --region "${COS_REGION}"
+  ibmcloud cos put-object --bucket "${COS_BUCKET}" --key "$1" --body "$2" --region "${COS_REGION}" || return $?
   echo "COS upload: cos://${COS_BUCKET}/$1"
 }
 

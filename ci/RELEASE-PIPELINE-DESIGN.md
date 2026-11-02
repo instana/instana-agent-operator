@@ -237,6 +237,91 @@ Red Hat scan/submission may repeat on retry. There is no transaction spanning al
 services: partial progress remains visible, but recovery must reuse the same
 candidate rather than rebuild/retag a different candidate under that version.
 
+## Validation-only SPS entrypoint
+
+Use **`ci/.pipeline-config-release-validation.yaml`** to provision a separate manual
+SPS simple pipeline. It runs `ci/sps-scripts/run-promotion-validation.sh`, not
+`run-promotion.sh`. No `dind`, Docker socket, registry copy, GitHub mutation,
+Helm publication, catalog PR, or Pyxis submission is part of this entrypoint.
+Creating this configuration does not start a run or change the real promotion
+configuration.
+
+### Configuration
+
+Use the same operator configuration repository/branch and worker integration as
+release-build. Set `pipeline-config` to `ci/.pipeline-config-release-validation.yaml`
+and create a **manual trigger only**. Start with these properties:
+
+| Property | Value |
+|---|---|
+| `release-state-path` | Required exact candidate `<prefix>/bom.json` printed by build |
+| `cos-bucket-name` | Candidate bucket, currently `instana-agent-operator-temp-artifacts` |
+| `cos-region` | `us-south` unless using another region |
+| `skip-e2e-check` | `false`; setting true is explicitly recorded as a bypass |
+| `validation-upload-report` | `false` by default; opt in to a report-only COS write |
+
+Validation uses the **same production candidate gates**, including both source
+branches being `main`. Feature-branch candidates fail that gate even though this
+entrypoint cannot publish. The bypass property skips only E2E evidence validation;
+it does not relax branch, checksum, image, version or tag checks. A bypassed result
+is not proof that all E2E scenarios passed.
+
+### Minimum credentials and tools
+
+Prefer dedicated **read-only credentials**, rather than copying production writer
+credentials into this pipeline:
+
+- `ibmcloud-api-key`: read candidate BOM/artifacts and E2E status/log objects.
+- `github-token`: read public operator tags/releases.
+- `ghe-token`: read charts tags on GitHub Enterprise.
+- `/config/api-key`: mount a key with **dev operator image pull/read access only**,
+  using the same mount mechanism as release-build. No public ICR write access is
+  necessary.
+
+Do **not** provision `github-instana-agent-build`, Quay/Pyxis write credentials,
+release ICR credentials, GCP/Artifactory writers, cluster credentials or reslock
+secrets for validation. The GitHub `check-tags` client also rejects write requests
+at runtime; it does not create tags if they are absent.
+
+The image needs Python 3, jq, yq v4, Helm, skopeo, IBM CLI/COS plugin and standard
+shell/archive tools. As in promotion, startup installs Python YAML, zip and unzip.
+Preflight, gcloud and gsutil are **not required** by this entrypoint.
+
+### What runs and what it proves
+
+1. Explicit COS login; validate the selected BOM, branch policy and completeness.
+2. Verify staged artifact checksums and each required scenario's successful E2E
+   evidence/log checksum, unless explicitly bypassed.
+3. Inspect the readable dev image tag and compare it to the BOM index digest.
+4. Read existing operator/charts tags and published operator release versions;
+   reject tag conflicts or an attempt to publish an older version.
+5. Repackage chart, YAML and OLM **locally** using the exact same transformation as
+   promotion. Staged COS artifacts and pass pointers stay unchanged.
+6. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.
+
+It writes `promotion-validation-report.json` in the workspace and prints it to
+the step log, including failed step, completed checks, BOM hash, public artifact
+hashes, run identity, bypass setting and `published: false`. Setup/validation
+failures return nonzero and attempt to produce a local failure report too.
+
+With `validation-upload-report=true`, the **only persistent object written** is:
+
+```text
+pipeline-validation/<UTC-seconds>-<UUID>/report.json
+```
+
+Grant write access only to that report prefix where supported, or leave uploads
+disabled for read-only COS access. No generated archives, candidate BOMs, E2E
+results, production artifacts or promotion receipts are uploaded. Report-upload
+failure also fails the run; otherwise a report can be retrieved from the logs.
+
+This establishes SPS execution, read access, candidate integrity and offline public
+artifact correctness. It does **not** prove production write permissions, registry
+copy compatibility, Pyxis certification, catalog PR creation/acceptance, OLM
+installation/upgrade, or cross-service publication recovery. Those still need
+isolated sandbox tests before production promotion. Keep the actual promotion
+trigger disabled while using this validation pipeline for qualification.
+
 ## Charts development and PR pipeline
 
 - Retire the old charts main trigger at merge. Its YAML and legacy build-script

@@ -59,6 +59,22 @@ def release(version, draft=False, prerelease=False):
 
 
 class VersionsTest(unittest.TestCase):
+    def test_read_only_api_rejects_mutations_before_network_access(self):
+        api = GitHub("https://fixture.invalid", "fixture", read_only=True)
+        with patch("release_api.urllib.request.build_opener", side_effect=AssertionError("Unexpected network")):
+            for kwargs in ({"data": {}}, {"data": b"upload"}, {"method": "POST"},
+                           {"method": "PATCH"}, {"method": "DELETE"}, {"method": "PUT"}):
+                with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                    api.request("/fixture", **kwargs)
+
+    def test_read_only_api_allows_get(self):
+        api = GitHub("https://fixture.invalid", "fixture", read_only=True)
+        with patch("release_api.urllib.request.build_opener") as opener:
+            opener.return_value.open.return_value = io.BytesIO(b'{"read": true}')
+            self.assertEqual(api.request("/fixture"), {"read": True})
+            request = opener.return_value.open.call_args.args[0]
+            self.assertEqual(request.get_method(), "GET")
+
     def test_stable_semver_only(self):
         for value in ("2.2.24-rc1", "02.2.24", "2x2x24", "2.2.24.1", "2.2.24+build"):
             self.assertIsNone(semver(value))
@@ -255,6 +271,49 @@ skopeo() {{ echo sha256:actual; }}
 cat() {{ echo fixture-key; }}
 verify_tag {DEV}:human-readable sha256:expected
 ''', expected=1)
+
+    def test_validation_entrypoint_reports_tool_failure_without_publication(self):
+        result = self.bash(f'''
+get_env() {{
+  case "$1" in
+    release-state-path) echo {STATE}/bom.json ;;
+    *) echo "${{2:-fixture}}" ;;
+  esac
+}}
+dnf() {{ return 17; }}
+source "{SCRIPTS}/run-promotion-validation.sh"
+''', expected=17)
+        report = json.loads((self.workspace / "promotion-validation-report.json").read_text())
+        self.assertEqual(report["status"], "failed")
+        self.assertEqual(report["step"], "tools")
+        self.assertEqual(report["checks"], [])
+        self.assertFalse(report["published"])
+        self.assertIn("VALIDATION ONLY", result.stdout)
+
+    def test_validation_config_does_not_use_the_publication_entrypoint(self):
+        import yaml
+        config = yaml.safe_load((SCRIPTS.parents[1] / "ci/.pipeline-config-release-validation.yaml").read_text())
+        task = config["tasks"]["simple-execute"]
+        self.assertNotIn("include", task)
+        script = task["steps"][0]["script"]
+        self.assertIn("run-promotion-validation.sh", script)
+        self.assertNotIn("run-promotion.sh", script)
+        entrypoint = (SCRIPTS / "run-promotion-validation.sh").read_text()
+        for publisher in ("promote-images.sh", "publish-helm.sh", "publish-olm.sh", "preflight-release.sh"):
+            self.assertNotIn(publisher, entrypoint)
+
+    def test_cos_upload_failure_is_not_hidden_in_a_conditional(self):
+        result = self.bash(f'''
+source "{SCRIPTS}/release-common.sh"
+COS_BUCKET=fixture COS_REGION=fixture
+ibmcloud() {{ return 23; }}
+if cos_put pipeline-validation/fixture/report.json fixture.json; then
+  exit 99
+else
+  [[ $? == 23 ]]
+fi
+''')
+        self.assertNotIn("COS upload:", result.stdout)
 
     def test_failure_attempt_never_overwrites_success_pointer(self):
         # Execute the actual EXIT finalizer with all service commands guarded.
@@ -533,6 +592,122 @@ source "{SCRIPTS}/smoke-public-artifacts.sh"
             self.assertEqual(first, [p.read_bytes() for p in outputs])
             for path, original in originals.items():
                 self.assertEqual(path.read_bytes(), original)
+
+            # Exercise the complete validation entrypoint, not only its component
+            # scripts. All service mocks reject publication or unexpected secrets.
+            store = work / "store"
+            for key, file in staged.items():
+                destination = store / value["artifacts"][key]
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(file.read_bytes())
+            (store / STATE / "bom.json").write_text(json.dumps(value))
+            for cluster, mode in (("ocp-fyre-latest", "operator"), ("gke-operator-lowest", "operator"),
+                                  ("ocp-fyre-lowest", "helm"), ("gke-operator-latest", "helm")):
+                log_key = f"{STATE}/e2e/{cluster}/test-attempt-success.log"
+                log_file = store / log_key
+                log_file.parent.mkdir(parents=True)
+                log_file.write_bytes(b"passed")
+                evidence = {key: value[key] for key in ("candidate-id", "sources", "images", "checksums")}
+                evidence |= {"status": "success", "cluster": cluster, "mode": mode, "log": log_key,
+                             "log-sha256": hashlib.sha256(b"passed").hexdigest()}
+                pointer = store / STATE / "e2e/success" / f"{cluster}.json"
+                pointer.parent.mkdir(parents=True, exist_ok=True)
+                pointer.write_text(json.dumps(evidence))
+            stored_originals = {p: p.read_bytes() for p in store.rglob("*") if p.is_file()}
+            validation_harness = f'''
+set -euo pipefail
+get_env() {{
+  case "$1" in
+    release-state-path) echo {STATE}/bom.json ;;
+    skip-e2e-check) echo false ;;
+    validation-upload-report) echo "$VALIDATION_TEST_UPLOAD" ;;
+    *) echo "${{2:-fixture}}" ;;
+  esac
+}}
+get_secret() {{
+  case "$1" in
+    ibmcloud-api-key|github-token|ghe-token) echo fixture ;;
+    *) echo 'Unexpected publication secret' >&2; exit 99 ;;
+  esac
+}}
+set_env() {{ :; }}
+export_env() {{ :; }}
+dnf() {{ :; }}
+cat() {{
+  if [[ $# == 1 && $1 == /config/api-key ]]; then echo fixture; else command cat "$@"; fi
+}}
+timeout() {{ shift; "$@"; }}
+skopeo() {{
+  [[ $1 == inspect ]] || {{ echo 'Unexpected registry write' >&2; exit 99; }}
+  echo {value['images']['operator-manifest-digest']}
+}}
+python3() {{
+  if [[ $1 == */release_api.py ]]; then
+    [[ $2 == check-tags ]] || {{ echo 'Unexpected GitHub write' >&2; exit 99; }}
+  else command python3 "$@"; fi
+}}
+ibmcloud() {{
+  [[ $1 == login ]] && return 0
+  [[ $1 == cos ]] || exit 99
+  local operation=$2 key='' body='' out="${{@: -1}}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in --key) key=$2; shift ;; --body) body=$2; shift ;; esac
+    shift
+  done
+  case "$operation" in
+    get-object) cp "$WORKSPACE/store/$key" "$out" ;;
+    put-object)
+      [[ $VALIDATION_TEST_UPLOAD == true && $key == pipeline-validation/*/report.json ]] || exit 99
+      [[ ${{VALIDATION_TEST_UPLOAD_FAIL:-false}} == true ]] && return 23
+      mkdir -p "$WORKSPACE/store/$(dirname "$key")"
+      cp "$body" "$WORKSPACE/store/$key" ;;
+    *) exit 99 ;;
+  esac
+}}
+for cmd in curl git gcloud gsutil docker preflight trigger-task; do
+  eval "$cmd() {{ echo 'Unexpected publication command' >&2; exit 99; }}"
+  export -f "$cmd"
+done
+export -f get_env get_secret set_env export_env dnf cat timeout skopeo python3 ibmcloud
+bash "{SCRIPTS}/run-promotion-validation.sh"
+'''
+            validation_env = env | {"VALIDATION_TEST_UPLOAD": "false"}
+            subprocess.run(["bash", "-c", validation_harness], env=validation_env,
+                           check=True, capture_output=True, text=True)
+            report_file = work / "promotion-validation-report.json"
+            report = json.loads(report_file.read_text())
+            self.assertEqual(report["status"], "passed")
+            self.assertEqual(report["checks"], ["tools", "candidate-and-e2e", "source-image-digest",
+                                                "github-tags-and-version", "repackage-public-artifacts",
+                                                "public-artifact-smoke"])
+            self.assertFalse(report["published"])
+            self.assertFalse(report["e2e-check-bypassed"])
+            self.assertEqual(len(report["public-artifact-sha256"]), 3)
+            self.assertEqual(stored_originals, {p: p.read_bytes() for p in store.rglob("*") if p.is_file()})
+            validation_env["VALIDATION_TEST_UPLOAD"] = "true"
+            subprocess.run(["bash", "-c", validation_harness], env=validation_env,
+                           check=True, capture_output=True, text=True)
+            uploaded = list((store / "pipeline-validation").glob("*/report.json"))
+            self.assertEqual(len(uploaded), 1)
+            self.assertEqual(uploaded[0].read_bytes(), report_file.read_bytes())
+            for path, original in stored_originals.items():
+                self.assertEqual(path.read_bytes(), original)
+            failed_upload = subprocess.run(["bash", "-c", validation_harness],
+                                           env=validation_env | {"VALIDATION_TEST_UPLOAD_FAIL": "true"},
+                                           capture_output=True, text=True)
+            self.assertNotEqual(failed_upload.returncode, 0)
+            self.assertIn("validation report upload failed", failed_upload.stderr)
+            # A bad COS artifact stops validation and produces a failure report.
+            (store / value["artifacts"]["helm-chart"]).write_bytes(b"corrupt chart")
+            validation_env["VALIDATION_TEST_UPLOAD"] = "false"
+            failed_validation = subprocess.run(["bash", "-c", validation_harness], env=validation_env,
+                                               capture_output=True, text=True)
+            self.assertNotEqual(failed_validation.returncode, 0)
+            report = json.loads(report_file.read_text())
+            self.assertEqual(report["status"], "failed")
+            self.assertEqual(report["step"], "candidate-and-e2e")
+            self.assertFalse(report["published"])
+
             # A public artifact accidentally left on dev ICR must fail the smoke gate.
             public_yaml = work / "operator-public/instana-agent-operator.yaml"
             public_yaml.write_text(public_yaml.read_text().replace(PUBLIC, DEV))
