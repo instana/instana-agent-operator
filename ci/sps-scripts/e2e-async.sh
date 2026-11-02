@@ -128,21 +128,6 @@ echo "charts-sha=${CHARTS_SHA}"
 echo "operator-manifest-digest=${OPERATOR_MANIFEST_DIGEST}"
 
 # ---------------------------------------------------------------------------
-# Install dependencies
-# ---------------------------------------------------------------------------
-# The operator repo's installGolang.sh is the single source of truth for the Go
-# version, also in helm mode (the charts setup.sh no longer installs Go).
-if [[ -f "./installGolang.sh" ]]; then
-  source ./installGolang.sh amd64
-elif [[ -n "${PIPELINE_CONFIG_REPO_PATH:-}" && -f "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" ]]; then
-  source "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" amd64
-elif [[ -n "${APP_REPO_FOLDER:-}" && -f "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" ]]; then
-  source "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" amd64
-fi
-export PATH=$PATH:/usr/local/go/bin
-export GO_ALREADY_INSTALLED=true
-
-# ---------------------------------------------------------------------------
 # Clone operator repo at frozen SHA (E2E tests live in the operator repo)
 # ---------------------------------------------------------------------------
 GH_TOKEN=$(get_secret github-token)
@@ -166,6 +151,11 @@ git -C "${WORKSPACE}/operator-src" checkout --detach "${OPERATOR_SHA}" || exit 1
 rm -f "${GH_TOKEN_FILE}"
 
 SOURCE_DIRECTORY="${WORKSPACE}/operator-src"
+
+# Install Go from the frozen operator checkout, never from the caller's cwd.
+bash "${WORKSPACE}/operator-src/installGolang.sh" amd64
+export PATH="/usr/local/go/bin:${PATH}"
+export GO_ALREADY_INSTALLED=true
 
 # ---------------------------------------------------------------------------
 # Helm mode: the chart E2E tests live in the charts repo (GHE), not the operator

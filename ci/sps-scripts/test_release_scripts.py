@@ -310,6 +310,29 @@ copy_version icr.io/instana/operator:2.2.24 fixture
                 self.assertIn(f'fetch --depth 1 origin "${{{variable}}}"', lines[0])
                 self.assertIn(f'checkout --detach "${{{variable}}}"', lines[1])
 
+    def test_go_setup_uses_frozen_source_without_pr_pipeline_variables(self):
+        source = self.workspace / "operator-src"
+        source.mkdir()
+        installer = source / "installGolang.sh"
+        for script in ("build-and-stage.sh", "e2e-async.sh"):
+            text = (SCRIPTS / script).read_text()
+            install = 'bash "${WORKSPACE}/operator-src/installGolang.sh" amd64'
+            self.assertGreater(text.index(install), text.index('checkout --detach "${OPERATOR_SHA}"'))
+            self.assertNotIn("./installGolang.sh", text)
+            lines = text.splitlines()
+            index = lines.index(install)
+            setup = "\n".join(lines[index:index + 2])
+            for rc in (0, 23):
+                with self.subTest(script=script, installer_exit=rc):
+                    installer.write_text('printf "%s" "$1" > "$WORKSPACE/installer-arch"\n'
+                                         'echo "installer diagnostic" >&2\n'
+                                         f'exit {rc}\n')
+                    result = self.bash('unset APP_REPO_FOLDER PIPELINE_CONFIG_REPO_PATH\n' + setup
+                                       + '\n[[ $PATH == /usr/local/go/bin:* ]]\necho setup-complete\n', expected=rc)
+                    self.assertEqual((self.workspace / "installer-arch").read_text(), "amd64")
+                    self.assertIn("installer diagnostic", result.stderr)
+                    self.assertEqual("setup-complete" in result.stdout, rc == 0)
+
     def test_build_dispatch_attempts_all_then_fails(self):
         text = (SCRIPTS / "build-and-stage.sh").read_text().split("DISPATCH_FAILED=0", 1)[1]
         result = self.bash('''

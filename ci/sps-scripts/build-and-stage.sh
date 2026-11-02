@@ -56,8 +56,6 @@ echo "operator-sha=${OPERATOR_SHA}  charts-sha=${CHARTS_SHA}"
 # Install dependencies
 # ---------------------------------------------------------------------------
 dnf install -y python3-pyyaml zip
-./installGolang.sh amd64 2>/dev/null || source "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" amd64
-export PATH=$PATH:/usr/local/go/bin
 
 # ---------------------------------------------------------------------------
 # Clone repos at frozen SHAs
@@ -109,6 +107,10 @@ git -C "${WORKSPACE}/charts-src" fetch --depth 1 origin "${CHARTS_SHA}"
 git -C "${WORKSPACE}/charts-src" checkout --detach "${CHARTS_SHA}"
 
 rm -f "${GH_TOKEN_FILE}" "${GHE_TOKEN_FILE}"
+
+# Install Go from the frozen operator checkout, never from the caller's cwd.
+bash "${WORKSPACE}/operator-src/installGolang.sh" amd64
+export PATH="/usr/local/go/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
 # Go unit tests
