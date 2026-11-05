@@ -339,6 +339,38 @@ cat() {{ echo fixture-key; }}
 verify_tag {DEV}:human-readable sha256:expected
 ''', expected=1)
 
+    def test_cos_failure_names_object_and_preserves_exit_code(self):
+        result = self.bash(f'''
+source "{SCRIPTS}/release-common.sh"
+COS_BUCKET=fixture-bucket
+COS_REGION=us-south
+ibmcloud() {{ echo 'The specified key does not exist.' >&2; return 23; }}
+cos_get candidate/e2e/success/ocp-fyre-latest.json "$WORKSPACE/result.json"
+''', expected=23)
+        self.assertIn("cos://fixture-bucket/candidate/e2e/success/ocp-fyre-latest.json", result.stderr)
+        self.assertIn("exit code 23", result.stderr)
+
+    def test_promotion_names_failed_stage_and_stops(self):
+        (self.workspace / "selected-bom.json").write_text(json.dumps(bom()))
+        result = self.bash(f'''
+dnf() {{ :; }}
+yq() {{ :; }}
+preflight() {{ :; }}
+get_secret() {{ echo secret-must-not-appear; }}
+python3() {{ :; }}
+bash() {{
+  echo "Script: $1"
+  [[ $1 != */publish-helm.sh ]] || return 23
+}}
+source "{SCRIPTS}/run-promotion.sh"
+''', expected=23)
+        self.assertIn("PASSED [candidate-and-e2e]", result.stdout)
+        self.assertIn("PASSED [versioned-images]", result.stdout)
+        self.assertIn("FAILED [publish-helm]", result.stderr)
+        self.assertIn("exit code 23", result.stderr)
+        self.assertNotIn("publish-olm.sh", result.stdout)
+        self.assertNotIn("secret-must-not-appear", result.stdout + result.stderr)
+
     def test_gcp_read_check_authenticates_reads_only_and_cleans_up(self):
         for failure, rc in (("none", 0), ("auth", 23), ("read", 24), ("index", 1)):
             with self.subTest(failure=failure):
@@ -569,9 +601,36 @@ ibmcloud() {{
   done
   cp "$WORKSPACE/store/$key" "$out"
 }}
+export RELEASE_CHECKS_FILE="$WORKSPACE/checks.jsonl"
+: > "$RELEASE_CHECKS_FILE"
 source "{SCRIPTS}/validate-release.sh"
 '''
-        self.bash('FORCE=false\n' + harness, expected=1)
+        missing = self.bash('FORCE=false\n' + harness, expected=1)
+        self.assertIn("PASSED [candidate-bom]", missing.stdout)
+        for artifact in value["artifacts"]:
+            self.assertIn(f"PASSED [artifact-{artifact}]", missing.stdout)
+        self.assertIn("FAILED [e2e-ocp-fyre-latest-evidence]", missing.stderr)
+        self.assertIn(f"{STATE}/e2e/success/ocp-fyre-latest.json", missing.stderr)
+        self.assertNotIn("CHECK [e2e-gke-operator-lowest", missing.stdout)
+        checks = [json.loads(line) for line in (self.workspace / "checks.jsonl").read_text().splitlines()]
+        self.assertEqual(checks[-1]["check"], "e2e-ocp-fyre-latest-evidence")
+        self.assertEqual(checks[-1]["status"], "failed")
+        self.assertEqual(checks[-1]["exit-code"], 1)
+        validation_harness = harness.replace(f'source "{SCRIPTS}/validate-release.sh"', f'''
+dnf() {{ :; }}
+yq() {{ :; }}
+export FORCE
+export -f get_env get_secret set_env export_env ibmcloud
+source "{SCRIPTS}/run-promotion-validation.sh"
+''')
+        self.bash('FORCE=false\n' + validation_harness, expected=1)
+        report = json.loads((self.workspace / "promotion-validation-report.json").read_text())
+        self.assertEqual(report["status"], "failed")
+        self.assertEqual(report["step"], "candidate-and-e2e")
+        self.assertEqual(report["checks"], ["tools"])
+        self.assertEqual(report["check-details"][-1]["check"], "e2e-ocp-fyre-latest-evidence")
+        self.assertEqual(report["check-details"][-1]["status"], "failed")
+        self.assertIn(f"{STATE}/e2e/success/ocp-fyre-latest.json", report["check-details"][-1]["detail"])
         result = self.bash('FORCE=true\n' + harness)
         self.assertIn("FORCED PROMOTION", result.stdout)
         for cluster, mode in (("ocp-fyre-latest", "operator"), ("gke-operator-lowest", "operator"),
@@ -586,7 +645,8 @@ source "{SCRIPTS}/validate-release.sh"
             pointer = store / STATE / "e2e/success" / f"{cluster}.json"
             pointer.parent.mkdir(parents=True, exist_ok=True)
             pointer.write_text(json.dumps(result))
-        self.bash('FORCE=false\n' + harness)
+        passed = self.bash('FORCE=false\n' + harness)
+        self.assertIn("PASSED [e2e-gke-operator-latest-log]", passed.stdout)
 
 
 class ArchiveTest(unittest.TestCase):
@@ -844,6 +904,9 @@ bash "{SCRIPTS}/run-promotion-validation.sh"
                                                 "public-artifact-smoke"])
             self.assertFalse(report["published"])
             self.assertFalse(report["e2e-check-bypassed"])
+            self.assertEqual(report["exit-code"], 0)
+            self.assertTrue(all(check["status"] == "passed" for check in report["check-details"]))
+            self.assertEqual(report["check-details"][-1]["check"], "e2e-gke-operator-latest-log")
             self.assertEqual(len(report["public-artifact-sha256"]), 3)
             self.assertEqual(stored_originals, {p: p.read_bytes() for p in store.rglob("*") if p.is_file()})
             failed_artifactory = subprocess.run(
@@ -902,6 +965,9 @@ bash "{SCRIPTS}/run-promotion-validation.sh"
             report = json.loads(report_file.read_text())
             self.assertEqual(report["status"], "failed")
             self.assertEqual(report["step"], "candidate-and-e2e")
+            self.assertEqual(report["check-details"][-1]["check"], "artifact-helm-chart")
+            self.assertEqual(report["check-details"][-1]["status"], "failed")
+            self.assertNotEqual(report["exit-code"], 0)
             self.assertFalse(report["published"])
 
             # A public artifact accidentally left on dev ICR must fail the smoke gate.

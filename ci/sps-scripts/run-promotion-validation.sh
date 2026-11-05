@@ -18,6 +18,18 @@ REPORT_FILE="${WORKSPACE}/promotion-validation-report.json"
 REPORT_KEY="pipeline-validation/${VALIDATION_ID}/report.json"
 CURRENT_STEP=configuration
 COMPLETED_CHECKS=()
+export RELEASE_CHECKS_FILE="${WORKSPACE}/promotion-validation-checks.jsonl"
+: > "${RELEASE_CHECKS_FILE}"
+
+validation_step() {
+  CURRENT_STEP="$1"
+  echo "CHECK [${CURRENT_STEP}]: $2"
+}
+
+validation_pass() {
+  COMPLETED_CHECKS+=("${CURRENT_STEP}")
+  echo "PASSED [${CURRENT_STEP}]"
+}
 
 write_validation_report() {
   local rc=$? status=failed bom_sha='' public_sha='{}' checks
@@ -28,6 +40,10 @@ write_validation_report() {
   elif [[ ${rc} -eq 0 ]]; then
     rc=1
   fi
+  if [[ "${status}" == failed ]]; then
+    echo "FAILED [${CURRENT_STEP}]: exit code ${rc}; later stages were not run. See check details and errors above." >&2
+  fi
+  echo "Completed stages: ${COMPLETED_CHECKS[*]:-none}"
   if [[ -f "${SELECTED_BOM_FILE}" ]]; then
     bom_sha=$(sha256sum "${SELECTED_BOM_FILE}" | cut -d' ' -f1)
   fi
@@ -44,11 +60,13 @@ write_validation_report() {
       --arg started "${STARTED_AT}" --arg finished "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
       --arg run "${PIPELINE_RUN_URL:-}" --arg bypass "${SKIP_E2E_CHECK}" \
       --arg source_branch "${SOURCE_BRANCH}" --arg charts_branch "${CHARTS_BRANCH}" \
-      --argjson checks "${checks}" --argjson artifacts "${public_sha}" \
+       --argjson checks "${checks}" --argjson artifacts "${public_sha}" \
+       --argjson rc "${rc}" --slurpfile details "${RELEASE_CHECKS_FILE}" \
       '{mode:"validation-only", status:$status, step:$step, "validation-id":$id,
         "release-state-path":$bom, "bom-sha256":$hash, "started-at":$started,"finished-at":$finished,
         "pipeline-run-url":$run, "e2e-check-bypassed":($bypass == "true"), checks:$checks,
         "expected-branches":{"operator":$source_branch,"charts":$charts_branch},
+        "check-details":$details, "exit-code":$rc,
         "public-artifact-sha256":$artifacts, published:false}' > "${REPORT_FILE}"; then
     echo 'ERROR: could not write validation report' >&2
     exit 1
@@ -77,52 +95,54 @@ if [[ -z "${RELEASE_STATE_PATH}" || "${RELEASE_STATE_PATH}" == *latest* ]]; then
   exit 1
 fi
 
-CURRENT_STEP=tools
+validation_step tools 'Install dependencies and check required validation tools are available'
 dnf install -y python3-pyyaml zip unzip
-for tool in python3 jq yq helm skopeo ibmcloud gcloud gsutil; do command -v "${tool}" >/dev/null; done
-COMPLETED_CHECKS+=(tools)
+for tool in python3 jq yq helm skopeo ibmcloud gcloud gsutil; do
+  command -v "${tool}" >/dev/null || { echo "ERROR: required tool not found: ${tool}" >&2; exit 1; }
+done
+validation_pass
 
 # Same candidate, artifact and E2E gates; explicit branch overrides are validation-only.
 # It logs in explicitly, reads COS, and never writes candidate/evidence objects.
-CURRENT_STEP=candidate-and-e2e
+validation_step candidate-and-e2e 'Validate immutable candidate, staged artifact checksums and all required E2E evidence'
 echo "Validation expected branches: operator=${SOURCE_BRANCH}, charts=${CHARTS_BRANCH}"
 bash "${SCRIPT_DIR}/validate-release.sh" --validation-only
-COMPLETED_CHECKS+=(candidate-and-e2e)
+validation_pass
 
-CURRENT_STEP=source-image-digest
+validation_step source-image-digest 'Verify the source operator image tag still resolves to the BOM digest'
 verify_tag "$(jq -er '.images["operator-manifest"]' "${SELECTED_BOM_FILE}")" \
   "$(jq -er '.images["operator-manifest-digest"]' "${SELECTED_BOM_FILE}")"
-COMPLETED_CHECKS+=(source-image-digest)
+validation_pass
 
 # Read-only tokens suffice: never request the publication identity or credentials.
-CURRENT_STEP=github-tags-and-version
+validation_step github-tags-and-version 'Check release version and existing GitHub tags for conflicts'
 export GH_TOKEN GHE_TOKEN
 GH_TOKEN=$(get_secret github-token)
 GHE_TOKEN=$(get_secret ghe-token)
 python3 "${SCRIPT_DIR}/release_api.py" check-tags "${SELECTED_BOM_FILE}"
-COMPLETED_CHECKS+=(github-tags-and-version)
+validation_pass
 
-CURRENT_STEP=artifactory-read
+validation_step artifactory-read 'Verify read access to Artifactory (not publication permissions)'
 export TAAS_CREDS
 TAAS_CREDS=$(get_secret taas-artifactory-read-writer-creds)
 python3 "${SCRIPT_DIR}/check_artifactory.py"
 unset TAAS_CREDS
-COMPLETED_CHECKS+=(artifactory-read)
+validation_pass
 
-CURRENT_STEP=gcp-read
+validation_step gcp-read 'Verify GCP authentication and read access to the public Helm index'
 bash "${SCRIPT_DIR}/check-gcp-read.sh"
-COMPLETED_CHECKS+=(gcp-read)
+validation_pass
 
-CURRENT_STEP=repackage-public-artifacts
+validation_step repackage-public-artifacts 'Create public Helm, OLM and operator YAML artifacts locally'
 bash "${SCRIPT_DIR}/repackage-helm.sh"
 VERSION=$(jq -er '.version' "${SELECTED_BOM_FILE}")
 export PUBLIC_HELM_TGZ="${WORKSPACE}/helm-public/instana-agent-${VERSION}.tgz"
 export PUBLIC_OLM_ZIP="${WORKSPACE}/operator-public/olm-${VERSION}.zip"
 export PUBLIC_OPERATOR_YAML="${WORKSPACE}/operator-public/instana-agent-operator.yaml"
-COMPLETED_CHECKS+=(repackage-public-artifacts)
+validation_pass
 
-CURRENT_STEP=public-artifact-smoke
+validation_step public-artifact-smoke 'Smoke-test repackaged public artifacts and reject development image references'
 bash "${SCRIPT_DIR}/smoke-public-artifacts.sh"
-COMPLETED_CHECKS+=(public-artifact-smoke)
+validation_pass
 CURRENT_STEP=complete
 echo 'Validation complete. Nothing has been published; this is not proof of publication permissions or certification.'
