@@ -8,6 +8,8 @@ Instana is an [APM solution](https://www.ibm.com/products/instana) built for mic
 
 This repository contains the Kubernetes Operator to install and manage the Instana agent.
 
+For contributors: [release pipeline architecture and rollout](ci/RELEASE-PIPELINE-ARCHITECTURE.md).
+
 ### Installing
 
 There are two ways to install the operator:
