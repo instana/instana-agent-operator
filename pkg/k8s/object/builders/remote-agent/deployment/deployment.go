@@ -96,6 +96,7 @@ func (d *deploymentBuilder) getEnvVars() []corev1.EnvVar {
 		env.ListenAddressEnvRemote,
 		env.RedactK8sSecretsEnvRemote,
 		env.ConfigPathEnvRemote,
+		env.InstanaAgentConfigPathEnvRemote,
 		env.EntrypointSkipBackendTemplateGenerationRemote,
 		env.InstanaAgentKeyEnvRemote,
 		env.DownloadKeyEnvRemote,

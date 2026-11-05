@@ -159,6 +159,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.ListenAddressEnv,
 		env.RedactK8sSecretsEnv,
 		env.ConfigPathEnv,
+		env.InstanaAgentConfigPathEnv,
 		env.EntrypointSkipBackendTemplateGeneration,
 		env.InstanaAgentKeyEnv,
 		env.DownloadKeyEnv,
@@ -189,6 +190,72 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 	actual := db.getEnvVars()
 
 	assertions.Equal(expected, actual)
+}
+
+func TestDaemonSetBuilder_configPathPrecedence(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		podEnv  []corev1.EnvVar
+		legacy  string
+		current string
+	}{
+		{name: "defaults", legacy: constants.InstanaConfigDirectory, current: constants.InstanaConfigDirectory},
+		{
+			name: "legacy override", podEnv: []corev1.EnvVar{{Name: "CONFIG_PATH", Value: "/legacy"}},
+			legacy: "/legacy", current: "/legacy",
+		},
+		{
+			name: "new override", podEnv: []corev1.EnvVar{{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/new"}},
+			legacy: constants.InstanaConfigDirectory, current: "/new",
+		},
+		{
+			name: "both overrides",
+			podEnv: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/new"},
+				{Name: "CONFIG_PATH", Value: "/legacy"},
+			},
+			legacy: "/legacy", current: "/new",
+		},
+		{
+			name: "last legacy override wins",
+			podEnv: []corev1.EnvVar{
+				{Name: "CONFIG_PATH", Value: "/first"},
+				{Name: "CONFIG_PATH", Value: "/last"},
+			},
+			legacy: "/last", current: "/last",
+		},
+		{
+			name: "explicit empty override wins",
+			podEnv: []corev1.EnvVar{
+				{Name: "CONFIG_PATH", Value: "/first"},
+				{Name: "CONFIG_PATH", Value: ""},
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			agent := &instanav1.InstanaAgent{Spec: instanav1.InstanaAgentSpec{
+				Agent: instanav1.BaseAgentSpec{Pod: instanav1.AgentPodSpec{Env: test.podEnv}},
+			}}
+			builder := &daemonSetBuilder{
+				InstanaAgent: agent,
+				EnvBuilder:   env.NewEnvBuilder(agent, nil),
+				Helpers:      helpers.NewHelpers(agent),
+			}
+			values := make(map[string]corev1.EnvVar)
+			for _, value := range builder.getEnvVars() {
+				require.NotContains(t, values, value.Name)
+				values[value.Name] = value
+			}
+			require.Equal(
+				t,
+				corev1.EnvVar{Name: "CONFIG_PATH", Value: test.legacy},
+				values["CONFIG_PATH"],
+			)
+			require.Equal(t, corev1.EnvVar{
+				Name: "INSTANA_AGENT_CONFIG_PATH", Value: test.current,
+			}, values["INSTANA_AGENT_CONFIG_PATH"])
+		})
+	}
 }
 
 func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
@@ -225,6 +292,7 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 	envBuilder := &mocks.MockEnvBuilder{}
 	defer envBuilder.AssertExpectations(t)
 	envBuilder.On("Build",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,

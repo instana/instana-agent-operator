@@ -298,7 +298,13 @@ func cleanupAllAgentCRs() {
 				strings.Contains(output, "no matches for kind") {
 				log.Infof("Agent CRD already deleted, CR %s/%s is gone", namespace, name)
 			} else {
-				log.Warningf("Could not delete Agent CR %s/%s: %v - %s", namespace, name, deleteResult.Err(), output)
+				log.Warningf(
+					"Could not delete Agent CR %s/%s: %v - %s",
+					namespace,
+					name,
+					deleteResult.Err(),
+					output,
+				)
 			}
 		} else {
 			log.Infof("Successfully deleted Agent CR %s/%s", namespace, name)
@@ -596,7 +602,11 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 
 			// Add service account to users
 			users = append(users, serviceAccountId)
-			if err := unstructured.SetNestedStringSlice(sccUnstructured.Object, users, "users"); err != nil {
+			if err := unstructured.SetNestedStringSlice(
+				sccUnstructured.Object,
+				users,
+				"users",
+			); err != nil {
 				return ctx, fmt.Errorf("failed to set users in SCC: %v", err)
 			}
 
@@ -613,7 +623,9 @@ func AdjustOcpPermissionsIfNecessary() env.Func {
 			return ctx, nil
 		} else {
 			// non-ocp environments do not require changes in the Security Context Constraints
-			log.Info("Cluster is not an OpenShift cluster, no need to adjust the security context constraints")
+			log.Info(
+				"Cluster is not an OpenShift cluster, no need to adjust the security context constraints",
+			)
 		}
 		return ctx, nil
 	}
@@ -802,7 +814,8 @@ func ensureOperatorHasPullSecret(ctx context.Context, cfg *envconf.Config) error
 
 	if err := r.Patch(ctx, dep, k8s.Patch{
 		PatchType: types.MergePatchType,
-		Data: fmt.Appendf(nil,
+		Data: fmt.Appendf(
+			nil,
 			`{"spec":{ "replicas": 0, "template":{"spec": {"imagePullSecrets": [{"name": "%s"}]}}}}`,
 			InstanaTestCfg.ContainerRegistry.Name,
 		),
@@ -897,7 +910,8 @@ func WaitForDeploymentToBecomeReady(name string) e2etypes.StepFunc {
 				dep = appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cfg.Namespace()},
 				}
-				if getErr := client.Resources().Get(ctx, name, cfg.Namespace(), &dep); getErr != nil {
+				if getErr := client.Resources().
+					Get(ctx, name, cfg.Namespace(), &dep); getErr != nil {
 					t.Log("Deployment not available yet, waiting for it to be created or recreated")
 					return false, nil
 				}
@@ -959,7 +973,7 @@ func PrintNamespaceEvents(t *testing.T, namespace string) {
 // optional argument for the custom daemons set name
 func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 	var daemonSetName string
-	if (len(args)) > 0 && args[0] != "" {
+	if len(args) > 0 && args[0] != "" {
 		daemonSetName = args[0]
 	} else {
 		daemonSetName = AgentDaemonSetName
@@ -970,12 +984,59 @@ func WaitForAgentDaemonSetToBecomeReady(args ...string) e2etypes.StepFunc {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ds := appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{Name: daemonSetName, Namespace: cfg.Namespace()},
-		}
+
+		conds := conditions.New(client.Resources())
+
+		// A DaemonSet can briefly disappear during release upgrades or reconciliation.
+		// Keep fetching a fresh object until it exists and is ready.
 		err = wait.For(
-			conditions.New(client.Resources()).DaemonSetReady(&ds),
+			func(ctx context.Context) (bool, error) {
+				ds := appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{Name: daemonSetName, Namespace: cfg.Namespace()},
+				}
+				// Explicit Get (DaemonSetReady fetches again) so that NotFound can be told apart
+				// from other errors, which must fail the wait instead of being retried until timeout.
+				if getErr := client.Resources().
+					Get(ctx, daemonSetName, cfg.Namespace(), &ds); getErr != nil {
+					if apierrors.IsNotFound(getErr) {
+						t.Logf(
+							"DaemonSet %s not available yet, waiting for it to be created or recreated",
+							daemonSetName,
+						)
+						return false, nil
+					}
+					return false, getErr
+				}
+
+				done, matchErr := conds.DaemonSetReady(&ds)(ctx)
+				if matchErr != nil {
+					if apierrors.IsNotFound(matchErr) {
+						t.Logf(
+							"DaemonSet %s disappeared while checking readiness, retrying",
+							daemonSetName,
+						)
+						return false, nil
+					}
+					return false, matchErr
+				}
+				if !done {
+					return false, nil
+				}
+
+				// DaemonSetReady also passes for 0 == 0 right after (re)creation, before the DaemonSet
+				// controller has scheduled anything. Require a processed spec with at least one pod.
+				if ds.Status.ObservedGeneration < ds.Generation ||
+					ds.Status.DesiredNumberScheduled == 0 {
+					t.Logf(
+						"DaemonSet %s not yet processed by the DaemonSet controller, waiting",
+						daemonSetName,
+					)
+					return false, nil
+				}
+				return true, nil
+			},
 			wait.WithTimeout(time.Minute*5),
+			wait.WithInterval(5*time.Second),
 		)
 		if err != nil {
 			PrintOperatorLogs(ctx, cfg, t)
@@ -1211,7 +1272,13 @@ func ValidateAgentMultiBackendConfiguration() e2etypes.StepFunc {
 				cfg.Namespace(),
 				podName,
 				containerName,
-				[]string{"cat", fmt.Sprintf("/opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.fileSuffix)},
+				[]string{
+					"cat",
+					fmt.Sprintf(
+						"/opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg",
+						currentBackend.fileSuffix,
+					),
+				},
 				&stdout,
 				&stderr,
 			); err != nil {
@@ -1225,7 +1292,14 @@ func ValidateAgentMultiBackendConfiguration() e2etypes.StepFunc {
 					currentBackend.fileSuffix,
 				)
 			} else {
-				t.Error(fmt.Sprintf("Expected to find %s in file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg", currentBackend.expectedBackendString, currentBackend.fileSuffix), stdout.String())
+				t.Error(
+					fmt.Sprintf(
+						"Expected to find %s in file /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend-%s.cfg",
+						currentBackend.expectedBackendString,
+						currentBackend.fileSuffix,
+					),
+					stdout.String(),
+				)
 			}
 		}
 
@@ -1289,7 +1363,14 @@ func ValidateSecretsMountedFromExtraVolume() e2etypes.StepFunc {
 			if strings.Contains(stdout.String(), "xxx") {
 				t.Logf("ExecInPod returned expected secret value from file %s", currentFile.path)
 			} else {
-				t.Error(fmt.Sprintf("Expected to find %s in file %s", currentFile.content, currentFile.path), stdout.String())
+				t.Error(
+					fmt.Sprintf(
+						"Expected to find %s in file %s",
+						currentFile.content,
+						currentFile.path,
+					),
+					stdout.String(),
+				)
 			}
 		}
 

@@ -50,6 +50,7 @@ const (
 	BackendURLEnv
 	NoProxyEnv
 	ConfigPathEnv
+	InstanaAgentConfigPathEnv
 	EntrypointSkipBackendTemplateGeneration
 	BackendEnv
 	InstanaAgentKeyEnv
@@ -124,7 +125,7 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		MavenRepoURLEnv, MavenRepoFeaturesPath, MavenRepoSharedPath, MirrorReleaseRepoUrlEnv,
 		MirrorSharedRepoUrlEnv, ProxyHostEnv, ProxyPortEnv, ProxyProtocolEnv, ProxyUseDNSEnv,
 		ListenAddressEnv, RedactK8sSecretsEnv, AgentZoneEnv, BackendURLEnv,
-		NoProxyEnv, ConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
+		NoProxyEnv, ConfigPathEnv, InstanaAgentConfigPathEnv, EntrypointSkipBackendTemplateGeneration, BackendEnv,
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
 		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv, NodeNameEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
@@ -230,6 +231,11 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 		return &corev1.EnvVar{Name: "NO_PROXY", Value: "kubernetes.default.svc"}
 	case ConfigPathEnv:
 		return &corev1.EnvVar{Name: "CONFIG_PATH", Value: constants.InstanaConfigDirectory}
+	case InstanaAgentConfigPathEnv:
+		return instanaAgentConfigPathEnv(
+			e.agent.Spec.Agent.Pod.Env,
+			constants.InstanaConfigDirectory,
+		)
 	case NamespacesDetailsPathEnv:
 		return &corev1.EnvVar{
 			Name: "NAMESPACES_DETAILS_PATH",
@@ -420,6 +426,19 @@ func (e *envBuilder) getUserProvidedEnvs() []corev1.EnvVar {
 		})
 	}
 	return envVars
+}
+
+// Mirror the final CONFIG_PATH override, including references and explicit empty values.
+// Workload builders apply pod.env last, so an explicit INSTANA_AGENT_CONFIG_PATH still wins.
+func instanaAgentConfigPathEnv(podEnv []corev1.EnvVar, defaultPath string) *corev1.EnvVar {
+	for i := len(podEnv) - 1; i >= 0; i-- {
+		if podEnv[i].Name == "CONFIG_PATH" {
+			mirrored := podEnv[i].DeepCopy()
+			mirrored.Name = "INSTANA_AGENT_CONFIG_PATH"
+			return mirrored
+		}
+	}
+	return &corev1.EnvVar{Name: "INSTANA_AGENT_CONFIG_PATH", Value: defaultPath}
 }
 
 func stringToEnvVar(name string, val string) *corev1.EnvVar {
