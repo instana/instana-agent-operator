@@ -9,9 +9,8 @@ VERSION=$(jq -er '.version' "${BOM_FILE}")
 HELM_TGZ=${PUBLIC_HELM_TGZ:-$(get_env repackaged-helm-tgz)}
 OLM_ZIP=${PUBLIC_OLM_ZIP:-$(get_env repackaged-olm-zip)}
 OPERATOR_YAML=${PUBLIC_OPERATOR_YAML:-$(get_env repackaged-operator-yaml)}
-CREDENTIALS=$(get_secret github-instana-agent-build)
 export GH_TOKEN GHE_TOKEN
-GH_TOKEN=$(jq -er '.token' <<< "${CREDENTIALS}")
+GH_TOKEN=$(get_secret github-token)
 GHE_TOKEN=$(get_secret ghe-token)
 python3 "${SCRIPT_DIR}/release_api.py" tags "${BOM_FILE}"
 
@@ -62,8 +61,8 @@ CHART_DIR="${PUB_DIR}/charts/instana-agent"
 rm -rf "${CHART_DIR}"
 mkdir "${CHART_DIR}"
 tar -xzf "${HELM_TGZ}" -C "${CHART_DIR}" --strip-components=1
-git -C "${PUB_DIR}/charts" config user.email "$(jq -er '.email' <<< "${CREDENTIALS}")"
-git -C "${PUB_DIR}/charts" config user.name "$(jq -er '.username' <<< "${CREDENTIALS}")"
+git -C "${PUB_DIR}/charts" config user.email "instanacd@instana.com"
+git -C "${PUB_DIR}/charts" config user.name "Instana CD"
 git -C "${PUB_DIR}/charts" add .
 if ! git -C "${PUB_DIR}/charts" diff --cached --quiet; then
   git -C "${PUB_DIR}/charts" commit -s -m "chore: publish Instana agent chart ${VERSION}"

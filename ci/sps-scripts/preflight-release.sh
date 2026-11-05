@@ -4,13 +4,13 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/release-common.sh"
 VERSION=$(jq -er '.version' "${SELECTED_BOM_FILE}")
-CREDS=$(get_secret quay-redhat-isv-push-credentials)
+CREDS=$(get_secret redhat-registry)
 AUTH_DIR=$(mktemp -d "${WORKSPACE}/preflight-auth-XXXXXX")
 trap 'rm -f "${AUTH_DIR}/config.json"; rmdir "${AUTH_DIR}"' EXIT
 printf '%s' "${CREDS}" | jq -r '.password' | \
   skopeo login --authfile "${AUTH_DIR}/config.json" --username "$(jq -er '.username' <<< "${CREDS}")" \
     --password-stdin quay.io
-TOKEN=$(get_secret redhat-pyxis-api-token)
+TOKEN=$(jq -er '.token | strings | select(length > 0)' <<< "${CREDS}")
 mkdir -p "${WORKSPACE}/preflight-output"
 RC=0
 preflight check container "quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf:${VERSION}" \

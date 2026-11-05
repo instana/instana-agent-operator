@@ -27,14 +27,17 @@ copy_version() {
 
 case "${PROMOTION_PHASE:?}" in
   redhat)
-    creds=$(get_secret quay-redhat-isv-push-credentials)
+    creds=$(get_secret redhat-registry)
     copy_version "quay.io/redhat-isv-containers/5e961c2c93604e02afa9ebdf:${VERSION}" \
       "$(jq -er '.username' <<< "${creds}"):$(jq -er '.password' <<< "${creds}")"
     ;;
   versioned)
     copy_version "icr.io/instana/instana-agent-operator:${VERSION}" "iamapikey:${ICR_KEY}"
+    rel_creds=$(get_secret icr-rel-api-key)
+    rel_username=$(jq -er '.username | strings | select(length > 0)' <<< "${rel_creds}")
+    rel_password=$(jq -er '.password | strings | select(length > 0)' <<< "${rel_creds}")
     copy_version "icr.io/instana-rel/rel-docker-agent-local/instana-agent-operator:${VERSION}" \
-      "iamapikey:$(get_secret icr-rel-api-key)"
+      "${rel_username}:${rel_password}"
     ;;
   latest)
     # Public version labels guard against accidentally downgrading :latest.

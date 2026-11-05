@@ -428,10 +428,10 @@ Configure properties in SPS; YAML comments do not enforce trigger behavior.
 | Version | Required `release-line=2.2` or explicitly approved line; no hard-coded next patch; check both repo tags and public destinations. |
 | Candidate selection | Explicit scoped BOM for QA and promotion, not a moving latest pointer; actual run UUID/URL. |
 | COS | Bucket/region, explicit authentication in fresh containers, read/write separation, encryption and lifecycle retention long enough for QA/retries/audit; protect approved BOMs/evidence from mutation. |
-| Image credentials | `/config/api-key` dev read/write and public ICR authorization; `icr-rel-api-key`; `quay-redhat-isv-push-credentials`; no assumption that one account grants every namespace. |
-| Source/status credentials | `github-token`, `ghe-token`; publication identity `github-instana-agent-build` with required protected tag/repo/release rights. |
+| Image credentials | `/config/api-key` dev read/write and public ICR authorization; `icr-rel-api-key` JSON (`username`, `password`); `redhat-registry` JSON (`username`/`password` for registry login, `token` for Pyxis submission); no assumption that one account grants every namespace. |
+| Source/status credentials | `github-token`, `ghe-token`; promotion requires protected tag/repo/release rights on these tokens. |
 | E2E credentials | Four cluster secrets, `gcp-service-account`, `instana-e2e-backend-details`, `reslock-github-token`, private ICR pull access recreated after namespace cleanup. |
-| Publication | `gcp-bucket-write-agents-io-service-key`, `taas-artifactory-read-writer-creds`, `redhat-pyxis-api-token`, Red Hat pull authentication, Slack secret/notification implementation. |
+| Publication | `gcp-bucket-write-agents-io-service-key`, `taas-artifactory-read-writer-creds`, `redhat-registry` (including Pyxis token), Red Hat pull authentication, Slack secret/notification implementation. |
 | Tool images | Replace dev build-tool image with confirmed promoted digest and verify tooling before cutover. |
 
 Disable `PIPELINE_DEBUG` in credentialed production runs: `set -x` and `trap env

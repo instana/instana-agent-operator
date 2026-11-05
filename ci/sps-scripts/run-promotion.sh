@@ -9,9 +9,8 @@ for tool in jq yq helm skopeo preflight gcloud gsutil; do command -v "${tool}" >
 bash "${SCRIPT_DIR}/validate-release.sh"
 # Every reader uses this local validated snapshot, never re-resolves COS/latest.
 export SELECTED_BOM_FILE="${WORKSPACE}/selected-bom.json"
-CREDS=$(get_secret github-instana-agent-build)
 export GH_TOKEN GHE_TOKEN
-GH_TOKEN=$(jq -er '.token' <<< "${CREDS}")
+GH_TOKEN=$(get_secret github-token)
 GHE_TOKEN=$(get_secret ghe-token)
 python3 "${SCRIPT_DIR}/release_api.py" check-tags "${SELECTED_BOM_FILE}"
 export PROMOTION_PHASE=redhat

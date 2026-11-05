@@ -186,6 +186,12 @@ registry tags, chart repos and catalogs require serialized publication. GCP also
 uses generation conditions to detect competing index writers. Existing-version
 bytes and tags are never deliberately replaced by the versioned publication steps.
 
+Promotion uses the plain `github-token` secret for GitHub authentication, with
+permission to create operator tags/releases/assets, push the Helm repository and
+catalog forks, and open upstream catalog PRs. No separate JSON GitHub credential
+is required. Helm repository commits use `Instana CD <instanacd@instana.com>` as
+their non-secret author identity, matching the existing Concourse convention.
+
 ### Ordered steps
 
 1. **Validate:** explicitly log in to IBM Cloud. Validate candidate schema/path,
@@ -279,12 +285,19 @@ credentials into this pipeline:
 - `ibmcloud-api-key`: read candidate BOM/artifacts and E2E status/log objects.
 - `github-token`: read public operator tags/releases.
 - `ghe-token`: read charts tags on GitHub Enterprise.
+- `taas-artifactory-read-writer-creds`: JSON with `username` and `password`, using
+  the same credential as promotion. Validation only issues an authenticated GET
+  to the Artifactory storage API for `instana-agent-<previous-version>.tgz` in
+  `instana-team-release-agent-helm-local`. That chart must exist and be readable;
+  missing/invalid credentials, HTTP errors, redirects and unexpected metadata fail
+  validation at `artifactory-read`. No upload is attempted, and success does not
+  prove write permission (or authentication if anonymous reads are permitted).
 - `/config/api-key`: mount a key with **dev operator image pull/read access only**,
   using the same mount mechanism as release-build. No public ICR write access is
   necessary.
 
-Do **not** provision `github-instana-agent-build`, Quay/Pyxis write credentials,
-release ICR credentials, GCP/Artifactory writers, cluster credentials or reslock
+Do **not** provision GitHub publication permissions, Quay/Pyxis write credentials,
+release ICR credentials, GCP writers, cluster credentials or reslock
 secrets for validation. The GitHub `check-tags` client also rejects write requests
 at runtime; it does not create tags if they are absent.
 
@@ -300,9 +313,10 @@ Preflight, gcloud and gsutil are **not required** by this entrypoint.
 3. Inspect the readable dev image tag and compare it to the BOM index digest.
 4. Read existing operator/charts tags and published operator release versions;
    reject tag conflicts or an attempt to publish an older version.
-5. Repackage chart, YAML and OLM **locally** using the exact same transformation as
+5. Read previous chart metadata from Artifactory using the promotion credential.
+6. Repackage chart, YAML and OLM **locally** using the exact same transformation as
    promotion. Staged COS artifacts and pass pointers stay unchanged.
-6. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.
+7. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.
 
 It writes `promotion-validation-report.json` in the workspace and prints it to
 the step log, including failed step, completed checks, BOM hash, public artifact
@@ -342,7 +356,7 @@ trigger disabled while using this validation pipeline for qualification.
 
 ## Cutover checklist and remaining external validation
 
-1. Confirm `github-token`, `ghe-token`, `github-instana-agent-build`, dev/public ICR
+1. Confirm `github-token` (including publication rights), `ghe-token`, dev/public ICR
    key permissions, `icr-rel-api-key`, Quay/Pyxis credentials, GCP write account,
    Artifactory credentials, E2E/reslock/cluster secrets and COS IAM/retention.
 2. Ensure the existing build image contains required tools (especially preflight,

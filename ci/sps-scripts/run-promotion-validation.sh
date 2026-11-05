@@ -102,6 +102,13 @@ GHE_TOKEN=$(get_secret ghe-token)
 python3 "${SCRIPT_DIR}/release_api.py" check-tags "${SELECTED_BOM_FILE}"
 COMPLETED_CHECKS+=(github-tags-and-version)
 
+CURRENT_STEP=artifactory-read
+export TAAS_CREDS
+TAAS_CREDS=$(get_secret taas-artifactory-read-writer-creds)
+python3 "${SCRIPT_DIR}/check_artifactory.py" "${SELECTED_BOM_FILE}"
+unset TAAS_CREDS
+COMPLETED_CHECKS+=(artifactory-read)
+
 CURRENT_STEP=repackage-public-artifacts
 bash "${SCRIPT_DIR}/repackage-helm.sh"
 VERSION=$(jq -er '.version' "${SELECTED_BOM_FILE}")

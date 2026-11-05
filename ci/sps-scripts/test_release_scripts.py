@@ -15,10 +15,12 @@ import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
+import urllib.error
 import zipfile
 
 from release_api import GitHub, check_not_older_release, discover, ensure_release, ensure_tag, semver
 from release_state import validate_bom, validate_success
+from check_artifactory import check as check_artifactory, NoRedirect
 from publish_olm import bundle_files, publish, verify_catalog_files
 
 
@@ -121,6 +123,40 @@ class VersionsTest(unittest.TestCase):
         check_not_older_release(FakeAPI(releases=[release(VERSION)]), VERSION)
         with self.assertRaises(ValueError):
             check_not_older_release(FakeAPI(releases=[release("2.3.0")]), VERSION)
+
+
+class ArtifactoryTest(unittest.TestCase):
+    def test_authenticated_get_of_previous_chart_metadata(self):
+        metadata = {"repo": "instana-team-release-agent-helm-local", "path": "/instana-agent-2.2.23.tgz"}
+        with patch("check_artifactory.urllib.request.build_opener") as opener:
+            response = opener.return_value.open.return_value.__enter__.return_value
+            response.status = 200
+            response.read.return_value = json.dumps(metadata).encode()
+            check_artifactory({"username": "fixture", "password": "fixture"}, "2.2.23")
+            request = opener.return_value.open.call_args.args[0]
+            self.assertEqual(request.get_method(), "GET")
+            self.assertIsNone(request.data)
+            self.assertTrue(request.get_header("Authorization").startswith("Basic "))
+            self.assertTrue(request.full_url.endswith("/api/storage/" + metadata["repo"] + metadata["path"]))
+            response.read.return_value = b'{}'
+            with self.assertRaisesRegex(ValueError, "unexpected chart metadata"):
+                check_artifactory({"username": "fixture", "password": "fixture"}, "2.2.23")
+
+    def test_http_failures_do_not_pass_or_expose_credentials(self):
+        for code in (301, 401, 403, 404, 500):
+            with self.subTest(code=code), patch("check_artifactory.urllib.request.build_opener") as opener:
+                opener.return_value.open.side_effect = urllib.error.HTTPError("fixture", code, "secret", {}, None)
+                with self.assertRaisesRegex(ValueError, f"HTTP {code}") as raised:
+                    check_artifactory({"username": "fixture", "password": "sensitive"}, "2.2.23")
+                self.assertNotIn("sensitive", str(raised.exception))
+
+    def test_invalid_credentials_and_redirects_fail_before_network(self):
+        with patch("check_artifactory.urllib.request.build_opener", side_effect=AssertionError("Network")):
+            for creds in ({}, {"username": "fixture", "password": ""}, {"username": None, "password": "fixture"}):
+                with self.subTest(creds=creds), self.assertRaises(ValueError):
+                    check_artifactory(creds, "2.2.23")
+        with self.assertRaisesRegex(ValueError, "refusing to forward credentials"):
+            NoRedirect().redirect_request(None, None, 302, "", {}, "https://fixture.invalid")
 
 
 class StateTest(unittest.TestCase):
@@ -324,6 +360,29 @@ source "{SCRIPTS}/run-promotion-validation.sh"
         for publisher in ("promote-images.sh", "publish-helm.sh", "publish-olm.sh", "preflight-release.sh"):
             self.assertNotIn(publisher, entrypoint)
 
+    def test_publishers_use_plain_github_token_and_nonsecret_commit_identity(self):
+        for name in ("run-promotion.sh", "publish-helm.sh", "publish-olm.sh"):
+            script = (SCRIPTS / name).read_text()
+            with self.subTest(script=name):
+                self.assertIn("GH_TOKEN=$(get_secret github-token)", script)
+                self.assertNotIn("github-instana-agent-build", script)
+                self.assertNotIn(".token'", script)
+        helm = (SCRIPTS / "publish-helm.sh").read_text()
+        self.assertIn('config user.email "instanacd@instana.com"', helm)
+        self.assertIn('config user.name "Instana CD"', helm)
+
+    def test_redhat_registry_secret_used_for_copy_and_preflight_login(self):
+        for name in ("promote-images.sh", "preflight-release.sh"):
+            script = (SCRIPTS / name).read_text()
+            with self.subTest(script=name):
+                self.assertIn("get_secret redhat-registry", script)
+                self.assertNotIn("quay-redhat-isv-push-credentials", script)
+                self.assertIn(".username", script)
+                self.assertIn(".password", script)
+        preflight = (SCRIPTS / "preflight-release.sh").read_text()
+        self.assertIn(".token | strings | select(length > 0)", preflight)
+        self.assertNotIn("get_secret redhat-pyxis-api-token", preflight)
+
     def test_cos_upload_failure_is_not_hidden_in_a_conditional(self):
         result = self.bash(f'''
 source "{SCRIPTS}/release-common.sh"
@@ -380,6 +439,24 @@ skopeo() {{
   esac
 }}
 copy_version icr.io/instana/operator:2.2.24 fixture
+''', expected=rc)
+
+    def test_release_icr_uses_json_username_and_password(self):
+        script = (SCRIPTS / "promote-images.sh").read_text()
+        phase = script.split("  versioned)\n", 1)[1].split("    ;;", 1)[0]
+        for creds, rc in (({"username": "release-user", "password": "release-password"}, 0),
+                          ({"username": "release-user"}, 4),
+                          ({"username": "", "password": "release-password"}, 4)):
+            with self.subTest(creds=creds):
+                self.bash(f'''
+VERSION=2.2.24 ICR_KEY=fixture
+get_secret() {{ [[ $1 == icr-rel-api-key ]]; echo '{json.dumps(creds)}'; }}
+copy_version() {{
+  if [[ $1 == icr.io/instana-rel/* ]]; then
+    [[ $2 == release-user:release-password ]] || exit 99
+  fi
+}}
+{phase}
 ''', expected=rc)
 
     def test_frozen_checkout_fetches_sha_before_checkout(self):
@@ -651,6 +728,7 @@ get_env() {{
 get_secret() {{
   case "$1" in
     ibmcloud-api-key|github-token|ghe-token) echo fixture ;;
+    taas-artifactory-read-writer-creds) echo '{{"username":"fixture","password":"fixture"}}' ;;
     *) echo 'Unexpected publication secret' >&2; exit 99 ;;
   esac
 }}
@@ -668,6 +746,9 @@ skopeo() {{
 python3() {{
   if [[ $1 == */release_api.py ]]; then
     [[ $2 == check-tags ]] || {{ echo 'Unexpected GitHub write' >&2; exit 99; }}
+  elif [[ $1 == */check_artifactory.py ]]; then
+    [[ $TAAS_CREDS == '{{"username":"fixture","password":"fixture"}}' ]] || exit 99
+    [[ ${{VALIDATION_TEST_ARTIFACTORY_FAIL:-false}} != true ]] || return 1
   else command python3 "$@"; fi
 }}
 ibmcloud() {{
@@ -702,12 +783,21 @@ bash "{SCRIPTS}/run-promotion-validation.sh"
             report = json.loads(report_file.read_text())
             self.assertEqual(report["status"], "passed")
             self.assertEqual(report["checks"], ["tools", "candidate-and-e2e", "source-image-digest",
-                                                "github-tags-and-version", "repackage-public-artifacts",
+                                                "github-tags-and-version", "artifactory-read", "repackage-public-artifacts",
                                                 "public-artifact-smoke"])
             self.assertFalse(report["published"])
             self.assertFalse(report["e2e-check-bypassed"])
             self.assertEqual(len(report["public-artifact-sha256"]), 3)
             self.assertEqual(stored_originals, {p: p.read_bytes() for p in store.rglob("*") if p.is_file()})
+            failed_artifactory = subprocess.run(
+                ["bash", "-c", validation_harness],
+                env=validation_env | {"VALIDATION_TEST_ARTIFACTORY_FAIL": "true"},
+                capture_output=True, text=True)
+            self.assertNotEqual(failed_artifactory.returncode, 0)
+            failure_report = json.loads(report_file.read_text())
+            self.assertEqual(failure_report["step"], "artifactory-read")
+            self.assertEqual(failure_report["status"], "failed")
+            self.assertFalse(failure_report["published"])
             # Feature candidates require exact validation-only overrides, recorded in the report.
             bom_path = store / STATE / "bom.json"
             bom_path.write_text(json.dumps(value | {"source-branch": "test-release", "charts-branch": "test-charts"}))
