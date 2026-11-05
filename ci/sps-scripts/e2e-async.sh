@@ -323,9 +323,6 @@ elif [[ "${E2E_MODE}" == "helm" ]]; then
     --output json "${HELM_TGZ}"
   verify_sha256 "${HELM_TGZ}" "$(jq -er '.checksums["helm-chart"]' <<< "${BOM_JSON}")"
   export INSTANA_AGENT_HELM_CHART_LOCATION="${HELM_TGZ}"
-  # The candidate includes corrected ETCD CA precedence; standalone chart CI
-  # must remain compatible with the older publicly released operator.
-  export EXPECT_CUSTOM_ETCD_CA=true
   echo "INSTANA_AGENT_HELM_CHART_LOCATION=${INSTANA_AGENT_HELM_CHART_LOCATION}"
   (cd "${CHARTS_DIRECTORY}" && timeout --signal=TERM --kill-after=60s 55m make e2e) \
     2>&1 | tee "${LOG_FILE}" || E2E_EXIT_CODE=$?

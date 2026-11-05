@@ -5,7 +5,8 @@
 The release-build PR adds candidate creation and async E2E. The stacked promotion
 PR adds the validation-only and production entrypoints. Neither changes the
 existing release publishers, Concourse triggers, or chart version-file ownership.
-Retirement and deletion of legacy machinery belong to blocked cleanup PRs.
+Retirement and deletion of legacy machinery belong to this blocked cleanup layer.
+See [the cutover checklist](RELEASE-CUTOVER.md) before merging either cleanup PR.
 
 The companion charts branch is also named `release-build-unified`. Both source
 repositories must contain build support before using their `main` branches for a
@@ -51,8 +52,9 @@ must require `build-complete` and verify its recorded content.
 Each `e2e-async.sh` invocation has its own workspace, authenticates independently,
 acquires a cluster reslock, verifies candidate inputs and runs one installer suite.
 Helm suites download the staged chart and authenticate private image pulls. They
-set `EXPECT_CUSTOM_ETCD_CA=true` because this candidate includes the precedence
-fix; standalone charts CI retains its public-operator expectation until cutover.
+assert corrected custom-CA precedence. The temporary candidate expectation switch
+is removed in cleanup, which requires the fixed operator to be publicly available
+for standalone charts CI first.
 
 Evidence contains candidate identity, source SHAs, image digest, checksums and a
 checksummed log path. Failed attempts cannot replace the durable successful record.
