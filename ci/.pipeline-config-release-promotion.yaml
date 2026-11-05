@@ -1,0 +1,21 @@
+# Manual only. Required property: release-state-path=<exact scoped path>/bom.json.
+# (c) Copyright IBM Corp. 2026
+# Emergency bypass: skip-e2e-check=true. Configure this trigger with one concurrent
+# run maximum: registries, Helm index and catalog PRs are shared publication state.
+version: '2'
+tasks:
+  simple-execute:
+    runtimeClassName: large
+    include:
+      - dind
+    steps:
+      - name: execute
+        onError: stopAndFail
+        include:
+          - docker-socket
+        image: icr.io/instana-agent-dev/agent-delivery/build-image:main
+        script: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          SCRIPTS="${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/ci/sps-scripts"
+          bash "${SCRIPTS}/run-promotion.sh"
