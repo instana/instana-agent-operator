@@ -287,8 +287,11 @@ credentials into this pipeline:
 - `ghe-token`: read charts tags on GitHub Enterprise.
 - `taas-artifactory-read-writer-creds`: JSON with `username` and `password`, using
   the same credential as promotion. Validation only issues an authenticated GET
-  to the Artifactory storage API for `instana-agent-<previous-version>.tgz` in
-  `instana-team-release-agent-helm-local`. That chart must exist and be readable;
+  to the Artifactory storage API for `instana-agent-<version>.tgz` in
+  `instana-team-release-agent-helm-local`. The version is the highest stable semantic
+  version among all tags in `instana/instana-agent-charts` on GitHub Enterprise,
+  fetched read-only with `ghe-token` (not the previous operator version).
+  The selected chart must exist; there is no fallback to older versions.
   missing/invalid credentials, HTTP errors, redirects and unexpected metadata fail
   validation at `artifactory-read`. No upload is attempted, and success does not
   prove write permission (or authentication if anonymous reads are permitted).
@@ -313,7 +316,8 @@ Preflight, gcloud and gsutil are **not required** by this entrypoint.
 3. Inspect the readable dev image tag and compare it to the BOM index digest.
 4. Read existing operator/charts tags and published operator release versions;
    reject tag conflicts or an attempt to publish an older version.
-5. Read previous chart metadata from Artifactory using the promotion credential.
+5. Resolve the latest stable charts tag and read its chart metadata from Artifactory
+   using the promotion credential.
 6. Repackage chart, YAML and OLM **locally** using the exact same transformation as
    promotion. Staged COS artifacts and pass pointers stay unchanged.
 7. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.

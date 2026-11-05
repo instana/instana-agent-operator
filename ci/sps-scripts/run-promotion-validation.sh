@@ -105,7 +105,7 @@ COMPLETED_CHECKS+=(github-tags-and-version)
 CURRENT_STEP=artifactory-read
 export TAAS_CREDS
 TAAS_CREDS=$(get_secret taas-artifactory-read-writer-creds)
-python3 "${SCRIPT_DIR}/check_artifactory.py" "${SELECTED_BOM_FILE}"
+python3 "${SCRIPT_DIR}/check_artifactory.py"
 unset TAAS_CREDS
 COMPLETED_CHECKS+=(artifactory-read)
 

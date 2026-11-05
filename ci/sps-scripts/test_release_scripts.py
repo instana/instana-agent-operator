@@ -20,7 +20,7 @@ import zipfile
 
 from release_api import GitHub, check_not_older_release, discover, ensure_release, ensure_tag, semver
 from release_state import validate_bom, validate_success
-from check_artifactory import check as check_artifactory, NoRedirect
+from check_artifactory import check as check_artifactory, latest_chart_version, NoRedirect
 from publish_olm import bundle_files, publish, verify_catalog_files
 
 
@@ -126,13 +126,22 @@ class VersionsTest(unittest.TestCase):
 
 
 class ArtifactoryTest(unittest.TestCase):
-    def test_authenticated_get_of_previous_chart_metadata(self):
-        metadata = {"repo": "instana-team-release-agent-helm-local", "path": "/instana-agent-2.2.23.tgz"}
+    def test_latest_chart_tag_uses_semantic_order_and_ignores_prereleases(self):
+        self.assertEqual(latest_chart_version(FakeAPI(["2.0.9", "v2.0.54", "2.0.100-rc1", "main"])), "2.0.54")
+        with self.assertRaisesRegex(ValueError, "No stable"):
+            latest_chart_version(FakeAPI(["2.0.100-rc1"]))
+        with self.assertRaisesRegex(RuntimeError, "HTTP 401"):
+            charts = FakeAPI()
+            charts.pages = lambda path: (_ for _ in ()).throw(RuntimeError("HTTP 401"))
+            latest_chart_version(charts)
+
+    def test_authenticated_get_of_chart_metadata(self):
+        metadata = {"repo": "instana-team-release-agent-helm-local", "path": "/instana-agent-2.0.54.tgz"}
         with patch("check_artifactory.urllib.request.build_opener") as opener:
             response = opener.return_value.open.return_value.__enter__.return_value
             response.status = 200
             response.read.return_value = json.dumps(metadata).encode()
-            check_artifactory({"username": "fixture", "password": "fixture"}, "2.2.23")
+            check_artifactory({"username": "fixture", "password": "fixture"}, FakeAPI(["2.0.9", "2.0.54"]))
             request = opener.return_value.open.call_args.args[0]
             self.assertEqual(request.get_method(), "GET")
             self.assertIsNone(request.data)
@@ -140,21 +149,21 @@ class ArtifactoryTest(unittest.TestCase):
             self.assertTrue(request.full_url.endswith("/api/storage/" + metadata["repo"] + metadata["path"]))
             response.read.return_value = b'{}'
             with self.assertRaisesRegex(ValueError, "unexpected chart metadata"):
-                check_artifactory({"username": "fixture", "password": "fixture"}, "2.2.23")
+                check_artifactory({"username": "fixture", "password": "fixture"}, FakeAPI(["2.0.54"]))
 
     def test_http_failures_do_not_pass_or_expose_credentials(self):
         for code in (301, 401, 403, 404, 500):
             with self.subTest(code=code), patch("check_artifactory.urllib.request.build_opener") as opener:
                 opener.return_value.open.side_effect = urllib.error.HTTPError("fixture", code, "secret", {}, None)
                 with self.assertRaisesRegex(ValueError, f"HTTP {code}") as raised:
-                    check_artifactory({"username": "fixture", "password": "sensitive"}, "2.2.23")
+                    check_artifactory({"username": "fixture", "password": "sensitive"}, FakeAPI(["2.0.54"]))
                 self.assertNotIn("sensitive", str(raised.exception))
 
     def test_invalid_credentials_and_redirects_fail_before_network(self):
         with patch("check_artifactory.urllib.request.build_opener", side_effect=AssertionError("Network")):
             for creds in ({}, {"username": "fixture", "password": ""}, {"username": None, "password": "fixture"}):
                 with self.subTest(creds=creds), self.assertRaises(ValueError):
-                    check_artifactory(creds, "2.2.23")
+                    check_artifactory(creds, FakeAPI(["2.0.54"]))
         with self.assertRaisesRegex(ValueError, "refusing to forward credentials"):
             NoRedirect().redirect_request(None, None, 302, "", {}, "https://fixture.invalid")
 
