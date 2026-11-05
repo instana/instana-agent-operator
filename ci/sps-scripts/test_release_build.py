@@ -107,9 +107,9 @@ class VersionsTest(unittest.TestCase):
 
 
 class ShellTest(unittest.TestCase):
-    def test_chart_candidate_opts_into_fixed_etcd_ca_precedence(self):
+    def test_chart_candidate_uses_the_staged_chart(self):
         script = (SCRIPTS / "e2e-async.sh").read_text()
-        self.assertIn("export EXPECT_CUSTOM_ETCD_CA=true", script)
+        self.assertIn('export INSTANA_AGENT_HELM_CHART_LOCATION="${HELM_TGZ}"', script)
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="release-test-", dir="/tmp/opencode")
@@ -243,15 +243,13 @@ DISPATCH_FAILED=0
 
 @unittest.skipUnless(os.environ.get("RELEASE_TEST_TOOL_DIR"), "Set RELEASE_TEST_TOOL_DIR for real Helm/yq smoke")
 class RealRepackageTest(unittest.TestCase):
-    def test_chart_build_preserves_legacy_version_and_candidate_image_tag(self):
+    def test_chart_build_defaults_to_dev_and_preserves_candidate_image_tag(self):
         import yaml
         root = SCRIPTS.parents[1]
         charts = root.parent / "instana-agent-charts"
         with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
             work = Path(tmp)
             shutil.copytree(charts / "canonical", work / "canonical")
-            (work / "versions").mkdir()
-            (work / "versions/INSTANA_AGENT_CHART_VERSION").write_text("2.0.56\n")
             subprocess.run(["git", "init", str(work)], check=True, capture_output=True)
             dev_ref = bom()["images"]["operator-manifest"]
             docs = [yaml.safe_load(p.read_text()) for p in (root / "config/crd/bases").glob("*.yaml")]
@@ -263,7 +261,7 @@ class RealRepackageTest(unittest.TestCase):
             env = dict(os.environ, PATH=os.environ["RELEASE_TEST_TOOL_DIR"] + ":" + os.environ["PATH"],
                        OPERATOR_YAML=str(manifest))
             env.pop("CHART_VERSION", None)
-            for chart_version in ("2.0.56", VERSION):
+            for chart_version in ("0.0.0-dev", VERSION):
                 if chart_version == VERSION:
                     env["CHART_VERSION"] = VERSION
                 result = subprocess.run(["bash", str(charts / "ci/build.sh")], cwd=work, env=env,
