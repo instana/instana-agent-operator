@@ -339,6 +339,37 @@ cat() {{ echo fixture-key; }}
 verify_tag {DEV}:human-readable sha256:expected
 ''', expected=1)
 
+    def test_gcp_read_check_authenticates_reads_only_and_cleans_up(self):
+        for failure, rc in (("none", 0), ("auth", 23), ("read", 24), ("index", 1)):
+            with self.subTest(failure=failure):
+                self.bash(f'''
+get_secret() {{
+  [[ $1 == gcp-bucket-write-agents-io-service-key ]] || exit 99
+  echo '{{"type":"service_account"}}'
+}}
+gcloud() {{
+  [[ $1 == auth && $2 == activate-service-account && $3 == --key-file ]] || exit 99
+  [[ $CLOUDSDK_CONFIG == "$WORKSPACE"/gcp-read-*/gcloud ]] || exit 99
+  [[ -s $4 && $(stat -c %a "$4") == 600 ]] || exit 99
+  [[ {failure} != auth ]] || return 23
+}}
+gsutil() {{
+  [[ $2 == gs://agents.instana.io/helm/index.yaml ]] || exit 99
+  [[ {failure} != read ]] || return 24
+  case "$1" in
+    stat) : ;;
+    cp)
+      [[ $3 == "$WORKSPACE"/gcp-read-*/index.yaml ]] || exit 99
+      if [[ {failure} == index ]]; then echo '{{}}' > "$3"
+      else echo '{{"apiVersion":"v1","entries":{{"instana-agent":[{{"version":"2.0.54"}}]}}}}' > "$3"; fi ;;
+    *) exit 99 ;;
+  esac
+}}
+export -f get_secret gcloud gsutil
+bash "{SCRIPTS}/check-gcp-read.sh"
+''', expected=rc)
+                self.assertEqual(list(self.workspace.glob("gcp-read-*")), [])
+
     def test_validation_entrypoint_reports_tool_failure_without_publication(self):
         result = self.bash(f'''
 get_env() {{
@@ -738,6 +769,7 @@ get_secret() {{
   case "$1" in
     ibmcloud-api-key|github-token|ghe-token) echo fixture ;;
     taas-artifactory-read-writer-creds) echo '{{"username":"fixture","password":"fixture"}}' ;;
+    gcp-bucket-write-agents-io-service-key) echo '{{"type":"service_account"}}' ;;
     *) echo 'Unexpected publication secret' >&2; exit 99 ;;
   esac
 }}
@@ -778,7 +810,22 @@ ibmcloud() {{
     *) exit 99 ;;
   esac
 }}
-for cmd in curl git gcloud gsutil docker preflight trigger-task; do
+gcloud() {{
+  [[ $1 == auth && $2 == activate-service-account && $3 == --key-file && -s $4 ]] || exit 99
+  [[ ${{VALIDATION_TEST_GCP_FAIL:-false}} != true ]] || return 23
+}}
+gsutil() {{
+  [[ $2 == gs://agents.instana.io/helm/index.yaml ]] || exit 99
+  case "$1" in
+    stat) : ;;
+    cp)
+      [[ $3 == "$WORKSPACE"/gcp-read-*/index.yaml ]] || exit 99
+      echo '{{"apiVersion":"v1","entries":{{"instana-agent":[{{"version":"2.0.54"}}]}}}}' > "$3" ;;
+    *) exit 99 ;;
+  esac
+}}
+export -f gcloud gsutil
+for cmd in curl git docker preflight trigger-task; do
   eval "$cmd() {{ echo 'Unexpected publication command' >&2; exit 99; }}"
   export -f "$cmd"
 done
@@ -792,7 +839,8 @@ bash "{SCRIPTS}/run-promotion-validation.sh"
             report = json.loads(report_file.read_text())
             self.assertEqual(report["status"], "passed")
             self.assertEqual(report["checks"], ["tools", "candidate-and-e2e", "source-image-digest",
-                                                "github-tags-and-version", "artifactory-read", "repackage-public-artifacts",
+                                                "github-tags-and-version", "artifactory-read", "gcp-read",
+                                                "repackage-public-artifacts",
                                                 "public-artifact-smoke"])
             self.assertFalse(report["published"])
             self.assertFalse(report["e2e-check-bypassed"])
@@ -805,6 +853,15 @@ bash "{SCRIPTS}/run-promotion-validation.sh"
             self.assertNotEqual(failed_artifactory.returncode, 0)
             failure_report = json.loads(report_file.read_text())
             self.assertEqual(failure_report["step"], "artifactory-read")
+            self.assertEqual(failure_report["status"], "failed")
+            self.assertFalse(failure_report["published"])
+            failed_gcp = subprocess.run(
+                ["bash", "-c", validation_harness],
+                env=validation_env | {"VALIDATION_TEST_GCP_FAIL": "true"},
+                capture_output=True, text=True)
+            self.assertNotEqual(failed_gcp.returncode, 0)
+            failure_report = json.loads(report_file.read_text())
+            self.assertEqual(failure_report["step"], "gcp-read")
             self.assertEqual(failure_report["status"], "failed")
             self.assertFalse(failure_report["published"])
             # Feature candidates require exact validation-only overrides, recorded in the report.

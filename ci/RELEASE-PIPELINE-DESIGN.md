@@ -285,6 +285,12 @@ credentials into this pipeline:
 - `ibmcloud-api-key`: read candidate BOM/artifacts and E2E status/log objects.
 - `github-token`: read public operator tags/releases.
 - `ghe-token`: read charts tags on GitHub Enterprise.
+- `gcp-bucket-write-agents-io-service-key`: the promotion service-account JSON key.
+  Validation authenticates with `gcloud auth activate-service-account` in an isolated
+  local configuration, reads metadata and downloads `gs://agents.instana.io/helm/index.yaml`,
+  and checks it contains an Instana agent chart index. Authentication, read or index
+  errors fail at `gcp-read`. Temporary credentials/configuration are deleted on exit.
+  No GCS write is attempted; success does not prove upload permissions.
 - `taas-artifactory-read-writer-creds`: JSON with `username` and `password`, using
   the same credential as promotion. Validation only issues an authenticated GET
   to the Artifactory storage API for `instana-agent-<version>.tgz` in
@@ -300,13 +306,13 @@ credentials into this pipeline:
   necessary.
 
 Do **not** provision GitHub publication permissions, Quay/Pyxis write credentials,
-release ICR credentials, GCP writers, cluster credentials or reslock
+release ICR credentials, cluster credentials or reslock
 secrets for validation. The GitHub `check-tags` client also rejects write requests
 at runtime; it does not create tags if they are absent.
 
 The image needs Python 3, jq, yq v4, Helm, skopeo, IBM CLI/COS plugin and standard
 shell/archive tools. As in promotion, startup installs Python YAML, zip and unzip.
-Preflight, gcloud and gsutil are **not required** by this entrypoint.
+Gcloud and gsutil are also required for the read-only GCS check; preflight is not required.
 
 ### What runs and what it proves
 
@@ -318,9 +324,10 @@ Preflight, gcloud and gsutil are **not required** by this entrypoint.
    reject tag conflicts or an attempt to publish an older version.
 5. Resolve the latest stable charts tag and read its chart metadata from Artifactory
    using the promotion credential.
-6. Repackage chart, YAML and OLM **locally** using the exact same transformation as
+6. Authenticate the GCP service account and read the Helm index from GCS.
+7. Repackage chart, YAML and OLM **locally** using the exact same transformation as
    promotion. Staged COS artifacts and pass pointers stay unchanged.
-7. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.
+8. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.
 
 It writes `promotion-validation-report.json` in the workspace and prints it to
 the step log, including failed step, completed checks, BOM hash, public artifact

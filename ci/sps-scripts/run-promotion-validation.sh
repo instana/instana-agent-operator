@@ -79,7 +79,7 @@ fi
 
 CURRENT_STEP=tools
 dnf install -y python3-pyyaml zip unzip
-for tool in python3 jq yq helm skopeo ibmcloud; do command -v "${tool}" >/dev/null; done
+for tool in python3 jq yq helm skopeo ibmcloud gcloud gsutil; do command -v "${tool}" >/dev/null; done
 COMPLETED_CHECKS+=(tools)
 
 # Same candidate, artifact and E2E gates; explicit branch overrides are validation-only.
@@ -108,6 +108,10 @@ TAAS_CREDS=$(get_secret taas-artifactory-read-writer-creds)
 python3 "${SCRIPT_DIR}/check_artifactory.py"
 unset TAAS_CREDS
 COMPLETED_CHECKS+=(artifactory-read)
+
+CURRENT_STEP=gcp-read
+bash "${SCRIPT_DIR}/check-gcp-read.sh"
+COMPLETED_CHECKS+=(gcp-read)
 
 CURRENT_STEP=repackage-public-artifacts
 bash "${SCRIPT_DIR}/repackage-helm.sh"
