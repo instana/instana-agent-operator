@@ -16,7 +16,13 @@ if [[ "${SKIP_E2E_CHECK}" != true && "${SKIP_E2E_CHECK}" != false ]]; then exit 
 cos_login
 BOM_FILE="${WORKSPACE}/selected-bom.json"
 cos_get "${RELEASE_STATE_PATH}" "${BOM_FILE}"
-python3 "${SCRIPT_DIR}/release_state.py" bom "${BOM_FILE}" "${RELEASE_STATE_PATH}"
+if [[ "${1:-}" == --validation-only ]]; then
+  python3 "${SCRIPT_DIR}/release_state.py" validation-bom "${BOM_FILE}" "${RELEASE_STATE_PATH}" \
+    "$(get_env allowed-release-branch-operator main)" "$(get_env allowed-release-branch-chart main)"
+else
+  # Production promotion never reads validation branch override properties.
+  python3 "${SCRIPT_DIR}/release_state.py" bom "${BOM_FILE}" "${RELEASE_STATE_PATH}"
+fi
 COS_STATE_PATH=$(jq -er '."cos-state-path"' "${BOM_FILE}")
 set_env cos-state-path "${COS_STATE_PATH}"
 export_env cos-state-path

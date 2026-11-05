@@ -1,6 +1,7 @@
 # Manual validation only: no promotion or publication commands.
 # (c) Copyright IBM Corp. 2026
 # Required: release-state-path=<exact candidate prefix>/bom.json.
+# Validation only: allowed-release-branch-operator and allowed-release-branch-chart default to main.
 # Optional: validation-upload-report=true (default false); writes only a report
 # under pipeline-validation/<validation-run-id>/report.json in the COS bucket.
 version: '2'

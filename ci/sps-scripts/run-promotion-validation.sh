@@ -10,6 +10,8 @@ COS_REGION=$(get_env cos-region us-south)
 RELEASE_STATE_PATH=$(get_env release-state-path "")
 SKIP_E2E_CHECK=$(get_env skip-e2e-check false)
 UPLOAD_REPORT=$(get_env validation-upload-report false)
+SOURCE_BRANCH=$(get_env allowed-release-branch-operator main)
+CHARTS_BRANCH=$(get_env allowed-release-branch-chart main)
 VALIDATION_ID="$(date -u '+%Y%m%d%H%M%S')-$(cat /proc/sys/kernel/random/uuid)"
 STARTED_AT=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 REPORT_FILE="${WORKSPACE}/promotion-validation-report.json"
@@ -41,10 +43,12 @@ write_validation_report() {
       --arg id "${VALIDATION_ID}" --arg bom "${RELEASE_STATE_PATH}" --arg hash "${bom_sha}" \
       --arg started "${STARTED_AT}" --arg finished "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
       --arg run "${PIPELINE_RUN_URL:-}" --arg bypass "${SKIP_E2E_CHECK}" \
+      --arg source_branch "${SOURCE_BRANCH}" --arg charts_branch "${CHARTS_BRANCH}" \
       --argjson checks "${checks}" --argjson artifacts "${public_sha}" \
       '{mode:"validation-only", status:$status, step:$step, "validation-id":$id,
         "release-state-path":$bom, "bom-sha256":$hash, "started-at":$started,"finished-at":$finished,
         "pipeline-run-url":$run, "e2e-check-bypassed":($bypass == "true"), checks:$checks,
+        "expected-branches":{"operator":$source_branch,"charts":$charts_branch},
         "public-artifact-sha256":$artifacts, published:false}' > "${REPORT_FILE}"; then
     echo 'ERROR: could not write validation report' >&2
     exit 1
@@ -78,10 +82,11 @@ dnf install -y python3-pyyaml zip unzip
 for tool in python3 jq yq helm skopeo ibmcloud; do command -v "${tool}" >/dev/null; done
 COMPLETED_CHECKS+=(tools)
 
-# This is the same candidate, branch, artifact and E2E gate as real promotion.
+# Same candidate, artifact and E2E gates; explicit branch overrides are validation-only.
 # It logs in explicitly, reads COS, and never writes candidate/evidence objects.
 CURRENT_STEP=candidate-and-e2e
-bash "${SCRIPT_DIR}/validate-release.sh"
+echo "Validation expected branches: operator=${SOURCE_BRANCH}, charts=${CHARTS_BRANCH}"
+bash "${SCRIPT_DIR}/validate-release.sh" --validation-only
 COMPLETED_CHECKS+=(candidate-and-e2e)
 
 CURRENT_STEP=source-image-digest

@@ -259,12 +259,17 @@ and create a **manual trigger only**. Start with these properties:
 | `cos-region` | `us-south` unless using another region |
 | `skip-e2e-check` | `false`; setting true is explicitly recorded as a bypass |
 | `validation-upload-report` | `false` by default; opt in to a report-only COS write |
+| `allowed-release-branch-operator` | `main`; override with the candidate's exact operator branch for testing |
+| `allowed-release-branch-chart` | `main`; override with the candidate's exact charts branch for testing |
 
-Validation uses the **same production candidate gates**, including both source
-branches being `main`. Feature-branch candidates fail that gate even though this
-entrypoint cannot publish. The bypass property skips only E2E evidence validation;
-it does not relax branch, checksum, image, version or tag checks. A bypassed result
-is not proof that all E2E scenarios passed.
+Validation uses the **same production candidate gates**, except that its expected
+source branches can be overridden for testing with `allowed-release-branch-operator` and
+`allowed-release-branch-chart`. Both default to `main` and must match the BOM exactly.
+The report records these expected branches. Production promotion ignores these
+properties and still requires both branches to be `main`. A feature-branch pass
+does not establish production branch eligibility. The `skip-e2e-check` property
+skips only E2E evidence validation; it does not relax branch, checksum, image,
+version or tag checks. A bypassed result is not proof that all E2E scenarios passed.
 
 ### Minimum credentials and tools
 

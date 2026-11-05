@@ -127,6 +127,28 @@ class StateTest(unittest.TestCase):
     def test_exact_candidate(self):
         validate_bom(bom(), STATE + "/bom.json")
 
+    def test_validation_branch_overrides_are_exact_and_keep_other_gates(self):
+        value = bom() | {"source-branch": "test-release", "charts-branch": "test-charts"}
+        validate_bom(value, STATE + "/bom.json", "test-release", "test-charts")
+        for source, charts in (("main", "test-charts"), ("test-release", "main"), ("", "test-charts")):
+            with self.subTest(source=source, charts=charts), self.assertRaises(ValueError):
+                validate_bom(value, STATE + "/bom.json", source, charts)
+        with self.assertRaises(ValueError):
+            validate_bom(value | {"build-complete": False}, STATE + "/bom.json", "test-release", "test-charts")
+        with self.assertRaises(ValueError):
+            validate_bom(value, STATE + "/bom.json")
+
+    def test_production_cli_ignores_validation_branch_properties(self):
+        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+            path = Path(tmp) / "bom.json"
+            path.write_text(json.dumps(bom() | {"source-branch": "test-release"}))
+            result = subprocess.run(
+                ["python3", str(SCRIPTS / "release_state.py"), "bom", str(path), STATE + "/bom.json"],
+                env=os.environ | {"allowed-release-branch-operator": "test-release"},
+                capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("operator='main'", result.stderr)
+
     def test_rejects_mutable_pointer_wrong_branch_and_incomplete_build(self):
         for change in ({"source-branch": "dev"}, {"charts-branch": "dev"}, {"build-complete": False},
                        {"release-tag": "v2.2.23"}, {"candidate-id": "minute-only"}):
@@ -621,6 +643,8 @@ get_env() {{
     release-state-path) echo {STATE}/bom.json ;;
     skip-e2e-check) echo false ;;
     validation-upload-report) echo "$VALIDATION_TEST_UPLOAD" ;;
+    allowed-release-branch-operator) echo "${{VALIDATION_TEST_SOURCE_BRANCH:-main}}" ;;
+    allowed-release-branch-chart) echo "${{VALIDATION_TEST_CHARTS_BRANCH:-main}}" ;;
     *) echo "${{2:-fixture}}" ;;
   esac
 }}
@@ -684,6 +708,22 @@ bash "{SCRIPTS}/run-promotion-validation.sh"
             self.assertFalse(report["e2e-check-bypassed"])
             self.assertEqual(len(report["public-artifact-sha256"]), 3)
             self.assertEqual(stored_originals, {p: p.read_bytes() for p in store.rglob("*") if p.is_file()})
+            # Feature candidates require exact validation-only overrides, recorded in the report.
+            bom_path = store / STATE / "bom.json"
+            bom_path.write_text(json.dumps(value | {"source-branch": "test-release", "charts-branch": "test-charts"}))
+            rejected = subprocess.run(["bash", "-c", validation_harness], env=validation_env,
+                                      capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            subprocess.run(["bash", "-c", validation_harness],
+                           env=validation_env | {"VALIDATION_TEST_SOURCE_BRANCH": "test-release",
+                                                 "VALIDATION_TEST_CHARTS_BRANCH": "test-charts"},
+                           check=True, capture_output=True, text=True)
+            feature_report = json.loads(report_file.read_text())
+            self.assertEqual(feature_report["status"], "passed")
+            self.assertEqual(feature_report["expected-branches"],
+                             {"operator": "test-release", "charts": "test-charts"})
+            self.assertFalse(feature_report["published"])
+            bom_path.write_bytes(stored_originals[bom_path])
             validation_env["VALIDATION_TEST_UPLOAD"] = "true"
             subprocess.run(["bash", "-c", validation_harness], env=validation_env,
                            check=True, capture_output=True, text=True)
