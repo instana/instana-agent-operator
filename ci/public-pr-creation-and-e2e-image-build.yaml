@@ -171,7 +171,9 @@ jobs:
     max_in_flight: 1
     plan:
       - get: instana-agent-operator-release
-        trigger: true
+        # Retired publisher: SPS release-promotion now owns all three catalog PRs.
+        # Apply this configuration / pause this job at cutover, before promotion.
+        trigger: false
         params:
           globs:
             - olm-*.zip
