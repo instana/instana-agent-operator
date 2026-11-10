@@ -112,7 +112,7 @@ class ShellTest(unittest.TestCase):
         self.assertIn("export EXPECT_CUSTOM_ETCD_CA=true", script)
 
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="release-test-", dir="/tmp/opencode")
+        self.temp = tempfile.TemporaryDirectory(prefix="release-test-")
         self.addCleanup(self.temp.cleanup)
         self.workspace = Path(self.temp.name)
 
@@ -247,7 +247,7 @@ class RealRepackageTest(unittest.TestCase):
         import yaml
         root = SCRIPTS.parents[1]
         charts = root.parent / "instana-agent-charts"
-        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             shutil.copytree(charts / "canonical", work / "canonical")
             (work / "versions").mkdir()
