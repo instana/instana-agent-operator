@@ -79,6 +79,9 @@ def verify_catalog_files(api, repo, commit_sha, prefix, expected):
 
 
 def publish(api, bom, archive, fork_owner):
+    # Preserve the identity used by the legacy publisher's git commit -s.
+    identity = {"name": "instanacd", "email": "instanacd@instana.com"}
+    signoff = f"Signed-off-by: {identity['name']} <{identity['email']}>"
     version = bom["version"]
     urls = []
     for owner, repo, operator in CATALOGS:
@@ -108,7 +111,8 @@ def publish(api, bom, archive, fork_owner):
                          for path, content in sorted(expected.items())],
             })
             commit = api.request(f"{fork}/git/commits", {
-                "message": f"operator {operator} ({version})\n\nSigned-off-by: Instana CI <instanacd@instana.com>",
+                "message": f"operator {operator} ({version})\n\n{signoff}",
+                "author": identity, "committer": identity,
                 "tree": tree["sha"], "parents": [base],
             })
             api.request(f"{fork}/git/refs", {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})

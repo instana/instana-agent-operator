@@ -193,6 +193,36 @@ class TagReleaseTest(unittest.TestCase):
 
 
 class CatalogTest(unittest.TestCase):
+    def test_new_catalog_commits_preserve_legacy_identity_and_signoff(self):
+        commits = []
+        api = FakeAPI()
+        api.pages = lambda path: []
+
+        def request(path, data=None, **kwargs):
+            if data is not None:
+                if path.endswith("/git/commits"):
+                    commits.append(data)
+                return {"sha": "created", "html_url": "https://fixture.invalid/pr"}
+            if "/git/ref/heads/" in path:
+                return None if kwargs.get("missing") else {"object": {"sha": "base"}}
+            if "/git/commits/" in path:
+                return {"tree": {"sha": "base-tree"}}
+            return {"default_branch": "main"}
+
+        api.request = request
+        with patch("publish_olm.bundle_files", return_value={"fixture": "approved"}), \
+                patch("publish_olm.catalog_files", return_value={}):
+            self.assertEqual(len(publish(api, bom(), "unused.zip", "instana")), 3)
+
+        self.assertEqual(len(commits), 3)
+        for commit in commits:
+            with self.subTest(message=commit["message"]):
+                identity = {"name": "instanacd", "email": "instanacd@instana.com"}
+                self.assertEqual(commit["author"], identity)
+                self.assertEqual(commit["committer"], identity)
+                self.assertTrue(commit["message"].endswith(
+                    "\n\nSigned-off-by: instanacd <instanacd@instana.com>"))
+
     def test_existing_branch_creates_pr_once_then_resumes(self):
         prs, writes = {}, []
         class API:
