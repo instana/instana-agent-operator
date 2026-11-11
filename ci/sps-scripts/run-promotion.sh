@@ -30,9 +30,6 @@ GHE_TOKEN=$(get_secret ghe-token)
 release_check_pass
 promotion_step github-tags-and-version 'Check release version and GitHub tags for conflicts' \
   python3 "${SCRIPT_DIR}/release_api.py" check-tags "${SELECTED_BOM_FILE}"
-export PROMOTION_PHASE=redhat
-promotion_step redhat-images 'Publish Red Hat images and verify digests' bash "${SCRIPT_DIR}/promote-images.sh"
-promotion_step redhat-preflight 'Run Red Hat preflight and certification submission' bash "${SCRIPT_DIR}/preflight-release.sh"
 promotion_step repackage-public-artifacts 'Repackage public Helm, OLM and operator YAML locally' \
   bash "${SCRIPT_DIR}/repackage-helm.sh"
 release_check_start public-artifact-paths 'Resolve local repackaged artifact paths'
@@ -44,6 +41,9 @@ export PUBLIC_OLM_ZIP="${WORKSPACE}/operator-public/olm-${VERSION}.zip"
 export PUBLIC_OPERATOR_YAML="${WORKSPACE}/operator-public/instana-agent-operator.yaml"
 release_check_pass
 promotion_step public-artifact-smoke 'Smoke-test repackaged public artifacts' bash "${SCRIPT_DIR}/smoke-public-artifacts.sh"
+export PROMOTION_PHASE=redhat
+promotion_step redhat-images 'Publish Red Hat images and verify digests' bash "${SCRIPT_DIR}/promote-images.sh"
+promotion_step redhat-preflight 'Run Red Hat preflight and certification submission' bash "${SCRIPT_DIR}/preflight-release.sh"
 export PROMOTION_PHASE=versioned
 promotion_step versioned-images 'Publish versioned images and verify digests' bash "${SCRIPT_DIR}/promote-images.sh"
 promotion_step publish-helm 'Publish public Helm artifacts' bash "${SCRIPT_DIR}/publish-helm.sh"

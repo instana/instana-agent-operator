@@ -8,7 +8,7 @@ import sys
 from release_api import semver
 
 
-def validate_bom(bom, path, source_branch="main", charts_branch="main"):
+def validate_bom(bom, path):
     version = bom["version"]
     if not semver(version) or version.startswith("v") or bom["release-tag"] != f"v{version}":
         raise ValueError("Invalid release version/tag")
@@ -20,11 +20,8 @@ def validate_bom(bom, path, source_branch="main", charts_branch="main"):
         raise ValueError("Candidate path does not match identity")
     if bom.get("build-complete") is not True:
         raise ValueError("Build not complete")
-    if not source_branch or not charts_branch:
-        raise ValueError("Expected branches must not be empty")
-    if bom["source-branch"] != source_branch or bom["charts-branch"] != charts_branch:
-        raise ValueError(f"Candidate branches must match operator={source_branch!r}, charts={charts_branch!r}; "
-                         f"got operator={bom['source-branch']!r}, charts={bom['charts-branch']!r}")
+    if bom["source-branch"] != "main" or bom["charts-branch"] != "main":
+        raise ValueError("Candidate operator and charts branches must both be main")
     for key in ("operator-sha", "charts-sha"):
         sha = bom["sources"][key]
         if not re.fullmatch(r"[a-f0-9]{40}", sha):
@@ -64,8 +61,6 @@ if __name__ == "__main__":
     bom = json.loads(Path(sys.argv[2]).read_text())
     if sys.argv[1] == "bom":
         validate_bom(bom, sys.argv[3])
-    elif sys.argv[1] == "validation-bom":
-        validate_bom(bom, sys.argv[3], sys.argv[4], sys.argv[5])
     elif sys.argv[1] == "success":
         validate_success(bom, json.loads(Path(sys.argv[3]).read_text()), sys.argv[4])
     else:

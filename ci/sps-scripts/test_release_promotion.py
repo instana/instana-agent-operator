@@ -238,6 +238,27 @@ class CatalogTest(unittest.TestCase):
 
 
 class ShellTest(ReleaseShellTest):
+    def test_artifact_checks_stop_before_any_publication(self):
+        (self.workspace / "selected-bom.json").write_text(json.dumps(bom()))
+        for failed_script in ("validate-release.sh", "repackage-helm.sh", "smoke-public-artifacts.sh"):
+            with self.subTest(failed_script=failed_script):
+                result = self.bash(f'''
+dnf() {{ :; }}
+yq() {{ :; }}
+preflight() {{ :; }}
+get_secret() {{ echo fixture; }}
+python3() {{ :; }}
+bash() {{
+  echo "Script: $1"
+  [[ $1 != */{failed_script} ]] || return 23
+}}
+source "{SCRIPTS}/run-promotion.sh"
+''', expected=23)
+                for publisher in ("promote-images.sh", "preflight-release.sh", "publish-helm.sh", "publish-olm.sh"):
+                    self.assertNotIn(publisher, result.stdout)
+                self.assertNotIn("promotion-receipt", result.stdout)
+
+
     def test_promotion_names_failed_stage_and_stops(self):
         (self.workspace / "selected-bom.json").write_text(json.dumps(bom()))
         result = self.bash(f'''
@@ -258,6 +279,8 @@ source "{SCRIPTS}/run-promotion.sh"
         self.assertIn("exit code 23", result.stderr)
         self.assertNotIn("publish-olm.sh", result.stdout)
         self.assertNotIn("secret-must-not-appear", result.stdout + result.stderr)
+        self.assertLess(result.stdout.index("PASSED [public-artifact-smoke]"),
+                        result.stdout.index("CHECK [redhat-images]"))
 
 
     def test_publishers_use_plain_github_token_and_nonsecret_commit_identity(self):

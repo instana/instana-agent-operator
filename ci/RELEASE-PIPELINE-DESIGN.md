@@ -1,7 +1,7 @@
 # Unified operator + Helm release pipeline
 
-Status: release-build and promotion-validation have run on the original combined
-branches (reported by the author). The split histories need fresh qualification;
+Status: release-build and credential/artifact validation have run
+(reported by the author). The separate validation pipeline is retired;
 **no production promotion has run**. Existing publishers remain active until an
 explicitly approved cutover. See the [architecture overview](RELEASE-PIPELINE-ARCHITECTURE.md)
 for review boundaries and rollout order.
@@ -205,18 +205,19 @@ their non-secret author identity, matching the existing Concourse convention.
    Freeze the selected BOM bytes locally for every remaining step.
 2. **Read-only tag/release preflight:** reject existing tags that resolve to other
    SHAs and any newer public release (no downgrading publication).
-3. **Stage Red Hat image:** copy from the BOM digest with `skopeo --all
-   --preserve-digests`; accept an existing version only when its digest matches.
-4. **Red Hat preflight:** use explicit Quay pull authentication and the Pyxis token;
-   failure stops before public ICR version/latest or Helm/release publication.
-5. **Prepare public artifacts:** download the checksummed staged inputs; change
+3. **Prepare public artifacts:** download the checksummed staged inputs; change
    operator image references to `icr.io/instana/instana-agent-operator:<version>`
    in chart defaults/fallback, operator YAML and OLM. Keep staged artifacts intact.
    Normalize tar/gzip/zip metadata so retries produce byte-identical outputs.
-6. **Offline public smoke test:** real `helm lint` and `helm template` with defaults
+4. **Offline public smoke test:** real `helm lint` and `helm template` with defaults
    and null-image fallback; inspect actual deployment images, both CRDs,
    chart/appVersion and CSV version/replaces/container references. Reject dev
    namespaces and placeholders anywhere in the final archives/manifests.
+   All candidate, checksum, repackaging and smoke gates run before any publication.
+5. **Stage Red Hat image:** copy from the BOM digest with `skopeo --all
+   --preserve-digests`; accept an existing version only when its digest matches.
+6. **Red Hat preflight:** use explicit Quay pull authentication and the Pyxis token;
+   failure stops before public ICR version/latest or Helm/release publication.
 7. **Promote versioned images:** public ICR and internal release ICR, from the
    frozen digest, all platforms, preserving and verifying the digest. An existing
    different versioned image is an error, not permission to overwrite.
@@ -248,115 +249,6 @@ archives, assets and PRs. Different bytes under an existing version fail closed.
 Red Hat scan/submission may repeat on retry. There is no transaction spanning all
 services: partial progress remains visible, but recovery must reuse the same
 candidate rather than rebuild/retag a different candidate under that version.
-
-## Validation-only SPS entrypoint
-
-Use **`ci/.pipeline-config-release-validation.yaml`** to provision a separate manual
-SPS simple pipeline. It runs `ci/sps-scripts/run-promotion-validation.sh`, not
-`run-promotion.sh`. No `dind`, Docker socket, registry copy, GitHub mutation,
-Helm publication, catalog PR, or Pyxis submission is part of this entrypoint.
-Creating this configuration does not start a run or change the real promotion
-configuration.
-
-### Configuration
-
-Use the same operator configuration repository/branch and worker integration as
-release-build. Set `pipeline-config` to `ci/.pipeline-config-release-validation.yaml`
-and create a **manual trigger only**. Start with these properties:
-
-| Property | Value |
-|---|---|
-| `release-state-path` | Required exact candidate `<prefix>/bom.json` printed by build |
-| `cos-bucket-name` | Candidate bucket, currently `instana-agent-operator-temp-artifacts` |
-| `cos-region` | `us-south` unless using another region |
-| `skip-e2e-check` | `false`; setting true is explicitly recorded as a bypass |
-| `validation-upload-report` | `false` by default; opt in to a report-only COS write |
-| `allowed-release-branch-operator` | `main`; override with the candidate's exact operator branch for testing |
-| `allowed-release-branch-chart` | `main`; override with the candidate's exact charts branch for testing |
-
-Validation uses the **same production candidate gates**, except that its expected
-source branches can be overridden for testing with `allowed-release-branch-operator` and
-`allowed-release-branch-chart`. Both default to `main` and must match the BOM exactly.
-The report records these expected branches. Production promotion ignores these
-properties and still requires both branches to be `main`. A feature-branch pass
-does not establish production branch eligibility. The `skip-e2e-check` property
-skips only E2E evidence validation; it does not relax branch, checksum, image,
-version or tag checks. A bypassed result is not proof that all E2E scenarios passed.
-
-### Minimum credentials and tools
-
-Prefer dedicated **read-only credentials**, rather than copying production writer
-credentials into this pipeline:
-
-- `ibmcloud-api-key`: read candidate BOM/artifacts and E2E status/log objects.
-- `github-token`: read public operator tags/releases.
-- `ghe-token`: read charts tags on GitHub Enterprise.
-- `gcp-bucket-write-agents-io-service-key`: the promotion service-account JSON key.
-  Validation authenticates with `gcloud auth activate-service-account` in an isolated
-  local configuration, reads metadata and downloads `gs://agents.instana.io/helm/index.yaml`,
-  and checks it contains an Instana agent chart index. Authentication, read or index
-  errors fail at `gcp-read`. Temporary credentials/configuration are deleted on exit.
-  No GCS write is attempted; success does not prove upload permissions.
-- `taas-artifactory-read-writer-creds`: JSON with `username` and `password`, using
-  the same credential as promotion. Validation only issues an authenticated GET
-  to the Artifactory storage API for `instana-agent-<version>.tgz` in
-  `instana-team-release-agent-helm-local`. The version is the highest stable semantic
-  version among all tags in `instana/instana-agent-charts` on GitHub Enterprise,
-  fetched read-only with `ghe-token` (not the previous operator version).
-  The selected chart must exist; there is no fallback to older versions.
-  missing/invalid credentials, HTTP errors, redirects and unexpected metadata fail
-  validation at `artifactory-read`. No upload is attempted, and success does not
-  prove write permission (or authentication if anonymous reads are permitted).
-- `/config/api-key`: mount a key with **dev operator image pull/read access only**,
-  using the same mount mechanism as release-build. No public ICR write access is
-  necessary.
-
-Do **not** provision GitHub publication permissions, Quay/Pyxis write credentials,
-release ICR credentials, cluster credentials or reslock
-secrets for validation. The GitHub `check-tags` client also rejects write requests
-at runtime; it does not create tags if they are absent.
-
-The image needs Python 3, jq, yq v4, Helm, skopeo, IBM CLI/COS plugin and standard
-shell/archive tools. As in promotion, startup installs Python YAML, zip and unzip.
-Gcloud and gsutil are also required for the read-only GCS check; preflight is not required.
-
-### What runs and what it proves
-
-1. Explicit COS login; validate the selected BOM, branch policy and completeness.
-2. Verify staged artifact checksums and each required scenario's successful E2E
-   evidence/log checksum, unless explicitly bypassed.
-3. Inspect the readable dev image tag and compare it to the BOM index digest.
-4. Read existing operator/charts tags and published operator release versions;
-   reject tag conflicts or an attempt to publish an older version.
-5. Resolve the latest stable charts tag and read its chart metadata from Artifactory
-   using the promotion credential.
-6. Authenticate the GCP service account and read the Helm index from GCS.
-7. Repackage chart, YAML and OLM **locally** using the exact same transformation as
-   promotion. Staged COS artifacts and pass pointers stay unchanged.
-8. Run the same real Helm render/lint and public manifest/CSV/CRD smoke checks.
-
-It writes `promotion-validation-report.json` in the workspace and prints it to
-the step log, including failed step, completed checks, BOM hash, public artifact
-hashes, run identity, bypass setting and `published: false`. Setup/validation
-failures return nonzero and attempt to produce a local failure report too.
-
-With `validation-upload-report=true`, the **only persistent object written** is:
-
-```text
-pipeline-validation/<UTC-seconds>-<UUID>/report.json
-```
-
-Grant write access only to that report prefix where supported, or leave uploads
-disabled for read-only COS access. No generated archives, candidate BOMs, E2E
-results, production artifacts or promotion receipts are uploaded. Report-upload
-failure also fails the run; otherwise a report can be retrieved from the logs.
-
-This establishes SPS execution, read access, candidate integrity and offline public
-artifact correctness. It does **not** prove production write permissions, registry
-copy compatibility, Pyxis certification, catalog PR creation/acceptance, OLM
-installation/upgrade, or cross-service publication recovery. Those still need
-isolated sandbox tests before production promotion. Keep the actual promotion
-trigger disabled while using this validation pipeline for qualification.
 
 ## Charts development and PR pipeline
 
@@ -395,9 +287,10 @@ trigger disabled while using this validation pipeline for qualification.
 7. Run a new nonpublishing release build; retry one child independently and verify
    durable pass-pointer behavior, digest checks, evidence identity and reslock
    cleanup. Old log candidates lack the new schema and require a new build.
-8. Validate SPS promotion admission with inert/no-write scripts and test destination
-   credentials without publication. Local fixture tests cannot prove real cloud
-   permissions, Pyxis acceptance or GitHub fork/PR rights.
+8. Credential and artifact checks have been qualified separately. The temporary
+   validation pipeline is removed; promotion retains candidate/E2E/checksum gates
+   and local repackaging/smoke tests before publication. Live Pyxis acceptance,
+   catalog acceptance and cross-service recovery remain external checks.
 9. Approve an exact final main-branch candidate. Production promotion remains a
    separately authorized action; **do not run it as a validation experiment**.
 

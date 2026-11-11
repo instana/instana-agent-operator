@@ -2,8 +2,8 @@
 
 ## Review and rollout boundaries
 
-The release-build PR adds candidate creation and async E2E. The stacked promotion
-PR adds the validation-only and production entrypoints. Neither changes the
+The release-build PR adds candidate creation and async E2E. The promotion
+PR adds the production entrypoint and its pre-publication checks. Neither changes the
 existing release publishers, Concourse triggers, or chart version-file ownership.
 Retirement and deletion of legacy machinery belong to blocked cleanup PRs.
 
@@ -97,46 +97,34 @@ The original combined branches remain untouched for comparison. Their build and
 promotion-validation runs are historical evidence tied to their frozen SHAs;
 rewritten commits require fresh qualification. No production promotion has run.
 
-## Promotion: shared preparation, separate entrypoints
+## Promotion: check and prepare before publication
 
 ```mermaid
 flowchart TD
     Select[Manual selection of exact COS BOM path] --> Gates[validate-release.sh: BOM, checksums and four E2E passes/logs]
-    Gates --> Validation[run-promotion-validation.sh]
     Gates --> Production[run-promotion.sh: explicitly authorized production run]
-    Validation --> Reads[Read dev image digest, GitHub/GHE tags, Artifactory and GCS index]
-    Reads --> Offline[Repackage and smoke-test public artifacts locally]
-    Offline --> Report[Local report; optional isolated validation report upload]
     Production --> Conflicts[Reject conflicting versions/tags]
-    Conflicts --> RedHat[Stage Red Hat image and run preflight]
-    RedHat --> PublicArtifacts[Repackage and smoke-test public artifacts]
-    PublicArtifacts --> Images[Publish versioned images, preserving digests]
+    Conflicts --> PublicArtifacts[Repackage and smoke-test public artifacts locally]
+    PublicArtifacts --> RedHat[Stage Red Hat image and run preflight]
+    RedHat --> Images[Publish versioned images, preserving digests]
     Images --> Helm[Publish Helm and GitHub release artifacts]
     Helm --> OLM[Submit community, certified and marketplace catalog PRs]
     OLM --> Latest[Activate latest image tags]
     Latest --> Receipt[Upload promotion receipt to candidate COS prefix]
 ```
 
-Both entrypoints use an exact `release-state-path` ending in `bom.json`. The shared
-gate requires a completed build, expected source branches, checksummed artifacts,
+Promotion uses an exact `release-state-path` ending in `bom.json`. Its candidate
+gate requires a completed build, both source branches recorded as `main`, checksummed artifacts,
 and one candidate-matching success record plus checksummed log for every scenario.
 `skip-e2e-check=true` bypasses only E2E, is recorded, and is an emergency decision.
 It does not bypass artifact, version or branch integrity checks.
 
-Validation has its own SPS config (`ci/.pipeline-config-release-validation.yaml`)
-and never invokes production publishers. It prepares deterministic public Helm,
-operator YAML and OLM archives, then runs real Helm lint/template and manifest/CSV/
-CRD checks. It reports `published: false`. Optional `validation-upload-report=true`
-writes only `pipeline-validation/<run-id>/report.json`; it never changes candidate
-or E2E objects. Exact branch overrides `allowed-release-branch-operator` and
-`allowed-release-branch-chart` permit feature-candidate validation only. Production
-always requires both recorded source branches to be `main`.
-
-Read access checks deliberately reuse the configured Artifactory/GCP identities;
-their credentials may be write-capable, but the validation code performs only
-reads. GitHub check-tags rejects write requests locally. Validation does **not**
-prove production write permissions, Red Hat acceptance, catalog acceptance, or
-recovery after partial live publication.
+Promotion prepares deterministic public Helm, operator YAML and OLM archives,
+then runs real Helm lint/template and manifest/CSV/CRD checks before the first
+registry push or other publication. Failed checksum, repackaging or smoke checks
+stop the run without publishing. GitHub `check-tags` rejects write requests locally.
+The separate credential-validation pipeline has been retired after qualification;
+production artifact checks remain mandatory and have no branch overrides.
 
 Production (`ci/.pipeline-config-release-promotion.yaml`) is manual, must have SPS
 concurrency limited to one, and must not run alongside the legacy publishers.
@@ -154,8 +142,8 @@ for earlier evidence. These files are not a substitute for fresh qualification.
 ## Review and cutover order
 
 1. Review operator release-build with charts support on `release-build-unified`.
-2. Review `release-promotion-unified` against release-build, not against main.
-3. Qualify build, all E2E scenarios, validation and isolated publication/recovery.
+2. Review `release-promotion-unified` against `main`, which includes release-build.
+3. Qualify build, all E2E scenarios, artifact checks and isolated publication/recovery.
 4. Approve a coordinated cutover; apply/pause deployed legacy jobs and triggers.
 5. Only then merge blocked `release-cleanup-unified` PRs in both repositories.
 
