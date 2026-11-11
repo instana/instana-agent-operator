@@ -101,8 +101,10 @@ def ensure_tag(api, repo, tag, sha, create=True):
 
 
 def check_not_older_release(api, version):
-    published = [semver(r["tag_name"]) for r in api.pages("/repos/instana/instana-agent-operator/releases")
-                 if not r["draft"] and not r["prerelease"] and semver(r["tag_name"])]
+    releases = api.pages("/repos/instana/instana-agent-operator/releases")
+    versions = (semver(release["tag_name"]) for release in releases
+                if not release["draft"] and not release["prerelease"])
+    published = [parsed for parsed in versions if parsed is not None]
     if published and max(published) > semver(version):
         raise ValueError("A newer version is already public; refusing a downgrading promotion")
 

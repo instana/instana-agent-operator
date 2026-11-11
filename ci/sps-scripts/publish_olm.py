@@ -79,29 +79,28 @@ def verify_catalog_files(api, repo, commit_sha, prefix, expected):
 
 
 def publish(api, bom, archive, fork_owner):
+    version = bom["version"]
     urls = []
     for owner, repo, operator in CATALOGS:
-        version = bom["version"]
         upstream, fork = f"/repos/{owner}/{repo}", f"/repos/{fork_owner}/{repo}"
         branch = f"{operator}-{version}"
+        prefix = f"operators/{operator}/{version}/"
         expected = bundle_files(archive, version, operator)
         prs = list(api.pages(f"{upstream}/pulls?state=all&head={fork_owner}:{branch}"))
         merged = next((pr for pr in prs if pr.get("merged_at")), None)
         if merged:
-            verify_catalog_files(api, upstream, merged["merge_commit_sha"],
-                                 f"operators/{operator}/{version}/", expected)
+            verify_catalog_files(api, upstream, merged["merge_commit_sha"], prefix, expected)
             print(merged["html_url"], flush=True)
             urls.append(merged["html_url"])
             continue
         existing = api.request(f"{fork}/git/ref/heads/{branch}", missing=True)
         if existing:
-            prefix = f"operators/{operator}/{version}/"
             verify_catalog_files(api, fork, existing["object"]["sha"], prefix, expected)
         else:
             base_branch = api.request(upstream)["default_branch"]
             base = api.request(f"{upstream}/git/ref/heads/{base_branch}")["object"]["sha"]
             base_commit = api.request(f"{upstream}/git/commits/{base}")
-            if catalog_files(api, upstream, base, f"operators/{operator}/{version}/"):
+            if catalog_files(api, upstream, base, prefix):
                 raise ValueError(f"Catalog version already exists upstream: {repo}:{version}; inspect before resuming")
             tree = api.request(f"{fork}/git/trees", {
                 "base_tree": base_commit["tree"]["sha"],

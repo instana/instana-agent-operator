@@ -3,61 +3,16 @@
 Run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ci/sps-scripts -v
 """
 
-import importlib.util
-import io
-import hashlib
 import json
-import os
 from pathlib import Path
-import subprocess
-import shutil
-import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
-import urllib.error
 import zipfile
 
-from release_api import GitHub, check_not_older_release, discover, ensure_release, ensure_tag, semver
-from release_state import validate_bom, validate_success
-from check_artifactory import check as check_artifactory, latest_chart_version, NoRedirect
+from release_api import ensure_release, ensure_tag
+from release_test_support import FakeAPI, ReleaseShellTest, SCRIPTS, VERSION, bom
 from publish_olm import bundle_files, publish, verify_catalog_files
-
-
-SCRIPTS = Path(__file__).resolve().parent
-VERSION = "2.2.24"
-CANDIDATE = "20261102123045-12345678-1234-1234-1234-123456789abc"
-STATE = f"pipeline-state/release-{VERSION}/{CANDIDATE}"
-DEV = "icr.io/instana-agent-dev/instana-agent-operator"
-PUBLIC = "icr.io/instana/instana-agent-operator"
-
-
-def bom():
-    return {"version": VERSION, "release-tag": f"v{VERSION}", "previous-version": "2.2.23",
-            "candidate-id": CANDIDATE, "cos-state-path": STATE, "build-complete": True,
-            "source-branch": "main", "charts-branch": "main",
-            "sources": {"operator-sha": "a" * 40, "charts-sha": "b" * 40},
-            "images": {"operator-manifest": f"{DEV}:{VERSION}-{CANDIDATE}",
-                       "operator-manifest-digest": "sha256:" + "c" * 64},
-            "artifacts": {"helm-chart": f"{STATE}/helm/instana-agent-{VERSION}.tgz",
-                          "olm-bundle": f"{STATE}/olm/olm-{VERSION}.zip",
-                          "operator-yaml": f"{STATE}/olm/instana-agent-operator.yaml"},
-            "checksums": {k: "d" * 64 for k in ("helm-chart", "olm-bundle", "operator-yaml")}}
-
-
-class FakeAPI:
-    def __init__(self, tags=(), releases=()):
-        self.tags, self.releases = tags, releases
-
-    def pages(self, path):
-        if path.endswith("/tags"):
-            return [{"name": t} for t in self.tags]
-        return self.releases
-
-
-def release(version, draft=False, prerelease=False):
-    return {"tag_name": f"v{version}", "draft": draft, "prerelease": prerelease,
-            "assets": [{"name": f"olm-{version}.zip"}]}
 
 
 class TagReleaseTest(unittest.TestCase):
@@ -78,7 +33,7 @@ class TagReleaseTest(unittest.TestCase):
 
 
     def test_draft_release_resumes_and_rejects_conflicting_asset(self):
-        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             file = Path(tmp) / "operator.yaml"
             file.write_bytes(b"approved bytes")
             api = FakeAPI()
@@ -110,6 +65,41 @@ class TagReleaseTest(unittest.TestCase):
         api.request = request
         ensure_release(api, bom(), [])
         self.assertEqual(writes, [("/repos/instana/instana-agent-operator/releases/1", {"draft": False})])
+
+
+    def test_missing_draft_asset_is_uploaded_before_publication(self):
+        api = FakeAPI()
+        draft = {
+            "id": 1,
+            "draft": True,
+            "html_url": "https://fixture.invalid/release",
+            "upload_url": "https://fixture.invalid/assets{?name,label}",
+        }
+        writes = []
+
+        def request(path, data=None, **kwargs):
+            if data is not None:
+                writes.append((path, data, kwargs))
+            return draft
+
+        api.request = request
+        with tempfile.TemporaryDirectory() as tmp:
+            asset = Path(tmp) / "operator manifest.yaml"
+            asset.write_bytes(b"approved bytes")
+            ensure_release(api, bom(), [asset])
+
+        self.assertEqual(writes, [
+            ("https://fixture.invalid/assets?name=operator%20manifest.yaml", b"approved bytes",
+             {"content_type": "application/octet-stream"}),
+            ("/repos/instana/instana-agent-operator/releases/1", {"draft": False}, {"method": "PATCH"}),
+        ])
+
+
+    def test_published_release_with_missing_asset_requires_manual_recovery(self):
+        api = FakeAPI()
+        api.request = lambda *args, **kwargs: {"id": 1, "draft": False}
+        with self.assertRaisesRegex(ValueError, "manual recovery required"):
+            ensure_release(api, bom(), ["operator.yaml"])
 
 
 class CatalogTest(unittest.TestCase):
@@ -157,26 +147,7 @@ class CatalogTest(unittest.TestCase):
                 verify_catalog_files(api, "/repo", "commit", "", {"fixture": "different bytes"})
 
 
-class ShellTest(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="release-test-", dir="/tmp/opencode")
-        self.addCleanup(self.temp.cleanup)
-        self.workspace = Path(self.temp.name)
-
-
-    def bash(self, code, expected=0):
-        guards = "\n".join(
-            f'{cmd}() {{ echo "Unexpected service command: {cmd}" >&2; exit 99; }}'
-            for cmd in ("ibmcloud", "curl", "git", "gsutil", "gcloud", "skopeo", "helm", "dnf", "docker", "get_secret")
-        )
-        result = subprocess.run(["bash", "--noprofile", "--norc", "-c", "set -euo pipefail\n" + guards + "\n" + code],
-                                cwd=self.workspace, env={"PATH": os.defpath, "WORKSPACE": str(self.workspace),
-                                                         "HOME": str(self.workspace), "PYTHONDONTWRITEBYTECODE": "1"},
-                                capture_output=True, text=True)
-        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-        return result
-
-
+class ShellTest(ReleaseShellTest):
     def test_promotion_names_failed_stage_and_stops(self):
         (self.workspace / "selected-bom.json").write_text(json.dumps(bom()))
         result = self.bash(f'''
@@ -262,7 +233,7 @@ copy_version() {{
 
 class ArchiveTest(unittest.TestCase):
     def test_marketplace_transform_preserves_catalog_contract(self):
-        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             archive = Path(tmp) / "bundle.zip"
             with zipfile.ZipFile(archive, "w") as source:
                 source.writestr("manifests/instana-agent-operator.clusterserviceversion.yaml",

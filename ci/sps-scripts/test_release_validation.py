@@ -18,40 +18,10 @@ from unittest.mock import patch
 import urllib.error
 import zipfile
 
-from release_api import GitHub, check_not_older_release, discover, ensure_release, ensure_tag, semver
+from release_api import GitHub, check_not_older_release
 from release_state import validate_bom, validate_success
 from check_artifactory import check as check_artifactory, latest_chart_version, NoRedirect
-
-
-SCRIPTS = Path(__file__).resolve().parent
-VERSION = "2.2.24"
-CANDIDATE = "20261102123045-12345678-1234-1234-1234-123456789abc"
-STATE = f"pipeline-state/release-{VERSION}/{CANDIDATE}"
-DEV = "icr.io/instana-agent-dev/instana-agent-operator"
-PUBLIC = "icr.io/instana/instana-agent-operator"
-
-
-def bom():
-    return {"version": VERSION, "release-tag": f"v{VERSION}", "previous-version": "2.2.23",
-            "candidate-id": CANDIDATE, "cos-state-path": STATE, "build-complete": True,
-            "source-branch": "main", "charts-branch": "main",
-            "sources": {"operator-sha": "a" * 40, "charts-sha": "b" * 40},
-            "images": {"operator-manifest": f"{DEV}:{VERSION}-{CANDIDATE}",
-                       "operator-manifest-digest": "sha256:" + "c" * 64},
-            "artifacts": {"helm-chart": f"{STATE}/helm/instana-agent-{VERSION}.tgz",
-                          "olm-bundle": f"{STATE}/olm/olm-{VERSION}.zip",
-                          "operator-yaml": f"{STATE}/olm/instana-agent-operator.yaml"},
-            "checksums": {k: "d" * 64 for k in ("helm-chart", "olm-bundle", "operator-yaml")}}
-
-
-class FakeAPI:
-    def __init__(self, tags=(), releases=()):
-        self.tags, self.releases = tags, releases
-
-    def pages(self, path):
-        if path.endswith("/tags"):
-            return [{"name": t} for t in self.tags]
-        return self.releases
+from release_test_support import DEV, PUBLIC, STATE, SCRIPTS, VERSION, FakeAPI, ReleaseShellTest, bom
 
 
 def release(version, draft=False, prerelease=False):
@@ -148,7 +118,7 @@ class StateTest(unittest.TestCase):
 
 
     def test_production_cli_ignores_validation_branch_properties(self):
-        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "bom.json"
             path.write_text(json.dumps(bom() | {"source-branch": "test-release"}))
             result = subprocess.run(
@@ -187,26 +157,7 @@ class StateTest(unittest.TestCase):
                 validate_success(value, result | {field: replacement}, "ocp-fyre-latest")
 
 
-class ShellTest(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="release-test-", dir="/tmp/opencode")
-        self.addCleanup(self.temp.cleanup)
-        self.workspace = Path(self.temp.name)
-
-
-    def bash(self, code, expected=0):
-        guards = "\n".join(
-            f'{cmd}() {{ echo "Unexpected service command: {cmd}" >&2; exit 99; }}'
-            for cmd in ("ibmcloud", "curl", "git", "gsutil", "gcloud", "skopeo", "helm", "dnf", "docker", "get_secret")
-        )
-        result = subprocess.run(["bash", "--noprofile", "--norc", "-c", "set -euo pipefail\n" + guards + "\n" + code],
-                                cwd=self.workspace, env={"PATH": os.defpath, "WORKSPACE": str(self.workspace),
-                                                         "HOME": str(self.workspace), "PYTHONDONTWRITEBYTECODE": "1"},
-                                capture_output=True, text=True)
-        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-        return result
-
-
+class ShellTest(ReleaseShellTest):
     def test_gcp_read_check_authenticates_reads_only_and_cleans_up(self):
         for failure, rc in (("none", 0), ("auth", 23), ("read", 24), ("index", 1)):
             with self.subTest(failure=failure):
@@ -353,7 +304,7 @@ class ArchiveTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("normalize", SCRIPTS / "normalize-release-archives.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             chart, bundle = Path(tmp) / "chart.tgz", Path(tmp) / "bundle.zip"
             with tarfile.open(chart, "w:gz") as archive:
                 info = tarfile.TarInfo("instana-agent/Chart.yaml")
@@ -375,7 +326,7 @@ class RealRepackageTest(unittest.TestCase):
         import yaml
         root = SCRIPTS.parents[1]
         charts = root.parent / "instana-agent-charts"
-        with tempfile.TemporaryDirectory(dir="/tmp/opencode") as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             chart = work / "fixture/instana-agent"
             shutil.copytree(charts / "canonical", chart)
