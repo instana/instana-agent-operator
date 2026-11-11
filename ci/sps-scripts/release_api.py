@@ -110,17 +110,22 @@ def check_not_older_release(api, version):
 
 
 def ensure_release(api, bom, files):
-    repo = "/repos/instana/instana-agent-operator"
-    release = api.request(f"{repo}/releases/tags/{bom['release-tag']}", missing=True)
+    ensure_repository_release(api, "instana/instana-agent-operator", bom["release-tag"],
+                              bom["sources"]["operator-sha"], files)
+
+
+def ensure_repository_release(api, repository, tag, sha, files):
+    repo = f"/repos/{repository}"
+    release = api.request(f"{repo}/releases/tags/{tag}", missing=True)
     if release is None:
         # The tag endpoint may expose published releases only. Authenticated
         # listing is necessary to resume a partially uploaded draft safely.
         release = next((r for r in api.pages(f"{repo}/releases")
-                        if r["tag_name"] == bom["release-tag"]), None)
+                        if r["tag_name"] == tag), None)
     if release is None:
         release = api.request(f"{repo}/releases", {
-            "tag_name": bom["release-tag"], "target_commitish": bom["sources"]["operator-sha"],
-            "name": bom["release-tag"], "draft": True, "prerelease": False, "generate_release_notes": True,
+            "tag_name": tag, "target_commitish": sha,
+            "name": tag, "draft": True, "prerelease": False, "generate_release_notes": True,
         })
     assets = {a["name"]: a for a in api.pages(f"{repo}/releases/{release['id']}/assets")}
     for file in files:
@@ -163,6 +168,10 @@ def main():
                    bom["sources"]["charts-sha"], create=command == "tags")
     elif command == "release":
         ensure_release(api, json.loads(Path(sys.argv[2]).read_text()), sys.argv[3:])
+    elif command == "charts-release":
+        bom = json.loads(Path(sys.argv[2]).read_text())
+        ensure_repository_release(charts, "instana/instana-agent-charts", bom["version"],
+                                  bom["sources"]["charts-sha"], [sys.argv[3]])
     else:
         raise ValueError(f"Unknown command {command}")
 

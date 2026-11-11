@@ -107,9 +107,9 @@ flowchart TD
     Conflicts --> PublicArtifacts[Repackage and smoke-test public artifacts locally]
     PublicArtifacts --> RedHat[Stage Red Hat image and run preflight]
     RedHat --> Images[Publish versioned images, preserving digests]
-    Images --> Helm[Publish Helm and GitHub release artifacts]
+    Images --> Helm[Publish Helm, public chart mirror and operator/GHE charts releases]
     Helm --> OLM[Submit community, certified and marketplace catalog PRs]
-    OLM --> Latest[Activate latest image tags]
+    OLM --> Latest[Activate public operator latest image tag]
     Latest --> Receipt[Upload promotion receipt to candidate COS prefix]
 ```
 

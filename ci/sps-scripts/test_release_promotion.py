@@ -10,12 +10,85 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from release_api import ensure_release, ensure_tag
+from release_api import ensure_release, ensure_repository_release, ensure_tag, main as release_main
 from release_test_support import FakeAPI, ReleaseShellTest, SCRIPTS, VERSION, bom
 from publish_olm import bundle_files, publish, verify_catalog_files
 
 
 class TagReleaseTest(unittest.TestCase):
+    def test_charts_release_creates_draft_uploads_chart_and_resumes(self):
+        repo = "/repos/instana/instana-agent-charts"
+        release, assets, writes = None, [], []
+        api = FakeAPI()
+
+        def pages(path):
+            if path == f"{repo}/releases":
+                return [release] if release else []
+            self.assertEqual(path, f"{repo}/releases/1/assets")
+            return assets
+
+        def request(path, data=None, **kwargs):
+            nonlocal release
+            if data is not None:
+                writes.append((path, data))
+            if path == f"{repo}/releases/tags/{VERSION}":
+                return release
+            if path == f"{repo}/releases":
+                self.assertEqual(data, {
+                    "tag_name": VERSION, "target_commitish": bom()["sources"]["charts-sha"],
+                    "name": VERSION, "draft": True, "prerelease": False, "generate_release_notes": True,
+                })
+                release = dict(data, id=1, html_url="https://github.ibm.com/fixture/release",
+                               upload_url="https://github.ibm.com/fixture/uploads{?name,label}")
+                return release
+            if path.startswith("https://github.ibm.com/fixture/uploads?"):
+                self.assertTrue(release["draft"])
+                self.assertEqual(path.rsplit("?", 1)[1], f"name=instana-agent-{VERSION}.tgz")
+                self.assertEqual(data, b"frozen public chart")
+                assets.append({"name": f"instana-agent-{VERSION}.tgz", "state": "uploaded",
+                               "url": "https://github.ibm.com/fixture/asset"})
+                return {}
+            if path == f"{repo}/releases/1":
+                self.assertEqual(kwargs["method"], "PATCH")
+                self.assertEqual(len(assets), 1)
+                release.update(data)
+                return release
+            self.assertEqual(path, "https://github.ibm.com/fixture/asset")
+            self.assertTrue(kwargs["raw"])
+            return b"frozen public chart"
+
+        api.pages, api.request = pages, request
+        with tempfile.TemporaryDirectory() as tmp:
+            chart = Path(tmp) / f"instana-agent-{VERSION}.tgz"
+            chart.write_bytes(b"frozen public chart")
+            args = (api, "instana/instana-agent-charts", VERSION, bom()["sources"]["charts-sha"], [chart])
+            ensure_repository_release(*args)
+            self.assertFalse(release["draft"])
+            self.assertEqual(len(writes), 3)
+            writes.clear()
+            ensure_repository_release(*args)
+            self.assertEqual(writes, [])
+            chart.write_bytes(b"conflicting chart")
+            with self.assertRaisesRegex(ValueError, "Conflicting release asset"):
+                ensure_repository_release(*args)
+            self.assertEqual(writes, [])
+
+    def test_charts_release_command_uses_enterprise_client_and_frozen_charts_sha(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            selected = Path(tmp) / "bom.json"
+            selected.write_text(json.dumps(bom()))
+            public, enterprise = FakeAPI(), FakeAPI()
+            with patch("release_api.GitHub", side_effect=[public, enterprise]) as client, \
+                    patch("release_api.ensure_repository_release") as publish_release, \
+                    patch.dict("os.environ", {"GH_TOKEN": "public-token", "GHE_TOKEN": "enterprise-token"}), \
+                    patch("sys.argv", ["release_api.py", "charts-release", str(selected), "chart.tgz"]):
+                release_main()
+                self.assertEqual(client.call_args_list[1].args,
+                                 ("https://github.ibm.com/api/v3", "enterprise-token"))
+                publish_release.assert_called_once_with(
+                    enterprise, "instana/instana-agent-charts", VERSION,
+                    bom()["sources"]["charts-sha"], ["chart.tgz"])
+
     def test_existing_tag_is_noop_but_conflict_rejected(self):
         api = FakeAPI()
         api.request = lambda *args, **kwargs: {"object": {"type": "commit", "sha": "a" * 40}}

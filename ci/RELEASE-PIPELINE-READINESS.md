@@ -137,6 +137,11 @@ actual running operator image IDs belong to the recorded multiarch index.
 
 ### B2 — High: retry failures can leave an old success eligible for promotion
 
+> **Superseded policy:** the current contract accepts one matching successful
+> attempt per exact candidate; later failures do not revoke it. The latest-attempt
+> invalidation proposal below was not adopted. See the design's
+> [E2E retry contract](RELEASE-PIPELINE-DESIGN.md#e2e-matrix-and-retry-contract).
+
 Locations: `e2e-async.sh:20,39–59,107–108,168–174,243–261,326–347` and
 `validate-release.sh:99–124`.
 
@@ -405,6 +410,11 @@ already released bytes. Add final success/failure Slack notifications and links.
 
 ### P8 — Keep and verify the downstream OLM publisher
 
+> **Superseded ownership:** SPS now creates the three catalog PRs directly.
+> Retaining the Concourse OLM publisher is not the current cutover plan; pause it
+> before enabling SPS promotion to avoid duplicate writers. See the design's
+> [cutover checklist](RELEASE-PIPELINE-DESIGN.md#cutover-checklist-and-remaining-external-validation).
+
 `ci/public-pr-creation-and-e2e-image-build.yaml:75–80,170–177` confirms the existing
 Concourse job watches public GitHub releases and downloads `olm-*.zip`. Retaining
 `olm-<version>.zip` and its current archive layout is compatible in principle.
@@ -442,6 +452,11 @@ credential files/configs. COS log paths are authenticated object identifiers, no
 public download links; provide safe authenticated access for QA.
 
 ## 6. Acceptance tests before enabling production promotion
+
+> **Historical checklist:** latest-attempt rejection in item 2 and promoted-tool
+> requirements reflect the original recommendations, not all agreed decisions.
+> Use the current design's [cutover checklist](RELEASE-PIPELINE-DESIGN.md#cutover-checklist-and-remaining-external-validation)
+> and E2E retry contract for the adopted policy.
 
 These tests are requirements, **not actions performed during this review**.
 
@@ -484,6 +499,11 @@ not test real SPS admission, real Helm/yq behavior (mocked in repackaging), E2E
 failure handling, cloud authentication or publication idempotency.
 
 ## 7. Suggested cutover order
+
+> **Historical sequence:** item 4's instruction to retain the downstream OLM
+> publisher is superseded by direct SPS publication. Follow the current
+> [cutover checklist](RELEASE-PIPELINE-DESIGN.md#cutover-checklist-and-remaining-external-validation)
+> rather than this original sequence.
 
 1. Agree release policy, minimum cluster versions, promoted tool image, and the
    changelog rule; implement B1–B5 and the retained charts entrypoint fixes.

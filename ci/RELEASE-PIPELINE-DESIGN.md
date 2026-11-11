@@ -55,10 +55,12 @@ predecessor the pipeline stops for an explicit initial-catalog policy decision.
 This selects a published bundle, not proof that upstream catalogs have merged it;
 verify catalog upgrade-chain readiness before release.
 
-At the latest read-only check, the public API reports `v2.2.23` (published
-2026-10-30), making the next `2.2` candidate `2.2.24`. Local GHE API credentials
-returned HTTP 401 during development; the charts remote version remains to be
-verified in SPS with `ghe-token`. No remote version is inferred from local tags.
+During the historical development check, the public API reported `v2.2.23`
+(published 2026-10-30), making the next `2.2` candidate `2.2.24` at that time.
+Local GHE API credentials returned HTTP 401 during that check. Subsequent
+credential qualification in SPS was reported by the author; the local failure
+does not describe the current SPS credential status. Each build must still query
+GHE using `ghe-token`; no remote version is inferred from local tags.
 
 ## Release-build
 
@@ -195,6 +197,23 @@ permission to create operator tags/releases/assets, push the Helm repository and
 catalog forks, and open upstream catalog PRs. No separate JSON GitHub credential
 is required. Helm repository commits use `Instana CD <instanacd@instana.com>` as
 their non-secret author identity, matching the existing Concourse convention.
+Catalog API commits explicitly set both author and committer to
+`instanacd <instanacd@instana.com>` and include the matching `Signed-off-by`
+trailer, preserving the legacy catalog publisher's `git commit -s` identity.
+The separate `ghe-token` needs permission to create charts tags, releases and
+release assets in `github.ibm.com/instana/instana-agent-charts`.
+
+The release destinations have distinct roles:
+
+| Destination | Published content |
+|---|---|
+| Public `instana/instana-agent-operator` release | `vX.Y.Z`, OLM ZIP, operator YAML and public Helm archive |
+| GHE `instana/instana-agent-charts` release | `X.Y.Z` at the frozen charts SHA, with `instana-agent-X.Y.Z.tgz` attached |
+| Public `instana/helm-charts` repository | Packaged chart contents mirrored into `instana-agent/` on `main`; no separate release page |
+
+Both release pages attach the same normalized public Helm archive; neither
+rebuilds from repository HEAD. The public chart mirror copies package contents,
+not the full GHE repository or its Git history.
 
 ### Ordered steps
 
@@ -225,12 +244,16 @@ their non-secret author identity, matching the existing Concourse convention.
    frozen SHAs. GCP tarball first, merged index last with generation precondition;
    Artifactory existing-byte comparison; update `instana/helm-charts` from the
    public archive with staged-diff detection and a signed-off commit.
-9. **Publish GitHub release:** create/resume a draft. Compare existing asset bytes,
+9. **Publish release pages:** first create/resume the GHE charts release at the
+   frozen charts SHA and bare version tag, attaching the public Helm archive.
+   Then create/resume the public operator release with its `v`-prefixed tag,
+   attaching the OLM ZIP, operator YAML and the same Helm archive.
+   Both use the shared draft-first release helper. Compare existing asset bytes,
     delete and retry unfinished `starter` assets on drafts, upload missing assets
     and publish only after all three are complete. Completed assets with conflicting
     bytes are never replaced, even on drafts. An already published incomplete
     release requires manual recovery rather than silently
-   mutating a public release. Release notes are auto-generated for the operator;
+   mutating a published release. Release notes are auto-generated in each repository;
    the chart changelog was already frozen before the build.
 10. **Publish OLM PRs in SPS:** create/resume one version-specific branch and PR in
     each of `k8s-operatorhub/community-operators`,
@@ -252,8 +275,9 @@ candidate rather than rebuild/retag a different candidate under that version.
 
 ## Charts development and PR pipeline
 
-- Retire the old charts main trigger at merge. Its YAML and legacy build-script
-  entrypoint no longer publish; the operator release pipeline owns releases.
+- The promotion PR leaves the old charts main trigger and legacy publishing
+  entrypoint unchanged. Retire them only through the separately approved,
+  coordinated cutover and blocked cleanup PRs; SPS then owns release publication.
 - Keep `.pipeline-config-pr.yaml` and its E2E tests enabled. Standalone PR setup
   installs the Go toolchain declared by the charts `go.mod` and verifies the
   downloaded archive checksum. The unified runner reuses operator-installed Go.
@@ -279,11 +303,13 @@ candidate rather than rebuild/retag a different candidate under that version.
    coverage; decide additional qualification separately.
 5. Finish charts changelog; merge both repos. Charts push alone does not test the
    unified candidate. Operator pushes currently trigger a new build: coordinate
-   the merge/push and expect that run. No pushes were performed during this work.
-6. Pause the legacy charts main pipeline and the old Concourse OLM PR job. Its
-   checked-in release trigger is now disabled, but running deployments must be
-   updated/paused explicitly. Retain any unrelated Concourse image-build jobs
-   and the out-of-scope FedRAMP path.
+   the merge/push and expect that run.
+6. Pause the legacy charts main pipeline and the old Concourse OLM PR job before
+   enabling SPS promotion. This promotion PR leaves the checked-in legacy release
+   trigger unchanged; disabling it belongs to the blocked cleanup PR. Updating
+   source files alone does not pause deployed jobs: update/pause deployments
+   explicitly. Retain unrelated Concourse image-build jobs and the out-of-scope
+   FedRAMP path.
 7. Run a new nonpublishing release build; retry one child independently and verify
    durable pass-pointer behavior, digest checks, evidence identity and reslock
    cleanup. Old log candidates lack the new schema and require a new build.

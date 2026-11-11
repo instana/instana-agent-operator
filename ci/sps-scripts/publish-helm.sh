@@ -69,4 +69,5 @@ if ! git -C "${PUB_DIR}/charts" diff --cached --quiet; then
   git -C "${PUB_DIR}/charts" push origin HEAD:main
 fi
 # All assets are uploaded/verified while draft. Reruns never replace public bytes.
+python3 "${SCRIPT_DIR}/release_api.py" charts-release "${BOM_FILE}" "${HELM_TGZ}"
 python3 "${SCRIPT_DIR}/release_api.py" release "${BOM_FILE}" "${OLM_ZIP}" "${OPERATOR_YAML}" "${HELM_TGZ}"
