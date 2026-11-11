@@ -2,10 +2,10 @@
 
 ## Review and rollout boundaries
 
-This branch adds **release-build only**. It does not change the existing release
-publishers, Concourse triggers, or chart version-file ownership. Production
-promotion and its validation-only companion follow in a separate stacked PR;
-retirement and deletion of legacy release machinery belong to blocked cleanup PRs.
+The release-build PR adds candidate creation and async E2E. The promotion
+PR adds the production entrypoint and its pre-publication checks. Neither changes the
+existing release publishers, Concourse triggers, or chart version-file ownership.
+Retirement and deletion of legacy machinery belong to blocked cleanup PRs.
 
 The companion charts branch is also named `release-build-unified`. Both source
 repositories must contain build support before using their `main` branches for a
@@ -96,3 +96,57 @@ regressions are guarded/mocked. These checks do not replace fresh SPS/E2E runs.
 The original combined branches remain untouched for comparison. Their build and
 promotion-validation runs are historical evidence tied to their frozen SHAs;
 rewritten commits require fresh qualification. No production promotion has run.
+
+## Promotion: check and prepare before publication
+
+```mermaid
+flowchart TD
+    Select[Manual selection of exact COS BOM path] --> Gates[validate-release.sh: BOM, checksums and four E2E passes/logs]
+    Gates --> Production[run-promotion.sh: explicitly authorized production run]
+    Production --> Conflicts[Reject conflicting versions/tags]
+    Conflicts --> PublicArtifacts[Repackage and smoke-test public artifacts locally]
+    PublicArtifacts --> RedHat[Stage Red Hat image and run preflight]
+    RedHat --> Images[Publish versioned images, preserving digests]
+    Images --> Helm[Publish Helm, public chart mirror and operator/GHE charts releases]
+    Helm --> OLM[Submit community, certified and marketplace catalog PRs]
+    OLM --> Latest[Activate public operator latest image tag]
+    Latest --> Receipt[Upload promotion receipt to candidate COS prefix]
+```
+
+Promotion uses an exact `release-state-path` ending in `bom.json`. Its candidate
+gate requires a completed build, both source branches recorded as `main`, checksummed artifacts,
+and one candidate-matching success record plus checksummed log for every scenario.
+`skip-e2e-check=true` bypasses only E2E, is recorded, and is an emergency decision.
+It does not bypass artifact, version or branch integrity checks.
+
+Promotion prepares deterministic public Helm, operator YAML and OLM archives,
+then runs real Helm lint/template and manifest/CSV/CRD checks before the first
+registry push or other publication. Failed checksum, repackaging or smoke checks
+stop the run without publishing. GitHub `check-tags` rejects write requests locally.
+The separate credential-validation pipeline has been retired after qualification;
+production artifact checks remain mandatory and have no branch overrides.
+
+Production (`ci/.pipeline-config-release-promotion.yaml`) is manual, must have SPS
+concurrency limited to one, and must not run alongside the legacy publishers.
+It publishes the frozen digest rather than rebuilding. Matching existing tags,
+images, assets and catalog PRs support retry; conflicting content fails closed.
+Publication is not transactional. Recover with the **same candidate**, never a
+new build under the same version. `latest` is updated only after the required
+publications and catalog PR submissions; a submitted PR is not proof of catalog
+merge or acceptance. A receipt-upload failure can occur after publication.
+
+See [the detailed contract](RELEASE-PIPELINE-DESIGN.md) for properties, credentials
+and retry behavior, and [the historical readiness review](RELEASE-PIPELINE-READINESS.md)
+for earlier evidence. These files are not a substitute for fresh qualification.
+
+## Review and cutover order
+
+1. Review operator release-build with charts support on `release-build-unified`.
+2. Review `release-promotion-unified` against `main`, which includes release-build.
+3. Qualify build, all E2E scenarios, artifact checks and isolated publication/recovery.
+4. Approve a coordinated cutover; apply/pause deployed legacy jobs and triggers.
+5. Only then merge blocked `release-cleanup-unified` PRs in both repositories.
+
+No change to deployed SPS/Concourse configuration or production execution is
+authorized by introducing these source files. Keep the original combined branches
+for reference and rollback analysis.
