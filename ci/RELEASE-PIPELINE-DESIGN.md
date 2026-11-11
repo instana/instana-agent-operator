@@ -225,8 +225,10 @@ their non-secret author identity, matching the existing Concourse convention.
    Artifactory existing-byte comparison; update `instana/helm-charts` from the
    public archive with staged-diff detection and a signed-off commit.
 9. **Publish GitHub release:** create/resume a draft. Compare existing asset bytes,
-   upload missing assets and publish only after all three are complete. An already
-   published incomplete release requires manual recovery rather than silently
+    delete and retry unfinished `starter` assets on drafts, upload missing assets
+    and publish only after all three are complete. Completed assets with conflicting
+    bytes are never replaced, even on drafts. An already published incomplete
+    release requires manual recovery rather than silently
    mutating a public release. Release notes are auto-generated for the operator;
    the chart changelog was already frozen before the build.
 10. **Publish OLM PRs in SPS:** create/resume one version-specific branch and PR in

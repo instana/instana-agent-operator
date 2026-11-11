@@ -125,8 +125,15 @@ def ensure_release(api, bom, files):
     assets = {a["name"]: a for a in api.pages(f"{repo}/releases/{release['id']}/assets")}
     for file in files:
         file = Path(file)
-        if file.name in assets:
-            asset = assets[file.name]
+        asset = assets.get(file.name)
+        if asset and asset.get("state") == "starter":
+            if not release["draft"]:
+                raise ValueError(f"Published release has an incomplete {file.name}; manual recovery required")
+            # Failed uploads can leave an empty starter asset reserving the name.
+            # Only these unfinished draft assets are safe to delete and retry.
+            api.request(asset["url"], method="DELETE")
+            asset = None
+        if asset:
             remote = api.request(asset["url"], raw=True)
             if hashlib.sha256(remote).digest() != hashlib.sha256(file.read_bytes()).digest():
                 raise ValueError(f"Conflicting release asset {file.name}; never overwrite")

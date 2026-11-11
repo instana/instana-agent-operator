@@ -39,12 +39,14 @@ class TagReleaseTest(unittest.TestCase):
             api = FakeAPI()
             calls = []
             def request(path, data=None, **kwargs):
+                self.assertNotEqual(kwargs.get("method"), "DELETE")
                 calls.append((path, data))
                 if kwargs.get("raw"):
                     return b"approved bytes"
                 return {"id": 1, "draft": True, "html_url": "https://fixture.invalid/release"}
             api.request = request
-            api.pages = lambda path: [{"name": file.name, "url": "https://fixture.invalid/asset"}]
+            api.pages = lambda path: [{"name": file.name, "url": "https://fixture.invalid/asset",
+                                       "state": "uploaded"}]
             ensure_release(api, bom(), [file])
             self.assertEqual(calls[-1][1], {"draft": False})
             self.assertEqual(sum(1 for _, data in calls if isinstance(data, bytes)), 0)
@@ -98,6 +100,94 @@ class TagReleaseTest(unittest.TestCase):
     def test_published_release_with_missing_asset_requires_manual_recovery(self):
         api = FakeAPI()
         api.request = lambda *args, **kwargs: {"id": 1, "draft": False}
+        with self.assertRaisesRegex(ValueError, "manual recovery required"):
+            ensure_release(api, bom(), ["operator.yaml"])
+
+
+    def test_incomplete_draft_asset_is_replaced_and_rerun_is_read_only(self):
+        release = {
+            "id": 1,
+            "draft": True,
+            "html_url": "https://fixture.invalid/release",
+            "upload_url": "https://fixture.invalid/uploads{?name,label}",
+        }
+        asset_url = "https://fixture.invalid/asset"
+        assets = [{"name": "operator.yaml", "url": asset_url, "state": "starter"}]
+        writes = []
+        api = FakeAPI()
+        api.pages = lambda path: assets
+
+        def request(path, data=None, **kwargs):
+            method = kwargs.get("method")
+            if method == "DELETE":
+                self.assertEqual(path, asset_url)
+                writes.append("delete")
+                assets.clear()
+            elif isinstance(data, bytes):
+                self.assertEqual(path, "https://fixture.invalid/uploads?name=operator.yaml")
+                self.assertEqual(data, b"approved bytes")
+                self.assertFalse(assets)
+                writes.append("upload")
+                assets.append({"name": "operator.yaml", "url": asset_url, "state": "uploaded"})
+            elif method == "PATCH":
+                self.assertEqual(assets[0]["state"], "uploaded")
+                writes.append("publish")
+                release.update(data)
+            elif kwargs.get("raw"):
+                return b"approved bytes"
+            return release
+
+        api.request = request
+        with tempfile.TemporaryDirectory() as tmp:
+            file = Path(tmp) / "operator.yaml"
+            file.write_bytes(b"approved bytes")
+            ensure_release(api, bom(), [file])
+            self.assertEqual(writes, ["delete", "upload", "publish"])
+            writes.clear()
+            ensure_release(api, bom(), [file])
+            self.assertEqual(writes, [])
+
+
+    def test_incomplete_asset_recovery_failure_never_publishes_release(self):
+        for failure in ("delete", "upload"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                file = Path(tmp) / "operator.yaml"
+                file.write_bytes(b"approved bytes")
+                release = {"id": 1, "draft": True, "upload_url": "https://fixture.invalid/uploads{?name}"}
+                asset = {"name": file.name, "url": "https://fixture.invalid/asset", "state": "starter"}
+                api = FakeAPI()
+                api.pages = lambda path: [asset]
+                writes = []
+
+                def request(path, data=None, **kwargs):
+                    if kwargs.get("method") == "DELETE":
+                        writes.append("delete")
+                        if failure == "delete":
+                            raise RuntimeError("delete failed")
+                    elif isinstance(data, bytes):
+                        writes.append("upload")
+                        raise RuntimeError("upload failed")
+                    elif kwargs.get("method") == "PATCH":
+                        self.fail("Failed asset recovery must not publish the release")
+                    return release
+
+                api.request = request
+                with self.assertRaisesRegex(RuntimeError, f"{failure} failed"):
+                    ensure_release(api, bom(), [file])
+                self.assertEqual(writes, ["delete"] if failure == "delete" else ["delete", "upload"])
+
+
+    def test_incomplete_published_asset_is_never_deleted(self):
+        api = FakeAPI()
+        api.pages = lambda path: [{"name": "operator.yaml", "state": "starter"}]
+
+        def request(path, data=None, **kwargs):
+            self.assertIsNone(data)
+            self.assertNotIn("method", kwargs)
+            self.assertFalse(kwargs.get("raw"))
+            return {"id": 1, "draft": False}
+
+        api.request = request
         with self.assertRaisesRegex(ValueError, "manual recovery required"):
             ensure_release(api, bom(), ["operator.yaml"])
 
