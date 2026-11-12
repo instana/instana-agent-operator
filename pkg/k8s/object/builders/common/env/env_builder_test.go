@@ -306,6 +306,42 @@ func TestEnvBuilderBuild(t *testing.T) {
 			},
 		},
 		{
+			name: "Should set INSTANA_AGENT_NON_ROOT=true when nonRoot.enabled is true",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						NonRoot: instanav1.NonRootSpec{Enabled: pointer.To(true)},
+					},
+				},
+			},
+			envVars: []EnvVar{InstanaAgentNonRootEnv},
+			expected: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_NON_ROOT", Value: "true"},
+			},
+		},
+		{
+			name: "Should not set INSTANA_AGENT_NON_ROOT when nonRoot.enabled is false",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{
+						NonRoot: instanav1.NonRootSpec{Enabled: pointer.To(false)},
+					},
+				},
+			},
+			envVars:  []EnvVar{InstanaAgentNonRootEnv},
+			expected: []corev1.EnvVar{},
+		},
+		{
+			name: "Should not set INSTANA_AGENT_NON_ROOT when nonRoot is unset",
+			agent: &instanav1.InstanaAgent{
+				Spec: instanav1.InstanaAgentSpec{
+					Agent: instanav1.BaseAgentSpec{},
+				},
+			},
+			envVars:  []EnvVar{InstanaAgentNonRootEnv},
+			expected: []corev1.EnvVar{},
+		},
+		{
 			name: "Should not set when CrdMonitoring is enabled",
 			agent: &instanav1.InstanaAgent{
 				Spec: instanav1.InstanaAgentSpec{

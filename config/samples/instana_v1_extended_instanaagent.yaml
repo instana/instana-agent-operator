@@ -157,6 +157,14 @@ spec:
       # To allow communication to be directed to the agent, set this variable to true.
       enabled: true
 
+    # agent.nonRoot enables non-root mode for the agent container.
+    # When enabled, the container runs without `privileged: true` and instead uses an explicit
+    # set of Linux capabilities. The docker image's launch-agent.sh drops to the `instanaagent`
+    # user via `setpriv` when INSTANA_AGENT_NON_ROOT=true is set (injected automatically).
+    # Default is false (privileged root mode, unchanged from existing behaviour).
+    # nonRoot:
+    #   enabled: false
+
     # agent.host.repository sets a host path to be mounted as the agent maven repository (for debugging or development purposes)
     #    host:
     #      repository: ""

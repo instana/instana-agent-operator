@@ -34,6 +34,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 					MaxUnavailable: pointer.To(intstr.FromInt(2)),
 				},
 			},
+			NonRoot: NonRootSpec{Enabled: pointer.To(true)},
 		},
 		Rbac: Create{
 			Create: pointer.To(false),
@@ -96,6 +97,7 @@ func TestInstanaAgent_Default(t *testing.T) {
 							MaxUnavailable: pointer.To(intstr.FromInt(1)),
 						},
 					},
+					NonRoot: NonRootSpec{Enabled: pointer.To(false)},
 				},
 				Rbac: Create{
 					Create: pointer.To(true),

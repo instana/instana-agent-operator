@@ -168,6 +168,7 @@ func TestDaemonSetBuilder_getEnvVars(t *testing.T) {
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
 		env.NamespacesDetailsPathEnv,
+		env.InstanaAgentNonRootEnv,
 	).Return(expected)
 
 	// Create agent with no pod.env
@@ -225,6 +226,7 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 	envBuilder := &mocks.MockEnvBuilder{}
 	defer envBuilder.AssertExpectations(t)
 	envBuilder.On("Build",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
@@ -1100,4 +1102,138 @@ func TestGetLivenessProbe_WithSuccessThreshold(t *testing.T) {
 	// Assert that SuccessThreshold is preserved
 	require.NotNil(t, probe)
 	assert.Equal(t, int32(2), probe.SuccessThreshold)
+}
+
+func baseAgentForSecurityContextTest(nonRootEnabled *bool) *instanav1.InstanaAgent {
+	return &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "443",
+				NonRoot:      instanav1.NonRootSpec{Enabled: nonRootEnabled},
+			},
+			Cluster: instanav1.Name{Name: "test-cluster"},
+		},
+	}
+}
+
+func TestGetSecurityContext_RootMode_Privileged(t *testing.T) {
+	disabled := false
+	agent := baseAgentForSecurityContextTest(&disabled)
+	agent.Default()
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	statusManager := status.NewAgentStatusManager(mockClient, record.NewFakeRecorder(10))
+	b := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
+
+	sc := b.getSecurityContext()
+
+	require.NotNil(t, sc)
+	require.NotNil(t, sc.Privileged)
+	assert.True(t, *sc.Privileged, "root mode: Privileged should be true")
+	assert.Nil(t, sc.Capabilities, "root mode: Capabilities should not be set")
+	assert.Nil(
+		t,
+		sc.AllowPrivilegeEscalation,
+		"root mode: AllowPrivilegeEscalation should not be set",
+	)
+}
+
+func TestGetSecurityContext_RootMode_Default_WhenNonRootNotSet(t *testing.T) {
+	// nonRoot field not set at all — nil pointer — should default to root mode
+	agent := baseAgentForSecurityContextTest(nil)
+	agent.Default()
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	statusManager := status.NewAgentStatusManager(mockClient, record.NewFakeRecorder(10))
+	b := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
+
+	sc := b.getSecurityContext()
+
+	require.NotNil(t, sc)
+	require.NotNil(t, sc.Privileged)
+	assert.True(t, *sc.Privileged, "unset nonRoot: Privileged should be true (default root mode)")
+	assert.Nil(t, sc.Capabilities, "unset nonRoot: Capabilities should not be set")
+}
+
+func TestGetSecurityContext_NonRootMode_Capabilities(t *testing.T) {
+	enabled := true
+	agent := baseAgentForSecurityContextTest(&enabled)
+	agent.Default()
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	statusManager := status.NewAgentStatusManager(mockClient, record.NewFakeRecorder(10))
+	b := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
+
+	sc := b.getSecurityContext()
+
+	require.NotNil(t, sc)
+
+	// Privileged must be false
+	require.NotNil(t, sc.Privileged)
+	assert.False(t, *sc.Privileged, "non-root mode: Privileged should be false")
+
+	// AllowPrivilegeEscalation must be true (required for setpriv --ambient-caps)
+	require.NotNil(t, sc.AllowPrivilegeEscalation)
+	assert.True(
+		t,
+		*sc.AllowPrivilegeEscalation,
+		"non-root mode: AllowPrivilegeEscalation should be true",
+	)
+
+	// Capabilities.Drop must not be set
+	require.NotNil(t, sc.Capabilities)
+	assert.Nil(t, sc.Capabilities.Drop, "non-root mode: Capabilities.Drop should not be set")
+
+	// Exactly the 15 capabilities from the docker run command — hardcoded ground truth
+	expectedCaps := []corev1.Capability{
+		"AUDIT_WRITE", "DAC_READ_SEARCH", "DAC_OVERRIDE", "FOWNER", "KILL",
+		"NET_ADMIN", "NET_RAW", "SETPCAP", "SETUID", "SETGID",
+		"SYS_ADMIN", "SYS_CHROOT", "SYS_PTRACE", "SYS_RESOURCE", "SYSLOG",
+	}
+	assert.Len(t, sc.Capabilities.Add, 15, "non-root mode: exactly 15 capabilities required")
+	assert.ElementsMatch(t, expectedCaps, sc.Capabilities.Add)
+}
+
+func TestBuild_SecurityContext_InDaemonSet_RootMode(t *testing.T) {
+	disabled := false
+	agent := baseAgentForSecurityContextTest(&disabled)
+	agent.Default()
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	statusManager := status.NewAgentStatusManager(mockClient, record.NewFakeRecorder(10))
+	b := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
+
+	ds := b.build()
+	require.Len(t, ds.Spec.Template.Spec.Containers, 1)
+	sc := ds.Spec.Template.Spec.Containers[0].SecurityContext
+
+	require.NotNil(t, sc)
+	assert.True(t, *sc.Privileged)
+	assert.Nil(t, sc.Capabilities)
+}
+
+func TestBuild_SecurityContext_InDaemonSet_NonRootMode(t *testing.T) {
+	enabled := true
+	agent := baseAgentForSecurityContextTest(&enabled)
+	agent.Default()
+
+	mockClient := &mocks.MockInstanaAgentClient{}
+	statusManager := status.NewAgentStatusManager(mockClient, record.NewFakeRecorder(10))
+	b := NewDaemonSetBuilder(agent, false, statusManager, false).(*daemonSetBuilder)
+
+	ds := b.build()
+	require.Len(t, ds.Spec.Template.Spec.Containers, 1)
+	sc := ds.Spec.Template.Spec.Containers[0].SecurityContext
+
+	require.NotNil(t, sc)
+	assert.False(t, *sc.Privileged)
+	assert.True(t, *sc.AllowPrivilegeEscalation)
+	require.NotNil(t, sc.Capabilities)
+	assert.Len(t, sc.Capabilities.Add, 15)
 }

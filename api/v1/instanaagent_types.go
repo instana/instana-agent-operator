@@ -197,6 +197,8 @@ func (in *InstanaAgent) Default() {
 	// Set default value for useSecretMounts to true for all instances
 	// This is more secure as it prevents secrets from being exposed in the environment
 	optional.ValueOrDefault(&in.Spec.UseSecretMounts, pointer.To(true))
+
+	optional.ValueOrDefault(&in.Spec.Agent.NonRoot.Enabled, pointer.To(false))
 }
 
 // +kubebuilder:object:root=true

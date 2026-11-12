@@ -139,6 +139,7 @@ func (d *daemonSetBuilder) getEnvVars() []corev1.EnvVar {
 		env.K8sServiceDomainEnv,
 		env.EnableAgentSocketEnv,
 		env.NamespacesDetailsPathEnv,
+		env.InstanaAgentNonRootEnv,
 	)
 
 	// Create a map to track environment variables by name to ensure no duplicates
@@ -252,6 +253,47 @@ func (d *daemonSetBuilder) getTolerations() []corev1.Toleration {
 		return d.zone.Tolerations
 	}
 }
+
+// nonRootCapabilities is the exact set of Linux capabilities required by the agent
+// when running in non-root mode, mirroring the --cap-add flags in the docker run command.
+var nonRootCapabilities = []corev1.Capability{
+	"AUDIT_WRITE",
+	"DAC_READ_SEARCH",
+	"DAC_OVERRIDE",
+	"FOWNER",
+	"KILL",
+	"NET_ADMIN",
+	"NET_RAW",
+	"SETPCAP",
+	"SETUID",
+	"SETGID",
+	"SYS_ADMIN",
+	"SYS_CHROOT",
+	"SYS_PTRACE",
+	"SYS_RESOURCE",
+	"SYSLOG",
+}
+
+func (d *daemonSetBuilder) getSecurityContext() *corev1.SecurityContext {
+	if pointer.DerefOrDefault(d.Spec.Agent.NonRoot.Enabled, false) {
+		// Non-root mode: drop privileged, grant explicit capabilities.
+		// AllowPrivilegeEscalation must be true so that setpriv --ambient-caps
+		// in launch-agent.sh can promote capabilities to the ambient set and
+		// have them survive exec into the non-root JVM process.
+		return &corev1.SecurityContext{
+			Privileged:               pointer.To(false),
+			AllowPrivilegeEscalation: pointer.To(true),
+			Capabilities: &corev1.Capabilities{
+				Add: nonRootCapabilities,
+			},
+		}
+	}
+	// Root mode (default): privileged container, unchanged from existing behaviour.
+	return &corev1.SecurityContext{
+		Privileged: pointer.To(true),
+	}
+}
+
 func (d *daemonSetBuilder) getLivenessProbe() *corev1.Probe {
 	// If user provided a custom liveness probe, use it
 	if d.Spec.Agent.Pod.LivenessProbe != nil {
@@ -314,12 +356,10 @@ func (d *daemonSetBuilder) build() *appsv1.DaemonSet {
 							ImagePullPolicy: d.Spec.Agent.PullPolicy,
 							VolumeMounts:    append(volumeMounts, userVolumeMounts...),
 							Env:             d.getEnvVars(),
-							SecurityContext: &corev1.SecurityContext{
-								Privileged: pointer.To(true),
-							},
-							LivenessProbe: d.getLivenessProbe(),
-							Resources:     d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
-							Ports:         d.portsBuilder.GetContainerPorts(),
+							SecurityContext: d.getSecurityContext(),
+							LivenessProbe:   d.getLivenessProbe(),
+							Resources:       d.Spec.Agent.Pod.ResourceRequirements.GetOrDefault(),
+							Ports:           d.portsBuilder.GetContainerPorts(),
 						},
 					},
 					Tolerations: d.getTolerations(),
