@@ -75,6 +75,7 @@ const (
 	ControlPlaneCAFileEnv
 	RestClientHostAllowlistEnv
 	CrdMonitoring
+	InstanaAgentNonRootEnv
 )
 
 type EnvBuilder interface {
@@ -129,7 +130,8 @@ func (e *envBuilder) isSecret(envVar EnvVar) bool {
 		InstanaAgentPodNameEnv, PodNameEnv, PodIPEnv, PodUIDEnv, PodNamespaceEnv,
 		K8sServiceDomainEnv, EnableAgentSocketEnv, NamespacesDetailsPathEnv, NodeNameEnv,
 		InstanaOpenTelemetryGRPCEnabled, InstanaOpenTelemetryGRPCPort,
-		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort, CrdMonitoring:
+		InstanaOpenTelemetryHTTPEnabled, InstanaOpenTelemetryHTTPPort, CrdMonitoring,
+		InstanaAgentNonRootEnv:
 		return false
 	default:
 		return false
@@ -310,6 +312,11 @@ func (e *envBuilder) build(envVar EnvVar) *corev1.EnvVar {
 			)
 		}
 		return nil
+	case InstanaAgentNonRootEnv:
+		return boolToEnvVar(
+			"INSTANA_AGENT_NON_ROOT",
+			pointer.DerefOrDefault(e.agent.Spec.Agent.NonRoot.Enabled, false),
+		)
 	default:
 		panic(errors.New("unknown environment variable requested"))
 	}

@@ -396,4 +396,104 @@ func TestDaemonSetBuilder_NodeNameCanBeOverridden(t *testing.T) {
 	assert.Nil(t, nodeNameValueFrom, "Custom NODE_NAME should use direct value, not ValueFrom")
 }
 
+func TestDaemonSetBuilder_NonRootEnvVar_EnabledTrue(t *testing.T) {
+	enabled := true
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+				NonRoot:      instanav1.NonRootSpec{Enabled: &enabled},
+			},
+			Cluster: instanav1.Name{Name: "test-cluster"},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	obj := NewDaemonSetBuilder(agent, false, statusManager, false).Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+	ds := obj.Get().(*appsv1.DaemonSet)
+
+	foundNonRoot := false
+	for _, env := range ds.Spec.Template.Spec.Containers[0].Env {
+		if env.Name == "INSTANA_AGENT_NON_ROOT" {
+			foundNonRoot = true
+			assert.Equal(t, "true", env.Value)
+		}
+	}
+	assert.True(
+		t,
+		foundNonRoot,
+		"INSTANA_AGENT_NON_ROOT=true should be present when nonRoot.enabled=true",
+	)
+}
+
+func TestDaemonSetBuilder_NonRootEnvVar_EnabledFalse(t *testing.T) {
+	disabled := false
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+				NonRoot:      instanav1.NonRootSpec{Enabled: &disabled},
+			},
+			Cluster: instanav1.Name{Name: "test-cluster"},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	obj := NewDaemonSetBuilder(agent, false, statusManager, false).Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+	ds := obj.Get().(*appsv1.DaemonSet)
+
+	for _, env := range ds.Spec.Template.Spec.Containers[0].Env {
+		assert.NotEqual(t, "INSTANA_AGENT_NON_ROOT", env.Name,
+			"INSTANA_AGENT_NON_ROOT should NOT be present when nonRoot.enabled=false")
+	}
+}
+
+func TestDaemonSetBuilder_NonRootEnvVar_NotSet(t *testing.T) {
+	// nonRoot field not set at all — defaults to false, env var should not appear
+	agent := &instanav1.InstanaAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-agent",
+			Namespace: "test-namespace",
+		},
+		Spec: instanav1.InstanaAgentSpec{
+			Agent: instanav1.BaseAgentSpec{
+				Key:          "test-key",
+				EndpointHost: "test-host",
+				EndpointPort: "test-port",
+			},
+			Cluster: instanav1.Name{Name: "test-cluster"},
+		},
+	}
+
+	statusManager := status.NewAgentStatusManager(nil, nil)
+	obj := NewDaemonSetBuilder(agent, false, statusManager, false).Build()
+	if !obj.IsPresent() {
+		t.Fatal("Expected DaemonSet to be built")
+	}
+	ds := obj.Get().(*appsv1.DaemonSet)
+
+	for _, env := range ds.Spec.Template.Spec.Containers[0].Env {
+		assert.NotEqual(t, "INSTANA_AGENT_NON_ROOT", env.Name,
+			"INSTANA_AGENT_NON_ROOT should NOT be present when nonRoot is unset")
+	}
+}
+
 // Made with Bob
