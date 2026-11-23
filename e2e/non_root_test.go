@@ -52,8 +52,8 @@ func TestNonRootMode(t *testing.T) {
 		Assess("wait for k8sensor deployment to become ready", WaitForDeploymentToBecomeReady(K8sensorDeploymentName)).
 		Assess("wait for agent daemonset to become ready", WaitForAgentDaemonSetToBecomeReady()).
 		Assess("verify daemonset security context has capabilities not privileged", ValidateNonRootSecurityContext()).
-		Assess("verify INSTANA_AGENT_NON_ROOT env var is set to true", ValidateNonRootEnvVar()).
 		Assess("check agent log for successful connection", WaitForAgentSuccessfulBackendConnection()).
+		Assess("verify INSTANA_AGENT_NON_ROOT env var is set to true", ValidateNonRootEnvVar()).
 		Feature()
 
 	testEnv.Test(t, nonRootFeature)
