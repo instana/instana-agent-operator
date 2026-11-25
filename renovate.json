@@ -11,15 +11,7 @@
   "rebaseWhen": "behind-base-branch",
   "dependencyDashboard": true,
   "baseBranchPatterns": [
-    "main",
-    "/^release-\\d+\\.\\d+$/"
-  ],
-  "packageRules": [
-    {
-      "matchBaseBranches": ["/^release-\\d+\\.\\d+$/"],
-      "matchUpdateTypes": ["major"],
-      "enabled": false
-    }
+    "main"
   ],
   "customManagers": [
     {

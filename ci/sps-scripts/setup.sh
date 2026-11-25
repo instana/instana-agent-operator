@@ -10,7 +10,15 @@ echo "===== setup.sh - start ====="
 # see: https://cloud.ibm.com/docs/ContinuousDelivery?topic=ContinuousDelivery-tekton-pipelines&interface=ui#configure_triggering_events
 
 echo "Installing dependencies"
-source $WORKSPACE/$APP_REPO_FOLDER/installGolang.sh amd64
+if [[ -f "./installGolang.sh" ]]; then
+    source ./installGolang.sh amd64
+elif [[ -n "${SOURCE_DIRECTORY:-}" && -f "${SOURCE_DIRECTORY}/installGolang.sh" ]]; then
+    source "${SOURCE_DIRECTORY}/installGolang.sh" amd64
+elif [[ -n "${APP_REPO_FOLDER:-}" && -f "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" ]]; then
+    source "${WORKSPACE}/${APP_REPO_FOLDER}/installGolang.sh" amd64
+elif [[ -n "${PIPELINE_CONFIG_REPO_PATH:-}" && -f "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" ]]; then
+    source "${WORKSPACE}/${PIPELINE_CONFIG_REPO_PATH}/installGolang.sh" amd64
+fi
 export PATH=$PATH:/usr/local/go/bin
 
 echo "=== Installing kubectl ==="

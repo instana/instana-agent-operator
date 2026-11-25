@@ -36,6 +36,72 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
+func TestDeploymentBuilder_configPathPrecedence(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		podEnv  []corev1.EnvVar
+		legacy  string
+		current string
+	}{
+		{name: "defaults", legacy: volume.RemoteConfigDirectory, current: volume.RemoteConfigDirectory},
+		{
+			name: "legacy override", podEnv: []corev1.EnvVar{{Name: "CONFIG_PATH", Value: "/legacy"}},
+			legacy: "/legacy", current: "/legacy",
+		},
+		{
+			name: "new override", podEnv: []corev1.EnvVar{{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/new"}},
+			legacy: volume.RemoteConfigDirectory, current: "/new",
+		},
+		{
+			name: "both overrides",
+			podEnv: []corev1.EnvVar{
+				{Name: "INSTANA_AGENT_CONFIG_PATH", Value: "/new"},
+				{Name: "CONFIG_PATH", Value: "/legacy"},
+			},
+			legacy: "/legacy", current: "/new",
+		},
+		{
+			name: "last legacy override wins",
+			podEnv: []corev1.EnvVar{
+				{Name: "CONFIG_PATH", Value: "/first"},
+				{Name: "CONFIG_PATH", Value: "/last"},
+			},
+			legacy: "/last", current: "/last",
+		},
+		{
+			name: "explicit empty override wins",
+			podEnv: []corev1.EnvVar{
+				{Name: "CONFIG_PATH", Value: "/first"},
+				{Name: "CONFIG_PATH", Value: ""},
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			agent := &instanav1.InstanaAgentRemote{Spec: instanav1.InstanaAgentRemoteSpec{
+				Agent: instanav1.BaseAgentSpec{Pod: instanav1.AgentPodSpec{Env: test.podEnv}},
+			}}
+			builder := &deploymentBuilder{
+				InstanaAgentRemote: agent,
+				EnvBuilderRemote:   env.NewEnvBuilderRemote(agent, nil),
+				RemoteHelpers:      helpers.NewRemoteHelpers(agent),
+			}
+			values := make(map[string]corev1.EnvVar)
+			for _, value := range builder.getEnvVars() {
+				require.NotContains(t, values, value.Name)
+				values[value.Name] = value
+			}
+			require.Equal(
+				t,
+				corev1.EnvVar{Name: "CONFIG_PATH", Value: test.legacy},
+				values["CONFIG_PATH"],
+			)
+			require.Equal(t, corev1.EnvVar{
+				Name: "INSTANA_AGENT_CONFIG_PATH", Value: test.current,
+			}, values["INSTANA_AGENT_CONFIG_PATH"])
+		})
+	}
+}
+
 func TestDeploymentBuilder_getPodTemplateLabels(t *testing.T) {
 	for _, test := range []struct {
 		name              string
@@ -166,6 +232,7 @@ func TestDeploymentBuilder_getBaseEnvVars(t *testing.T) {
 		env.ListenAddressEnvRemote,
 		env.RedactK8sSecretsEnvRemote,
 		env.ConfigPathEnvRemote,
+		env.InstanaAgentConfigPathEnvRemote,
 		env.EntrypointSkipBackendTemplateGenerationRemote,
 		env.InstanaAgentKeyEnvRemote,
 		env.DownloadKeyEnvRemote,
