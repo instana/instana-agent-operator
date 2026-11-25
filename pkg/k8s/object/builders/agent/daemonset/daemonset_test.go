@@ -326,6 +326,7 @@ func TestDaemonSetBuilder_getEnvVarsWithPodEnv(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
+		mock.Anything,
 	).Return(baseEnvVars)
 
 	// Create agent with pod.env
