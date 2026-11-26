@@ -154,6 +154,10 @@ type BaseAgentSpec struct {
 	// +kubebuilder:validation:Optional
 	ServiceMesh ServiceMeshSpec `json:"serviceMesh,omitempty"`
 
+	// NonRoot configures the agent to run as a non-root user.
+	// +kubebuilder:validation:Optional
+	NonRoot NonRootSpec `json:"nonRoot,omitempty"`
+
 	// Override for the Maven repository URL when the Agent needs to connect to a locally provided Maven repository 'proxy'
 	// Alternative to `Host` for referencing a different Maven repo.
 	// +kubebuilder:validation:Optional
@@ -305,6 +309,11 @@ type HostSpec struct {
 type ServiceMeshSpec struct {
 	// +kubebuilder:validation:Optional
 	Enabled bool `json:"enabled,omitempty"`
+}
+
+type NonRootSpec struct {
+	// +kubebuilder:validation:Optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type Prometheus struct {
